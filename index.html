@@ -13,6 +13,7 @@
 <meta name="theme-color" content="#DCD5C4">
 <meta name="color-scheme" content="light">
 <link rel="preload" href="bg.jpg" as="image">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
   :root{
     /* the background: Marta's gradient image (bg.jpg) */
@@ -369,6 +370,7 @@
     width:min(460px,100%);background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);
     padding:32px 24px 24px;display:flex;flex-direction:column;gap:18px;margin:auto 0;
   }
+  .onb-h:focus{outline:none;}
   .onb-h{margin:0;font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.08;color:var(--olive-700);}
   .onb-p{margin:-6px 0 0;font-size:var(--fs-body);color:var(--muted);line-height:1.45;}
   .onb-cta{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
@@ -704,6 +706,12 @@
   .sheet-body.enter > :nth-child(6){animation-delay:150ms;}
   .sheet-body.enter > :nth-child(7){animation-delay:180ms;}
   .sheet-body.enter > :nth-child(8){animation-delay:210ms;}
+
+  /* small controls keep their size on screen but take a 44px tap */
+  .buy-chip, .chip button.x, .tip button, .locked-rule, .suggest button, .have-chip{position:relative;}
+  .buy-chip::after, .chip button.x::after, .tip button::after, .locked-rule::after, .suggest button::after{
+    content:"";position:absolute;left:50%;top:50%;width:max(100%, 44px);height:max(100%, 44px);translate:-50% -50%;
+  }
 
   /* ---------- micro-interactions ---------- */
   .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}
@@ -1553,6 +1561,7 @@ function addForm(key, opts){
     let el;
     if(field.type==="select"){
       el = document.createElement("select");
+      el.setAttribute("aria-label", field.label || (field.name==="cat" ? "Food group" : field.name));
       field.options.forEach(([v,label])=>{
         const o = document.createElement("option");
         o.value = v; o.textContent = label;
@@ -1563,6 +1572,7 @@ function addForm(key, opts){
       el = document.createElement("input");
       el.type = "text";
       el.placeholder = field.placeholder || "";
+      el.setAttribute("aria-label", field.placeholder || field.name);
       el.value = st.values[field.name] || "";
       el.addEventListener("keydown", e=>{ if(e.key==="Enter") submit(); });
     }
@@ -3277,6 +3287,8 @@ function openOnboarding(step, opts){
   el.hidden = false;
   document.getElementById("onbClose").hidden = !P.onboarded;   // a re-run can be left; a first run can't
   renderOnb();
+  const first = document.querySelector("#onbCard input") || document.getElementById("onbTitle");
+  if(first) first.focus({preventScroll:true});
 }
 function closeOnboarding(){
   document.getElementById("onboarding").hidden = true;
@@ -3313,8 +3325,10 @@ function goStep(n, sub){
     if(!calm()) card.animate([{transform:`translateX(${onb.dir*36}px)`, opacity:0}, {transform:"none", opacity:1}],
                              {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
     else card.animate([{opacity:0},{opacity:1}], {duration:180});
-    const f = card.querySelector("input, .wheel-list, button.pill");
-    if(f && f.tagName==="INPUT") f.focus({preventScroll:true});
+    const f = card.querySelector("input");
+    const title = card.querySelector("#onbTitle");
+    if(f) f.focus({preventScroll:true});
+    else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
   };
   rushSky();
   if(calm()){ swap(); return; }
@@ -3340,7 +3354,7 @@ function renderOnb(){
 }
 /* a headline, an optional line, then the step's own content and buttons */
 function onbHead(card, title, line){
-  card.insertAdjacentHTML("beforeend", `<h1 class="onb-h" id="onbTitle">${title}</h1>` + (line ? `<p class="onb-p">${line}</p>` : ""));
+  card.insertAdjacentHTML("beforeend", `<h1 class="onb-h" id="onbTitle" tabindex="-1">${title}</h1>` + (line ? `<p class="onb-p">${line}</p>` : ""));
 }
 function onbCta(card, label, onNext, opts){
   const o = opts || {};
@@ -3702,6 +3716,11 @@ document.getElementById("varietyHome").addEventListener("click", ()=>showSheet("
 document.getElementById("profileBtn").addEventListener("click", ()=>showSheet("settings"));
 document.getElementById("tipClose").addEventListener("click", ()=>{ state.tipDismissed = todayISO(); save(); renderHome(); });
 if(!state.profile.onboarded) openOnboarding();
+/* offline: register the service worker once the page has settled (never on
+   file://, never during tests) */
+if("serviceWorker" in navigator && location.protocol.startsWith("http") && !/[?&]test\b/.test(location.search)){
+  (window.requestIdleCallback || (f=>setTimeout(f, 1500)))(()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
   state.groceryFilter = b.dataset.w; save(); renderKitchen();
 }));
