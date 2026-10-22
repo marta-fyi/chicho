@@ -225,18 +225,31 @@
   .ring svg{transform:rotate(-90deg);}
   .ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;}
 
-  .grocery-cat{margin-bottom:6px;}
-  .grocery-cat h3{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:14px 0 6px;}
-  .grocery-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed var(--line);}
-  .grocery-row:first-of-type{border-top:none;}
-  .grocery-row input[type=checkbox]{width:19px;height:19px;accent-color:var(--good);}
-  .grocery-row .rowmain{flex:1;min-width:0;}
-  .grocery-row label{font-size:14.5px;display:block;}
-  .grocery-row .day-badge{font-size:11px;color:var(--muted);display:block;margin-top:1px;}
-  .grocery-row.checked label{color:var(--muted);text-decoration:line-through;}
-  .grocery-row.checked .day-badge{text-decoration:line-through;}
-  .grocery-row .amt{font-size:12.5px;color:var(--muted);white-space:nowrap;}
-
+  /* ---------- kitchen ---------- */
+  .kitchen-sum{font-size:13px;color:var(--ink);margin:10px 0 0;}
+  .k-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line);min-height:52px;}
+  .k-row:first-child, .k-group + .k-row{border-top:none;}
+  #toBuyList > .k-group:first-child{margin-top:2px;}
+  .k-row > label{flex:1;min-width:0;display:flex;align-items:center;gap:10px;}
+  .k-row input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;accent-color:var(--good);margin:0;}
+  .k-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .k-name{font-size:14.5px;display:flex;align-items:center;gap:8px;}
+  .k-sub{font-size:12px;color:var(--muted);}
+  .k-sub.low{color:#b6493f;}
+  .k-amt{font-size:13.5px;font-weight:700;white-space:nowrap;}
+  .k-row.done .k-name{color:var(--muted);text-decoration:line-through;}
+  .k-qty{
+    flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;
+    min-height:36px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--ink);
+  }
+  .k-edit{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;}
+  .k-edit input{width:84px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px;}
+  .k-edit .k-unit{font-size:13px;color:var(--muted);}
+  .k-edit button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;color:var(--ink);min-height:36px;}
+  .k-edit button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .k-edit button.save{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .k-edit button.rm{color:#b6493f;margin-left:auto;}
+  .k-group{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:14px 0 2px;}
   .btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
   .btn{
     border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;
@@ -320,17 +333,20 @@
 
   <section class="page" id="page-kitchen" role="tabpanel" aria-labelledby="tab-kitchen">
   <div class="container">
-
     <div class="card">
-      <div class="section-title">🛒 Grocery list for this week</div>
-      <p class="subtle">Auto-added from every meal in your plan. Each item shows which day(s) it's needed — filter below to shop for just today or the next few days.</p>
-      <div class="chips" id="groceryFilterChips" style="margin-bottom:12px;"></div>
-      <div id="groceryList"></div>
-      <div id="groceryAdd"></div>
-      <div class="btnrow">
-        <button class="btn" onclick="uncheckAllGrocery()">Uncheck all</button>
-        <button class="btn" onclick="rebuildGrocery(true)">Rebuild from plan</button>
-      </div>
+      <div class="section-title">Kitchen</div>
+      <div class="chips" id="windowChips" role="group" aria-label="Shop for"></div>
+      <p class="kitchen-sum" id="kitchenSummary"></p>
+    </div>
+    <div class="card">
+      <div class="section-title" id="toBuyTitle">To buy</div>
+      <div id="toBuyList"></div>
+      <div id="extrasAdd"></div>
+    </div>
+    <div class="card">
+      <div class="section-title" id="homeTitle">At home</div>
+      <div id="homeList"></div>
+      <div id="homeAdd"></div>
     </div>
   </div>
   </section>
@@ -362,7 +378,7 @@
     <div class="btnrow">
       <button class="btn primary" onclick="startNewWeek()">Start new week</button>
     </div>
-    <p class="subtle" style="text-align:center;">Starting a new week saves this week's variety score to history, then clears "eaten" and grocery checkmarks. Your meal plan itself is kept.</p>
+    <p class="subtle" style="text-align:center;">Starting a new week saves this week's variety score to history, then clears "eaten" ticks and ticked extras. Your meal plan and what's at home are kept.</p>
   </div>
   </section>
 
@@ -417,9 +433,9 @@ const CATS = {
 
 const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const GROCERY_FILTERS = [
-  {key:"week",  label:"Whole week"},
   {key:"today", label:"Today"},
-  {key:"next3", label:"Next 3 days"}
+  {key:"next3", label:"Next 3 days"},
+  {key:"week",  label:"Week"}
 ];
 
 /* ---------- default variety checklist (master foods per category) ---------- */
@@ -658,7 +674,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 let state = loadState();
 
 function freshState(){
@@ -667,7 +683,8 @@ function freshState(){
     plan: defaultPlan(),
     variety: JSON.parse(JSON.stringify(DEFAULT_VARIETY)),
     manualCovered: {},   // { "protein::Salmon": true }
-    grocery: [],         // [{id,name,qty,cat,checked,manual,entries:[{day,qty}]}]
+    stock: {},           // what's at home: { "oatmeal": {name, g:number|null, plenty:bool} }
+    extras: [],          // non-food shopping: [{id, name, qty, checked}]
     groceryFilter: "week", // "week" | "today" | "next3"
     history: [],
     mascotPos: null,     // {x,y} in px once dragged, else the default corner
@@ -702,7 +719,22 @@ function migrate(saved){
 
   if(!s.manualCovered || typeof s.manualCovered!=="object") s.manualCovered = {};
   if(!Array.isArray(s.history)) s.history = [];
-  if(!Array.isArray(s.grocery)) s.grocery = [];
+  // stock and extras replace the stored grocery list (schema 5): extras keep
+  // their tick, and plan foods already ticked as bought count as at home
+  if(!s.stock || typeof s.stock!=="object" || Array.isArray(s.stock)) s.stock = {};
+  if(!Array.isArray(s.extras)) s.extras = [];
+  if(Array.isArray(saved.grocery) && !Array.isArray(saved.extras)){
+    saved.grocery.forEach(g=>{
+      if(!g || !g.name) return;
+      if(g.manual){ s.extras.push({id:g.id||uid(), name:g.name, qty:g.qty||"", checked:!!g.checked}); return; }
+      if(!g.checked) return;
+      const k = foodKey(g.name);
+      if(s.stock[k]) return;
+      const grams = (g.entries||[]).reduce((t,e)=>t+(gramsOf(e.qty)||0), 0);
+      s.stock[k] = {name:g.name, g: grams || null, plenty:false};
+    });
+  }
+  delete s.grocery;
   if(!GROCERY_FILTERS.some(f=>f.key===s.groceryFilter)) s.groceryFilter = "week";
 
   const p = s.mascotPos;
@@ -723,10 +755,6 @@ function migrate(saved){
 
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
-/* Pre-`entries` grocery items can't be day-filtered, so resync them from the plan. */
-if(state.grocery.length===0 || state.grocery.some(g=>!g.manual && !Array.isArray(g.entries))){
-  rebuildGrocery(false);
-}
 
 /* ---------- collapsible add form ----------
    One "+ Add" button that expands into its fields. Open state and typed values
@@ -925,39 +953,6 @@ function renderDayContent(){
 }
 
 /* ---------- GROCERY ---------- */
-function rebuildGrocery(userTriggered){
-  const totals = {}; // key: name lower -> {name, cat, entries:[{day,qty}]}
-  state.plan.days.forEach(day=>{
-    day.meals.forEach(m=>{
-      m.items.forEach(item=>{
-        const key = item.name.trim().toLowerCase();
-        if(!totals[key]){
-          totals[key] = { name:item.name, cat:item.cats[0], entries:[] };
-        }
-        totals[key].entries.push({ day: day.name, qty: item.qty||"" });
-      });
-    });
-  });
-  // preserve manual extras + checked state where names match
-  const prevChecked = {};
-  (state.grocery||[]).forEach(g=>{ if(g.checked) prevChecked[g.name.trim().toLowerCase()] = true; });
-  const manualExtras = (state.grocery||[]).filter(g=>g.manual);
-
-  const list = Object.values(totals).map(t=>({
-    id: uid(),
-    name: t.name,
-    qty: summarizeQty(t.entries.map(e=>e.qty)),
-    cat: t.cat,
-    entries: t.entries,
-    checked: !!prevChecked[t.name.trim().toLowerCase()],
-    manual:false
-  }));
-  manualExtras.forEach(e=> list.push(e));
-  state.grocery = list;
-  save();
-  if(userTriggered) renderGrocery();
-}
-
 /* ---------- grocery day filtering ---------- */
 function computeAllowedDays(filterKey){
   const todayIdx = new Date().getDay();
@@ -965,126 +960,233 @@ function computeAllowedDays(filterKey){
   if(filterKey==="next3") return new Set([DAY_ORDER[todayIdx], DAY_ORDER[(todayIdx+1)%7], DAY_ORDER[(todayIdx+2)%7]]);
   return null; // whole week = no filtering
 }
-function renderGroceryFilterChips(){
-  const wrap = document.getElementById("groceryFilterChips");
-  if(!wrap) return;
-  wrap.innerHTML = "";
-  GROCERY_FILTERS.forEach(opt=>{
-    const chip = document.createElement("div");
-    chip.className = "chip" + ((state.groceryFilter||"week")===opt.key ? " selected":"");
-    chip.style.cursor = "pointer";
-    chip.textContent = opt.label;
-    chip.addEventListener("click", ()=>{
-      state.groceryFilter = opt.key;
-      save();
-      renderGrocery();
-    });
-    wrap.appendChild(chip);
+/* ---------- KITCHEN: what to buy for the window, what's at home ----------
+   Only stock and extras are stored. What to buy is worked out on every
+   render: the plan's portions not yet eaten, on the window's days, minus
+   what's at home. Quantities count when they're in grams ("50 g"); a food
+   with no gram amount is just needed, or covered once it's at home. */
+function foodKey(name){ return String(name).trim().toLowerCase(); }
+function gramsOf(qty){
+  const m = String(qty||"").match(/^\s*(\d+(?:[.,]\d+)?)\s*g\b/i);
+  return m ? parseFloat(m[1].replace(",", ".")) : null;
+}
+function fmtG(g){ return Math.round(g) + " g"; }
+function shortDay(name){ return name.slice(0,3); }
+const CAT_ORDER = ["protein","vegetable","fruit","grain","fat","other"];
+
+function needOn(daySet){
+  const need = {};
+  state.plan.days.forEach(day=>{
+    if(daySet && !daySet.has(day.name)) return;
+    day.meals.forEach(m=>m.items.forEach(item=>{
+      if(item.eaten) return;
+      const k = foodKey(item.name);
+      const n = need[k] || (need[k] = {key:k, name:item.name, cat:item.cats[0]||"other", g:0, days:[]});
+      n.g += gramsOf(item.qty) || 0;
+      if(!n.days.includes(day.name)) n.days.push(day.name);
+    }));
   });
+  return need;
 }
 
-function summarizeQty(qtys){
-  if(qtys.length===0) return "";
-  if(qtys.length===1) return qtys[0];
-  const parsed = qtys.map(q=>{
-    const m = q.match(/^([\d.]+)\s*(\D*)$/);
-    return m ? {num:parseFloat(m[1]), unit:m[2].trim()} : null;
-  });
-  if(parsed.every(p=>p && !isNaN(p.num))){
-    const unit = parsed[0].unit;
-    if(parsed.every(p=>p.unit===unit)){
-      const total = parsed.reduce((s,p)=>s+p.num,0);
-      return `${total}${unit?(" "+unit):""} total (${qtys.length}x)`;
-    }
+/* grams still to buy (0 = covered); null = needed, no amount to go on */
+function toBuy(n){
+  const st = state.stock[n.key];
+  if(st && (st.plenty || st.g===null)) return 0;
+  if(n.g===0) return st && st.g>0 ? 0 : null;
+  return Math.max(0, Math.ceil(n.g - (st ? st.g : 0)));
+}
+
+/* walks the plan from today: the first day this food falls short, and the
+   last day it's needed at all */
+function shortfall(key){
+  const st = state.stock[key];
+  const measured = !(st && (st.plenty || st.g===null));
+  let left = st && measured ? st.g : 0, short = null, last = null;
+  for(const idx of dayDisplayOrder()){
+    const day = state.plan.days[idx];
+    let g = 0;
+    day.meals.forEach(m=>m.items.forEach(i=>{ if(!i.eaten && foodKey(i.name)===key) g += gramsOf(i.qty) || 0; }));
+    if(!g) continue;
+    last = day.name;
+    left -= g;
+    if(measured && !short && left < -0.5) short = day.name;
   }
-  return qtys.length + "x (" + qtys.join(" + ") + ")";
+  return {short, last};
 }
 
-function renderGroceryAdd(){
-  const wrap = document.getElementById("groceryAdd");
-  wrap.innerHTML = "";
-  wrap.appendChild(addForm("grocery", {
+function homeStatus(key){
+  const st = state.stock[key];
+  if(st.plenty) return {text:"plenty"};
+  const {short, last} = shortfall(key);
+  if(!last) return {text:"not in this week's plan"};
+  if(st.g===null) return {text:"needed this week"};
+  if(!short) return {text:"enough for the week"};
+  const today = short===DAY_ORDER[new Date().getDay()];
+  return {text: today ? "runs out today" : "runs out " + shortDay(short), low:true};
+}
+
+/* the earliest day anything in the week runs short */
+function coverage(){
+  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+  let first = Infinity;
+  Object.keys(needOn(null)).forEach(k=>{
+    const {short} = shortfall(k);   // nothing at home = short on the first day it's needed
+    if(short) first = Math.min(first, order.indexOf(short));
+  });
+  if(first===Infinity) return "everything's covered this week";
+  if(first===0) return "you need to shop today";
+  return "covered until " + shortDay(order[first-1]);
+}
+
+function addToStock(key, name, grams){
+  const st = state.stock[key];
+  if(grams===null) state.stock[key] = st || {name, g:null, plenty:false};
+  else state.stock[key] = {name, g:(st && st.g>0 ? st.g : 0) + grams, plenty:false};
+  save();
+}
+
+let editingStock = null;   // the At home row whose amount is open for editing
+
+function renderKitchen(){
+  const filter = state.groceryFilter || "week";
+  const chips = document.getElementById("windowChips");
+  chips.innerHTML = "";
+  GROCERY_FILTERS.forEach(opt=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip" + (filter===opt.key ? " selected" : "");
+    b.setAttribute("aria-pressed", String(filter===opt.key));
+    b.textContent = opt.label;
+    b.addEventListener("click", ()=>{ state.groceryFilter = opt.key; save(); renderKitchen(); });
+    chips.appendChild(b);
+  });
+
+  // to buy, for the chosen window
+  const need = needOn(computeAllowedDays(filter));
+  const buy = Object.values(need).map(n=>({n, amt:toBuy(n)})).filter(x=>x.amt===null || x.amt>0)
+    .sort((a,b)=>CAT_ORDER.indexOf(a.n.cat)-CAT_ORDER.indexOf(b.n.cat) || a.n.name.localeCompare(b.n.name));
+  const list = document.getElementById("toBuyList");
+  list.innerHTML = "";
+  let lastCat = null;
+  buy.forEach(({n, amt})=>{
+    if(n.cat!==lastCat){   // grouped like the shop's aisles
+      lastCat = n.cat;
+      const h = document.createElement("div");
+      h.className = "k-group";
+      h.textContent = (CATS[n.cat] && CATS[n.cat].label) || "Other";
+      list.appendChild(h);
+    }
+    const st = state.stock[n.key];
+    const row = document.createElement("div");
+    row.className = "k-row";
+    const color = CATS[n.cat]?.color || "#ccc";
+    const sub = [n.g ? "need " + fmtG(n.g) : "", st && st.g>0 ? "have " + fmtG(st.g) : "", n.days.map(shortDay).join(" · ")].filter(Boolean).join(" · ");
+    row.innerHTML = `<label><input type="checkbox">
+        <span class="k-main"><span class="k-name"><span class="tag-dot" style="background:${color}"></span>${n.name}</span>
+        <span class="k-sub">${sub}</span></span></label>
+      <span class="k-amt">${amt===null ? "buy" : "buy " + fmtG(amt)}</span>`;
+    row.querySelector("input").setAttribute("aria-label", "Bought " + n.name);
+    row.querySelector("input").addEventListener("change", ()=>{ addToStock(n.key, n.name, amt); renderKitchen(); });
+    list.appendChild(row);
+  });
+
+  // extras: things that aren't food, ticked off as they're bought
+  if(state.extras.length){
+    const h = document.createElement("div");
+    h.className = "k-group";
+    h.textContent = "Extras";
+    list.appendChild(h);
+  }
+  state.extras.forEach(x=>{
+    const row = document.createElement("div");
+    row.className = "k-row" + (x.checked ? " done" : "");
+    row.innerHTML = `<label><input type="checkbox" ${x.checked ? "checked" : ""}>
+        <span class="k-main"><span class="k-name">${x.name}</span>${x.qty ? `<span class="k-sub">${x.qty}</span>` : ""}</span></label>
+      <button class="icon-btn" aria-label="Remove ${x.name}">✕</button>`;
+    row.querySelector("input").addEventListener("change", e=>{ x.checked = e.target.checked; save(); renderKitchen(); });
+    row.querySelector("button").addEventListener("click", ()=>{ state.extras = state.extras.filter(y=>y!==x); save(); renderKitchen(); });
+    list.appendChild(row);
+  });
+  const label = GROCERY_FILTERS.find(f=>f.key===filter).label.toLowerCase();
+  if(!buy.length && !state.extras.length){
+    list.innerHTML = `<p class="empty">Nothing to buy for ${filter==="week" ? "the week" : label}.</p>`;
+  }
+  const buyCount = buy.length + state.extras.filter(x=>!x.checked).length;
+  document.getElementById("toBuyTitle").textContent = `To buy · ${buyCount}`;
+
+  const addX = document.getElementById("extrasAdd");
+  addX.innerHTML = "";
+  addX.appendChild(addForm("extras", {
     label: "Add extra item",
-    rerender: renderGrocery,
+    rerender: renderKitchen,
     fields: [
       {name:"name", type:"text", placeholder:"Extra item (e.g. diapers, bread)", full:true},
       {name:"qty",  type:"text", placeholder:"qty"}
     ],
     onSubmit: v=>{
       if(!v.name) return false;
-      state.grocery.push({id:uid(), name:v.name, qty:v.qty, cat:"other", checked:false, manual:true});
+      state.extras.push({id:uid(), name:v.name, qty:v.qty||"", checked:false});
       save();
     }
   }));
-}
 
-function uncheckAllGrocery(){
-  state.grocery.forEach(g=>g.checked=false);
-  save(); renderGrocery();
-}
-
-function renderGrocery(){
-  renderGroceryFilterChips();
-  renderGroceryAdd();
-  const filterKey = state.groceryFilter || "week";
-  const allowed = computeAllowedDays(filterKey);
-
-  const wrap = document.getElementById("groceryList");
-  wrap.innerHTML = "";
-  const groups = {};
-  let visibleCount = 0;
-
-  state.grocery.forEach(g=>{
-    const entries = g.entries || [];
-    // manual extras (no entries / not tied to a day) always show, regardless of filter
-    const matchingEntries = allowed ? entries.filter(e=>allowed.has(e.day)) : entries;
-    if(allowed && !g.manual && entries.length && matchingEntries.length===0) return; // not needed in this window
-    const key = g.cat || "other";
-    (groups[key] = groups[key]||[]).push({ g, matchingEntries });
-    visibleCount++;
-  });
-
-  const order = ["protein","vegetable","fruit","grain","fat","other"];
-  const labels = {...Object.fromEntries(Object.entries(CATS).map(([k,v])=>[k,v.label])), other:"Other"};
-
-  order.forEach(key=>{
-    if(!groups[key] || groups[key].length===0) return;
-    const cb = document.createElement("div");
-    cb.className = "grocery-cat";
-    cb.innerHTML = `<h3>${labels[key]}</h3>`;
-    groups[key].sort((a,b)=>a.g.name.localeCompare(b.g.name)).forEach(({g, matchingEntries})=>{
-      const row = document.createElement("div");
-      row.className = "grocery-row" + (g.checked?" checked":"");
-      const allDays = g.entries ? [...new Set(g.entries.map(e=>e.day))] : [];
-      const dayBadge = allDays.length ? allDays.map(d=>d.slice(0,3)).join(" · ") : "";
-      const displayQty = (allowed && g.entries && g.entries.length)
-        ? summarizeQty(matchingEntries.map(e=>e.qty))
-        : (g.qty||"");
-      row.innerHTML = `
-        <input type="checkbox" ${g.checked?"checked":""} data-id="${g.id}">
-        <div class="rowmain">
-          <label>${g.name}</label>
-          ${dayBadge? `<span class="day-badge">${dayBadge}</span>` : ""}
-        </div>
-        <span class="amt">${displayQty}</span>
-        <button class="icon-btn" data-del="${g.id}">✕</button>`;
-      row.querySelector("input").addEventListener("change", e=>{
-        g.checked = e.target.checked; save(); renderGrocery();
+  // at home: everything with something left, and how long it lasts
+  const home = Object.entries(state.stock).filter(([,st])=>st.plenty || st.g===null || st.g>0)
+    .sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  const hl = document.getElementById("homeList");
+  hl.innerHTML = "";
+  home.forEach(([key, st])=>{
+    const row = document.createElement("div");
+    row.className = "k-row";
+    if(editingStock===key){
+      row.innerHTML = `<div class="k-edit"><span class="k-name">${st.name}</span>
+          <input type="text" inputmode="decimal" aria-label="Amount of ${st.name} in grams" value="${st.g>0 ? Math.round(st.g) : ""}" placeholder="amount">
+          <span class="k-unit">g</span>
+          <button type="button" class="${st.plenty ? "on" : ""}" data-plenty aria-pressed="${st.plenty}">Plenty</button>
+          <button type="button" class="save" data-save>Save</button>
+          <button type="button" class="rm" data-rm>Remove</button></div>`;
+      const inp = row.querySelector("input");
+      row.querySelector("[data-plenty]").addEventListener("click", ()=>{ st.plenty = !st.plenty; save(); renderKitchen(); });
+      row.querySelector("[data-save]").addEventListener("click", ()=>{
+        const g = gramsOf(inp.value + " g");
+        if(g!==null){ st.g = g; st.plenty = false; }
+        editingStock = null; save(); renderKitchen();
       });
-      row.querySelector("[data-del]").addEventListener("click", ()=>{
-        state.grocery = state.grocery.filter(x=>x.id!==g.id);
-        save(); renderGrocery();
-      });
-      cb.appendChild(row);
-    });
-    wrap.appendChild(cb);
+      row.querySelector("[data-rm]").addEventListener("click", ()=>{ delete state.stock[key]; editingStock = null; save(); renderKitchen(); });
+      setTimeout(()=>inp.focus(), 0);
+    }else{
+      const status = homeStatus(key);
+      row.innerHTML = `<div class="k-main"><span class="k-name">${st.name}</span>
+          <span class="k-sub${status.low ? " low" : ""}">${status.text}</span></div>
+        <button type="button" class="k-qty" aria-label="Change how much ${st.name} you have">${st.plenty ? "plenty" : st.g===null ? "have" : fmtG(st.g)}</button>`;
+      row.querySelector(".k-qty").addEventListener("click", ()=>{ editingStock = key; renderKitchen(); });
+    }
+    hl.appendChild(row);
   });
+  if(!home.length) hl.innerHTML = `<p class="empty">Nothing logged at home yet: tick foods as you buy them.</p>`;
+  document.getElementById("homeTitle").textContent = `At home · ${home.length}`;
 
-  if(state.grocery.length===0){
-    wrap.innerHTML = `<p class="empty">No items yet — add foods to your meal plan first.</p>`;
-  } else if(visibleCount===0){
-    wrap.innerHTML = `<p class="empty">Nothing needed in this window — try "Whole week".</p>`;
-  }
+  const addH = document.getElementById("homeAdd");
+  addH.innerHTML = "";
+  addH.appendChild(addForm("home", {
+    label: "Add something you have",
+    rerender: renderKitchen,
+    fields: [
+      {name:"name", type:"text", placeholder:"Food (e.g. oatmeal)", full:true},
+      {name:"qty",  type:"text", placeholder:"amount in g (optional)"}
+    ],
+    onSubmit: v=>{
+      if(!v.name) return false;
+      const g = gramsOf((v.qty||"").replace(/\s*g\s*$/i,"") + " g");
+      const k = foodKey(v.name), st = state.stock[k];
+      state.stock[k] = {name: st ? st.name : v.name, g: g!==null ? g : (st ? st.g : null), plenty:false};
+      save();
+    }
+  }));
+
+  document.getElementById("kitchenSummary").textContent =
+    `${buyCount} to buy · ${home.length} at home · ${coverage()}`;
 }
 
 /* ---------- VARIETY ---------- */
@@ -1231,15 +1333,15 @@ function startNewWeek(){
   const overallPct = totalItems? Math.round(100*totalCovered/totalItems) : 0;
   state.history.push({ weekOf: state.weekStarted, overallPct });
 
-  // reset eaten flags + manual covers + grocery checks
+  // reset eaten flags + manual covers + ticked extras (stock stays: the food is still at home)
   state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>item.eaten=false)));
   state.manualCovered = {};
-  state.grocery.forEach(g=>g.checked=false);
+  state.extras.forEach(x=>x.checked=false);
   state.weekStarted = new Date().toISOString().slice(0,10);
 
   save();
   renderDayContent();
-  renderGrocery();
+  renderKitchen();
   renderVariety();
   alert("New week started! Last week's variety score (" + overallPct + "%) was saved to history.");
 }
@@ -1534,8 +1636,8 @@ function renderCreatePreview(){
   const note = document.createElement("p");
   note.className = "subtle";
   note.style.textAlign = "center";
-  note.textContent = "Applying replaces your meal plan and rebuilds the grocery list. "
-    + "Week history and your variety checklist are kept.";
+  note.textContent = "Applying replaces your meal plan; Kitchen works out what to buy from it. "
+    + "What's at home, week history and your variety checklist are kept.";
   wrap.appendChild(note);
 }
 
@@ -1543,17 +1645,15 @@ function applyDraft(){
   if(!draft) return;
   if(!confirm("Replace your current meal plan with this generated week? Eaten checkmarks will be cleared.")) return;
 
-  state.plan = draft;
+  state.plan = draft;   // stock and extras stay: the food at home doesn't change
   state.weekStarted = new Date().toISOString().slice(0,10);
-  rebuildGrocery(false);
-  state.grocery.forEach(g=>g.checked=false);
   save();
 
   draft = null;
   currentDay = dayDisplayOrder()[0];
   renderDayTabs();
   renderDayContent();
-  renderGrocery();
+  renderKitchen();
   renderVariety();
   renderCreate();
   goTo("plan");
@@ -1568,7 +1668,7 @@ const tabs = PAGES.map(p=>document.getElementById("tab-"+p));
 let pageIdx = -1;
 
 function renderPage(name){
-  if(name==="kitchen") renderGrocery();
+  if(name==="kitchen") renderKitchen();
   if(name==="variety") renderVariety();
   if(name==="create")  renderCreate();
 }
@@ -1720,7 +1820,7 @@ currentDay = dayDisplayOrder()[0];
 
 renderDayTabs();
 renderDayContent();
-renderGrocery();
+renderKitchen();
 renderVariety();
 renderCreate();
 initMascot();
