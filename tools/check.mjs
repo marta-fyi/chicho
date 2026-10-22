@@ -1,6 +1,7 @@
 // The build: `node tools/check.mjs`. Nothing ships unless this passes.
 // 1. lint: no hover anywhere (no :hover, no @media (hover…), no hover-based listeners)
 // 2. voice: none of the banned words in the app's source (lines marked "legacy:" convert old saves and may name old fields)
+//    and colour: no colour outside the token block (light and dark share every component)
 // 3. every tests/*.html page, in headless Chrome over the DevTools protocol, must end with "ALL PASS"
 // No dependencies: Node's http server and fetch, and the Chrome already on this Mac.
 import { createServer } from "node:http";
@@ -21,6 +22,18 @@ for (const f of SOURCES) {
   readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
     HOVER.forEach(re => { if (re.test(line)) fails.push(`lint  ${f}:${i + 1}  hover: ${line.trim().slice(0, 90)}`); });
     if (BANNED.test(line) && !/legacy:/.test(line)) fails.push(`voice ${f}:${i + 1}  "${line.match(BANNED)[0]}": ${line.trim().slice(0, 90)}`);
+  });
+}
+
+// 2b. colour: every colour is a token. After the token block in index.html's <style>, no hex, rgb() or hsl().
+{
+  const html = readFileSync(join(root, "index.html"), "utf8").split("\n");
+  let inStyle = false, afterTokens = false;
+  html.forEach((line, i) => {
+    if (/<style>/.test(line)) inStyle = true;
+    if (/<\/style>/.test(line)) inStyle = false;
+    if (/===== END TOKENS/.test(line)) { afterTokens = true; return; }
+    if (inStyle && afterTokens && /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(line)) fails.push(`lint  index.html:${i + 1}  colour outside the tokens: ${line.trim().slice(0, 90)}`);
   });
 }
 

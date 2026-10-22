@@ -153,7 +153,8 @@ const CONTENT = {
   },
   profileSheet:{
     title:"Profile", birthday:"Birthday and profile", offPlate:"Off the plate", priorities:"Priorities",
-    mealTimes:"Meal times", people:"People", replay:"Replay welcome"
+    mealTimes:"Meal times", people:"People", replay:"Replay welcome",
+    appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}
   },
   people:{
     title:"People",

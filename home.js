@@ -952,6 +952,18 @@ const SHEETS = {
       list.appendChild(r);
     });
     body.appendChild(list);
+    // Appearance: Auto follows the system; Light and Dark stay put (stored on this device)
+    const seg = document.createElement("div");
+    seg.className = "s-seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-labelledby", "segAppearance");
+    seg.innerHTML = `<span class="s-seg-l" id="segAppearance">${esc(say("profileSheet.appearance"))}</span><span class="s-seg-opts"></span>`;
+    ["auto","light","dark"].forEach(v=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.f = "appearance:" + v; b.textContent = say("profileSheet.appearanceOpts." + v);
+      b.setAttribute("aria-pressed", String((P.appearance || "auto")===v));
+      b.addEventListener("click", ()=>{ P.appearance = v; save(); applyTheme(v); haptic(); refreshSheetView(); });
+      seg.lastChild.appendChild(b);
+    });
+    body.appendChild(seg);
   },
   /* people: notes to self, and who else looks after {name}; numbers stay on this device */
   people(body){
@@ -1202,12 +1214,13 @@ async function renderSnapshot(){
    THE BROWSER: the tab title, a favicon of the next meal, the theme colour
    ==================================================================== */
 let currentTitle = "Chicho", faviconFood = null;
-const THEME = {dawn:"#E5D0BE", day:"#DBD3C6", golden:"#E3CFB1", evening:"#3D4662"};   // the top of the sky, per phase
+/* the browser's own chrome takes the theme's top colour: the paper, or the top of the night sky */
+function themeColor(){ return getComputedStyle(document.documentElement).getPropertyValue(document.documentElement.dataset.theme==="dark" ? "--night-top" : "--bg").trim(); }
 function updateChrome(){
   document.title = currentTitle;
   const meta = document.querySelector('meta[name="theme-color"]');
-  const c = THEME[document.documentElement.dataset.tod] || THEME.day;
-  if(meta && meta.content!==c) meta.content = c;
+  const c = themeColor();
+  if(meta && c && meta.content!==c) meta.content = c;
   const nx = milkOnly() ? null : nextMeal(), food = nx && nx.m.items[0] ? foodOf(nx.m.items[0].name) : null;
   const id = food && hasArt(food) ? food.id : null;
   if(id!==faviconFood){ faviconFood = id; drawFavicon(food); }
@@ -1281,6 +1294,7 @@ function scheduleTick(){
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));
   currentDay = dayDisplayOrder()[0];
+  document.addEventListener("themechange", ()=>{ updateChrome(); });
   renderHome();
   watchFold();
   scheduleTick();
