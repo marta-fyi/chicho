@@ -1,5 +1,5 @@
 # Originals -> ink-only transparent drawings, re-centred on one shared square canvas at one shared scale.
-# Usage: /usr/bin/python3 tools/process-art.py ~/Downloads/illustrations img/food /tmp/art-report.json
+# Usage: /usr/bin/python3 tools/process-art.py "$HOME/Downloads/illustrations 2" img/food /tmp/art-report.json
 # A new drawing needs a line in IDS (file name -> id) and an entry in foods.js with files:true.
 import sys, os, json
 from PIL import Image, ImageChops
@@ -11,7 +11,12 @@ IDS = {"Avocado":"avocado","Banana":"banana","Blueberries, halved":"blueberries"
  "Pear, ripe":"pear","Peas":"peas","Plum, ripe":"plum","Potato":"potato","Pumpkin":"pumpkin","Quinoa":"quinoa",
  "Raspberries":"raspberries","Rice, soft-cooked":"rice","Salmon":"salmon","Smooth peanut butter":"peanut-butter",
  "Spinach, cooked":"spinach","Strawberries, sliced":"strawberries","Sweet potato":"sweet-potato","Tofu, soft":"tofu",
- "Turkey":"turkey","White fish":"white-fish","Whole wheat pasta":"pasta","Whole wheat toast":"toast","Zucchini":"zucchini"}
+ "Turkey":"turkey","White fish":"white-fish","Whole wheat pasta":"pasta","Whole wheat toast":"toast","Zucchini":"zucchini",
+ # second batch (22 Oct 2026)
+ "Apple":"apple","Baby rice cereal":"baby-rice","Beef meatballs":"meatballs","Beef":"beef","Beetroot":"beetroot",
+ "Butternut squash":"butternut-squash","Chia seeds":"chia","Chicken":"chicken","Chickpeas":"chickpeas","Cucumber":"cucumber",
+ "Egg":"egg","Grated cheese":"cheese","Kiwi":"kiwi","Lentils":"lentils","Olive oil":"olive-oil","Quartered grapes":"grapes",
+ "Ricotta":"ricotta","Tomato":"tomato"}
 CANVAS = 960            # biggest drawing (pasta, 932px) fits with a hair to spare
 INK = (10,10,10)        # --ink #0A0A0A
 report = {}

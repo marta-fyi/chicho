@@ -38,12 +38,12 @@ f.onload = async () => {
     ok("…with explicit width/height, async decoding and lazy loading", /width="150" height="150"/.test(html) && /decoding="async"/.test(html) && /loading="lazy"/.test(html), html);
     ok("small sizes use the 64px file", /banana-64\.webp 1x/.test(E("foodArt('banana', {size: 28})")));
     ok("alt='' hides the art from screen readers", /aria-hidden="true"/.test(E("foodArt('banana', {alt: ''})")) && /alt=""/.test(E("foodArt('banana', {alt: ''})")));
-    ok("a food with no drawing renders its emoji, labelled", /food-emoji[^>]*role="img" aria-label="Egg">🥚/.test(E("foodArt('egg')")), E("foodArt('egg')"));
+    ok("a food with no drawing renders its emoji, labelled", /food-emoji[^>]*role="img" aria-label="Milk">🍼/.test(E("foodArt('milk')")), E("foodArt('milk')"));
     ok("a held drawing (raspberries) renders its emoji", /food-emoji/.test(E("foodArt('raspberries')")));
     ok("an unknown food renders a plate", /🍽️/.test(E("foodArt('Dragon fruit')")));
-    ok("missing art is collected for the console warning", E("MISSING_ART.has('egg') && MISSING_ART.has('raspberries')"));
+    ok("missing art is collected for the console warning", E("MISSING_ART.has('milk') && MISSING_ART.has('raspberries')"));
     const hero = E("HERO_FOODS.filter(id => hasArt(foodOf(id)))");
-    ok("the welcome set has drawings for at least 5 foods", hero.length >= 5, hero);
+    ok("the whole welcome set is drawn (7 foods)", hero.length === 7, hero);
     // a broken drawing turns into its emoji
     const doc = w.document, box = doc.createElement("div");
     box.innerHTML = E("foodArt('banana', {size: 40})").replace(/banana-(64|192|384)\.(webp|png)/g, "nope.$2");
