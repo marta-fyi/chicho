@@ -39,7 +39,6 @@ const CONTENT = {
     tomorrow:"Tomorrow",
     earlier:"Earlier today",
     also:"While you're at it",
-    more:"More: this week and shopping",
     week:"This week",
     shop:{one:"{n} thing for the next 3 days", other:"{n} things for the next 3 days", none:"Nothing to pick up for the next 3 days."},
     variety:{label:"Variety", some:"A rainbow in progress", all:"A full rainbow.", legend:"Filled: offered this week."},

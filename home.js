@@ -504,7 +504,7 @@ function mealOpen(x, isDefault){
   pill.addEventListener("click", ()=>toggleOffered(x, true));
   acts.appendChild(pill);
   if(on && undo){
-    const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[x.key]; offerMeal(m, false); save(); announce(say("home.announce.unoffered", {meal:m.label})); homeChanged(); focusLater("offer:" + x.key); }, "inline");
+    const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[x.key]; offerMeal(m, false); save(); announce(say("home.announce.unoffered", {meal:m.label})); homeChanged(); focusLater("offer:" + x.key); }, "undo");
     u.dataset.f = "undo:" + x.key;
     acts.appendChild(u);
   }
@@ -677,7 +677,6 @@ function watchFold(){
   const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }), {threshold:.15});
   document.querySelectorAll(".below").forEach(s=>io.observe(s));
 }
-function showMore(){ const w = $("weekSec"); w.classList.add("in"); w.scrollIntoView({behavior:calm() ? "auto" : "smooth", block:"start"}); }
 
 /* a new week: the reveal, then "Love it" applies it */
 function setNextWeek(){ closeSheet(true); openOnboarding("reveal", {single:true}); }
@@ -1228,12 +1227,9 @@ function scheduleTick(){
   setText($("weekLabel"), say("home.week"));
   setText($("shopLabel"), say("shopSheet.title"));
   setText($("varLabel"), say("home.variety.label"));
-  $("moreBtn").setAttribute("aria-label", say("home.more"));
   $("sendBtn").addEventListener("click", ()=>openSheet("send", {}));
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));
-  $("moreBtn").addEventListener("click", showMore);
-  document.addEventListener("keydown", e=>{ if(e.key==="ArrowDown" && (document.activeElement===document.body || document.activeElement===$("headline")) && !sheetEl.open && $("onboarding").hidden){ e.preventDefault(); showMore(); } });
   currentDay = dayDisplayOrder()[0];
   renderHome();
   watchFold();

@@ -15,6 +15,15 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Phone first (Paper & Glow addendum)
+
+Chicho is designed, built and tested for 360–430px. Everything below supersedes the earlier desktop and wide-screen rules.
+
+- **One column.** 20px from each edge (or the safe area, whichever is larger), at most 430px wide; above that the same column is centred on the same background. No desktop layout, dialog, popover or test remains.
+- **Section order.** The open meal is followed directly by **Up next**, then "While you're at it", then "Earlier today", so Up next can peek at the bottom edge as the scroll hint. The "more" chevron is gone.
+- **The week strip vs the 8px rule.** Seven 44px targets in a 350px column leave 7px between them, so the strip is the one place targets sit closer than 8px (the brief asked for both; the 350px fit wins). Below a 350px column the gaps shrink further but the targets stay 44px.
+- **The sticky pill.** "Mark as offered" is one 48px bar, sticky at the bottom of the open meal. "Offered · Undo" splits the same bar into two buttons (no overlap, no change in size), so nothing shifts.
+
 ## How I read the ambiguous parts
 
 - **"Day finished" vs "after the last meal".** "That's today done." shows when every meal today was offered (or skipped). If the day ends with meals not offered, the headline is "{Meal} tomorrow around {time}." instead, so it never implies something was missed.

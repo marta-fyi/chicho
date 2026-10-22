@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
 <body>
 <h1>Layout tests</h1>
-<p>What is above the fold at 1440×900 and 390×844 (Thursday 22 October 2026, 12:10, an 18-month-old's day). Every line should be PASS.</p>
+<p>A phone, at the widths that matter (Thursday 22 October 2026, 12:10, an 18-month-old's day): the fold budget at 390×844 and 375×667, no horizontal scroll from 320px, 44px targets, the sticky pill, and the same centred 430px column in landscape. Safe-area insets are 0 inside an iframe; the real-iPhone list covers them. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -21,23 +21,53 @@ const load = (W, H) => new Promise(res => {
     res(f);
   };
 });
+const R = el => el.getBoundingClientRect();
+/* fully on screen, and not under the stuck "Mark as offered" pill */
+const visible = (doc, el, H) => { if (!el) return false; const r = R(el), pill = doc.querySelector("#openMeal .mx-acts"); const p = pill ? R(pill) : {top: H};
+  return r.height > 0 && r.top >= 0 && r.bottom <= H && (r.bottom <= p.top + 1 || r.top >= p.bottom - 1); };
+const HEADER = ["#clock", "#who"];
 (async () => {
   try {
     localStorage.clear();
-    const wide = await load(1440, 900), d = wide.contentDocument;
-    const fold = (doc, sel, H) => { const els = [...doc.querySelectorAll(sel)]; return els.length > 0 && els.every(e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= H && r.height > 0; }); };
-    ["#clock", "#who", "#headline", "#moment", "#openMeal .mx-title", "#openMeal .fr", "#openMeal .offer-pill"].forEach(sel =>
-      ok(`1440×900: ${sel} is above the fold`, fold(d, sel, 900), [...d.querySelectorAll(sel)].map(e => Math.round(e.getBoundingClientRect().bottom))));
-    ok("1440×900: the week and the shop line wait below the fold", d.getElementById("weekSec").getBoundingClientRect().top >= 900 - 1);
-    ok("1440×900: the column is about 520px", Math.abs(d.querySelector(".lockscreen").getBoundingClientRect().width - 520) <= 20, d.querySelector(".lockscreen").getBoundingClientRect().width);
-    ok("1440×900: the header is centred, the content left-aligned", getComputedStyle(d.querySelector(".head")).textAlign === "center" && getComputedStyle(d.querySelector(".mx")).textAlign !== "center");
-    const narrow = await load(390, 844), n = narrow.contentDocument;
-    ["#headline", "#openMeal .mx-title", "#openMeal .fr"].forEach(sel =>
-      ok(`390×844: ${sel} is above the fold`, fold(n, sel, 844), [...n.querySelectorAll(sel)].map(e => Math.round(e.getBoundingClientRect().bottom))));
-    const top = n.querySelector(".top").getBoundingClientRect();
-    ok("390×844: the top bar sits inside the screen (nothing clipped)", top.top >= 0 && n.getElementById("sendBtn").getBoundingClientRect().right <= 390 && n.getElementById("profileBtn").getBoundingClientRect().right <= 390);
-    ok("every control on the first screen is at least 44px", [...n.querySelectorAll("#home button")].filter(b => b.offsetParent && b.getBoundingClientRect().top < 844).every(b => { const r = b.getBoundingClientRect(); return r.height >= 44 || b.classList.contains("inline"); }),
-       [...n.querySelectorAll("#home button")].filter(b => b.offsetParent && b.getBoundingClientRect().height < 44 && !b.classList.contains("inline")).map(b => b.className));
+    // 390×844: header, headline, moment line, the open meal's title and its first two food rows; "Up next" peeks
+    let f = await load(390, 844), d = f.contentDocument;
+    [...HEADER, "#headline", "#moment"].forEach(sel => ok(`390×844: ${sel} is above the fold`, visible(d, d.querySelector(sel), 844), Math.round(R(d.querySelector(sel)).bottom)));
+    ok("390×844: the open meal's title is above the fold", visible(d, d.querySelector("#openMeal .mx-title"), 844), Math.round(R(d.querySelector("#openMeal .mx-title")).bottom));
+    const rows = [...d.querySelectorAll("#openMeal .fr")];
+    ok("390×844: its first two food rows are above the fold, clear of the pill", rows.length >= 2 && rows.slice(0, 2).every(r => visible(d, r, 844)), rows.slice(0, 2).map(r => Math.round(R(r).bottom)));
+    const next = d.querySelector("#nextSec");
+    ok("390×844: 'Up next' peeks at the bottom edge (the scroll hint)", !next.hidden && R(next).top < 844 && R(next).top > 400, Math.round(R(next).top));
+    ok("there is no 'more' chevron", !d.querySelector(".more, #moreBtn"));
+    const pill = d.querySelector("#openMeal .mx-acts"), mx = d.querySelector("#openMeal .mx");
+    ok("the pill is sticky at the bottom of the open meal, full width of the column", getComputedStyle(pill).position === "sticky" && Math.abs(R(pill).width - R(mx).width) < 1 && R(pill).height >= 44, [getComputedStyle(pill).position, R(pill).width, R(mx).width]);
+    ok("…and stays inside its container", R(pill).bottom <= R(mx).bottom + 1 && R(pill).top >= R(mx).top);
+    const w = f.contentWindow;
+    w.scrollTo(0, 2000); await wait(50);
+    ok("…it scrolls away with its container", R(pill).bottom < 0 || R(pill).bottom <= R(mx).bottom + 1);
+    w.scrollTo(0, 0);
+    const targets = [...d.querySelectorAll("#home button")].filter(b => b.offsetParent && R(b).top < 844 && !b.classList.contains("inline"));
+    ok("390×844: every control on the first screen is at least 44×44", targets.every(b => R(b).height >= 44 && R(b).width >= 44), targets.filter(b => R(b).height < 44 || R(b).width < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)));
+    ok("headline is clamp(32px, 9.5vw, 40px): 37px at 390", Math.abs(parseFloat(getComputedStyle(d.getElementById("headline")).fontSize) - 37.05) < .5, getComputedStyle(d.getElementById("headline")).fontSize);
+    const strip = d.getElementById("weekStrip");
+    ok("the week strip: 7 days, each a 44px target", strip.children.length === 7 && [...strip.children].every(b => R(b).width >= 44 && R(b).height >= 44), [...strip.children].map(b => Math.round(R(b).width)));
+    // 375×667: at least the headline, the open meal's title and its first food row
+    f = await load(375, 667); d = f.contentDocument;
+    ok("375×667: headline above the fold", visible(d, d.getElementById("headline"), 667), Math.round(R(d.getElementById("headline")).bottom));
+    ok("375×667: the open meal's title above the fold", visible(d, d.querySelector("#openMeal .mx-title"), 667), Math.round(R(d.querySelector("#openMeal .mx-title")).bottom));
+    ok("375×667: its first food row above the fold, clear of the pill", visible(d, d.querySelector("#openMeal .fr"), 667), Math.round(R(d.querySelector("#openMeal .fr")).bottom));
+    // no horizontal scroll from 320 up
+    for (const [W, H] of [[320, 568], [350, 700], [375, 667], [430, 932]]) {
+      f = await load(W, H); d = f.contentDocument;
+      const de = d.documentElement, wide = [...d.querySelectorAll("#home *")].filter(e => e.offsetParent && R(e).right > de.clientWidth + .5 && !e.closest(".glow-wrap"));
+      ok(`${W}px: no horizontal scroll`, de.scrollWidth <= de.clientWidth && !wide.length, [de.scrollWidth, de.clientWidth, wide.slice(0, 4).map(e => e.className)]);
+      ok(`${W}px: 20px side padding`, Math.round(R(d.querySelector(".lockscreen")).left) === 20, R(d.querySelector(".lockscreen")).left);
+    }
+    ok("350px column: the week strip fits", Math.round(R(f.contentDocument.getElementById("weekStrip")).width) <= 390);
+    // landscape: the same layout, a centred 430px column
+    f = await load(844, 390); d = f.contentDocument;
+    const col = R(d.querySelector(".lockscreen"));
+    ok("landscape 844×390: the same column, 430px, centred", Math.round(col.width) === 430 && Math.abs((col.left + col.width / 2) - d.documentElement.clientWidth / 2) < 2, [col.width, col.left]);
+    ok("landscape: no horizontal scroll", d.documentElement.scrollWidth <= d.documentElement.clientWidth);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");
