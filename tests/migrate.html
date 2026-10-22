@@ -24,7 +24,7 @@ f.onload = () => {
     const v4 = M({schemaVersion: 4, createAge: 10, plan: week(), excludedFoods: ["Broccoli", "Honey", "Added salt or sugar", "Whole nuts"],
       grocery: [{id: "a", name: "Oatmeal", cat: "grain", checked: true, manual: false, entries: [{day: "Monday", qty: "40 g"}, {day: "Tuesday", qty: "60 g"}]},
                 {id: "b", name: "Diapers", qty: "1 pack", cat: "other", checked: true, manual: true}]});
-    ok("schema becomes 6", v4.schemaVersion === 6, v4.schemaVersion);
+    ok("schema becomes 7", v4.schemaVersion === 7, v4.schemaVersion);
     ok("createAge 10 → birth date 10 months ago", w.ageMonths(v4.profile.birthDate) === 10, [v4.profile.birthDate, w.ageMonths(v4.profile.birthDate)]);
     ok("createAge and excludedFoods are gone", !("createAge" in v4) && !("excludedFoods" in v4), Object.keys(v4));
     ok("Broccoli becomes a dislike", JSON.stringify(v4.profile.avoid) === JSON.stringify([{name: "Broccoli", kind: "dislike"}]), v4.profile.avoid);

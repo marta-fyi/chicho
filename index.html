@@ -981,6 +981,13 @@ function timeOfDay(d){
 <script src="foods.js"></script>
 <script src="content.js"></script>
 <script>
+/* ---------- the clock ----------
+   Everything that depends on the time reads now(), never new Date(), so
+   tests (and ?now=2026-10-22T14:35 for screenshots) can set it. */
+let clockAt = (()=>{ const q = new URLSearchParams(location.search).get("now"); const d = q ? new Date(q) : null; return d && !isNaN(d) ? +d : null; })();
+function now(){ return clockAt===null ? new Date() : new Date(clockAt); }
+function setClock(d){ clockAt = d===null || d===undefined ? null : +new Date(d); }
+
 /* ---------- category meta ---------- */
 const CATS = {
   protein:   { label:"Proteins",          color:"var(--protein)"  },
@@ -1018,16 +1025,20 @@ const ALL_GROUPS = ["protein","vegetable","fruit","grain","fat"];
 const STAGES = [
   { id:"milk", from:0, to:5, solids:false, groups:[] },
   { id:"first", from:6, to:8, solids:true,
-    slots:["breakfast","lunch"], perMeal:2,
+    slots:["breakfast","lunch"], slotsFrom:{breakfast:7}, perMeal:2,   // lunch first; breakfast joins at 7 months
+    times:{breakfast:"08:00", lunch:"12:30"},
     portions:{protein:15, vegetable:20, fruit:20, grain:15, fat:5}, groups:ALL_GROUPS },
   { id:"textures", from:9, to:11, solids:true,
     slots:["breakfast","lunch","dinner"],
+    times:{breakfast:"08:00", lunch:"12:30", dinner:"18:30"},
     portions:{protein:25, vegetable:30, fruit:30, grain:30, fat:10}, groups:ALL_GROUPS },
   { id:"family", from:12, to:23, solids:true,
     slots:["breakfast","snack1","lunch","snack2","dinner"],
+    times:{breakfast:"08:00", snack1:"10:30", lunch:"12:30", snack2:"16:00", dinner:"19:00"},
     portions:{protein:35, vegetable:45, fruit:40, grain:40, fat:15}, groups:ALL_GROUPS },
   { id:"nearfamily", from:24, to:36, solids:true,
     slots:["breakfast","snack1","lunch","snack2","dinner"], picky:true,
+    times:{breakfast:"08:00", snack1:"10:30", lunch:"12:30", snack2:"16:00", dinner:"19:00"},
     portions:{protein:50, vegetable:60, fruit:55, grain:55, fat:20}, groups:ALL_GROUPS }
 ];
 STAGES.forEach(st=>Object.assign(st, CONTENT.stages[st.id]));
@@ -1065,6 +1076,11 @@ function textureFor(food, st){
   return form[st.id] || null;
 }
 
+/* the meal slots a stage serves at this exact age (6-month-olds start with lunch only) */
+function slotsFor(months){
+  const st = stageFor(months);
+  return (st.slots || []).filter(id=>!(st.slotsFrom && st.slotsFrom[id] > months));
+}
 function stageFor(months){ return STAGES.find(st=>months>=st.from && months<=st.to) || STAGES[STAGES.length-1]; }
 function ageLabel(months){ return months===1 ? "1 month" : months+" months"; }
 /* "3 meals · lumpy mash & finger foods" */
@@ -1159,8 +1175,8 @@ const MEAL_SLOTS = [
 /* ---------- the child's profile: age from a birth date ----------
    Age is never stored, only the birth date; months are worked out from
    today, so the stage moves on by itself. */
-function ageMonths(iso, now){
-  const b = localDate(iso), n = now || new Date();
+function ageMonths(iso, at){
+  const b = localDate(iso), n = at || now();
   if(isNaN(b)) return null;
   let m = (n.getFullYear()-b.getFullYear())*12 + (n.getMonth()-b.getMonth());
   if(n.getDate() < b.getDate()) m--;
@@ -1168,8 +1184,8 @@ function ageMonths(iso, now){
 }
 /* the birth date that makes a child m months old today (same day of the
    month, clamped to the month's length) */
-function birthDateFromMonths(m, now){
-  const n = now || new Date();
+function birthDateFromMonths(m, at){
+  const n = at || now();
   const y = n.getFullYear(), mo = n.getMonth() - m;
   const first = new Date(y, mo, 1);
   const days = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
@@ -1179,6 +1195,124 @@ function birthDateFromMonths(m, now){
 function ageNow(){
   const m = state.profile && state.profile.birthDate ? ageMonths(state.profile.birthDate) : null;
   return m===null ? 10 : m;
+}
+
+/* ---------- meal times ----------
+   Each stage has default times per slot; the family can set their own
+   (profile.mealTimes), and a meal's peek can move one meal for today only
+   (profile.timesToday). Times are local "HH:mm"; a meal's moment is built
+   from the calendar date, so daylight-saving days land on the right hour.
+   A meal is upcoming, now (from its time until GRACE_MIN later), past
+   (unlogged, never nagged), eaten (every food marked) or skipped. */
+const GRACE_MIN = 90;
+function hhmm(v){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || "").trim());
+  return m && +m[1] < 24 && +m[2] < 60 ? [+m[1], +m[2]] : null;
+}
+function fmtHHMM([h, m]){ return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0"); }
+/* plans saved before schema 7 only had labels: Breakfast, Snack, Lunch, Snack, Dinner */
+function ensureSlots(plan){
+  (plan && plan.days || []).forEach(d=>{
+    let seenLunch = false;
+    (d.meals || []).forEach(m=>{
+      if(m.label==="Lunch") seenLunch = true;
+      if(m.slot && MEAL_SLOTS.some(ms=>ms.id===m.slot)) return;
+      m.slot = {Breakfast:"breakfast", Lunch:"lunch", Dinner:"dinner"}[m.label] || (seenLunch ? "snack2" : "snack1");
+    });
+  });
+  return plan;
+}
+const FALLBACK_TIMES = {breakfast:"08:00", snack1:"10:30", lunch:"12:30", snack2:"16:00", dinner:"19:00"};
+function stageTimes(months){ return Object.assign({}, FALLBACK_TIMES, stageFor(Math.max(6, months)).times); }
+/* "HH:mm" for a slot on a date: today's one-off change, then theirs, then the stage's */
+function mealTime(slot, date){
+  const P = state.profile, iso = isoOf(date);
+  const once = P.timesToday && P.timesToday.date===iso ? P.timesToday.times[slot] : null;
+  return once || (P.mealTimes || {})[slot] || stageTimes(planMonths())[slot] || "12:00";
+}
+function atTime(date, hm){
+  const [h, m] = hhmm(hm) || [12, 0];
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
+}
+function planDayIndex(date){
+  return state.plan ? state.plan.days.findIndex(d=>d.name===DAY_ORDER[date.getDay()]) : -1;
+}
+function mealStatus(m, start, t){
+  if(m.skipped) return "skipped";
+  if(m.items.length && m.items.every(i=>i.ate)) return "eaten";
+  if(t < start) return "upcoming";
+  return t - start < GRACE_MIN*60000 ? "now" : "past";
+}
+/* a day's meals in time order: {m, k (index in the day), dayIdx, slot, time, start, status} */
+function mealsOn(date){
+  const dayIdx = planDayIndex(date);
+  if(dayIdx < 0) return [];
+  const t = now();
+  return state.plan.days[dayIdx].meals.map((m, k)=>({m, k, dayIdx, slot:m.slot}))
+    .filter(x=>x.m.items.length)
+    .map(x=>{ x.time = mealTime(x.slot, date); x.start = atTime(date, x.time); x.status = mealStatus(x.m, x.start, t); return x; })
+    .sort((a, b)=>a.start - b.start);
+}
+function tomorrowOf(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); }
+/* the first meal still to come (or happening now) today, else tomorrow's first */
+function nextMeal(){
+  const t = now();
+  const today = mealsOn(t).find(x=>x.status==="upcoming" || x.status==="now");
+  if(today) return Object.assign(today, {when:"today"});
+  const first = mealsOn(tomorrowOf(t))[0];
+  return first ? Object.assign(first, {when:"tomorrow"}) : null;
+}
+
+/* times and dates in the reader's own locale and clock (12 or 24 h), never a fixed format */
+const FMT = {};
+function fmtTime(d){ return (FMT.t = FMT.t || new Intl.DateTimeFormat(undefined, {hour:"numeric", minute:"2-digit"})).format(d); }
+function fmtDateTime(d){
+  return (FMT.d = FMT.d || new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"})).format(d) + ", " + fmtTime(d);
+}
+
+/* is this food new to them? (only once something has been offered, so a first week isn't all "new") */
+function isNewFood(item){
+  const ex = state.exposures || {};
+  return Object.keys(ex).length > 0 && !ex[foodKey(baseName(item))];
+}
+const upper1 = t=>t.charAt(0).toUpperCase() + t.slice(1);
+/* "Lentils and sweet potato." */
+function foodsLine(m){ return upper1(listJoin(m.items.map(i=>lower1(baseName(i))))) + "."; }
+
+/* The top of home, from the clock and the plan: the first rule that applies.
+   Returns {kind, headline, support, action, title, key}; key changes only when
+   the state does (so the live region announces "Lunch time" once, not every minute). */
+function homeMoment(){
+  const P = state.profile, name = P.name || "", months = ageNow();
+  if(months < 6 && !P.exploreEarly){
+    return {kind:"milk", headline:say("home.headline.milk", {name}), support:say("home.milkLine", {n:Math.max(1, 6 - months)}),
+            title:say("home.title.plain"), key:"milk"};
+  }
+  if(!state.plan || !state.plan.days.some(d=>d.meals.some(m=>m.items.length))){
+    return {kind:"empty", headline:say("home.headline.empty"), action:say("home.emptyAction"), title:say("home.title.plain"), key:"empty"};
+  }
+  const t = now(), today = mealsOn(t), nx = nextMeal();
+  const v = x=>({meal:x.m.label, time:fmtTime(x.start), food:x.m.items[0] ? lower1(baseName(x.m.items[0])) : ""});
+  const about = x=>{
+    const fresh = x.m.items.find(isNewFood);
+    return fresh ? say("home.newFood", {food:upper1(baseName(fresh))}) : foodsLine(x.m);
+  };
+  if(nx && nx.when==="today"){
+    if(nx.status==="now") return {kind:"now", next:nx, headline:say("home.headline.now", v(nx)), support:about(nx),
+                                  title:say("home.title.now", v(nx)), key:"now:"+nx.slot, announce:say("home.announce.now", v(nx))};
+    const mins = Math.max(1, Math.ceil((nx.start - t) / 60000));
+    if(mins < 60) return {kind:"soon", next:nx, headline:say("home.headline.soon", Object.assign(v(nx), {n:mins})), support:about(nx),
+                          title:say("home.title.soon", Object.assign(v(nx), {n:mins})), key:"soon:"+nx.slot};
+    return {kind:"at", next:nx, headline:say("home.headline.at", v(nx)), support:about(nx), title:say("home.title.at", v(nx)), key:"at:"+nx.slot};
+  }
+  // today is over: cleared if every meal was marked (or skipped), otherwise just what's next, no nagging
+  const cleared = today.length > 0 && today.every(x=>x.status==="eaten" || x.status==="skipped");
+  if(!nx) return {kind:cleared ? "cleared" : "done", headline:cleared ? say("home.headline.cleared") : say("home.headline.empty"),
+                  support:say("home.support", null, "home"), title:say("home.title.plain"), key:cleared ? "cleared" : "done"};
+  if(cleared) return {kind:"cleared", next:nx, headline:say("home.headline.cleared"), support:say("home.tomorrowLine", v(nx)),
+                      title:say("home.title.tomorrow", v(nx)), key:"cleared", announce:say("home.announce.cleared")};
+  return {kind:"tomorrow", next:nx, headline:say("home.headline.tomorrow", v(nx)), support:about(nx),
+          title:say("home.title.tomorrow", v(nx)), key:"tomorrow"};
 }
 
 /* a whole word or phrase inside a food name: "egg" finds "Egg, well cooked"
@@ -1405,9 +1539,10 @@ function setAte(item, v){
 function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, eaten:false}; if(tex) i.tex = tex; return i; }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 /* today as YYYY-MM-DD on the local clock (toISOString is UTC: wrong day after midnight in Europe) */
-function todayISO(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function todayISO(){ return isoOf(now()); }
 
-function meal(label, icon, items){ return {label, icon, items}; }
+function meal(label, icon, items, slot){ const m = {label, icon, items}; if(slot) m.slot = slot; return m; }
 
 function defaultPlan(){
   return {
@@ -1467,7 +1602,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 let state = loadState();
 
 function freshProfile(){
@@ -1475,12 +1610,14 @@ function freshProfile(){
           allergens:{},      // {egg:"avoid"|"ok"}
           avoid:[],          // [{name, kind:"allergy"|"dislike"}]
           priorities:[],     // up to 3 PRIORITIES ids
-          staples:[], remindAt:null, lastStage:null};
+          staples:[], remindAt:null, lastStage:null,
+          mealTimes:{},      // the family's own times, {lunch:"12:00"}; the stage's defaults fill the rest
+          timesToday:null};  // {date:"2026-10-22", times:{lunch:"13:15"}}: one day's change, from a meal's peek
 }
 function freshState(){
   return {
     schemaVersion: SCHEMA_VERSION,
-    plan: defaultPlan(),
+    plan: ensureSlots(defaultPlan()),
     variety: JSON.parse(JSON.stringify(DEFAULT_VARIETY)),
     manualCovered: {},   // { "protein::Salmon": true }
     stock: {},           // what's at home: { "oatmeal": {name, g:number|null, plenty:bool} }
@@ -1596,6 +1733,14 @@ function migrate(saved){
     if(!["all","some","refused"].includes(i.ate)) i.ate = i.eaten ? "all" : null;
     i.eaten = i.ate!==null;
   })));
+
+  // schema 7: every meal knows its slot (older plans only had labels), and
+  // meal times are the family's own overrides of the stage's defaults
+  ensureSlots(s.plan);
+  const mt = {};
+  Object.entries(prof.mealTimes || {}).forEach(([k,v])=>{ if(MEAL_SLOTS.some(ms=>ms.id===k) && hhmm(v)) mt[k] = fmtHHMM(hhmm(v)); });
+  prof.mealTimes = mt;
+  if(!(prof.timesToday && typeof prof.timesToday.date==="string" && prof.timesToday.times && typeof prof.timesToday.times==="object")) prof.timesToday = null;
 
   s.schemaVersion = SCHEMA_VERSION;
   return s;
@@ -1835,7 +1980,7 @@ function leave(el, side, then){
    only the tab strip is rotated so today leads. */
 function dayDisplayOrder(){
   const days = state.plan.days;
-  const start = days.findIndex(d=>d.name===DAY_ORDER[new Date().getDay()]);
+  const start = days.findIndex(d=>d.name===DAY_ORDER[now().getDay()]);
   if(start < 0) return days.map((_,i)=>i);   // custom plan with no matching day name
   return days.map((_,k)=>(start+k)%days.length);
 }
@@ -1850,17 +1995,15 @@ function localDate(iso){
 }
 function daysLeftInWeek(){
   const start = localDate(state.weekStarted);
-  const anchor = isNaN(start) ? new Date().getDay() : start.getDay();
-  return ((anchor - new Date().getDay() + 7) % 7) || 7;
+  const anchor = isNaN(start) ? now().getDay() : start.getDay();
+  return ((anchor - now().getDay() + 7) % 7) || 7;
 }
 
 /* The plan's days in display order lead with today, so position k is k days from now. */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function dateForDay(idx){
-  const pos = dayDisplayOrder().indexOf(idx);
-  const d = new Date();
-  d.setDate(d.getDate() + (pos<0 ? 0 : pos));
-  return d;
+  const pos = dayDisplayOrder().indexOf(idx), t = now();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + (pos<0 ? 0 : pos));   // local calendar days, never 24h steps
 }
 function formatDate(d){
   return DAY_ORDER[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + d.getDate();
@@ -2201,7 +2344,7 @@ function homeStatus(key){
   if(!last) return {text:"not in this week's plan"};
   if(st.g===null) return {text:"needed this week"};
   if(!short) return {text:lastsFor(key, st.g)};
-  const today = short===DAY_ORDER[new Date().getDay()];
+  const today = short===DAY_ORDER[now().getDay()];
   return {text: today ? "runs out today" : "runs out " + shortDay(short), low:true};
 }
 
@@ -2594,7 +2737,7 @@ function generateWeek(months, profile){
   let foods = eligibleFoods(months, profile);
   if(st.picky) foods = withStaples(foods);
   const deal = makeDealer(foods, ctx);
-  const slots = MEAL_SLOTS.filter(ms=>st.slots.includes(ms.id));
+  const slots = MEAL_SLOTS.filter(ms=>slotsFor(months).includes(ms.id));
 
   const days = DAY_ORDER.slice(1).concat(DAY_ORDER[0]).map(name=>{   // Monday..Sunday
     const day = {taken:new Set(), colours:new Set(), newCount:0};
@@ -2604,7 +2747,7 @@ function generateWeek(months, profile){
         const food = deal(cat, ms.slot, day);
         if(food) items.push(dish(food, st));
       });
-      return meal(ms.label, ms.icon, items);
+      return meal(ms.label, ms.icon, items, ms.id);
     });
     return {name, meals};
   });
@@ -2616,7 +2759,7 @@ function generateWeek(months, profile){
       const src = days[from].meals.find(m=>m.label==="Dinner");
       const k = days[to].meals.findIndex(m=>m.label==="Dinner");
       if(!src || k<0) return;
-      const copy = meal(src.label, src.icon, src.items.map(i=>it(i.name, i.qty, i.cats.slice(), i.tex)));
+      const copy = meal(src.label, src.icon, src.items.map(i=>it(i.name, i.qty, i.cats.slice(), i.tex)), src.slot);
       copy.from = days[from].name;   // "from Monday's batch"
       days[to].meals[k] = copy;
     });
@@ -3034,13 +3177,13 @@ function renderWeekSheet(body, arg){
 const GROUP_NAMES = {protein:"Proteins", vegetable:"Vegetables", fruit:"Fruits", grain:"Grains & starches", fat:"Healthy fats"};
 function renderVarietySheet(body){
   setSheetTitle("Variety");
-  const now = varietyNow();
-  const on = Object.keys(CATS).filter(c=>(now[c]||[]).some(f=>isCovered(c, f))).length;
+  const vnow = varietyNow();
+  const on = Object.keys(CATS).filter(c=>(vnow[c]||[]).some(f=>isCovered(c, f))).length;
   body.insertAdjacentHTML("beforeend", `<p class="glance" style="margin:0 4px 12px">${on===0 ? CONTENT.rainbow.none : on===Object.keys(CATS).length ? CONTENT.rainbow.all : CONTENT.rainbow.some}</p>`);
   const list = document.createElement("div");
   list.className = "card vg-list";
   Object.keys(CATS).forEach(cat=>{
-    const tasted = (now[cat]||[]).filter(f=>isCovered(cat, f));
+    const tasted = (vnow[cat]||[]).filter(f=>isCovered(cat, f));
     const b = document.createElement("button");
     b.type = "button"; b.className = "vg-row"; b.dataset.k = "g-" + cat;
     b.innerHTML = `<i class="vg-dot${tasted.length ? " on" : ""}" style="--c:var(--${cat})" aria-hidden="true"></i>
@@ -3150,7 +3293,7 @@ function renderSummaries(){ renderHome(); }
 
 /* ---------- voice: every string lives in content.js (CONTENT, pick, say) ---------- */
 function dayPart(d){
-  const h = (d || new Date()).getHours();
+  const h = (d || now()).getHours();
   return h>=5 && h<12 ? "morning" : h>=12 && h<18 ? "afternoon" : "evening";
 }
 const STAGE_NEWS = {
@@ -3270,10 +3413,10 @@ function renderHome(){
   });
 
   // Variety: which food groups have been tasted this week
-  const now = varietyNow(), rb = document.getElementById("rainbow");
+  const vnow = varietyNow(), rb = document.getElementById("rainbow");
   let on = 0;
   rb.innerHTML = Object.keys(CATS).map(cat=>{
-    const tasted = (now[cat] || []).some(f=>isCovered(cat, f));
+    const tasted = (vnow[cat] || []).some(f=>isCovered(cat, f));
     if(tasted) on++;
     const short = {protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats"}[cat];
     return `<span class="rdot${tasted ? " on" : ""}" style="--c:var(--${cat})"><i aria-hidden="true"></i>${short}<span class="sr-only">${tasted ? ": tasted this week" : ": not yet"}</span></span>`;
@@ -3501,7 +3644,7 @@ function onbBirthday(card, P){
     return;
   }
   onbHead(card, `When ${P.name ? "was " + P.name : "were they"} born?`);
-  const now = new Date();
+  const today = now();
   let b = P.birthDate ? localDate(P.birthDate) : localDate(birthDateFromMonths(10));
   if(isNaN(b)) b = localDate(birthDateFromMonths(10));
   let d = b.getDate(), mo = b.getMonth(), y = b.getFullYear();
@@ -3516,7 +3659,7 @@ function onbBirthday(card, P){
   const commit = ()=>{
     d = Math.min(d, daysIn(y, mo));
     let date = new Date(y, mo, d);
-    if(date > now){ date = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }   // no birthdays in the future
+    if(date > today){ date = new Date(today.getFullYear(), today.getMonth(), today.getDate()); }   // no birthdays in the future
     P.birthDate = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
     save();
     const m = ageNow(), st = stageFor(m);
@@ -3525,7 +3668,7 @@ function onbBirthday(card, P){
     if(lastStage && lastStage!==st.id && !calm()) badge.animate([{transform:"scale(.85)"},{transform:"scale(1.06)"},{transform:"none"}], {duration:420, easing:"cubic-bezier(.32,1.25,.5,1)"});
     lastStage = st.id;
   };
-  const years = []; for(let k=now.getFullYear()-4; k<=now.getFullYear(); k++) years.push({value:k, text:String(k)});
+  const years = []; for(let k=today.getFullYear()-4; k<=today.getFullYear(); k++) years.push({value:k, text:String(k)});
   const dayItems = ()=>Array.from({length:daysIn(y, mo)}, (_,k)=>({value:k+1, text:String(k+1)}));
   const dayW = wheel("Day", dayItems(), d, v=>{ d = v; commit(); });
   const monW = wheel("Month", MONTHS.map((t,k)=>({value:k, text:t})), mo, v=>{ mo = v; dayW.setItems(dayItems(), Math.min(d, daysIn(y, mo))); commit(); });

@@ -56,7 +56,8 @@ f.onload = async () => {
     const C = E("CONTENT");
     const words = s => s.replace(/\{[^}]+\}/g, "X").split(/\s+/).filter(Boolean).length;
     const banned = /little one|lovely|gentle questions|get started|\bplan\b|\btrack|\bmanage|\boptimi[sz]e/i;
-    const headlines = [...Object.values(C.home.headline), C.onb.welcome.title, C.onb.name.title, C.onb.birthday.title,
+    const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
+    const headlines = [...flat(C.home.headline), C.onb.welcome.title, C.onb.name.title, C.onb.birthday.title,
       C.onb.keepOut.title, C.onb.priorities.title, C.onb.atHome.title, C.onb.reveal.title, C.onb.done.title, C.home.weekDone];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
@@ -66,7 +67,7 @@ f.onload = async () => {
     ok("no percentages anywhere in the copy", !/\d\s?%/.test(all));
 
     // say(): placeholders, plurals, daily variants
-    ok("say() fills placeholders", E("say('home.headline.newFood', {name: 'Lula', food: 'mango'})") === "Today, Lula meets mango.");
+    ok("say() fills placeholders", E("say('home.headline.soon', {meal: 'Lunch', n: 25})") === "Lunch in 25 minutes." && E("say('home.headline.soon', {meal: 'Lunch', n: 1})") === "Lunch in 1 minute.");
     ok("say() reads months", E("say('home.stageChange', {name: 'Lula', months: 9})") === "Lula is 9 months. Textures are changing. Update the week?");
     ok("say() picks singular, plural and none", E("[say('home.shop', {n: 1}), say('home.shop', {n: 4}), say('home.shop', {n: 0})].join('|')") === "1 thing to pick up|4 things to pick up|All stocked up.");
     ok("say() picks the same support line all day", E("say('home.support') === say('home.support') && CONTENT.home.support.includes(say('home.support'))"));

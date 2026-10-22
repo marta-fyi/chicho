@@ -15,14 +15,32 @@ const CONTENT = {
       evening:"Good evening, {name}"
     },
     age:" · {months}",
+    /* the next meal, from the clock: the first rule that applies */
     headline:{
-      newFood:"Today, {name} meets {food}.",
-      pair:"A day of {food1} and {food2}.",
-      cleared:"Plates cleared. Good day.",
-      evening:"Tomorrow: {food}.",
+      milk:"Milk is all {name} needs right now.",
       empty:"The table's empty. Shall we set it?",
-      milk:"Milk is all {name} needs right now."
+      now:"{meal} time.",
+      soon:{one:"{meal} in {n} minute.", other:"{meal} in {n} minutes."},
+      at:"{meal} at {time}.",
+      cleared:"Plates cleared. Good day.",
+      tomorrow:"{meal} tomorrow at {time}."
     },
+    tomorrowLine:"{meal} tomorrow at {time}: {food}.",
+    newFood:"{food} is new today. One curious taste is a win.",
+    /* the tab itself answers "what's next" */
+    title:{
+      plain:"Chicho",
+      now:"Chicho · {meal} time",
+      soon:"Chicho · {meal} in {n} min",
+      at:"Chicho · {meal} at {time}",
+      tomorrow:"Chicho · {meal} tomorrow at {time}"
+    },
+    /* said once by the polite live region when the state changes, never every minute */
+    announce:{now:"{meal} time", cleared:"All meals eaten"},
+    mealWhen:"{meal} · {time}",
+    next:"Next",
+    nowLabel:"Now",
+    notLogged:"Not logged",
     emptyAction:"Set the week",
     milkLine:{one:"Solids start in {n} month.", other:"Solids start in {n} months."},
     support:[
@@ -48,12 +66,13 @@ const CONTENT = {
       profile:"Profile and birthday",
       allergens:"Allergens and priorities",
       nextWeek:"Set next week",
+      mealTimes:"Meal times",
       replay:"Replay welcome"
     }
   },
 
   peek:{
-    meal:{allEaten:"All eaten", swap:"Swap", skip:"Skip", ateSome:"Ate some", refused:"Refused",
+    meal:{allEaten:"All eaten", changeTime:"Change time", todayOnly:"Just for today", swap:"Swap", skip:"Skip", ateSome:"Ate some", refused:"Refused",
           swapped:"Swapped for {food}.", undo:"Undo", logOther:"Log something else"},
     day:{open:"Open day →", nothing:"Nothing planned for this day."},
     shop:{runsOut:"runs out {day}", inStock:"In stock", open:"Open list →"},
