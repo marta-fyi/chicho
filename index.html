@@ -180,7 +180,7 @@
   .cal{background:var(--cell);border-radius:var(--r-sheet);padding:16px 12px 14px;margin-bottom:16px;}
   .cal-title{margin:0 8px 10px;font-size:var(--fs-headline);font-weight:600;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;}
-  .cal-wd{text-align:center;font-size:var(--fs-cap);font-weight:600;color:var(--label-3);padding:0 0 4px;text-transform:uppercase;}
+  .cal-wd{text-align:center;font-size:var(--fs-cap);font-weight:600;color:var(--muted);padding:0 0 4px;text-transform:uppercase;}
   .cal-cell{height:48px;display:grid;place-items:center;}
   .cal-day{
     width:44px;height:44px;border:none;border-radius:50%;background:none;font:inherit;font-size:var(--fs-title3);
@@ -317,7 +317,7 @@
   input[type=text], select{
     border:none;border-radius:var(--r-field);background:var(--fill-3);padding:11px 12px;font-size:var(--fs-body);min-height:44px;
   }
-  input[type=text]::placeholder{color:var(--label-3);}
+  input[type=text]::placeholder{color:var(--muted);}
   input[type=text]:focus, select:focus{outline:none;box-shadow:0 0 0 2px var(--tint);}
   .add-item-row{display:flex;gap:8px;margin:8px 0 4px;flex-wrap:wrap;}
   .add-item-row input.name{flex:1 1 120px;min-width:90px;}
@@ -351,7 +351,7 @@
   .chip.tap:active{transform:scale(.94);}
   .chip.covered{background:var(--green-soft);color:#248A3D;}
   .chip.selected{background:var(--tint);color:#fff;}
-  .chip .x{color:var(--label-3);font-size:var(--fs-foot);}
+  .chip .x{color:var(--muted);font-size:var(--fs-foot);}
   .suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px;font-size:var(--fs-foot);color:var(--label-2);}
   .suggest button{border:none;background:var(--tint-soft);border-radius:999px;padding:6px 12px;font-size:var(--fs-foot);font-weight:600;color:var(--tint);min-height:32px;cursor:pointer;}
   .suggest button:active{transform:scale(.94);}
@@ -449,6 +449,134 @@
   .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--olive-700);}
   .cal-dot{background:var(--olive-500);}
 
+  /* ---------- onboarding ----------
+     Full screen over the gradient, one question per screen on one big white
+     card (so no text ever sits on the colour). Back and the progress dots
+     float above the card; the step slides and fades as you move, and the
+     gradient's blobs speed up for a moment, like moving through the sky. */
+  .onb-open{overflow:hidden;}
+  .onb-open .container, .onb-open .scroll-edge{visibility:hidden;}
+  .onb{position:fixed;inset:0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
+       padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 24px);}
+  .onb[hidden]{display:none;}
+  .onb-top{width:min(460px,100%);display:flex;align-items:center;gap:12px;min-height:48px;margin-bottom:12px;}
+  .onb-back, .onb-close{
+    width:44px;height:44px;border:none;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:var(--shadow-tile);
+    display:grid;place-items:center;cursor:pointer;color:var(--olive-900);font-size:20px;line-height:1;
+    transition:transform var(--dur-1) var(--ease-out);
+  }
+  .onb-back:active, .onb-close:active{transform:scale(.92);}
+  .onb-back[hidden], .onb-close[hidden]{display:none;}
+  .onb-back::before{content:"";width:10px;height:10px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
+  .onb-dots{flex:1;display:flex;justify-content:center;gap:8px;}
+  .onb-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(40,46,30,.12);transition:width var(--dur-3) var(--spring), background-color var(--dur-2);}
+  .onb-dots i.done{background:var(--olive-200);}
+  .onb-dots i.on{width:22px;border-radius:999px;background:var(--olive-700);}
+  .onb-spacer{width:44px;flex:0 0 auto;}
+  .onb-card{
+    width:min(460px,100%);background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);
+    padding:32px 24px 24px;display:flex;flex-direction:column;gap:18px;margin:auto 0;
+  }
+  .onb-h{margin:0;font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.08;color:var(--olive-700);}
+  .onb-p{margin:-6px 0 0;font-size:var(--fs-body);color:var(--muted);line-height:1.45;}
+  .onb-cta{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .pill{
+    border:none;border-radius:var(--r-pill);min-height:54px;padding:14px 24px;font:inherit;font-size:17px;font-weight:700;
+    background:var(--olive-700);color:#fff;cursor:pointer;box-shadow:0 10px 24px -12px rgba(62,70,33,.6);
+    transition:transform var(--dur-1) var(--ease-out), box-shadow var(--dur-2), opacity var(--dur-2);
+  }
+  .pill:active{transform:scale(.97);box-shadow:0 4px 10px -6px rgba(62,70,33,.6);}
+  .pill:disabled{opacity:.4;cursor:default;box-shadow:none;}
+  .pill:disabled:active{transform:none;}
+  .pill.quiet{background:var(--olive-100);color:var(--olive-900);box-shadow:none;}
+  .link-btn{border:none;background:none;font:inherit;font-size:15px;color:var(--olive-700);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:44px;align-self:center;}
+  .onb-input{
+    width:100%;border:none;border-radius:var(--r-field);background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-200);
+    font:inherit;font-size:28px;font-weight:700;letter-spacing:var(--track-title);text-align:center;padding:16px;color:var(--ink);
+  }
+  .onb-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--olive-700);}
+  .onb-input::placeholder{color:var(--faint);font-weight:500;}
+  /* welcome: the tiles float, gently, each on its own beat */
+  .onb .fan{margin:0;min-height:0;padding:12px 0 4px;}
+  .onb .tile{cursor:default;}
+  .float .tile-art{animation:bob 4.2s ease-in-out infinite alternate;animation-delay:calc(var(--k) * -1.1s);}
+  @keyframes bob{from{transform:translateY(-4px);}to{transform:translateY(5px);}}
+  /* birthday: three wheels, the middle row is the choice */
+  .wheels{display:grid;grid-template-columns:1fr 1.6fr 1.2fr;gap:8px;position:relative;}
+  .wheels::before{content:"";position:absolute;left:0;right:0;top:50%;height:48px;translate:0 -50%;border-radius:14px;background:var(--olive-100);pointer-events:none;}
+  .wheel-list{
+    position:relative;height:192px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding:72px 0;
+    -webkit-mask-image:linear-gradient(transparent, #000 30%, #000 70%, transparent);mask-image:linear-gradient(transparent, #000 30%, #000 70%, transparent);
+    border-radius:14px;
+  }
+  .wheel-list::-webkit-scrollbar{display:none;}
+  .wheel-list:focus-visible{outline:2px solid var(--olive-700);outline-offset:2px;}
+  .wheel-opt{height:48px;display:grid;place-items:center;scroll-snap-align:center;font-size:20px;color:var(--muted);cursor:pointer;user-select:none;}
+  .wheel-opt[aria-selected="true"]{color:var(--ink);font-weight:700;font-size:22px;}
+  .stage-badge{align-self:center;display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--r-pill);background:var(--olive-100);color:var(--olive-900);font-weight:700;font-size:15px;}
+  .stage-preview{margin:-8px 0 0;text-align:center;font-size:15px;color:var(--muted);}
+  .calm-emoji{font-size:56px;text-align:center;line-height:1;}
+  /* keep out: nine big tiles that cycle neutral → avoid → tried */
+  .al-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .al-tile{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px 10px;min-height:96px;
+    border:none;border-radius:18px;background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;cursor:pointer;
+    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), box-shadow var(--dur-2);
+  }
+  .al-tile:active{transform:scale(.95);}
+  .al-emoji{position:relative;font-size:30px;line-height:1.2;}
+  .al-name{font-size:13px;font-weight:600;color:var(--ink);text-align:center;line-height:1.2;}
+  .al-state{font-size:12px;color:var(--muted);min-height:15px;}
+  .al-tile[data-state="avoid"]{background:#F8E6E1;box-shadow:inset 0 0 0 2px #B3473A;}
+  .al-tile[data-state="avoid"] .al-state{color:#7A2E22;font-weight:700;}
+  /* avoid is a strike through the food, not just a colour */
+  .al-tile[data-state="avoid"] .al-emoji::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:3px;border-radius:2px;background:#B3473A;rotate:-35deg;}
+  .al-tile[data-state="ok"]{background:var(--olive-100);box-shadow:inset 0 0 0 2px var(--olive-500);}
+  .al-tile[data-state="ok"] .al-state{color:var(--olive-900);font-weight:700;}
+  .al-tile.bump{animation:pop var(--dur-3) var(--spring);}
+  .kind-seg{display:inline-grid;grid-template-columns:1fr 1fr;background:var(--olive-50);border-radius:999px;padding:3px;box-shadow:inset 0 0 0 1px var(--olive-100);}
+  .kind-seg button{border:none;background:none;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;color:var(--olive-900);cursor:pointer;min-height:36px;}
+  .kind-seg button[aria-pressed="true"]{background:var(--card);box-shadow:var(--shadow-tile);font-weight:700;}
+  .add-line{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .add-line input{flex:1 1 100%;min-width:0;}
+  .add-line .pill{margin-left:auto;}
+  .note-calm{font-size:13px;color:var(--muted);margin:0;line-height:1.45;}
+  /* priorities: soft cards, up to three */
+  .pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pr-card{
+    position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;min-height:92px;border:none;border-radius:18px;
+    background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;text-align:left;cursor:pointer;
+    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), box-shadow var(--dur-2);
+  }
+  .pr-card:active{transform:scale(.96);}
+  .pr-card:disabled{opacity:.45;cursor:default;}
+  .pr-card .pr-emoji{font-size:26px;line-height:1;}
+  .pr-card .pr-label{font-size:15px;font-weight:600;line-height:1.25;color:var(--ink);}
+  .pr-card[aria-pressed="true"]{background:var(--olive-100);box-shadow:inset 0 0 0 2px var(--olive-700);}
+  .pr-card[aria-pressed="true"]::after{
+    content:"";position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--olive-700);
+    background-image:linear-gradient(transparent, transparent);
+  }
+  .pr-card[aria-pressed="true"]::before{content:"";position:absolute;top:17px;right:17px;width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;rotate:-45deg;z-index:1;}
+  .lean{font-size:15px;color:var(--olive-900);background:var(--olive-50);border-radius:14px;padding:12px 14px;margin:0;line-height:1.4;}
+  /* at home: staple chips */
+  .st-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .st-chip{
+    display:inline-flex;align-items:center;gap:6px;border:none;border-radius:999px;padding:10px 14px;min-height:44px;
+    background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;font-size:15px;color:var(--ink);cursor:pointer;
+    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
+  }
+  .st-chip:active{transform:scale(.95);}
+  .st-chip[aria-pressed="true"]{background:var(--olive-700);color:#fff;box-shadow:none;}
+  /* reveal: the table being set, then the week */
+  .rv-stage{display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px 0;}
+  .rv-line{font-size:var(--fs-title);font-weight:700;letter-spacing:var(--track-title);color:var(--olive-900);text-align:center;margin:0;}
+  .rv-days{display:flex;flex-direction:column;gap:2px;margin:0;}
+  .rv-day{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--hairline);font-size:15px;line-height:1.35;}
+  .rv-day:first-child{border-top:none;}
+  .rv-day b{color:var(--olive-700);}
+  .rv-day span{color:var(--ink);}
+
   /* ---------- keep out, priorities ---------- */
   .lean-line{font-size:var(--fs-caption);color:var(--muted);margin:2px 16px 12px 0;line-height:1.4;}
   .chip .kind{font-size:12px;color:var(--muted);}
@@ -530,7 +658,8 @@
   @media (prefers-reduced-motion: reduce){
     .blob, .cal.draw .cal-cell.band, .cal-cell.sel.pop .cal-day,
     .acc.opening .acc-pad > *, .acc.opening #dayContent > *, #dayContent.swap-next > *, #dayContent.swap-prev > *,
-    .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just{animation:none;}
+    .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
+    .float .tile-art, .al-tile.bump{animation:none;}
     .acc-x::before, .acc-body, .acc-meter i, .seg::before, .btn, .chip, .buy-chip, .cal-day, .row-fg,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
@@ -562,6 +691,16 @@ function timeOfDay(d){
 })();
 </script>
 
+<div class="onb" id="onboarding" role="dialog" aria-modal="true" aria-labelledby="onbTitle" hidden>
+  <div class="onb-top">
+    <button type="button" class="onb-back" id="onbBack" aria-label="Back"></button>
+    <div class="onb-dots" id="onbDots" aria-hidden="true"></div>
+    <button type="button" class="onb-close" id="onbClose" aria-label="Close" hidden>✕</button>
+    <span class="onb-spacer" id="onbSpacer"></span>
+  </div>
+  <p class="sr-only" id="onbProgress" aria-live="polite"></p>
+  <div class="onb-card" id="onbCard"></div>
+</div>
 <div class="scroll-edge" aria-hidden="true"></div>
 <div class="container">
   <h1 class="large-title">Chicho</h1>
@@ -669,6 +808,7 @@ function timeOfDay(d){
     <div class="btnrow">
       <button class="btn primary" id="generateBtn" onclick="generateDraft()">Generate preview</button>
     </div>
+    <button type="button" class="link-btn" onclick="openOnboarding(0)">Run the welcome again</button>
 
     <div id="createPreview"></div>
     </div></div></div>
@@ -1034,9 +1174,14 @@ function dishName(m){
   if(p && v && soft && m.items.length<=3 && !g){
     return `${baseName(p)} and ${lower1(baseName(v))} ${/purée/.test(soft) ? "purée" : "mash"}`;
   }
-  const lead = p || v || m.items[0];
-  const rest = m.items.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
-  return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "");
+  // lunch and dinner: the main dish, and any fruit as the afters
+  const fruit = m.items.filter(i=>i.cats[0]==="fruit");
+  const mains = m.items.filter(i=>i.cats[0]!=="fruit");
+  if(!mains.length) return listJoin(fruit.map((i,k)=>k ? lower1(baseName(i)) : baseName(i)));
+  const lead = p || v || mains[0];
+  const rest = mains.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
+  return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "") +
+         (fruit.length ? ", then " + listJoin(fruit.map(i=>lower1(baseName(i)))) : "");
 }
 const FORM_TIPS = {
   meat:"Cook it right through, then shred or chop finely; a splash of the cooking water keeps it moist.",
@@ -1266,6 +1411,7 @@ function migrate(saved){
   Object.entries(prof.allergens || {}).forEach(([k,v])=>{ if(ALLERGENS.some(a=>a.id===k) && (v==="avoid" || v==="ok")) al[k] = v; });
   prof.allergens = al;
   prof.priorities = (Array.isArray(prof.priorities) ? prof.priorities : []).filter(id=>PRIORITIES.some(p=>p.id===id)).slice(0,3);
+  if(!saved.profile) prof.returning = true;   // an older save: their week is worth keeping
   s.profile = prof;
   delete s.createAge;
   delete s.excludedFoods;
@@ -2437,21 +2583,7 @@ function renderCreateControls(){
   });
 
   // locked: always kept out at this age; tap one to hear why
-  const lk = document.getElementById("lockedRules");
-  lk.innerHTML = `<p class="locked-head">Always kept out</p>`;
-  const why = document.createElement("p");
-  why.className = "locked-why";
-  why.setAttribute("aria-live", "polite");
-  LOCKED_RULES.filter(r=>!r.until || months < r.until).forEach(r=>{
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "locked-rule";
-    b.innerHTML = `<span class="lock" aria-hidden="true"></span>${r.label}`;
-    b.setAttribute("aria-label", `${r.label}, locked. Why?`);
-    b.addEventListener("click", ()=>{ why.textContent = r.why; });
-    lk.appendChild(b);
-  });
-  lk.appendChild(why);
+  buildLockedRow(document.getElementById("lockedRules"), months);
 
   if(st.solids){
     document.getElementById("createBanner").textContent =
@@ -2496,8 +2628,8 @@ function addExclusion(kind){
 }
 
 function generateDraft(){
-  if(!stageNow().solids) return;
-  draft = generateWeek(ageNow(), state.profile);
+  if(!stageFor(planMonths()).solids) return;
+  draft = generateWeek(planMonths(), state.profile);
   renderCreate();
 }
 
@@ -2671,6 +2803,443 @@ desk.addEventListener("change", applyLayout);
 /* on desktop every card is on screen, so a change in one re-renders the others */
 function syncDesk(...renders){ if(desk.matches) renders.forEach(r=>r()); }
 
+/* ---------- onboarding ----------
+   One question per screen; every answer is saved as it's given, so closing
+   the tab and coming back resumes at the same step. Nothing about the plan
+   changes until "Looks good" on the last screen. */
+const ONB_STEPS = ["welcome","name","birthday","keepout","priorities","athome","reveal"];
+const STAPLES = [
+  ["Oats","Oatmeal","🥣"],["Rice","Rice, soft-cooked","🍚"],["Pasta","Whole wheat pasta","🍝"],["Bread","Whole wheat toast","🍞"],
+  ["Eggs","Egg, well cooked","🥚"],["Yogurt","Greek yogurt","🥛"],["Cheese","Cheese, grated","🧀"],["Lentils","Lentils","🫘"],
+  ["Chickpeas","Chickpeas","🫘"],["Frozen peas","Peas","🫛"],["Frozen spinach","Spinach, cooked","🥬"],["Potatoes","Potato","🥔"],
+  ["Sweet potatoes","Sweet potato","🍠"],["Carrots","Carrots, soft-cooked","🥕"],["Bananas","Banana","🍌"],["Apples","Apple, cooked","🍎"],
+  ["Avocado","Avocado","🥑"],["Olive oil","Olive oil","🫒"]
+];
+let onb = {step:0, sub:null, dir:1, draft:null, revealed:false, kind:"allergy"};
+
+/* months to plan for: a baby under 6 months only gets a menu if the
+   family chose to explore anyway, and then it's a first-tastes week */
+function planMonths(){
+  const m = ageNow();
+  return m < 6 && state.profile.exploreEarly ? 6 : m;
+}
+function openOnboarding(step){
+  const P = state.profile;
+  onb.step = Math.max(0, Math.min(ONB_STEPS.length-1, step===undefined ? (P.onboardingStep||0) : step));
+  onb.sub = null; onb.draft = null; onb.revealed = false;
+  document.body.classList.add("onb-open");
+  document.querySelector(".container").inert = true;
+  const el = document.getElementById("onboarding");
+  el.hidden = false;
+  document.getElementById("onbClose").hidden = !P.onboarded;   // a re-run can be left; a first run can't
+  renderOnb();
+}
+function closeOnboarding(){
+  document.getElementById("onboarding").hidden = true;
+  document.body.classList.remove("onb-open");
+  document.querySelector(".container").inert = false;
+  fanDrawn = false;   // the fan arrives again on the page
+  renderDayContent(); renderKitchen(); renderVariety(); renderCreate();
+}
+function finishOnboarding(){
+  state.profile.onboarded = true;
+  state.profile.onboardingStep = 0;
+  delete state.profile.returning;
+  save();
+  closeOnboarding();
+}
+/* the gradient hurries for a moment, as if we were moving through it */
+function rushSky(){
+  if(calm()) return;
+  document.querySelectorAll(".blob").forEach(b=>b.getAnimations().forEach(a=>{
+    a.playbackRate = 14;
+    setTimeout(()=>{ a.playbackRate = 6; }, 160);
+    setTimeout(()=>{ a.playbackRate = 1; }, 420);
+  }));
+}
+function goStep(n, sub){
+  const card = document.getElementById("onbCard");
+  onb.dir = n > onb.step || (n===onb.step && sub) ? 1 : -1;
+  const swap = ()=>{
+    onb.step = n; onb.sub = sub || null;
+    state.profile.onboardingStep = n; save();
+    renderOnb();
+    if(!calm()) card.animate([{transform:`translateX(${onb.dir*36}px)`, opacity:0}, {transform:"none", opacity:1}],
+                             {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
+    else card.animate([{opacity:0},{opacity:1}], {duration:180});
+    const f = card.querySelector("input, .wheel-list, button.pill");
+    if(f && f.tagName==="INPUT") f.focus({preventScroll:true});
+  };
+  rushSky();
+  if(calm()){ swap(); return; }
+  const out = card.animate([{transform:"none", opacity:1}, {transform:`translateX(${-onb.dir*36}px)`, opacity:0}],
+                           {duration:160, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"});
+  out.onfinish = ()=>{ out.cancel(); swap(); };
+}
+
+function renderOnb(){
+  const P = state.profile, key = ONB_STEPS[onb.step];
+  const dots = document.getElementById("onbDots");
+  dots.innerHTML = ONB_STEPS.map((_,k)=>`<i class="${k===onb.step ? "on" : k<onb.step ? "done" : ""}"></i>`).join("");
+  document.getElementById("onbProgress").textContent = `Step ${onb.step+1} of ${ONB_STEPS.length}`;
+  const back = document.getElementById("onbBack");
+  back.hidden = onb.step===0 && !onb.sub;
+  back.onclick = ()=> onb.sub ? goStep(onb.step) : goStep(onb.step-1);
+  document.getElementById("onbClose").onclick = closeOnboarding;
+  const card = document.getElementById("onbCard");
+  card.innerHTML = "";
+  ({welcome:onbWelcome, name:onbName, birthday:onbBirthday, keepout:onbKeepout,
+    priorities:onbPriorities, athome:onbAtHome, reveal:onbReveal})[key](card, P);
+}
+/* a headline, an optional line, then the step's own content and buttons */
+function onbHead(card, title, line){
+  card.insertAdjacentHTML("beforeend", `<h1 class="onb-h" id="onbTitle">${title}</h1>` + (line ? `<p class="onb-p">${line}</p>` : ""));
+}
+function onbCta(card, label, onNext, opts){
+  const o = opts || {};
+  const wrap = document.createElement("div");
+  wrap.className = "onb-cta";
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "pill"; b.textContent = label;
+  b.disabled = !!o.disabled;
+  b.addEventListener("click", onNext);
+  wrap.appendChild(b);
+  (o.extra || []).forEach(x=>{
+    const e = document.createElement("button");
+    e.type = "button"; e.className = x.quiet ? "pill quiet" : "link-btn"; e.textContent = x.label;
+    e.addEventListener("click", x.on);
+    wrap.appendChild(e);
+  });
+  card.appendChild(wrap);
+  return b;
+}
+/* a decorative fan (onboarding has no real meals yet) */
+function sampleFan(emojis, cls){
+  const tilt = FAN_TILT[emojis.length];
+  const softs = ["grain","fruit","vegetable","protein"];
+  return `<div class="fan ${cls||""}" aria-hidden="true">` + emojis.map((e,k)=>
+    `<span class="tile" style="--r:${tilt[k]}deg;--k:${k};--soft:var(--${softs[k%4]}-soft)"><span class="tile-art"><span class="tile-emoji" style="margin:0">${e}</span></span></span>`).join("") + `</div>`;
+}
+function fanIn(container){
+  [...container.querySelectorAll(".tile")].forEach((t,k)=>{
+    const end = getComputedStyle(t).transform;
+    t.animate(calm() ? [{opacity:0},{opacity:1}] : [{transform:"translateY(30px) rotate(0deg) scale(.85)", opacity:0}, {transform:end, opacity:1}],
+              {duration: calm() ? 200 : 600, delay:k*75, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
+  });
+}
+
+/* 1. welcome */
+function onbWelcome(card, P){
+  card.insertAdjacentHTML("beforeend", sampleFan(["🥣","🍌","🥕","🐟"], "float"));
+  onbHead(card, P.returning ? "Let's make this feel like yours." : "Let's plan something lovely for your little one.",
+          P.returning ? "A few quick questions, and your week stays put unless you'd like a new one." : "A few gentle questions, then a week of meals made for them.");
+  onbCta(card, "Get started", ()=>goStep(1));
+  fanIn(card);
+}
+/* 2. name */
+function onbName(card, P){
+  onbHead(card, "What's their name?");
+  const inp = document.createElement("input");
+  inp.className = "onb-input"; inp.type = "text"; inp.autocomplete = "off"; inp.maxLength = 30;
+  inp.placeholder = "Their name"; inp.value = P.name || ""; inp.setAttribute("aria-label", "Their name");
+  card.appendChild(inp);
+  const next = onbCta(card, "Continue", ()=>{ if(inp.value.trim()) goStep(2); }, {disabled:!inp.value.trim()});
+  inp.addEventListener("input", ()=>{ P.name = inp.value.trim(); save(); next.disabled = !P.name; });
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter" && P.name) goStep(2); });
+}
+/* 3. birthday: three wheels; the stage badge follows along */
+function onbBirthday(card, P){
+  const name = P.name || "they";
+  if(onb.sub==="milk"){
+    const m = ageNow(), left = Math.max(1, 6 - m);
+    card.insertAdjacentHTML("beforeend", `<div class="calm-emoji" aria-hidden="true">🍼</div>`);
+    onbHead(card, "No solids yet. Milk is all they need.",
+      `${P.name || "Your little one"} is ${ageLabel(m)}. Solids usually start around 6 months, so come back in ${left===1 ? "about a month" : `about ${left} months`}. We can remind you then.`);
+    onbCta(card, "Remind me", ()=>{
+      const b = localDate(P.birthDate);
+      const at = new Date(b.getFullYear(), b.getMonth()+6, b.getDate());
+      P.remindAt = at.getFullYear()+"-"+String(at.getMonth()+1).padStart(2,"0")+"-"+String(at.getDate()).padStart(2,"0");
+      P.exploreEarly = false; save(); goStep(3);
+    }, {extra:[{label:"Explore anyway", on:()=>{ P.exploreEarly = true; save(); goStep(3); }}]});
+    return;
+  }
+  onbHead(card, `When ${P.name ? "was " + P.name : "were they"} born?`);
+  const now = new Date();
+  let b = P.birthDate ? localDate(P.birthDate) : localDate(birthDateFromMonths(10));
+  if(isNaN(b)) b = localDate(birthDateFromMonths(10));
+  let d = b.getDate(), mo = b.getMonth(), y = b.getFullYear();
+  const wrap = document.createElement("div");
+  wrap.className = "wheels";
+  const badge = document.createElement("div");
+  badge.className = "stage-badge"; badge.setAttribute("aria-live", "polite");
+  const preview = document.createElement("p");
+  preview.className = "stage-preview";
+  let lastStage = null;
+  const daysIn = (yy, mm)=>new Date(yy, mm+1, 0).getDate();
+  const commit = ()=>{
+    d = Math.min(d, daysIn(y, mo));
+    let date = new Date(y, mo, d);
+    if(date > now){ date = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }   // no birthdays in the future
+    P.birthDate = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+    save();
+    const m = ageNow(), st = stageFor(m);
+    badge.textContent = `${ageLabel(m)} · ${st.name}`;
+    preview.textContent = st.solids ? `${st.meals} · ${st.textureShort}` : "Milk only, for now";
+    if(lastStage && lastStage!==st.id && !calm()) badge.animate([{transform:"scale(.85)"},{transform:"scale(1.06)"},{transform:"none"}], {duration:420, easing:"cubic-bezier(.32,1.25,.5,1)"});
+    lastStage = st.id;
+  };
+  const years = []; for(let k=now.getFullYear()-4; k<=now.getFullYear(); k++) years.push({value:k, text:String(k)});
+  const dayItems = ()=>Array.from({length:daysIn(y, mo)}, (_,k)=>({value:k+1, text:String(k+1)}));
+  const dayW = wheel("Day", dayItems(), d, v=>{ d = v; commit(); });
+  const monW = wheel("Month", MONTHS.map((t,k)=>({value:k, text:t})), mo, v=>{ mo = v; dayW.setItems(dayItems(), Math.min(d, daysIn(y, mo))); commit(); });
+  const yrW = wheel("Year", years, y, v=>{ y = v; dayW.setItems(dayItems(), Math.min(d, daysIn(y, mo))); commit(); });
+  wrap.append(dayW.el, monW.el, yrW.el);
+  card.append(wrap, badge, preview);
+  commit();
+  onbCta(card, "Continue", ()=>{ ageNow() < 6 ? goStep(2, "milk") : (P.exploreEarly = false, save(), goStep(3)); });
+}
+/* a scroll-snap wheel with listbox semantics: scroll, tap or arrow keys */
+function wheel(label, items, value, onChange){
+  const ITEM = 48;
+  const el = document.createElement("div");
+  const list = document.createElement("div");
+  list.className = "wheel-list"; list.tabIndex = 0;
+  list.setAttribute("role", "listbox"); list.setAttribute("aria-label", label);
+  el.appendChild(list);
+  let opts = [], idx = 0, timer = null;
+  const mark = ()=>{
+    opts.forEach((o,k)=>o.setAttribute("aria-selected", String(k===idx)));
+    if(opts[idx]) list.setAttribute("aria-activedescendant", opts[idx].id);
+  };
+  const set = (k, scroll)=>{
+    k = Math.max(0, Math.min(items.length-1, k));
+    const changed = k!==idx;
+    idx = k; mark();
+    if(scroll) list.scrollTo({top:k*ITEM, behavior: calm() ? "auto" : "smooth"});
+    if(changed) onChange(items[k].value);
+  };
+  const build = ()=>{
+    list.innerHTML = "";
+    opts = items.map((it, k)=>{
+      const o = document.createElement("div");
+      o.className = "wheel-opt"; o.id = "w" + uid(); o.setAttribute("role", "option"); o.textContent = it.text;
+      o.addEventListener("click", ()=>set(k, true));
+      list.appendChild(o);
+      return o;
+    });
+  };
+  build();
+  idx = Math.max(0, items.findIndex(i=>i.value===value));
+  mark();
+  requestAnimationFrame(()=>{ list.scrollTop = idx*ITEM; });
+  list.addEventListener("scroll", ()=>{
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ const k = Math.round(list.scrollTop/ITEM); if(k!==idx) set(k, false); }, 90);
+  });
+  list.addEventListener("keydown", e=>{
+    const step = {ArrowDown:1, ArrowUp:-1, PageDown:5, PageUp:-5}[e.key];
+    if(step){ e.preventDefault(); set(idx+step, true); }
+    else if(e.key==="Home"){ e.preventDefault(); set(0, true); }
+    else if(e.key==="End"){ e.preventDefault(); set(items.length-1, true); }
+  });
+  return {el, set:k=>set(k, true), get:()=>items[idx].value,
+    setItems(next, keep){ items = next; build(); idx = Math.max(0, items.findIndex(i=>i.value===keep)); mark(); list.scrollTop = idx*ITEM; }};
+}
+/* 4. keep out: allergens cycle neutral → avoid → tried; anything else is a chip */
+function onbKeepout(card, P){
+  onbHead(card, "Anything we should keep out?", "Tap once to avoid, twice for “tried, all good”.");
+  const live = document.createElement("p");
+  live.className = "sr-only"; live.setAttribute("aria-live", "polite");
+  const grid = document.createElement("div");
+  grid.className = "al-grid";
+  const label = st=>st==="avoid" ? "Avoid" : st==="ok" ? "Tried, all good" : "";
+  ALLERGENS.forEach(a=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "al-tile";
+    const paint = ()=>{
+      const st = P.allergens[a.id] || "";
+      b.dataset.state = st;
+      b.querySelector(".al-state").textContent = label(st);
+      b.setAttribute("aria-label", `${a.label}: ${label(st) || "no preference"}`);
+    };
+    b.innerHTML = `<span class="al-emoji" aria-hidden="true">${a.emoji}</span><span class="al-name">${a.label}</span><span class="al-state"></span>`;
+    b.addEventListener("click", ()=>{
+      const st = P.allergens[a.id];
+      const next = !st ? "avoid" : st==="avoid" ? "ok" : null;
+      if(next) P.allergens[a.id] = next; else delete P.allergens[a.id];
+      save(); paint();
+      b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+      live.textContent = `${a.label}: ${label(next) || "no preference"}`;
+    });
+    grid.appendChild(b);
+    paint();
+  });
+  card.append(grid, live);
+
+  // anything else: a chip, allergy or dislike
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  const paintChips = ()=>{
+    chips.innerHTML = "";
+    P.avoid.forEach(x=>{
+      const c = document.createElement("span");
+      c.className = "chip" + (x.kind==="allergy" ? " allergy" : "");
+      c.innerHTML = `${x.name} <span class="kind">${x.kind==="allergy" ? "Allergy" : "Dislike"}</span><button type="button" class="x" aria-label="Remove ${x.name}">✕</button>`;
+      c.querySelector("button").addEventListener("click", ()=>{ P.avoid = P.avoid.filter(y=>y!==x); save(); paintChips(); });
+      chips.appendChild(c);
+    });
+  };
+  const line = document.createElement("div");
+  line.className = "add-line";
+  line.innerHTML = `<input type="text" placeholder="Add something else" aria-label="Another food to keep out">
+    <div class="kind-seg" role="group" aria-label="Allergy or dislike">
+      <button type="button" data-k="allergy">Allergy</button><button type="button" data-k="dislike">Dislike</button></div>
+    <button type="button" class="pill quiet" style="min-height:44px;padding:10px 18px">Add</button>`;
+  const inp = line.querySelector("input");
+  const segBtns = [...line.querySelectorAll(".kind-seg button")];
+  const paintSeg = ()=>segBtns.forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.k===onb.kind)));
+  segBtns.forEach(x=>x.addEventListener("click", ()=>{ onb.kind = x.dataset.k; paintSeg(); }));
+  const add = ()=>{
+    const v = inp.value.trim(); if(!v) return;
+    const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
+    if(have) have.kind = onb.kind; else P.avoid.push({name:v, kind:onb.kind});
+    inp.value = ""; save(); paintChips();
+  };
+  line.querySelector(".pill").addEventListener("click", add);
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
+  paintSeg(); paintChips();
+  card.append(line, chips);
+
+  const locked = document.createElement("div");
+  locked.className = "locked";
+  buildLockedRow(locked, ageNow());
+  card.appendChild(locked);
+  card.insertAdjacentHTML("beforeend", `<p class="note-calm">Not medical advice. Check allergen introduction with your paediatrician.</p>`);
+  onbCta(card, "Continue", ()=>goStep(4));
+}
+/* the locked rules, as a quiet row; tap one to hear why (shared with Plan) */
+function buildLockedRow(container, months){
+  container.innerHTML = `<p class="locked-head">Always kept out at this age</p>`;
+  const why = document.createElement("p");
+  why.className = "locked-why"; why.setAttribute("aria-live", "polite");
+  LOCKED_RULES.filter(r=>!r.until || months < r.until).forEach(r=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "locked-rule";
+    b.innerHTML = `<span class="lock" aria-hidden="true"></span>${r.label}`;
+    b.setAttribute("aria-label", `${r.label}, always kept out. Why?`);
+    b.addEventListener("click", ()=>{ why.textContent = r.why; });
+    container.appendChild(b);
+  });
+  container.appendChild(why);
+}
+/* 5. priorities: up to three, and how they'll steer the week */
+function onbPriorities(card, P){
+  onbHead(card, "What matters most right now?", "Pick up to three.");
+  const grid = document.createElement("div");
+  grid.className = "pr-grid";
+  const lean = document.createElement("p");
+  lean.className = "lean"; lean.setAttribute("aria-live", "polite");
+  const paint = ()=>{
+    grid.querySelectorAll(".pr-card").forEach(b=>{
+      const on = P.priorities.includes(b.dataset.id);
+      b.setAttribute("aria-pressed", String(on));
+      b.disabled = !on && P.priorities.length>=3;
+    });
+    lean.textContent = priorityLine(P.priorities);
+  };
+  PRIORITIES.forEach(pr=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pr-card"; b.dataset.id = pr.id;
+    b.innerHTML = `<span class="pr-emoji" aria-hidden="true">${pr.emoji}</span><span class="pr-label">${pr.label}</span>`;
+    b.addEventListener("click", ()=>{
+      P.priorities = P.priorities.includes(pr.id) ? P.priorities.filter(x=>x!==pr.id) : P.priorities.concat(pr.id).slice(0,3);
+      save(); paint();
+    });
+    grid.appendChild(b);
+  });
+  card.append(grid, lean);
+  paint();
+  onbCta(card, "Continue", ()=>goStep(5));
+}
+/* 6. at home: optional; picks land in stock at their usual pack size */
+function onbAtHome(card, P){
+  onbHead(card, "What's already at home?", "Optional. It helps the first week say “at home” instead of “buy”.");
+  const wrap = document.createElement("div");
+  wrap.className = "st-chips";
+  STAPLES.filter(([,food])=>!allergyMatch(food, P)).forEach(([label, food, emoji])=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "st-chip";
+    const on = ()=>P.staples.includes(food);
+    b.innerHTML = `<span aria-hidden="true">${emoji}</span>${label}`;
+    b.setAttribute("aria-pressed", String(on()));
+    b.addEventListener("click", ()=>{
+      P.staples = on() ? P.staples.filter(x=>x!==food) : P.staples.concat(food);
+      b.setAttribute("aria-pressed", String(on())); save();
+    });
+    wrap.appendChild(b);
+  });
+  card.appendChild(wrap);
+  const stock = ()=>{
+    P.staples.forEach(food=>{
+      const k = foodKey(food);
+      if(state.stock[k] && (state.stock[k].plenty || state.stock[k].g===null || state.stock[k].g>0)) return;
+      const pack = packFor(food);
+      state.stock[k] = {name:food, g: pack ? pack.g : null, plenty:false};
+    });
+    save();
+  };
+  onbCta(card, "Continue", ()=>{ stock(); goStep(6); }, {extra:[{label:"Skip for now", on:()=>goStep(6)}]});
+}
+/* 7. the reveal: the table being set, then the week, applied only on "Looks good" */
+function onbReveal(card, P){
+  const name = P.name || "your little one";
+  if(ageNow() < 6 && !P.exploreEarly){
+    card.insertAdjacentHTML("beforeend", `<div class="calm-emoji" aria-hidden="true">🌙</div>`);
+    onbHead(card, "All set for now.", `We'll have a first week ready for ${name} around 6 months. Until then, milk is everything.`);
+    onbCta(card, "Done", finishOnboarding);
+    return;
+  }
+  if(!onb.draft) onb.draft = generateWeek(planMonths(), P);
+  if(!onb.revealed){
+    const stage = document.createElement("div");
+    stage.className = "rv-stage";
+    stage.innerHTML = sampleFan(onb.draft.days[0].meals.slice(0,4).map(m=>m.items[0] ? emojiFor(m.items[0]) : "🍽️")) +
+      `<p class="rv-line" id="onbTitle">Setting the table for the week…</p>`;
+    card.appendChild(stage);
+    const tiles = [...stage.querySelectorAll(".tile")];
+    tiles.forEach((t,k)=>{
+      const end = getComputedStyle(t).transform;
+      if(calm()) t.animate([{opacity:0},{opacity:1}], {duration:250, delay:k*80, fill:"backwards"});
+      else t.animate([
+        {transform:"translateY(40px) rotate(0) scale(.7)", opacity:0},
+        {transform:`translate(${(k-1.5)*-14}px,-18px) rotate(${(k%2?1:-1)*14}deg) scale(1.05)`, opacity:1, offset:.45},
+        {transform:`translate(${(k-1.5)*10}px,6px) rotate(${(k%2?-1:1)*6}deg)`, offset:.75},
+        {transform:end, opacity:1}], {duration:1500, delay:k*90, easing:"cubic-bezier(.32,1.1,.5,1)", fill:"backwards"});
+    });
+    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; if(ONB_STEPS[onb.step]==="reveal") renderOnb(); };
+    onbCta(card, "Skip", done).classList.add("quiet");
+    setTimeout(done, calm() ? 600 : 2300);
+    return;
+  }
+  onbHead(card, `Here's ${name}'s week`, priorityLine(P.priorities));
+  const list = document.createElement("div");
+  list.className = "rv-days";
+  onb.draft.days.forEach(day=>{
+    const mains = day.meals.filter(m=>m.label!=="Snack").map(dishName).filter(Boolean);
+    list.insertAdjacentHTML("beforeend", `<div class="rv-day"><b>${day.name.slice(0,3)}</b><span>${mains.join(" · ")}</span></div>`);
+  });
+  card.appendChild(list);
+  const extra = [{label:"Shuffle", quiet:true, on:()=>{ onb.draft = generateWeek(planMonths(), P); onb.revealed = false; renderOnb(); }}];
+  if(P.returning) extra.push({label:"Keep my current week", on:finishOnboarding});
+  onbCta(card, "Looks good", ()=>{
+    state.plan = onb.draft;
+    state.weekStarted = todayISO();
+    currentDay = dayDisplayOrder()[0];
+    onb.draft = null;
+    finishOnboarding();
+  }, {extra});
+}
+
 /* ---------- init ---------- */
 currentDay = dayDisplayOrder()[0];
 
@@ -2682,6 +3251,7 @@ renderSummaries();
 const startCard = location.hash.slice(1);
 openCard(CARDS.includes(startCard) ? startCard : state.openCard, {noScroll:true});
 applyLayout();
+if(!state.profile.onboarded) openOnboarding();
 document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
   state.groceryFilter = b.dataset.w; save(); renderKitchen();
 }));
