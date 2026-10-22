@@ -43,6 +43,22 @@ f.onload = () => {
     const big = M({schemaVersion: 5, createAge: 99, plan: week()});
     ok("age over 36 is clamped to 36", w.ageMonths(big.profile.birthDate) === 36, w.ageMonths(big.profile.birthDate));
 
+    // 2b. ages saved in years, or with units
+    const age = o => w.ageMonths(M(Object.assign({schemaVersion: 5, plan: week()}, o)).profile.birthDate);
+    ok("ageYears 2 → 24 months", age({ageYears: 2}) === 24, age({ageYears: 2}));
+    ok("ageYears 1.5 → 18 months", age({ageYears: 1.5}) === 18, age({ageYears: 1.5}));
+    ok("ageMonths 9 → 9 months", age({ageMonths: 9}) === 9, age({ageMonths: 9}));
+    ok("createAge '2 years' → 24", age({createAge: "2 years"}) === 24, age({createAge: "2 years"}));
+    ok("createAge '1 year 3 months' → 15", age({createAge: "1 year 3 months"}) === 15, age({createAge: "1 year 3 months"}));
+    ok("createAge '9 months' → 9", age({createAge: "9 months"}) === 9, age({createAge: "9 months"}));
+    ok("createAge '14' (text, no unit) → 14 months", age({createAge: "14"}) === 14, age({createAge: "14"}));
+    ok("age {years:1, months:3} → 15", age({age: {years: 1, months: 3}}) === 15, age({age: {years: 1, months: 3}}));
+    ok("age '1,5 y' → 18", age({age: "1,5 y"}) === 18, age({age: "1,5 y"}));
+    ok("4 years is clamped to 36 months", age({ageYears: 4}) === 36, age({ageYears: 4}));
+    const yrs = M({schemaVersion: 5, ageYears: 2, age: "2 years", plan: week()});
+    ok("old age fields are gone after migrating", !("ageYears" in yrs) && !("age" in yrs) && !("ageMonths" in yrs), Object.keys(yrs));
+    ok("a saved birth date always wins over an old age", w.ageMonths(M({schemaVersion: 6, ageYears: 3, profile: {birthDate: "2025-12-14"}, plan: week()}).profile.birthDate) === w.ageMonths("2025-12-14"));
+
     // 3. schema 6 round trip: nothing moves, junk is cleaned
     const v6 = M({schemaVersion: 6, plan: week(), profile: {name: "Lucía", birthDate: "2025-12-14", onboarded: true,
       allergens: {egg: "avoid", milk: "ok", unicorn: "avoid", fish: "maybe"}, avoid: [{name: "Kiwi", kind: "allergy"}, {name: " ", kind: "dislike"}, {name: "Peas"}],

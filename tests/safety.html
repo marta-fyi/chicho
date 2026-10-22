@@ -102,6 +102,37 @@ f.onload = () => {
     const dn = k => batch.days[k].meals.find(x => x.label === "Dinner").items.map(i => i.name).join("+");
     ok("batch-cook repeats Monday's dinner on Wednesday", dn(0) === dn(2) && batch.days[2].meals.find(x => x.label === "Dinner").from === "Monday", [dn(0), dn(2)]);
     ok("priority line reads naturally", w.priorityLine(["iron", "quick"]) === "We'll lean on iron-rich meals and 20-minute recipes.", w.priorityLine(["iron", "quick"]));
+
+    // allergy vs dislike, measured: the same food, strict vs soft
+    const bananaShare = prof => { let hit = 0, all = 0;
+      for (let t = 0; t < 120; t++) w.generateWeek(18, prof).days.forEach(d => d.meals.forEach(ml => ml.items.forEach(i => { all++; if (i.name === "Banana") hit++; })));
+      return hit / all; };
+    const bNone = bananaShare(P({})), bDis = bananaShare(P({avoid: [{name: "Banana", kind: "dislike"}]})), bAll = bananaShare(P({avoid: [{name: "Banana", kind: "allergy"}]}));
+    ok(`a dislike makes banana rarer (${(bNone*100).toFixed(1)}% → ${(bDis*100).toFixed(1)}%) but doesn't remove it`, bDis < bNone * .7 && bDis > 0, [bNone, bDis]);
+    ok("an allergy removes banana entirely (0 in 120 weeks)", bAll === 0, bAll);
+
+    // swaps go through the same gate
+    E("state.profile = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(10), allergens: {egg: 'avoid', milk: 'avoid'}, avoid: [{name: 'Kiwi', kind: 'allergy'}]})");
+    E("state.plan = generateWeek(10, state.profile)");
+    const swapBad = E(`(() => { const bad = [];
+      for (let t = 0; t < 400; t++) {
+        const d = state.plan.days[t % 7], m = d.meals[t % d.meals.length]; if (!m.items.length) continue;
+        const k = t % m.items.length; swapItem(m, k); const n = m.items[k].name, f = FOOD_POOL.find(x => x.name === n);
+        if (!isAllowed(f, 10, state.profile)) bad.push(n);
+      } return bad; })()`);
+    ok("400 swaps at 10 months with egg, milk and kiwi allergies stay safe", swapBad.length === 0, swapBad.slice(0, 5));
+
+    // stages
+    ok("no menu under 6 months", [0, 3, 5].every(m => w.generateWeek(m, P({})) === null));
+    const names = [0, 6, 9, 12, 24, 36].map(m => E(`stageFor(${m}).name`));
+    ok("stage names follow the brief", JSON.stringify(names) === JSON.stringify(["Milk only", "First tastes", "Fingers first", "A seat at the family table", "Big opinions, small plates", "Big opinions, small plates"]), names);
+    ok("boundaries: 8→First tastes, 11→Fingers first, 23→family table", E("[stageFor(8).id, stageFor(11).id, stageFor(23).id].join()") === "first,textures,family");
+    ok("the stage line reads '3 meals · lumpy mash & finger foods' at 9 months", E("stageLine(stageFor(9))") === "3 meals · lumpy mash & finger foods", E("stageLine(stageFor(9))"));
+    ok("the locked line names honey before 12 months", /honey/.test(E("lockedLine(10)")) && E("lockedLine(10)").startsWith("Always off the plate at this age:"), E("lockedLine(10)"));
+    ok("…and drops it from 12 months", !/honey/.test(E("lockedLine(12)")), E("lockedLine(12)"));
+    ok("every locked line names nuts, grapes, salt and sugar", [6, 9, 12, 24].every(m => /whole nuts, whole grapes, added salt and sugar/.test(E(`lockedLine(${m})`))));
+    ok("stages for 6+ months each carry slots, portions and food groups",
+       E("STAGES.filter(s => s.solids).every(s => s.slots.length && s.portions && s.groups.length === 5 && s.meals && s.textureShort && s.locked)"));
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("out").innerHTML = out.map(l => `<span class="${l.startsWith("PASS") ? "p" : l.startsWith("INFO") ? "" : "f"}">${l.replace(/</g, "&lt;")}</span>`).join("\n");

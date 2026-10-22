@@ -97,13 +97,45 @@ const CONTENT = {
     done:{title:"{name}'s week.", line:"Seven days, made just for {name}.", apply:"Love it", shuffle:"Shuffle"}
   },
 
-  /* the line under the birthday fields, per stage; `functional` sits beneath it */
+  /* Every word about a stage. name = the big tagline under the birthday fields;
+     meals + textureShort make the small line beneath it ("3 meals · lumpy mash & finger foods");
+     locked = the "always off the plate" line (the rules themselves live in LOCKED_RULES). */
   stages:{
-    milk:      {tagline:"Milk, and lots of cuddles"},
-    first:     {tagline:"First tastes"},
-    fingers:   {tagline:"Fingers first"},
-    family:    {tagline:"A seat at the family table"},
-    opinions:  {tagline:"Big opinions, small plates"}
+    milk:{
+      name:"Milk only", meals:"Milk only, for now"
+    },
+    first:{
+      name:"First tastes",
+      meals:"1–2 small meals + milk", textureShort:"purées and soft finger foods",
+      portionHint:"a few spoonfuls of each; follow their appetite",
+      note:"Milk is still their main food; solids are for tasting.",
+      avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"],
+      locked:"honey, whole nuts, whole grapes, added salt and sugar"
+    },
+    textures:{
+      name:"Fingers first",
+      meals:"3 meals", textureShort:"lumpy mash & finger foods",
+      portionHint:"2–4 tablespoons of each food",
+      note:"Milk alongside meals, as they eat more.",
+      avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"],
+      locked:"honey, whole nuts, whole grapes, added salt and sugar"
+    },
+    family:{
+      name:"A seat at the family table",
+      meals:"3 meals + 2 snacks", textureShort:"soft pieces",
+      portionHint:"about a quarter of an adult portion",
+      note:"Whole cow's milk can be their main drink now.",
+      avoid:["Whole nuts","Whole grapes","Added salt or sugar"],
+      locked:"whole nuts, whole grapes, added salt and sugar"
+    },
+    nearfamily:{
+      name:"Big opinions, small plates",
+      meals:"3 meals + 2 snacks", textureShort:"bite-size family food",
+      portionHint:"a third to half an adult portion; let them serve themselves",
+      note:"Picky-eating friendly: a few familiar staples repeat through the week, so every plate has something they know.",
+      avoid:["Whole nuts","Whole grapes","Hard sweets"],
+      locked:"whole nuts, whole grapes, added salt and sugar"
+    }
   },
 
   priorities:{

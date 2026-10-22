@@ -949,41 +949,26 @@ const DEFAULT_VARIETY = {
    summary line and the suggested "never include" foods. Months are
    inclusive. A stage with solids:false gets no menu at all. */
 const AGE_MAX = 36;
+/* The stages: one config drives meal slots, portions and food groups; every
+   word about a stage (name, meals, textures, portion hint, the locked line)
+   lives in content.js under CONTENT.stages and is merged in below. */
+const ALL_GROUPS = ["protein","vegetable","fruit","grain","fat"];
 const STAGES = [
-  { id:"milk", from:0, to:5, name:"Milk only", solids:false },
-  { id:"first", from:6, to:8, name:"First tastes", solids:true,
+  { id:"milk", from:0, to:5, solids:false, groups:[] },
+  { id:"first", from:6, to:8, solids:true,
     slots:["breakfast","lunch"], perMeal:2,
-    meals:"1–2 small meals + milk",
-    textureShort:"purées and soft finger foods",
-    portions:{protein:15, vegetable:20, fruit:20, grain:15, fat:5},
-    portionHint:"a few spoonfuls of each; follow their appetite",
-    note:"Milk is still their main food; solids are for tasting.",
-    avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"] },
-  { id:"textures", from:9, to:11, name:"Textures & finger foods", solids:true,
+    portions:{protein:15, vegetable:20, fruit:20, grain:15, fat:5}, groups:ALL_GROUPS },
+  { id:"textures", from:9, to:11, solids:true,
     slots:["breakfast","lunch","dinner"],
-    meals:"3 meals",
-    textureShort:"lumpy mash and finger foods",
-    portions:{protein:25, vegetable:30, fruit:30, grain:30, fat:10},
-    portionHint:"2–4 tablespoons of each food",
-    note:"Milk alongside meals, as they eat more.",
-    avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"] },
-  { id:"family", from:12, to:23, name:"Family foods", solids:true,
+    portions:{protein:25, vegetable:30, fruit:30, grain:30, fat:10}, groups:ALL_GROUPS },
+  { id:"family", from:12, to:23, solids:true,
     slots:["breakfast","snack1","lunch","snack2","dinner"],
-    meals:"3 meals + 2 snacks",
-    textureShort:"soft pieces",
-    portions:{protein:35, vegetable:45, fruit:40, grain:40, fat:15},
-    portionHint:"about a quarter of an adult portion",
-    note:"Whole cow's milk can be their main drink now.",
-    avoid:["Whole nuts","Whole grapes","Added salt or sugar"] },
-  { id:"nearfamily", from:24, to:36, name:"Near-family meals", solids:true,
+    portions:{protein:35, vegetable:45, fruit:40, grain:40, fat:15}, groups:ALL_GROUPS },
+  { id:"nearfamily", from:24, to:36, solids:true,
     slots:["breakfast","snack1","lunch","snack2","dinner"], picky:true,
-    meals:"3 meals + 2 snacks",
-    textureShort:"bite-size family food",
-    portions:{protein:50, vegetable:60, fruit:55, grain:55, fat:20},
-    portionHint:"a third to half an adult portion; let them serve themselves",
-    note:"Picky-eating friendly: a few familiar staples repeat through the week, so every plate has something they know.",
-    avoid:["Whole nuts","Whole grapes","Hard sweets"] }
+    portions:{protein:50, vegetable:60, fruit:55, grain:55, fat:20}, groups:ALL_GROUPS }
 ];
+STAGES.forEach(st=>Object.assign(st, CONTENT.stages[st.id]));
 /* What a dish is like to eat depends on what kind of food it is, so each
    food has a form and each form a texture per stage; null = no label (the
    name already says it, or it is eaten as it comes). */
@@ -1020,6 +1005,10 @@ function textureFor(food, st){
 
 function stageFor(months){ return STAGES.find(st=>months>=st.from && months<=st.to) || STAGES[STAGES.length-1]; }
 function ageLabel(months){ return months===1 ? "1 month" : months+" months"; }
+/* "3 meals · lumpy mash & finger foods" */
+function stageLine(st){ return st.solids ? `${st.meals} · ${st.textureShort}` : st.meals; }
+/* "Always off the plate at this age: honey, whole nuts, …" (the gate itself is LOCKED_RULES) */
+function lockedLine(months){ return say("onb.keepOut.locked", {list: stageFor(months).locked}); }
 /* "3 meals + 2 snacks · soft pieces · no whole nuts or whole grapes" */
 function stageSummary(st){
   if(!st.solids) return "Milk only · no solids yet";
@@ -1451,6 +1440,27 @@ function loadState(){
   return migrate(saved);
 }
 
+/* An older save's age, in months. CHICHO itself only ever stored months
+   (createAge: 10), but accept years too: ageYears: 2, ageMonths: 9,
+   age: {years:1, months:3}, or text like "2 years", "1.5 y", "9 months".
+   A bare number means months. null when there's nothing readable. */
+function savedAgeMonths(saved){
+  const num = v=>typeof v==="number" && Number.isFinite(v) ? v : null;
+  const text = v=>{
+    if(typeof v!=="string" || !v.trim()) return null;
+    const t = v.trim().toLowerCase().replace(",", ".");
+    let y = t.match(/(\d+(?:\.\d+)?)\s*(?:y|yr|yrs|year|years)\b/), m = t.match(/(\d+(?:\.\d+)?)\s*(?:m|mo|mos|month|months)\b/);
+    if(y || m) return (y ? Number(y[1])*12 : 0) + (m ? Number(m[1]) : 0);
+    return /^\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+  };
+  const parts = o=>o && typeof o==="object" && (num(o.years)!==null || num(o.months)!==null)
+    ? (num(o.years) || 0)*12 + (num(o.months) || 0) : null;
+  const tries = [num(saved.ageMonths), num(saved.ageYears)!==null ? saved.ageYears*12 : null,
+                 num(saved.createAge), text(saved.createAge), parts(saved.age), text(saved.age), num(saved.age)];
+  const hit = tries.find(v=>v!==null && v>=0);
+  return hit===undefined ? null : hit;
+}
+
 /* Saved states predate later features, so fill in anything the running code
    expects but an older save never wrote. Saved values always win. */
 function migrate(saved){
@@ -1496,8 +1506,8 @@ function migrate(saved){
   // because it's locked now
   const prof = Object.assign(freshProfile(), saved.profile && typeof saved.profile==="object" ? saved.profile : {});
   if(!prof.birthDate || isNaN(localDate(prof.birthDate))){
-    const age = Number(saved.createAge);
-    prof.birthDate = birthDateFromMonths(Number.isFinite(age) ? Math.min(AGE_MAX, Math.max(0, Math.round(age))) : 10);
+    const age = savedAgeMonths(saved);
+    prof.birthDate = birthDateFromMonths(age===null ? 10 : Math.min(AGE_MAX, Math.max(0, Math.round(age))));
   }
   if(!saved.profile && Array.isArray(saved.excludedFoods)){
     saved.excludedFoods.forEach(f=>{
@@ -1516,7 +1526,7 @@ function migrate(saved){
   prof.priorities = (Array.isArray(prof.priorities) ? prof.priorities : []).filter(id=>PRIORITIES.some(p=>p.id===id)).slice(0,3);
   if(!saved.profile) prof.returning = true;   // an older save: their week is worth keeping
   s.profile = prof;
-  delete s.createAge;
+  delete s.createAge; delete s.ageYears; delete s.ageMonths; delete s.age;
   delete s.excludedFoods;
   if(!s.exposures || typeof s.exposures!=="object" || Array.isArray(s.exposures)) s.exposures = {};
   // marking: eaten:true becomes "ate it"; eaten keeps meaning "served"
@@ -3403,7 +3413,7 @@ function onbBirthday(card, P){
     save();
     const m = ageNow(), st = stageFor(m);
     badge.textContent = `${ageLabel(m)} · ${st.name}`;
-    preview.textContent = st.solids ? `${st.meals} · ${st.textureShort}` : "Milk only, for now";
+    preview.textContent = stageLine(st);
     if(lastStage && lastStage!==st.id && !calm()) badge.animate([{transform:"scale(.85)"},{transform:"scale(1.06)"},{transform:"none"}], {duration:420, easing:"cubic-bezier(.32,1.25,.5,1)"});
     lastStage = st.id;
   };
