@@ -1,7 +1,7 @@
 # CHICHO
 plan groceries and meal preps
 
-https://marta-domingo-source.github.io/chicho-meals/
+https://marta.fyi/chicho/
 
 
 **CHICHO** is a simple, mobile-friendly meal planner for toddlers. I got tired of wondering *what should we eat today?"* every single day. So I built it. It's a simple meal planner for babies and toddlers that helps plan balanced meals, keep track of food variety, and automatically build the grocery list.
