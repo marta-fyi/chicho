@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CHICHO</title>
 <!-- Icons are cropped from the Chicho mascot artwork: the favicon
      is a head crop so it still reads at 16px, the touch icon is the whole figure
@@ -18,46 +18,61 @@
     --cream:#DCD5C4; --mauve:#D0B7CD; --cyanbg:#14B9E5; --bluebg:#5E9FEB; --lilac:#AFA4D9;
     --pinkbg:#E5AEBD; --orangebg:#EE9217; --yellowbg:#EFB10C; --mintbg:#51E7C4; --tealbg:#64D8D3; --lime:#E5F486;
 
-    /* iOS 26/27 system colours, light, read from the OS (macOS 26.7 shares
-       them with iOS: Apple calls them unified) */
-    --red:#FF383C; --orange:#FF8D28; --yellow:#FFCC00; --green:#34C759; --mint:#00C8B3; --teal:#00C3D0;
-    --cyan:#00C0E8; --blue:#0088FF; --indigo:#6155F5; --purple:#CB30E0; --pink:#FF2D55; --gray:#8E8E93;
-    --tint:var(--blue);
+    /* time of day: tints laid over the gradient (see .tod below) */
+    --tod-dawn:rgba(255,196,164,.55);     /* soft peach */
+    --tod-golden:rgba(255,176,72,.42);    /* late-afternoon amber */
+    --tod-evening:rgba(16,30,70,.78);     /* deep, calm blue */
 
-    /* iOS semantic colours, light */
-    --label:#000000;
-    --label-2:rgba(60,60,67,.6);       /* secondaryLabel */
-    --label-3:rgba(60,60,67,.3);       /* tertiaryLabel */
-    --separator:rgba(60,60,67,.29);
-    --grouped:#F2F2F7;                 /* systemGroupedBackground */
-    --cell:#FFFFFF;                    /* secondarySystemGroupedBackground */
-    --fill:rgba(120,120,128,.16);      /* secondarySystemFill */
-    --fill-3:rgba(118,118,128,.12);    /* tertiarySystemFill */
-    --gray3:#C7C7CC;
-    --tint-soft:rgba(0,136,255,.15);
-    --green-soft:rgba(52,199,89,.16);
+    /* brand: olive, warm ink, white cards */
+    --olive-900:#3E4621;
+    --olive-700:#5F6B33;   /* headlines and the tint: 5.8:1 on white */
+    --olive-500:#7E8B47;
+    --olive-200:#DCE2C6;
+    --olive-100:#EEF1E4;
+    --olive-50:#F6F8F0;
+    --ink:#1F2328;         /* 15.8:1 on white */
+    --muted:#5C6370;       /* 6.1:1 on white */
+    --faint:#8A919C;       /* decoration only, never text */
+    --card:#FFFFFF;
+    --hairline:rgba(31,35,40,.10);
 
-    /* food categories in system colours */
-    --protein:var(--orange); --vegetable:var(--green); --fruit:var(--pink); --grain:var(--yellow); --fat:var(--indigo);
+    /* food categories: soft pastels for tiles, deeper dots */
+    --protein:#E59A6B; --vegetable:#7DB46C; --fruit:#E58FA6; --grain:#E3B64F; --fat:#9B8FD6;
+    --protein-soft:#FBE3D3; --vegetable-soft:#E1F0DA; --fruit-soft:#FBE0E7; --grain-soft:#F8EBC9; --fat-soft:#E7E3F7;
 
-    /* shape: iOS 26 concentric corners */
-    --r-sheet:28px; --r-group:18px; --r-field:12px;
+    /* shape and depth */
+    --r-card:28px; --r-tile:22px; --r-group:18px; --r-field:14px; --r-pill:999px;
+    --shadow-card:0 24px 60px -24px rgba(40,46,30,.28), 0 2px 8px rgba(40,46,30,.06);
+    --shadow-lift:0 30px 60px -20px rgba(40,46,30,.34), 0 4px 12px rgba(40,46,30,.10);
+    --shadow-tile:0 14px 30px -12px rgba(40,46,30,.30), 0 2px 6px rgba(40,46,30,.08);
 
-    /* type: SF Pro via the system font (Apple's licence keeps it on Apple
-       platforms, so it can't be embedded); the iOS text styles */
+    /* spacing */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
+
+    /* type: the system stack (SF Pro on Apple devices) */
     --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    --fs-large:34px; --fs-title2:22px; --fs-title3:20px; --fs-headline:17px; --fs-body:17px;
-    --fs-callout:16px; --fs-sub:15px; --fs-foot:13px; --fs-cap:12px;
+    --fs-display:36px; --fs-title:22px; --fs-body:16px; --fs-caption:13px;
+    --track-display:-.035em; --track-title:-.02em;
 
-    /* motion: iOS-like springs */
+    /* motion */
     --spring:cubic-bezier(.32,1.25,.5,1);
     --spring-soft:cubic-bezier(.25,1.1,.4,1);
     --ease-out:cubic-bezier(.22,.61,.36,1);
-    --dur-1:120ms; --dur-2:250ms; --dur-3:420ms;
+    --dur-1:120ms; --dur-2:250ms; --dur-3:380ms;
+
+    /* the component layer still reads these older names until the card
+       system replaces it (commit 2) and the home screen (commit 5) */
+    --tint:var(--olive-700); --tint-soft:var(--olive-100);
+    --label:var(--ink); --label-2:var(--muted); --label-3:var(--faint);
+    --separator:var(--hairline); --grouped:var(--olive-50); --cell:var(--card);
+    --fill:rgba(95,107,51,.12); --fill-3:rgba(95,107,51,.08); --gray3:#C9CDBE;
+    --green:#5E8C3A; --green-soft:var(--olive-100); --orange:#B5641F; --red:#B33A2E;
+    --r-sheet:var(--r-card);
+    --fs-large:var(--fs-display); --fs-title2:var(--fs-title); --fs-title3:20px; --fs-headline:17px;
+    --fs-callout:16px; --fs-sub:15px; --fs-foot:var(--fs-caption); --fs-cap:12px;
   }
-  /* Increase Contrast, as iOS does it: secondary text and the tint darken */
   @media (prefers-contrast: more){
-    :root{--label-2:rgba(60,60,67,.85);--label-3:rgba(60,60,67,.6);--separator:rgba(60,60,67,.5);--tint:#0062CC;}
+    :root{--muted:#41464F;--hairline:rgba(31,35,40,.22);--olive-700:#4C5628;}
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -81,17 +96,35 @@
     position:absolute;border-radius:50%;translate:-50% -50%;
     background:radial-gradient(closest-side, var(--c) 0%, color-mix(in srgb, var(--c) 60%, transparent) 45%, transparent 100%);
     animation:drift var(--t) ease-in-out infinite alternate;
+    will-change:transform;
+    transition:opacity 60s linear;
   }
-  .b-mauve {--c:var(--mauve);   left:100%; top:2%;  width:80vmax; height:60vmax; --t:70s;  --dx:-4vw; --dy:3vh;}
-  .b-cyan  {--c:var(--cyanbg);  left:0%;   top:36%; width:85vmax; height:60vmax; --t:90s;  --dx:6vw;  --dy:-3vh;}
-  .b-blue  {--c:var(--bluebg);  left:100%; top:42%; width:80vmax; height:55vmax; --t:80s;  --dx:-6vw; --dy:2vh;}
-  .b-lilac {--c:var(--lilac);   left:78%;  top:47%; width:45vmax; height:40vmax; --t:65s;  --dx:-3vw; --dy:-2vh;}
-  .b-mint  {--c:var(--mintbg);  left:0%;   top:74%; width:80vmax; height:50vmax; --t:85s;  --dx:5vw;  --dy:2vh;}
-  .b-teal  {--c:var(--tealbg);  left:100%; top:80%; width:70vmax; height:45vmax; --t:75s;  --dx:-5vw; --dy:-2vh;}
-  .b-lime  {--c:var(--lime);    left:45%;  top:104%;width:190vw;  height:46vh;   --t:100s; --dx:4vw;  --dy:-1vh;}
-  .b-pink  {--c:var(--pinkbg);  left:50%;  top:52%; width:95vw;   height:48vh;   --t:60s;  --dx:-3vw; --dy:2vh;}
-  .b-orange{--c:var(--orangebg);left:50%;  top:47%; width:58vw;   height:24vh;   --t:55s;  --dx:3vw;  --dy:1vh;}
-  .b-yellow{--c:var(--yellowbg);left:50%;  top:55%; width:56vw;   height:22vh;   --t:50s;  --dx:-2vw; --dy:-1vh;}
+  /* the tab is hidden: nothing moves */
+  .tab-hidden .blob{animation-play-state:paused;}
+  /* Time of day: one tint per moment over the gradient, crossfading slowly
+     (60 s) when the hour turns. Midday is the gradient as it is; evening
+     dims the blobs as well, like the light going. */
+  .tod{position:absolute;inset:0;opacity:0;transition:opacity 60s linear;}
+  .tod-dawn{background:linear-gradient(180deg, var(--tod-dawn), rgba(255,214,190,.25) 60%, rgba(255,230,210,.1));mix-blend-mode:soft-light;}
+  .tod-dawn-wash{background:linear-gradient(180deg, rgba(255,205,180,.38), rgba(255,225,205,.12) 70%);}
+  .tod-golden{background:linear-gradient(180deg, rgba(255,214,140,.22), var(--tod-golden) 70%, rgba(240,140,60,.35));mix-blend-mode:soft-light;}
+  .tod-golden-wash{background:linear-gradient(180deg, rgba(255,196,110,.24), rgba(255,160,70,.38));}
+  .tod-evening{background:linear-gradient(180deg, var(--tod-evening), rgba(24,40,92,.72) 60%, rgba(40,52,110,.66));}
+  [data-tod="dawn"] .tod-dawn, [data-tod="dawn"] .tod-dawn-wash,
+  [data-tod="golden"] .tod-golden, [data-tod="golden"] .tod-golden-wash,
+  [data-tod="evening"] .tod-evening{opacity:1;}
+  [data-tod="evening"] .blob{opacity:.55;}
+  .tod-instant .tod, .tod-instant .blob{transition:none;}
+  .b-mauve {--c:var(--mauve);   left:100%; top:2%;  width:80vmax; height:60vmax; --t:170s;  --dx:-4vw; --dy:3vh;}
+  .b-cyan  {--c:var(--cyanbg);  left:0%;   top:36%; width:85vmax; height:60vmax; --t:220s;  --dx:6vw;  --dy:-3vh;}
+  .b-blue  {--c:var(--bluebg);  left:100%; top:42%; width:80vmax; height:55vmax; --t:200s;  --dx:-6vw; --dy:2vh;}
+  .b-lilac {--c:var(--lilac);   left:78%;  top:47%; width:45vmax; height:40vmax; --t:150s;  --dx:-3vw; --dy:-2vh;}
+  .b-mint  {--c:var(--mintbg);  left:0%;   top:74%; width:80vmax; height:50vmax; --t:210s;  --dx:5vw;  --dy:2vh;}
+  .b-teal  {--c:var(--tealbg);  left:100%; top:80%; width:70vmax; height:45vmax; --t:180s;  --dx:-5vw; --dy:-2vh;}
+  .b-lime  {--c:var(--lime);    left:45%;  top:104%;width:190vw;  height:46vh;   --t:240s; --dx:4vw;  --dy:-1vh;}
+  .b-pink  {--c:var(--pinkbg);  left:50%;  top:52%; width:95vw;   height:48vh;   --t:140s;  --dx:-3vw; --dy:2vh;}
+  .b-orange{--c:var(--orangebg);left:50%;  top:47%; width:58vw;   height:24vh;   --t:130s;  --dx:3vw;  --dy:1vh;}
+  .b-yellow{--c:var(--yellowbg);left:50%;  top:55%; width:56vw;   height:22vh;   --t:120s;  --dx:-2vw; --dy:-1vh;}
   @keyframes drift{
     from{transform:translate(0,0) scale(1);}
     to{transform:translate(var(--dx),var(--dy)) scale(1.08);}
@@ -114,7 +147,8 @@
     -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     -webkit-mask-image:linear-gradient(#000 40%, transparent);mask-image:linear-gradient(#000 40%, transparent);
   }
-  .large-title{margin:0;padding:calc(env(safe-area-inset-top) + 18px) 4px 10px;font-size:var(--fs-large);font-weight:700;letter-spacing:.01em;line-height:1.2;}
+  .large-title{margin:0;padding:calc(env(safe-area-inset-top) + 18px) 4px 10px;font-size:var(--fs-display);font-weight:700;letter-spacing:var(--track-display);line-height:1.15;color:var(--olive-900);transition:color 60s linear;}
+  [data-tod="evening"] .large-title{color:#fff;}
 
   /* ---------- buttons (iOS 26: capsules) ---------- */
   .btn{
@@ -429,7 +463,25 @@
   <i class="blob b-mauve"></i><i class="blob b-cyan"></i><i class="blob b-blue"></i><i class="blob b-lilac"></i>
   <i class="blob b-mint"></i><i class="blob b-teal"></i><i class="blob b-lime"></i>
   <i class="blob b-pink"></i><i class="blob b-orange"></i><i class="blob b-yellow"></i>
+  <i class="tod tod-dawn"></i><i class="tod tod-dawn-wash"></i><i class="tod tod-golden"></i><i class="tod tod-golden-wash"></i><i class="tod tod-evening"></i>
 </div>
+<script>
+/* Set the time of day before the first paint, so the page never flashes
+   midday at night. ?tod=dawn|day|golden|evening overrides it (for testing). */
+function timeOfDay(d){
+  const h = d.getHours() + d.getMinutes()/60;
+  return h>=5 && h<9 ? "dawn" : h>=9 && h<16.5 ? "day" : h>=16.5 && h<19.5 ? "golden" : "evening";
+}
+(function(){
+  const forced = new URLSearchParams(location.search).get("tod");
+  const root = document.documentElement;
+  root.classList.add("tod-instant");
+  root.dataset.tod = ["dawn","day","golden","evening"].includes(forced) ? forced : timeOfDay(new Date());
+  requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.remove("tod-instant")));
+  if(!forced) setInterval(()=>{ root.dataset.tod = timeOfDay(new Date()); }, 10*60*1000);
+  document.addEventListener("visibilitychange", ()=>root.classList.toggle("tab-hidden", document.hidden));
+})();
+</script>
 
 <div class="scroll-edge" aria-hidden="true"></div>
 <div class="container">
