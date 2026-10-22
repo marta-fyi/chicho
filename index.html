@@ -290,6 +290,26 @@
     background:var(--warn-bg);color:#8a5a1f;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:10px;
   }
   button,input,select,textarea{font-family:inherit;}
+
+  /* age: a stepper for one-month nudges, the slider for big jumps */
+  .age-ctl{display:flex;align-items:center;gap:10px;}
+  .age-step{
+    flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
+    background:#fff;color:var(--ink);font-size:22px;line-height:1;display:grid;place-items:center;
+  }
+  .age-step:disabled{opacity:.35;}
+  .age-read{flex:1;text-align:center;font-size:15px;line-height:1.3;}
+  .age-read b{display:block;font-size:22px;font-weight:700;}
+  .age-range{width:100%;height:44px;margin:2px 0 0;accent-color:var(--accent);}
+  .stage-sum{font-size:13px;color:var(--ink);background:#f6f3ee;border-radius:10px;padding:8px 11px;margin:0 0 14px;}
+  .suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--muted);}
+  .suggest button{border:1px dashed var(--line);background:none;border-radius:999px;padding:6px 10px;font-size:12.5px;color:var(--ink);min-height:32px;}
+  .milk-state{text-align:center;padding:18px 8px 6px;}
+  .milk-state .big{font-size:17px;font-weight:700;margin:0 0 6px;}
+  .milk-state p{font-size:13.5px;color:var(--muted);margin:0;}
+  .btn:disabled{opacity:.45;}
+  .tex{font-size:11.5px;color:var(--muted);font-weight:400;}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -326,17 +346,28 @@
       <div class="section-title">✨ Create a new week</div>
       <p class="subtle">Builds seven days of age-appropriate menus. Nothing changes until you apply the preview.</p>
 
-      <div class="section-title" style="font-size:13px;">Age</div>
-      <div class="chips" id="ageChips" style="margin-bottom:12px;"></div>
-
-      <div class="section-title" style="font-size:13px;">Never include</div>
-      <div class="chips" id="excludeChips" style="margin-bottom:8px;"></div>
-      <div class="add-item-row">
-        <input class="name" id="excludeName" type="text" placeholder="Food to avoid (e.g. broccoli)">
-        <button onclick="addExclusion()">Add</button>
+      <div class="section-title" style="font-size:13px;" id="ageTitle">Age</div>
+      <div class="age-ctl" role="group" aria-labelledby="ageTitle">
+        <button type="button" class="age-step" id="ageMinus" aria-label="One month younger">−</button>
+        <output class="age-read" id="ageRead" for="ageRange" aria-live="polite"></output>
+        <button type="button" class="age-step" id="agePlus" aria-label="One month older">+</button>
       </div>
+      <input class="age-range" id="ageRange" type="range" min="0" max="36" step="1" aria-label="Age in months">
+      <p class="stage-sum" id="stageSummary"></p>
 
-      <p class="banner" id="createBanner" style="margin-top:12px;"></p>
+      <div id="solidsControls">
+        <div class="section-title" style="font-size:13px;">Never include</div>
+        <div class="chips" id="excludeChips" style="margin-bottom:8px;"></div>
+        <div class="add-item-row">
+          <label class="sr-only" for="excludeName">Food to never include</label>
+          <input class="name" id="excludeName" type="text" placeholder="Food to avoid (e.g. broccoli)">
+          <button onclick="addExclusion()">Add</button>
+        </div>
+        <div class="suggest" id="excludeSuggest"></div>
+
+        <p class="banner" id="createBanner" style="margin-top:12px;"></p>
+      </div>
+      <div class="milk-state" id="milkState" hidden></div>
       <div class="btnrow">
         <button class="btn primary" id="generateBtn" onclick="generateDraft()">Generate preview</button>
       </div>
@@ -411,96 +442,171 @@ const DEFAULT_VARIETY = {
   fat:       ["Avocado","Salmon","Chia seeds","Peanut butter","Olive oil"]
 };
 
+/* ---------- feeding stages ----------
+   One record per stage, and everything age-dependent reads from here: the
+   meal slots generated, the texture label on each dish, portions, the
+   summary line and the suggested "never include" foods. Months are
+   inclusive. A stage with solids:false gets no menu at all. */
+const AGE_MAX = 36;
+const STAGES = [
+  { id:"milk", from:0, to:5, name:"Milk only", solids:false },
+  { id:"first", from:6, to:8, name:"First tastes", solids:true,
+    slots:["breakfast","lunch"], perMeal:2,
+    meals:"1–2 small meals + milk",
+    textureShort:"purées and soft finger foods",
+    portions:{protein:15, vegetable:20, fruit:20, grain:15, fat:5},
+    portionHint:"a few spoonfuls of each; follow their appetite",
+    note:"Milk is still their main food; solids are for tasting.",
+    avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"] },
+  { id:"textures", from:9, to:11, name:"Textures & finger foods", solids:true,
+    slots:["breakfast","lunch","dinner"],
+    meals:"3 meals",
+    textureShort:"lumpy mash and finger foods",
+    portions:{protein:25, vegetable:30, fruit:30, grain:30, fat:10},
+    portionHint:"2–4 tablespoons of each food",
+    note:"Milk alongside meals, as they eat more.",
+    avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"] },
+  { id:"family", from:12, to:23, name:"Family foods", solids:true,
+    slots:["breakfast","snack1","lunch","snack2","dinner"],
+    meals:"3 meals + 2 snacks",
+    textureShort:"soft pieces",
+    portions:{protein:35, vegetable:45, fruit:40, grain:40, fat:15},
+    portionHint:"about a quarter of an adult portion",
+    note:"Whole cow's milk can be their main drink now.",
+    avoid:["Whole nuts","Whole grapes","Added salt or sugar"] },
+  { id:"nearfamily", from:24, to:36, name:"Near-family meals", solids:true,
+    slots:["breakfast","snack1","lunch","snack2","dinner"], picky:true,
+    meals:"3 meals + 2 snacks",
+    textureShort:"bite-size family food",
+    portions:{protein:50, vegetable:60, fruit:55, grain:55, fat:20},
+    portionHint:"a third to half an adult portion; let them serve themselves",
+    note:"Picky-eating friendly: a few familiar staples repeat through the week, so every plate has something they know.",
+    avoid:["Whole nuts","Whole grapes","Hard sweets"] }
+];
+/* What a dish is like to eat depends on what kind of food it is, so each
+   food has a form and each form a texture per stage; null = no label (the
+   name already says it, or it is eaten as it comes). */
+const FORMS = {
+  //          First tastes          Textures & finger foods    Family foods     Near-family
+  meat:   {first:"puréed",       textures:"minced",            family:"shredded",   nearfamily:"bite-size"},
+  fish:   {first:"puréed",       textures:"flaked",            family:"flaked",     nearfamily:"flaked"},
+  egg:    {first:"mashed",       textures:"chopped",           family:"chopped",    nearfamily:"bite-size"},
+  mash:   {first:"puréed",       textures:"mashed",            family:null,         nearfamily:null},
+  veg:    {first:"puréed",       textures:"mashed or soft strips", family:"soft pieces", nearfamily:"bite-size"},
+  fruit:  {first:"mashed",       textures:"finger strips",     family:"soft pieces", nearfamily:"bite-size"},
+  small:  {first:"squashed",     textures:"squashed",          family:"cut small",  nearfamily:"cut small"},
+  finger: {first:"soft fingers", textures:"finger strips",     family:"soft pieces", nearfamily:"bite-size"},
+  cereal: {first:"smooth",       textures:"thick",             family:null,         nearfamily:null},
+  grain:  {first:"mashed",       textures:"soft",              family:null,         nearfamily:null},
+  spoon:  {first:"spoonable",    textures:"spoonable",         family:null,         nearfamily:null},
+  spread: {first:"stirred in",   textures:"spread thin",       family:"spread thin", nearfamily:"spread thin"},
+  oil:    {first:"stirred in",   textures:"stirred in",        family:"stirred in", nearfamily:"stirred in"},
+  none:   {}
+};
+const CAT_FORM = {protein:"meat", vegetable:"veg", fruit:"fruit", grain:"cereal", fat:"spread"};
+const FOOD_FORM = {
+  "Egg, well cooked":"egg", "Salmon":"fish", "White fish":"fish", "Lentils":"mash", "Chickpeas":"mash",
+  "Tofu, soft":"finger", "Greek yogurt":"spoon", "Cottage cheese":"spoon", "Ricotta":"spoon", "Cheese, grated":"none",
+  "Peas":"small", "Blueberries, halved":"small", "Raspberries":"small", "Grapes, quartered":"small",
+  "Whole wheat toast":"finger", "Whole wheat pasta":"finger", "Avocado":"fruit", "Olive oil":"oil", "Chia seeds":"oil",
+  "Hummus":"spoon", "Cucumber sticks":"none", "Beef meatballs, soft":"none",
+  "Rice, soft-cooked":"grain", "Quinoa":"grain", "Couscous":"grain"
+};
+function textureFor(food, st){
+  const form = FORMS[FOOD_FORM[food.name] || CAT_FORM[food.cats[0]]] || {};
+  return form[st.id] || null;
+}
+
+function stageFor(months){ return STAGES.find(st=>months>=st.from && months<=st.to) || STAGES[STAGES.length-1]; }
+function ageLabel(months){ return months===1 ? "1 month" : months+" months"; }
+/* "3 meals + 2 snacks · soft pieces · no whole nuts or whole grapes" */
+function stageSummary(st){
+  if(!st.solids) return "Milk only · no solids yet";
+  const no = st.avoid.slice(0,2).map(a=>a.charAt(0).toLowerCase()+a.slice(1));
+  return `${st.meals} · ${st.textureShort} · no ${no.join(" or ")}`;
+}
+
 /* ---------- menu generator: age-gated food pool ----------
-   min   = earliest age in months this food is suitable
-   iron  = iron-rich, prioritised for babies around 10 months
+   min   = earliest age in months this food is suitable; max = latest, if any
+   iron  = iron-rich, so every generated day gets at least one
    slots = which meal slots the food fits
    Honey is deliberately absent (unsafe under 12 months). Choking-hazard foods
    carry their safe preparation in the name; whole nuts, popcorn and raw hard
-   vegetables are simply not in the pool at any age. */
-const AGES = [
-  {months:10, label:"10 months", texture:"soft-cooked, mashed or soft finger strips"},
-  {months:12, label:"12 months", texture:"soft, chopped small"},
-  {months:18, label:"18 months+", texture:"bite-sized pieces"}
-];
+   vegetables are simply not in the pool at any age. Texture comes from the
+   stage, so names only carry preparation that matters for safety. */
 
 const FOOD_POOL = [
   // proteins
-  {name:"Egg, well cooked",     cats:["protein"],        min:10, iron:true,  slots:["breakfast","lunch"]},
-  {name:"Chicken, shredded",    cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Turkey, shredded",     cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Beef, finely minced",  cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Salmon, flaked",       cats:["protein","fat"],  min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"White fish, flaked",   cats:["protein"],        min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Lentils",              cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Chickpeas, mashed",    cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Tofu, soft",           cats:["protein"],        min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Greek yogurt",         cats:["protein"],        min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Cottage cheese",       cats:["protein"],        min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Ricotta",              cats:["protein"],        min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Cheese, grated",       cats:["protein"],        min:10, iron:false, slots:["snack","lunch"]},
+  {name:"Egg, well cooked",     cats:["protein"],        min:6,  iron:true,  slots:["breakfast","lunch"]},
+  {name:"Chicken",              cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Turkey",               cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Beef",                 cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Salmon",               cats:["protein","fat"],  min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"White fish",           cats:["protein"],        min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Lentils",              cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Chickpeas",            cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Tofu, soft",           cats:["protein"],        min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Greek yogurt",         cats:["protein"],        min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Cottage cheese",       cats:["protein"],        min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Ricotta",              cats:["protein"],        min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Cheese, grated",       cats:["protein"],        min:6,  iron:false, slots:["snack","lunch"]},
   {name:"Beef meatballs, soft", cats:["protein"],        min:12, iron:true,  slots:["lunch","dinner"]},
   // vegetables
-  {name:"Carrots, soft-cooked", cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner","snack"]},
-  {name:"Sweet potato",         cats:["vegetable","grain"],   min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Pumpkin",              cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Zucchini",             cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner","snack"]},
-  {name:"Green beans, soft",    cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Peas, lightly mashed", cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Cauliflower, soft",    cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Potato",               cats:["vegetable","grain"],   min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Butternut squash",     cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Spinach, cooked",      cats:["vegetable"],           min:10, iron:true,  slots:["lunch","dinner"]},
-  {name:"Beetroot, cooked",     cats:["vegetable"],           min:10, iron:false, slots:["lunch","dinner"]},
+  {name:"Carrots, soft-cooked", cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner","snack"]},
+  {name:"Sweet potato",         cats:["vegetable","grain"],   min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Pumpkin",              cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Zucchini",             cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner","snack"]},
+  {name:"Green beans, soft",    cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Peas",                 cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Cauliflower, soft",    cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Potato",               cats:["vegetable","grain"],   min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Butternut squash",     cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Spinach, cooked",      cats:["vegetable"],           min:6,  iron:true,  slots:["lunch","dinner"]},
+  {name:"Beetroot, cooked",     cats:["vegetable"],           min:6,  iron:false, slots:["lunch","dinner"]},
   {name:"Cucumber sticks",      cats:["vegetable"],           min:12, iron:false, slots:["snack"]},
   {name:"Tomato, peeled",       cats:["vegetable"],           min:12, iron:false, slots:["lunch","snack"]},
   // fruits
-  {name:"Banana",               cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Pear, ripe",           cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Apple, cooked",        cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Peach, ripe",          cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Mango",                cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Melon",                cats:["fruit"], min:10, iron:false, slots:["snack","dinner"]},
-  {name:"Kiwi",                 cats:["fruit"], min:10, iron:false, slots:["breakfast","snack","dinner"]},
-  {name:"Blueberries, halved",  cats:["fruit"], min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Strawberries, sliced", cats:["fruit"], min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Raspberries",          cats:["fruit"], min:10, iron:false, slots:["breakfast","snack"]},
+  {name:"Banana",               cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Pear, ripe",           cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Apple, cooked",        cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Peach, ripe",          cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Mango",                cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Melon",                cats:["fruit"], min:6,  iron:false, slots:["snack","dinner"]},
+  {name:"Kiwi",                 cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack","dinner"]},
+  {name:"Blueberries, halved",  cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Strawberries, sliced", cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Raspberries",          cats:["fruit"], min:6,  iron:false, slots:["breakfast","snack"]},
   {name:"Plum, ripe",           cats:["fruit"], min:12, iron:false, slots:["snack","dinner"]},
   {name:"Grapes, quartered",    cats:["fruit"], min:12, iron:false, slots:["snack"]},
   // grains & starches
-  {name:"Oatmeal",              cats:["grain"], min:10, iron:true,  slots:["breakfast"]},
-  {name:"Baby rice cereal",     cats:["grain"], min:10, iron:true,  slots:["breakfast"]},
-  {name:"Whole wheat toast",    cats:["grain"], min:10, iron:false, slots:["breakfast","snack"]},
-  {name:"Whole wheat pasta",    cats:["grain"], min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Rice, soft-cooked",    cats:["grain"], min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Quinoa",               cats:["grain"], min:10, iron:true,  slots:["lunch","dinner"]},
+  {name:"Oatmeal",              cats:["grain"], min:6,  iron:true,  slots:["breakfast"]},
+  {name:"Baby rice cereal",     cats:["grain"], min:6,  iron:true,  slots:["breakfast"], max:12},
+  {name:"Whole wheat toast",    cats:["grain"], min:6,  iron:false, slots:["breakfast","snack"]},
+  {name:"Whole wheat pasta",    cats:["grain"], min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Rice, soft-cooked",    cats:["grain"], min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Quinoa",               cats:["grain"], min:6,  iron:true,  slots:["lunch","dinner"]},
   {name:"Couscous",             cats:["grain"], min:12, iron:false, slots:["lunch","dinner"]},
   // healthy fats
-  {name:"Avocado",              cats:["fat"], min:10, iron:false, slots:["breakfast","snack","lunch"]},
-  {name:"Olive oil",            cats:["fat"], min:10, iron:false, slots:["lunch","dinner"]},
-  {name:"Chia seeds",           cats:["fat"], min:10, iron:false, slots:["breakfast"]},
+  {name:"Avocado",              cats:["fat"], min:6,  iron:false, slots:["breakfast","snack","lunch"]},
+  {name:"Olive oil",            cats:["fat"], min:6,  iron:false, slots:["lunch","dinner"]},
+  {name:"Chia seeds",           cats:["fat"], min:6,  iron:false, slots:["breakfast"]},
   {name:"Smooth peanut butter", cats:["fat"], min:12, iron:false, slots:["breakfast","snack"]},
   {name:"Hummus",               cats:["fat","protein"], min:12, iron:false, slots:["snack","lunch"]}
 ];
 
-/* grams per serving, by age then primary category */
-const PORTIONS = {
-  10:{protein:25, vegetable:30, fruit:30, grain:30, fat:10},
-  12:{protein:35, vegetable:45, fruit:40, grain:40, fat:15},
-  18:{protein:50, vegetable:60, fruit:55, grain:55, fat:20}
-};
-
-/* meal slots, mirroring the five the plan already uses */
+/* meal slots, mirroring the five the plan already uses; each stage picks
+   the ones it serves by id. slot = which foods fit (FOOD_POOL.slots). */
 const MEAL_SLOTS = [
-  {slot:"breakfast", label:"Breakfast", icon:"🍳", cats:["grain","fruit","protein"]},
-  {slot:"snack",     label:"Snack",     icon:"🧃", cats:["protein","fruit"]},
-  {slot:"lunch",     label:"Lunch",     icon:"🍽️", cats:["protein","vegetable","grain"]},
-  {slot:"snack",     label:"Snack",     icon:"🍐", cats:["fruit","fat"]},
-  {slot:"dinner",    label:"Dinner",    icon:"🌙", cats:["protein","vegetable","grain","fruit"]}
+  {id:"breakfast", slot:"breakfast", label:"Breakfast", icon:"🍳", cats:["grain","fruit","protein"]},
+  {id:"snack1",    slot:"snack",     label:"Snack",     icon:"🧃", cats:["protein","fruit"]},
+  {id:"lunch",     slot:"lunch",     label:"Lunch",     icon:"🍽️", cats:["protein","vegetable","grain"]},
+  {id:"snack2",    slot:"snack",     label:"Snack",     icon:"🍐", cats:["fruit","fat"]},
+  {id:"dinner",    slot:"dinner",    label:"Dinner",    icon:"🌙", cats:["protein","vegetable","grain","fruit"]}
 ];
 
-/* item: {id, name, qty, cats:[...]} ; cats reference CATS keys, first = primary (used for grocery grouping) */
-function it(name, qty, cats){ return {id:uid(), name, qty, cats, eaten:false}; }
+/* item: {id, name, qty, cats:[...], tex?} ; cats reference CATS keys, first = primary (used for grocery grouping).
+   tex is the stage's texture for a generated dish ("mashed", "soft pieces"). */
+function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, eaten:false}; if(tex) i.tex = tex; return i; }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
 function meal(label, icon, items){ return {label, icon, items}; }
@@ -563,7 +669,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 let state = loadState();
 
 function freshState(){
@@ -576,7 +682,7 @@ function freshState(){
     groceryFilter: "week", // "week" | "today" | "next3"
     history: [],
     mascotPos: null,     // {x,y} in px once dragged, else the default corner
-    createAge: 10,       // months, one of AGES
+    createAge: 10,       // months, 0..AGE_MAX
     excludedFoods: ["Broccoli"],
     menuHintSeen: false, // stop nudging the mascot once the menu has been opened
     weekStarted: new Date().toISOString().slice(0,10)
@@ -615,7 +721,10 @@ function migrate(saved){
   if(!p || typeof p.x!=="number" || typeof p.y!=="number" || isNaN(p.x) || isNaN(p.y)) s.mascotPos = null;
 
   s.menuHintSeen = s.menuHintSeen === true;
-  if(!AGES.some(a=>a.months===s.createAge)) s.createAge = 10;
+  // age has always been saved in months (10, 12 or 18 before stages); keep any
+  // whole number in range, so an existing plan's age carries straight over
+  const age = Number(s.createAge);
+  s.createAge = Number.isFinite(age) ? Math.min(AGE_MAX, Math.max(0, Math.round(age))) : 10;
   s.excludedFoods = Array.isArray(s.excludedFoods)
     ? s.excludedFoods.filter(f=>typeof f==="string" && f.trim()).map(f=>f.trim())
     : ["Broccoli"];
@@ -802,7 +911,7 @@ function renderDayContent(){
       const dotColor = CATS[item.cats[0]]?.color || "#ccc";
       row.innerHTML = `
         <input type="checkbox" ${item.eaten?"checked":""} data-id="${item.id}">
-        <label><span class="tag-dot" style="background:${dotColor}"></span>${item.name}</label>
+        <label><span class="tag-dot" style="background:${dotColor}"></span><span>${item.name}${item.tex ? ` <span class="tex">${item.tex}</span>` : ""}</span></label>
         <span class="qty">${item.qty||""}</span>
         <button class="icon-btn" data-del="${item.id}">✕</button>`;
       row.querySelector("input").addEventListener("change", e=>{
@@ -1027,13 +1136,32 @@ function toggleManual(cat, food){
   save(); renderVariety();
 }
 
+/* A checklist food the child is too young for (by the food pool's minimum
+   age) waits until they reach it; foods the pool doesn't know always show. */
+function suitableNow(food){
+  if(!stageNow().solids) return true;
+  const t = food.trim().toLowerCase();
+  const match = FOOD_POOL.find(f=>{
+    const n = f.name.toLowerCase();
+    return n===t || n.startsWith(t+",") || n.startsWith(t+" ") || n.endsWith(" "+t);
+  });
+  return !match || match.min <= state.createAge;
+}
+function varietyNow(){
+  const out = {};
+  Object.entries(state.variety).forEach(([cat, foods])=>{ out[cat] = foods.filter(suitableNow); });
+  return out;
+}
+
 function renderVariety(){
   const card = document.getElementById("varietyCard");
   card.innerHTML = "";
   let totalItems=0, totalCovered=0;
   const catPct = {};
+  const later = [];
+  Object.entries(state.variety).forEach(([cat, foods])=>foods.forEach(f=>{ if(!suitableNow(f)) later.push(f); }));
 
-  Object.entries(state.variety).forEach(([cat, foods])=>{
+  Object.entries(varietyNow()).forEach(([cat, foods])=>{
     const meta = CATS[cat] || { label:cat, color:"#ccc" };
     const block = document.createElement("div");
     block.className = "cat-block";
@@ -1081,6 +1209,13 @@ function renderVariety(){
     card.appendChild(block);
   });
 
+  if(later.length){
+    const n = document.createElement("p");
+    n.className = "filter-note";
+    n.textContent = `Waiting until they're older: ${later.join(", ")}.`;
+    card.appendChild(n);
+  }
+
   const overallPct = totalItems? Math.round(100*totalCovered/totalItems) : 0;
   const circumference = 2*Math.PI*27;
   const ring = document.getElementById("ringProgress");
@@ -1109,7 +1244,7 @@ function renderHistory(){
 function startNewWeek(){
   // compute this week's overall pct for history before clearing
   let totalItems=0, totalCovered=0;
-  Object.entries(state.variety).forEach(([cat, foods])=>{
+  Object.entries(varietyNow()).forEach(([cat, foods])=>{
     totalItems += foods.length;
     totalCovered += foods.filter(f=>isCovered(cat,f)).length;
   });
@@ -1132,12 +1267,12 @@ function startNewWeek(){
 /* ---------- CREATE: generate a week of age-appropriate menus ---------- */
 let draft = null;   // preview only — deliberately never written to state until applied
 
-function ageMeta(){ return AGES.find(a=>a.months===state.createAge) || AGES[0]; }
+function stageNow(){ return stageFor(state.createAge); }
 
 function eligibleFoods(age, exclusions){
   const blocked = new Set(exclusions.map(f=>f.trim().toLowerCase()));
   return FOOD_POOL.filter(f=>{
-    if(f.min > age) return false;
+    if(f.min > age || (f.max && f.max < age)) return false;
     const n = f.name.toLowerCase();
     // match a whole exclusion word so "Broccoli" also blocks "Broccoli, soft"
     for(const b of blocked){ if(n===b || n.startsWith(b+",") || n.startsWith(b+" ")) return false; }
@@ -1172,24 +1307,39 @@ function makeDealer(foods){
   };
 }
 
-function portionFor(food, age){
-  const grams = (PORTIONS[age] || PORTIONS[10])[food.cats[0]] || 30;
-  return grams + " g";
+function portionFor(food, st){
+  return (st.portions[food.cats[0]] || 30) + " g";
+}
+function dish(food, st){ return it(food.name, portionFor(food, st), food.cats, textureFor(food, st)); }
+
+/* Near-family weeks keep three familiar grains (one for breakfast, two for
+   lunch and dinner) so each plate has a staple next to anything new. */
+function withStaples(foods){
+  const grains = foods.filter(f=>f.cats[0]==="grain");
+  const bfast = shuffled(grains.filter(f=>f.slots.includes("breakfast"))).slice(0,1);
+  const main = shuffled(grains.filter(f=>!bfast.includes(f) && (f.slots.includes("lunch") || f.slots.includes("dinner")))).slice(0,2);
+  const keep = new Set(bfast.concat(main));
+  return foods.filter(f=>f.cats[0]!=="grain" || keep.has(f));
 }
 
-function generateWeek(age, exclusions){
-  const foods = eligibleFoods(age, exclusions);
+/* null when the stage has no solids: there is no menu to make yet */
+function generateWeek(months, exclusions){
+  const st = stageFor(months);
+  if(!st.solids) return null;
+  let foods = eligibleFoods(months, exclusions);
+  if(st.picky) foods = withStaples(foods);
   const deal = makeDealer(foods);
+  const slots = MEAL_SLOTS.filter(ms=>st.slots.includes(ms.id));
 
   const days = DAY_ORDER.slice(1).concat(DAY_ORDER[0]).map(name=>{   // Monday..Sunday
     const taken = new Set();
-    const meals = MEAL_SLOTS.map(ms=>{
+    const meals = slots.map(ms=>{
       const items = [];
-      ms.cats.forEach(cat=>{
+      (st.perMeal ? ms.cats.slice(0, st.perMeal) : ms.cats).forEach(cat=>{
         const food = deal(cat, ms.slot, taken);
         if(!food) return;
         taken.add(food.name);
-        items.push(it(food.name, portionFor(food, age), food.cats));
+        items.push(dish(food, st));
       });
       return meal(ms.label, ms.icon, items);
     });
@@ -1197,13 +1347,13 @@ function generateWeek(age, exclusions){
   });
 
   const week = {days};
-  ensureIron(week, foods, age);
+  ensureIron(week, foods, st);
   return week;
 }
 
-/* Babies around 10 months need iron daily, so guarantee at least one iron-rich
+/* Babies and toddlers need iron daily, so guarantee at least one iron-rich
    item per day by swapping the lunch protein where a day comes up short. */
-function ensureIron(week, foods, age){
+function ensureIron(week, foods, st){
   const ironNames = new Set(foods.filter(f=>f.iron).map(f=>f.name));
   const ironLunch = foods.filter(f=>f.iron && f.slots.includes("lunch") && f.cats[0]==="protein");
   if(ironLunch.length===0) return;
@@ -1214,7 +1364,7 @@ function ensureIron(week, foods, age){
     if(!lunch) return;
     const slot = lunch.items.findIndex(i=>i.cats[0]==="protein");
     const pick = ironLunch[Math.floor(Math.random()*ironLunch.length)];
-    const item = it(pick.name, portionFor(pick, age), pick.cats);
+    const item = dish(pick, st);
     if(slot>=0) lunch.items[slot] = item; else lunch.items.unshift(item);
   });
 }
@@ -1255,23 +1405,25 @@ function renderCreate(){
 }
 
 function renderCreateControls(){
-  const meta = ageMeta();
+  const months = state.createAge, st = stageNow();
 
-  const ageWrap = document.getElementById("ageChips");
-  ageWrap.innerHTML = "";
-  AGES.forEach(a=>{
-    const chip = document.createElement("div");
-    chip.className = "chip" + (a.months===state.createAge ? " selected" : "");
-    chip.style.cursor = "pointer";
-    chip.textContent = a.label;
-    chip.addEventListener("click", ()=>{
-      state.createAge = a.months;
-      save();
-      draft = null;     // portions and eligibility changed, so the preview is stale
-      renderCreate();
-    });
-    ageWrap.appendChild(chip);
-  });
+  document.getElementById("ageRange").value = months;
+  document.getElementById("ageMinus").disabled = months<=0;
+  document.getElementById("agePlus").disabled = months>=AGE_MAX;
+  document.getElementById("ageRead").innerHTML = `<b>${ageLabel(months)}</b>${st.name}`;
+  const sum = document.getElementById("stageSummary");
+  sum.textContent = stageSummary(st);
+  sum.hidden = !st.solids;   // the milk-only note below already says it
+
+  // under six months there is nothing to plan: a calm note instead of controls
+  const milk = document.getElementById("milkState");
+  document.getElementById("solidsControls").hidden = !st.solids;
+  milk.hidden = st.solids;
+  if(!st.solids){
+    const left = 6 - months;
+    milk.innerHTML = `<p class="big">No solids yet, milk is all they need.</p>
+      <p>Come back around 6 months${left===1 ? ", in about a month" : `, in about ${left} months`}.</p>`;
+  }
 
   const exWrap = document.getElementById("excludeChips");
   exWrap.innerHTML = "";
@@ -1293,13 +1445,46 @@ function renderCreateControls(){
     exWrap.appendChild(chip);
   });
 
-  document.getElementById("createBanner").textContent =
-    `At ${meta.label}, foods are served ${meta.texture}. No honey under 12 months, no added salt or sugar, `
-    + `and nothing served whole that could block a small airway. General guidance only — check allergen `
-    + `introduction and anything you're unsure about with your paediatrician.`;
+  // the stage's usual avoid-list, one tap to add whatever isn't there yet
+  const sug = document.getElementById("excludeSuggest");
+  sug.innerHTML = "";
+  const missing = (st.avoid||[]).filter(a=>!state.excludedFoods.some(f=>f.toLowerCase()===a.toLowerCase()));
+  if(missing.length){
+    sug.append("Usually avoided at this age:");
+    missing.forEach(a=>{
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "+ " + a;
+      b.addEventListener("click", ()=>{ state.excludedFoods.push(a); save(); draft = null; renderCreate(); });
+      sug.appendChild(b);
+    });
+  }
 
-  document.getElementById("generateBtn").textContent = draft ? "Shuffle again" : "Generate preview";
+  if(st.solids){
+    document.getElementById("createBanner").textContent =
+      `At ${ageLabel(months)}, foods are ${st.textureShort}; portions are ${st.portionHint}. ${st.note} `
+      + `No added salt or sugar, and nothing served whole that could block a small airway. General guidance `
+      + `only; check allergen introduction and anything you're unsure about with your paediatrician.`;
+  }
+
+  const gen = document.getElementById("generateBtn");
+  gen.disabled = !st.solids;
+  gen.textContent = draft ? "Shuffle again" : "Generate preview";
 }
+
+/* one handler for the stepper and the slider: a new age drops a stale preview */
+function setAge(months){
+  months = Math.min(AGE_MAX, Math.max(0, Math.round(months)));
+  if(months===state.createAge) return;
+  state.createAge = months;
+  save();
+  draft = null;
+  renderCreate();
+  renderVariety();   // the checklist follows the stage too
+}
+document.getElementById("ageMinus").addEventListener("click", ()=>setAge(state.createAge-1));
+document.getElementById("agePlus").addEventListener("click", ()=>setAge(state.createAge+1));
+document.getElementById("ageRange").addEventListener("input", e=>setAge(+e.target.value));
 
 function addExclusion(){
   const inp = document.getElementById("excludeName");
@@ -1315,6 +1500,7 @@ function addExclusion(){
 }
 
 function generateDraft(){
+  if(!stageNow().solids) return;
   draft = generateWeek(state.createAge, state.excludedFoods);
   renderCreate();
 }
@@ -1328,14 +1514,14 @@ function renderCreatePreview(){
   const wrap = document.getElementById("createPreview");
   wrap.innerHTML = "";
   if(!draft){
-    wrap.innerHTML = `<p class="empty">No preview yet — pick an age and hit Generate preview.</p>`;
+    wrap.innerHTML = stageNow().solids ? `<p class="empty">No preview yet — pick an age and hit Generate preview.</p>` : "";
     return;
   }
 
   const s = draftStats();
   const stats = document.createElement("div");
   stats.className = "card";
-  stats.innerHTML = `<div class="section-title">Preview · ${ageMeta().label}</div>
+  stats.innerHTML = `<div class="section-title">Preview · ${ageLabel(state.createAge)} · ${stageNow().name}</div>
     <div class="preview-stats">
       <span><strong>${s.distinct}</strong> different foods</span>
       <span><strong>${s.ironDays}/7</strong> days iron-rich</span>
@@ -1350,7 +1536,7 @@ function renderCreatePreview(){
     block.className = "meal-block";
     const rows = day.meals.map(m=>
       `<div class="preview-line"><span class="lbl">${m.icon} ${m.label}</span>`
-      + `<span class="foods">${m.items.map(i=>i.name).join(", ") || "—"}</span></div>`
+      + `<span class="foods">${m.items.map(i=>i.name + (i.tex ? ` <span class="tex">${i.tex}</span>` : "")).join(", ") || "—"}</span></div>`
     ).join("");
     block.innerHTML = `<div class="meal-head"><div class="label">${day.name}</div></div>${rows}`;
     card.appendChild(block);
