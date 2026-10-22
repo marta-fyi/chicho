@@ -449,6 +449,26 @@
   .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--olive-700);}
   .cal-dot{background:var(--olive-500);}
 
+  /* ---------- keep out, priorities ---------- */
+  .lean-line{font-size:var(--fs-caption);color:var(--muted);margin:2px 16px 12px 0;line-height:1.4;}
+  .chip .kind{font-size:12px;color:var(--muted);}
+  .chip.allergy{background:#F6E3DE;color:#7A2E22;}
+  .chip.allergy .kind{color:#7A2E22;font-weight:600;}
+  .chip button.x{border:none;background:none;padding:0 0 0 2px;font:inherit;font-size:var(--fs-caption);color:var(--muted);cursor:pointer;min-width:24px;min-height:24px;}
+  .chip:disabled{opacity:.45;cursor:default;}
+  .add-item-row button.quiet{background:var(--olive-100);color:var(--olive-700);}
+  .locked{margin:4px 16px 12px 0;}
+  .locked-head{font-size:var(--fs-caption);color:var(--muted);margin:0 0 6px;}
+  .locked-rule{
+    display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;padding:6px 10px;border:none;border-radius:var(--r-pill);
+    background:transparent;box-shadow:inset 0 0 0 1px var(--hairline);font:inherit;font-size:var(--fs-caption);color:var(--ink);cursor:pointer;min-height:32px;
+  }
+  /* a small padlock drawn in CSS: a shackle over a body */
+  .lock{position:relative;width:9px;height:7px;border-radius:2px;background:var(--muted);margin-top:4px;}
+  .lock::before{content:"";position:absolute;left:1.5px;bottom:5px;width:6px;height:5px;border:1.5px solid var(--muted);border-bottom:none;border-radius:4px 4px 0 0;box-sizing:border-box;}
+  .locked-why{font-size:var(--fs-caption);color:var(--ink);margin:4px 0 0;line-height:1.45;min-height:1em;}
+  .form-note{font-size:var(--fs-caption);color:#7A2E22;margin:8px 0 0;line-height:1.45;}
+
   /* ---------- the fan ----------
      A fan of rounded tiles, each slightly rotated and overlapping its
      neighbour. A tile is a photo when there is one, otherwise a soft pastel
@@ -627,14 +647,21 @@ function timeOfDay(d){
 
     <div id="solidsControls">
       <div class="card">
-        <div class="section-title">Never include</div>
+        <div class="section-title">What matters most</div>
+        <div class="chips below" id="priorityChips" role="group" aria-label="Up to three priorities"></div>
+        <p class="lean-line" id="priorityLine"></p>
+      </div>
+      <div class="card">
+        <div class="section-title">Keep out</div>
         <div class="chips below" id="excludeChips"></div>
         <div class="add-item-row" style="padding-right:16px">
-          <label class="sr-only" for="excludeName">Food to never include</label>
-          <input class="name" id="excludeName" type="text" placeholder="Food to avoid (e.g. broccoli)">
-          <button onclick="addExclusion()">Add</button>
+          <label class="sr-only" for="excludeName">Food to keep out</label>
+          <input class="name" id="excludeName" type="text" placeholder="A food (e.g. kiwi)">
+          <button type="button" data-kind="allergy" onclick="addExclusion('allergy')">Allergy</button>
+          <button type="button" data-kind="dislike" class="quiet" onclick="addExclusion('dislike')">Dislike</button>
         </div>
-        <div class="suggest" id="excludeSuggest" style="padding-right:16px;padding-bottom:10px"></div>
+        <p class="lean-line">Allergy: never on the plate. Dislike: it comes up less often.</p>
+        <div class="locked" id="lockedRules"></div>
       </div>
       <p class="banner" id="createBanner"></p>
     </div>
@@ -836,6 +863,244 @@ const MEAL_SLOTS = [
   {id:"dinner",    slot:"dinner",    label:"Dinner",    icon:"🌙", cats:["protein","vegetable","grain","fruit"]}
 ];
 
+/* ---------- the child's profile: age from a birth date ----------
+   Age is never stored, only the birth date; months are worked out from
+   today, so the stage moves on by itself. */
+function ageMonths(iso, now){
+  const b = localDate(iso), n = now || new Date();
+  if(isNaN(b)) return null;
+  let m = (n.getFullYear()-b.getFullYear())*12 + (n.getMonth()-b.getMonth());
+  if(n.getDate() < b.getDate()) m--;
+  return Math.max(0, m);
+}
+/* the birth date that makes a child m months old today (same day of the
+   month, clamped to the month's length) */
+function birthDateFromMonths(m, now){
+  const n = now || new Date();
+  const y = n.getFullYear(), mo = n.getMonth() - m;
+  const first = new Date(y, mo, 1);
+  const days = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+  const d = new Date(first.getFullYear(), first.getMonth(), Math.min(n.getDate(), days));
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function ageNow(){
+  const m = state.profile && state.profile.birthDate ? ageMonths(state.profile.birthDate) : null;
+  return m===null ? 10 : m;
+}
+
+/* a whole word or phrase inside a food name: "egg" finds "Egg, well cooked"
+   but not "eggplant"; "nuts" doesn't find "peanut butter" */
+function hasWord(name, phrase){
+  const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("(^|[^a-z])" + esc + "($|[^a-z])", "i").test(name);
+}
+
+/* ---------- safety: what never goes on the plate ----------
+   Locked: the user can't remove these, and the generator, swaps and
+   hand-added foods all go through the same check (lockedRule). `until` is
+   the age in months from which a rule stops applying; no `until` = always,
+   for 0-3. `unless` words make a safe preparation pass ("grapes,
+   quartered"). Ages and lists are general guidance to check with a
+   paediatric source. */
+const LOCKED_RULES = [
+  {id:"honey", label:"Honey", until:12, words:["honey"],
+   why:"Honey isn't safe before 12 months: it can carry spores a baby's tummy can't handle yet."},
+  {id:"cowsmilk", label:"Cow's milk as a drink", until:12, words:["cow's milk","cows milk","cow milk","glass of milk"],
+   why:"Before 12 months, cow's milk as a drink can crowd out iron. A little in cooking is fine."},
+  {id:"nuts", label:"Whole nuts", words:["whole nut","whole nuts","nuts","peanuts","almonds","almond","walnut","walnuts","hazelnut","hazelnuts","cashew","cashews","pistachio","pistachios","pecans"],
+   unless:["butter","ground","flour","milk"],
+   why:"Whole and chopped nuts are a choking risk for little ones. Smooth nut butters are fine."},
+  {id:"grapes", label:"Whole grapes", words:["grape","grapes","whole grapes","cherry tomato","cherry tomatoes"],
+   unless:["quartered","halved lengthways"],
+   why:"Round foods like whole grapes can block a small airway. Quarter them lengthways."},
+  {id:"hardraw", label:"Hard raw chunks", words:["raw carrot","raw apple","popcorn","hard sweet","hard sweets","hard candy","boiled sweets"],
+   why:"Hard raw pieces and popcorn are choking risks. Cook until soft, or grate."},
+  {id:"salt", label:"Added salt", words:["salt","salted","stock cube","bouillon","soy sauce","crisps"],
+   why:"Little kidneys can't handle much salt. Season the grown-up portions after you've served theirs."},
+  {id:"sugar", label:"Added sugar", words:["sugar","sugary","syrup","sweets","candy","juice","biscuits","cake"],
+   unless:["snap"],
+   why:"No added sugar keeps their taste for real food, and their new teeth happy."},
+  {id:"unpasteurised", label:"Unpasteurised foods", words:["unpasteurised","unpasteurized","raw milk","raw cheese","raw egg","runny egg","brie","camembert","blue cheese"],
+   why:"Unpasteurised milk and soft mould-ripened cheeses can carry listeria. Choose pasteurised."}
+];
+/* the rule a food breaks at this age, or null */
+function lockedRule(name, months){
+  const n = String(name);
+  return LOCKED_RULES.find(r=>{
+    if(r.until && months >= r.until) return false;
+    if(!r.words.some(w=>hasWord(n, w))) return false;
+    return !(r.unless || []).some(w=>hasWord(n, w));
+  }) || null;
+}
+
+/* the common allergens, with the words that give them away in a food name */
+const ALLERGENS = [
+  {id:"egg",       label:"Egg",            emoji:"🥚", words:["egg","eggs","omelette","mayonnaise"]},
+  {id:"milk",      label:"Milk",           emoji:"🥛", words:["milk","yogurt","yoghurt","cheese","ricotta","cream","kefir"]},
+  {id:"peanut",    label:"Peanut",         emoji:"🥜", words:["peanut","peanuts","groundnut"]},
+  {id:"treenuts",  label:"Tree nuts",      emoji:"🌰", words:["almond","cashew","walnut","hazelnut","pistachio","pecan","nut butter"]},
+  {id:"wheat",     label:"Wheat / gluten", emoji:"🌾", words:["wheat","bread","toast","pasta","couscous","flour","oat","oats","oatmeal","barley","rye"]},
+  {id:"soy",       label:"Soy",            emoji:"🫘", words:["soy","soya","tofu","edamame"]},
+  {id:"fish",      label:"Fish",           emoji:"🐟", words:["fish","salmon","cod","hake","tuna","sardine","mackerel"]},
+  {id:"shellfish", label:"Shellfish",      emoji:"🦐", words:["shrimp","prawn","prawns","crab","lobster","mussel","mussels","clam","squid"]},
+  {id:"sesame",    label:"Sesame",         emoji:"🌱", words:["sesame","tahini","hummus"]}
+];
+/* foods whose allergens don't show in the name */
+const HIDDEN_ALLERGENS = {"Beef meatballs, soft":["egg","wheat"]};
+function allergensOf(name){
+  const ids = ALLERGENS.filter(a=>a.words.some(w=>hasWord(name, w))).map(a=>a.id);
+  return [...new Set(ids.concat(HIDDEN_ALLERGENS[name] || []))];
+}
+/* Allergy is strict: the food never appears. A typed allergy ("kiwi")
+   blocks foods with that word; one naming an allergen ("egg") blocks
+   everything carrying it. */
+function allergyMatch(name, profile){
+  const own = allergensOf(name);
+  if(own.some(a=>(profile.allergens||{})[a]==="avoid")) return true;
+  return (profile.avoid||[]).some(x=>x.kind==="allergy" && (
+    hasWord(name, x.name) || ALLERGENS.some(a=>a.words.some(w=>hasWord(x.name, w)) && own.includes(a.id))));
+}
+/* Dislike is soft: it just comes up less often. */
+function dislikeMatch(name, profile){
+  return (profile.avoid||[]).some(x=>x.kind==="dislike" && hasWord(name, x.name));
+}
+/* the single gate every food passes: the generator, swaps, hand-added */
+function isAllowed(food, months, profile){
+  if(food.min > months || (food.max && food.max < months)) return false;
+  if(lockedRule(food.name, months)) return false;
+  return !allergyMatch(food.name, profile);
+}
+
+/* ---------- priorities: what matters most right now ---------- */
+const PRIORITIES = [
+  {id:"iron",       label:"Iron-rich foods",            emoji:"🫘", lean:"iron-rich meals"},
+  {id:"colours",    label:"Lots of colours and veggies", emoji:"🌈", lean:"a rainbow of veg"},
+  {id:"quick",      label:"Quick to cook",              emoji:"⏱️", lean:"20-minute recipes"},
+  {id:"batch",      label:"Batch-cook and freeze",      emoji:"🧊", lean:"dishes that freeze well, cooked once and eaten twice"},
+  {id:"finger",     label:"Baby-led finger foods",      emoji:"✋", lean:"finger foods they can hold"},
+  {id:"athome",     label:"Use what's already at home", emoji:"🏠", lean:"what's already in your kitchen"},
+  {id:"affordable", label:"Keep it affordable",         emoji:"🪙", lean:"budget-friendly staples"},
+  {id:"gentle",     label:"Try new foods gently",       emoji:"🌱", lean:"familiar favourites, one new taste a day"}
+];
+function priorityLine(ids){
+  const leans = ids.map(id=>(PRIORITIES.find(p=>p.id===id)||{}).lean).filter(Boolean);
+  if(!leans.length) return "We'll keep the week balanced and varied.";
+  const list = leans.length===1 ? leans[0] : leans.slice(0,-1).join(", ") + " and " + leans[leans.length-1];
+  return "We'll lean on " + list + ".";
+}
+/* per food: colour on the plate, quick (≤20 min), freezes well, cost */
+const FOOD_META = {
+  "Egg, well cooked":["yellow",1,0,"low"], "Chicken":["white",0,1,"mid"], "Turkey":["white",0,1,"mid"],
+  "Beef":["brown",0,1,"high"], "Salmon":["pink",1,1,"high"], "White fish":["white",1,1,"mid"],
+  "Lentils":["orange",1,1,"low"], "Chickpeas":["yellow",1,1,"low"], "Tofu, soft":["white",1,0,"low"],
+  "Greek yogurt":["white",1,0,"low"], "Cottage cheese":["white",1,0,"mid"], "Ricotta":["white",1,0,"mid"],
+  "Cheese, grated":["yellow",1,1,"mid"], "Beef meatballs, soft":["brown",0,1,"mid"],
+  "Carrots, soft-cooked":["orange",1,1,"low"], "Sweet potato":["orange",0,1,"low"], "Pumpkin":["orange",0,1,"low"],
+  "Zucchini":["green",1,1,"low"], "Green beans, soft":["green",1,1,"low"], "Peas":["green",1,1,"low"],
+  "Cauliflower, soft":["white",1,1,"low"], "Potato":["white",0,1,"low"], "Butternut squash":["orange",0,1,"low"],
+  "Spinach, cooked":["green",1,1,"low"], "Beetroot, cooked":["purple",1,1,"low"], "Cucumber sticks":["green",1,0,"low"],
+  "Tomato, peeled":["red",1,0,"low"], "Banana":["yellow",1,1,"low"], "Pear, ripe":["green",1,1,"low"],
+  "Apple, cooked":["red",1,1,"low"], "Peach, ripe":["orange",1,1,"mid"], "Mango":["orange",1,1,"mid"],
+  "Melon":["orange",1,0,"mid"], "Kiwi":["green",1,0,"mid"], "Blueberries, halved":["purple",1,1,"high"],
+  "Strawberries, sliced":["red",1,1,"mid"], "Raspberries":["red",1,1,"high"], "Plum, ripe":["purple",1,0,"mid"],
+  "Grapes, quartered":["purple",1,0,"mid"], "Oatmeal":["brown",1,1,"low"], "Baby rice cereal":["white",1,0,"low"],
+  "Whole wheat toast":["brown",1,1,"low"], "Whole wheat pasta":["brown",1,1,"low"], "Rice, soft-cooked":["white",0,1,"low"],
+  "Quinoa":["white",1,1,"mid"], "Couscous":["yellow",1,0,"low"], "Avocado":["green",1,0,"mid"],
+  "Olive oil":["yellow",1,0,"mid"], "Chia seeds":["brown",1,0,"mid"], "Smooth peanut butter":["brown",1,0,"low"],
+  "Hummus":["yellow",1,1,"low"]
+};
+function metaOf(name){
+  const m = FOOD_META[name];
+  return m ? {colour:m[0], quick:!!m[1], freezes:!!m[2], cost:m[3]} : {};
+}
+
+/* ---------- dish names, prep tips, "why this food" ---------- */
+function listJoin(a){ return a.length<=1 ? (a[0]||"") : a.slice(0,-1).join(", ") + " and " + a[a.length-1]; }
+const baseName = i=>i.name.split(",")[0].trim();
+const lower1 = t=>t.charAt(0).toLowerCase() + t.slice(1);
+/* "Oatmeal with banana", "Lentils and sweet potato mash", "Chicken with
+   carrots and rice": the meal's foods read as one dish */
+function dishName(m){
+  if(!m.items.length) return "";
+  const byCat = c=>m.items.find(i=>i.cats[0]===c);
+  if(m.label==="Snack") return listJoin(m.items.map((i,k)=>k ? lower1(baseName(i)) : baseName(i)));
+  if(m.label==="Breakfast"){
+    const lead = byCat("grain") || byCat("fruit") || m.items[0];
+    const rest = m.items.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
+    return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "");
+  }
+  const p = byCat("protein"), v = byCat("vegetable"), g = byCat("grain");
+  const soft = m.items.map(i=>i.tex||"").find(t=>/purée|mash/.test(t));
+  if(p && v && soft && m.items.length<=3 && !g){
+    return `${baseName(p)} and ${lower1(baseName(v))} ${/purée/.test(soft) ? "purée" : "mash"}`;
+  }
+  const lead = p || v || m.items[0];
+  const rest = m.items.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
+  return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "");
+}
+const FORM_TIPS = {
+  meat:"Cook it right through, then shred or chop finely; a splash of the cooking water keeps it moist.",
+  fish:"Bake or poach until it flakes, then check carefully for bones.",
+  egg:"Cook until the yolk and white are both firm.",
+  mash:"Simmer until very soft, then mash with a fork.",
+  veg:"Steam until a fork slides in easily.",
+  fruit:"Ripe and soft is right: it should squash between finger and thumb.",
+  small:"Squash or cut small, never whole.",
+  finger:"Cut into finger-length strips they can hold in a fist.",
+  cereal:"Cook with water or their usual milk, no sugar.",
+  grain:"Cook it a little softer than you would for yourself.",
+  spoon:"Plain and full-fat, with no added sugar.",
+  spread:"Spread thinly on something they can hold.",
+  oil:"Stir a little into the food just before serving."
+};
+const PREP_TIPS = {
+  "Lentils":"Red lentils collapse into a soft mash in about 15 minutes.",
+  "Spinach":"Cook and chop finely; a little goes a long way for iron.",
+  "Salmon":"Bake for 12 minutes, flake, and check for bones.",
+  "Avocado":"Ripe enough to squash: serve in thick strips or mashed.",
+  "Banana":"A thick finger of banana with a little peel left on is easier to grip.",
+  "Sweet potato":"Roast in wedges until soft, or steam and mash.",
+  "Oatmeal":"Cook the oats a little longer than for a grown-up, until creamy.",
+  "Smooth peanut butter":"Thin it with warm water or stir it into porridge; never in a lump.",
+  "Hummus":"Look for a low-salt one, or blitz chickpeas with a little oil."
+};
+function prepTip(item){
+  return PREP_TIPS[baseName(item)] || FORM_TIPS[FOOD_FORM[item.name] || CAT_FORM[item.cats[0]]] || "";
+}
+function whyFor(item){
+  const food = FOOD_POOL.find(f=>f.name===item.name);
+  const m = metaOf(item.name);
+  if(food && food.iron) return "Iron-rich: from about 6 months their own iron stores start running low.";
+  if(/salmon/i.test(item.name)) return "Oily fish brings omega-3 fats for a growing brain.";
+  if(item.cats[0]==="vegetable") return "Another colour on the plate" + (m.colour ? `, a ${m.colour} one.` : ".");
+  if(item.cats[0]==="fruit") return "Natural sweetness and vitamin C, which helps them absorb iron.";
+  if(item.cats[0]==="fat") return "Healthy fats: little bodies need plenty of energy in small portions.";
+  if(item.cats[0]==="grain") return "Steady energy, and a familiar base next to anything new.";
+  return "Protein for growing muscles.";
+}
+
+/* Marking a meal: ate it, ate some, or refused. Any mark means it was
+   served, so stock goes down; all and some count for variety; every first
+   mark counts as one more exposure to that food (refusal is normal and
+   still counts: it can take 10-15 tries). */
+/* why a hand-added food can't go on the plate, or "" */
+function keepOutReason(name){
+  const r = lockedRule(name, ageNow());
+  if(r) return `${r.label} stays off the menu for now. ${r.why}`;
+  if(allergyMatch(name, state.profile)) return `${name} is on their keep-out list, so we'll leave it off.`;
+  return "";
+}
+function setAte(item, v){
+  const was = item.eaten;
+  if(!item.ate && v){
+    const k = foodKey(baseName(item));
+    state.exposures[k] = (state.exposures[k] || 0) + 1;
+  }
+  item.ate = v || null;
+  item.eaten = item.ate!==null;
+  if(was!==item.eaten) useStock(item);
+}
+
 /* item: {id, name, qty, cats:[...], tex?} ; cats reference CATS keys, first = primary (used for grocery grouping).
    tex is the stage's texture for a generated dish ("mashed", "soft pieces"). */
 function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, eaten:false}; if(tex) i.tex = tex; return i; }
@@ -903,9 +1168,16 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 let state = loadState();
 
+function freshProfile(){
+  return {name:"", birthDate:null, onboarded:false, onboardingStep:0,
+          allergens:{},      // {egg:"avoid"|"ok"}
+          avoid:[],          // [{name, kind:"allergy"|"dislike"}]
+          priorities:[],     // up to 3 PRIORITIES ids
+          staples:[], remindAt:null, lastStage:null};
+}
 function freshState(){
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -915,9 +1187,9 @@ function freshState(){
     stock: {},           // what's at home: { "oatmeal": {name, g:number|null, plenty:bool} }
     extras: [],          // non-food shopping: [{id, name, qty, checked}]
     history: [],
-    createAge: 10,       // months, 0..AGE_MAX
+    profile: freshProfile(),
+    exposures: {},       // how many times each food has been offered: {"banana": 3}
     openCard: "meals",   // the one card that's open, or null
-    excludedFoods: ["Broccoli"],
     groceryFilter: "week", // "today" | "next3" | "week" (the rest of the planned week)
     weekStarted: todayISO()
   };
@@ -970,13 +1242,39 @@ function migrate(saved){
 
   delete s.menuHintSeen;   // the mascot menu is gone
   if(s.openCard!==null && !["meals","food","variety","plan"].includes(s.openCard)) s.openCard = "meals";
-  // age has always been saved in months (10, 12 or 18 before stages); keep any
-  // whole number in range, so an existing plan's age carries straight over
-  const age = Number(s.createAge);
-  s.createAge = Number.isFinite(age) ? Math.min(AGE_MAX, Math.max(0, Math.round(age))) : 10;
-  s.excludedFoods = Array.isArray(s.excludedFoods)
-    ? s.excludedFoods.filter(f=>typeof f==="string" && f.trim()).map(f=>f.trim())
-    : ["Broccoli"];
+  // schema 6: a profile with a birth date replaces the stored age (always
+  // months: 10, 12 or 18 before stages, 0-36 after), and the one "never
+  // include" list becomes dislikes; anything a locked rule covers drops,
+  // because it's locked now
+  const prof = Object.assign(freshProfile(), saved.profile && typeof saved.profile==="object" ? saved.profile : {});
+  if(!prof.birthDate || isNaN(localDate(prof.birthDate))){
+    const age = Number(saved.createAge);
+    prof.birthDate = birthDateFromMonths(Number.isFinite(age) ? Math.min(AGE_MAX, Math.max(0, Math.round(age))) : 10);
+  }
+  if(!saved.profile && Array.isArray(saved.excludedFoods)){
+    saved.excludedFoods.forEach(f=>{
+      if(typeof f!=="string" || !f.trim()) return;
+      const name = f.trim();
+      if(lockedRule(name, 0)) return;
+      if(!prof.avoid.some(a=>a.name.toLowerCase()===name.toLowerCase())) prof.avoid.push({name, kind:"dislike"});
+    });
+  }
+  prof.avoid = (Array.isArray(prof.avoid) ? prof.avoid : [])
+    .filter(a=>a && typeof a.name==="string" && a.name.trim())
+    .map(a=>({name:a.name.trim(), kind:a.kind==="allergy" ? "allergy" : "dislike"}));
+  const al = {};
+  Object.entries(prof.allergens || {}).forEach(([k,v])=>{ if(ALLERGENS.some(a=>a.id===k) && (v==="avoid" || v==="ok")) al[k] = v; });
+  prof.allergens = al;
+  prof.priorities = (Array.isArray(prof.priorities) ? prof.priorities : []).filter(id=>PRIORITIES.some(p=>p.id===id)).slice(0,3);
+  s.profile = prof;
+  delete s.createAge;
+  delete s.excludedFoods;
+  if(!s.exposures || typeof s.exposures!=="object" || Array.isArray(s.exposures)) s.exposures = {};
+  // marking: eaten:true becomes "ate it"; eaten keeps meaning "served"
+  s.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{
+    if(!["all","some","refused"].includes(i.ate)) i.ate = i.eaten ? "all" : null;
+    i.eaten = i.ate!==null;
+  })));
 
   s.schemaVersion = SCHEMA_VERSION;
   return s;
@@ -1049,16 +1347,25 @@ function addForm(key, opts){
     form.appendChild(row);
   }
 
-  function close(){ st.open = false; st.values = {}; }
+  function close(){ st.open = false; st.values = {}; st.note = ""; }
 
   function submit(){
     const values = {};
     Object.entries(inputs).forEach(([k,el])=>{ values[k] = el.value.trim(); });
-    if(opts.onSubmit(values) === false) return;   // validation failed, stay open
+    const r = opts.onSubmit(values);
+    if(typeof r==="string"){ st.note = r; opts.rerender(); return; }   // a calm reason, stay open
+    if(r === false) return;   // validation failed, stay open
     close();
     opts.rerender();
   }
 
+  if(st.note){
+    const note = document.createElement("p");
+    note.className = "form-note";
+    note.setAttribute("role", "status");
+    note.textContent = st.note;
+    form.appendChild(note);
+  }
   const actions = document.createElement("div");
   actions.className = "addform-actions";
   const cancel = document.createElement("button");
@@ -1357,8 +1664,7 @@ function renderDayContent(){
         syncDesk(renderKitchen);
       });
       row.querySelector("input").addEventListener("change", e=>{
-        item.eaten = e.target.checked;
-        useStock(item);
+        setAte(item, e.target.checked ? "all" : null);
         save();
         justChanged = item.id;
         renderDayContent();
@@ -1382,6 +1688,8 @@ function renderDayContent(){
       ],
       onSubmit: v=>{
         if(!v.name) return false;
+        const why = keepOutReason(v.name);
+        if(why) return why;
         m.items.push(it(v.name, v.qty, [v.cat]));
         save();
       }
@@ -1743,7 +2051,7 @@ function eatenFoodNamesThisWeek(){
   state.plan.days.forEach(day=>{
     day.meals.forEach(m=>{
       m.items.forEach(item=>{
-        if(item.eaten) set.add(item.name.trim().toLowerCase());
+        if(item.ate==="all" || item.ate==="some") set.add(item.name.trim().toLowerCase());
       });
     });
   });
@@ -1775,7 +2083,7 @@ function suitableNow(food){
     const n = f.name.toLowerCase();
     return n===t || n.startsWith(t+",") || n.startsWith(t+" ") || n.endsWith(" "+t);
   });
-  return !match || match.min <= state.createAge;
+  return !match || match.min <= ageNow();
 }
 function varietyNow(){
   const out = {};
@@ -1870,7 +2178,7 @@ function startNewWeek(){
   state.history.push({ weekOf: state.weekStarted, overallPct });
 
   // reset eaten flags + manual covers + ticked extras (stock stays: the food is still at home)
-  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>{ item.eaten=false; delete item.took; })));
+  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>{ item.eaten=false; item.ate=null; delete item.took; })));
   state.manualCovered = {};
   state.extras.forEach(x=>x.checked=false);
   state.weekStarted = todayISO();
@@ -1886,17 +2194,10 @@ function startNewWeek(){
 /* ---------- CREATE: generate a week of age-appropriate menus ---------- */
 let draft = null;   // preview only — deliberately never written to state until applied
 
-function stageNow(){ return stageFor(state.createAge); }
+function stageNow(){ return stageFor(ageNow()); }
 
-function eligibleFoods(age, exclusions){
-  const blocked = new Set(exclusions.map(f=>f.trim().toLowerCase()));
-  return FOOD_POOL.filter(f=>{
-    if(f.min > age || (f.max && f.max < age)) return false;
-    const n = f.name.toLowerCase();
-    // match a whole exclusion word so "Broccoli" also blocks "Broccoli, soft"
-    for(const b of blocked){ if(n===b || n.startsWith(b+",") || n.startsWith(b+" ")) return false; }
-    return true;
-  });
+function eligibleFoods(months, profile){
+  return FOOD_POOL.filter(f=>isAllowed(f, months, profile));
 }
 
 function shuffled(arr){
@@ -1908,21 +2209,46 @@ function shuffled(arr){
   return a;
 }
 
-/* Deals from shuffled per-(category,slot) decks so foods spread across the week
-   instead of clustering; a deck reshuffles only once it runs out. */
-function makeDealer(foods){
-  const decks = {};
-  return function deal(cat, slot, taken){
-    const key = cat+"|"+slot;
-    const pool = foods.filter(f=>f.cats[0]===cat && f.slots.includes(slot));
-    if(pool.length===0) return null;
-    for(let attempt=0; attempt<2; attempt++){
-      if(!decks[key] || decks[key].length===0) decks[key] = shuffled(pool);
-      const idx = decks[key].findIndex(f=>!taken.has(f.name));
-      if(idx>=0) return decks[key].splice(idx,1)[0];
-      decks[key] = [];   // everything left is already on the plate today, reshuffle
-    }
-    return pool[Math.floor(Math.random()*pool.length)];
+/* Deals foods by weight: priorities, dislikes and what's at home tilt the
+   odds, and each use makes a food less likely next time, so the week still
+   spreads out. A food already on today's plates is skipped while there's
+   anything else. */
+function weightFor(f, ctx, day){
+  const P = ctx.priorities, m = metaOf(f.name), key = foodKey(f.name.split(",")[0]);
+  let w = 1;
+  // strong enough to see in a week: each meal only draws from its own food
+  // groups and repeats are penalised, which dilutes any single weight
+  if(dislikeMatch(f.name, ctx.profile)) w *= .3;
+  if(P.has("iron") && f.iron) w *= 4;
+  if(P.has("colours") && m.colour && !day.colours.has(m.colour)) w *= 2.5;
+  if(P.has("quick")) w *= m.quick ? 2.5 : .35;
+  if(P.has("batch") && m.freezes) w *= 2.5;
+  if(P.has("finger") && ctx.finger && /finger|strips|pieces|bite-size/.test(textureFor(f, ctx.st) || "")) w *= 2.5;
+  if(P.has("athome") && ctx.atHome.has(key)) w *= 4;
+  if(P.has("affordable")) w *= m.cost==="low" ? 2.5 : m.cost==="high" ? .2 : 1;
+  if(P.has("gentle")){
+    if(ctx.known.has(key)) w *= 3;
+    else if(day.newCount >= 1) w *= .05;   // one new taste a day is plenty
+  }
+  return w;
+}
+function makeDealer(foods, ctx){
+  const uses = {};
+  return function deal(cat, slot, day){
+    const fits = foods.filter(f=>f.cats[0]===cat && f.slots.includes(slot));
+    const cands = fits.filter(f=>!day.taken.has(f.name));
+    const pool = cands.length ? cands : fits;
+    if(!pool.length) return null;
+    const ws = pool.map(f=>weightFor(f, ctx, day) / (1 + 1.2*(uses[f.name] || 0)));
+    let r = Math.random() * ws.reduce((a,b)=>a+b, 0), k = 0;
+    for(; k<ws.length-1; k++){ r -= ws[k]; if(r <= 0) break; }
+    const f = pool[k];
+    uses[f.name] = (uses[f.name] || 0) + 1;
+    day.taken.add(f.name);
+    const m = metaOf(f.name);
+    if(m.colour) day.colours.add(m.colour);
+    if(ctx.priorities.has("gentle") && !ctx.known.has(foodKey(f.name.split(",")[0]))) day.newCount++;
+    return f;
   };
 }
 
@@ -1941,24 +2267,36 @@ function withStaples(foods){
   return foods.filter(f=>f.cats[0]!=="grain" || keep.has(f));
 }
 
-/* null when the stage has no solids: there is no menu to make yet */
-function generateWeek(months, exclusions){
+/* what generation knows about this household right now */
+function planContext(months, profile){
   const st = stageFor(months);
+  const atHome = new Set(Object.entries(state.stock || {})
+    .filter(([,x])=>x.plenty || x.g===null || x.g>0).map(([k])=>k.split(",")[0].trim()));
+  const known = new Set(Object.keys(state.exposures || {}));
+  (state.plan ? state.plan.days : []).forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{
+    if(i.ate==="all" || i.ate==="some") known.add(foodKey(baseName(i)));
+  })));
+  return {st, profile, priorities:new Set(profile.priorities || []), atHome, known,
+          finger:["textures","family","nearfamily"].includes(st.id)};
+}
+
+/* null when the stage has no solids: there is no menu to make yet */
+function generateWeek(months, profile){
+  const ctx = planContext(months, profile);
+  const st = ctx.st;
   if(!st.solids) return null;
-  let foods = eligibleFoods(months, exclusions);
+  let foods = eligibleFoods(months, profile);
   if(st.picky) foods = withStaples(foods);
-  const deal = makeDealer(foods);
+  const deal = makeDealer(foods, ctx);
   const slots = MEAL_SLOTS.filter(ms=>st.slots.includes(ms.id));
 
   const days = DAY_ORDER.slice(1).concat(DAY_ORDER[0]).map(name=>{   // Monday..Sunday
-    const taken = new Set();
+    const day = {taken:new Set(), colours:new Set(), newCount:0};
     const meals = slots.map(ms=>{
       const items = [];
       (st.perMeal ? ms.cats.slice(0, st.perMeal) : ms.cats).forEach(cat=>{
-        const food = deal(cat, ms.slot, taken);
-        if(!food) return;
-        taken.add(food.name);
-        items.push(dish(food, st));
+        const food = deal(cat, ms.slot, day);
+        if(food) items.push(dish(food, st));
       });
       return meal(ms.label, ms.icon, items);
     });
@@ -1966,6 +2304,17 @@ function generateWeek(months, exclusions){
   });
 
   const week = {days};
+  // batch-cook: Monday's and Thursday's dinners come round again two days later
+  if(ctx.priorities.has("batch")){
+    [[0,2],[3,5]].forEach(([from, to])=>{
+      const src = days[from].meals.find(m=>m.label==="Dinner");
+      const k = days[to].meals.findIndex(m=>m.label==="Dinner");
+      if(!src || k<0) return;
+      const copy = meal(src.label, src.icon, src.items.map(i=>it(i.name, i.qty, i.cats.slice(), i.tex)));
+      copy.from = days[from].name;   // "from Monday's batch"
+      days[to].meals[k] = copy;
+    });
+  }
   ensureIron(week, foods, st);
   return week;
 }
@@ -2024,7 +2373,7 @@ function renderCreate(){
 }
 
 function renderCreateControls(){
-  const months = state.createAge, st = stageNow();
+  const months = ageNow(), st = stageNow();
 
   const range = document.getElementById("ageRange");
   range.value = months;
@@ -2046,40 +2395,63 @@ function renderCreateControls(){
       <p>Come back around 6 months${left===1 ? ", in about a month" : `, in about ${left} months`}.</p>`;
   }
 
+  // priorities: up to three, and a line saying how they steer the plan
+  const pWrap = document.getElementById("priorityChips");
+  pWrap.innerHTML = "";
+  const chosen = state.profile.priorities;
+  PRIORITIES.forEach(pr=>{
+    const on = chosen.includes(pr.id);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip tap" + (on ? " selected" : "");
+    b.setAttribute("aria-pressed", String(on));
+    b.innerHTML = `<span aria-hidden="true">${pr.emoji}</span> ${pr.label}`;
+    b.disabled = !on && chosen.length>=3;
+    b.addEventListener("click", ()=>{
+      state.profile.priorities = on ? chosen.filter(x=>x!==pr.id) : chosen.concat(pr.id).slice(0,3);
+      save(); draft = null; renderCreate();
+    });
+    pWrap.appendChild(b);
+  });
+  document.getElementById("priorityLine").textContent = priorityLine(chosen);
+
+  // the household's own keep-out list: allergies strict, dislikes soft
   const exWrap = document.getElementById("excludeChips");
   exWrap.innerHTML = "";
-  if(state.excludedFoods.length===0){
+  if(state.profile.avoid.length===0){
     const none = document.createElement("span");
     none.className = "subtle";
     none.style.margin = "0";
-    none.textContent = "Nothing excluded.";
+    none.textContent = "Nothing on the list yet.";
     exWrap.appendChild(none);
   }
-  state.excludedFoods.forEach(food=>{
+  state.profile.avoid.forEach(x=>{
     const chip = document.createElement("div");
-    chip.className = "chip";
-    chip.innerHTML = `${food} <span class="x" data-rm="1">✕</span>`;
-    chip.querySelector("[data-rm]").addEventListener("click", ()=>{
-      state.excludedFoods = state.excludedFoods.filter(f=>f!==food);
-      save(); renderCreate();
+    chip.className = "chip" + (x.kind==="allergy" ? " allergy" : "");
+    chip.innerHTML = `${x.name} <span class="kind">${x.kind==="allergy" ? "Allergy" : "Dislike"}</span><button type="button" class="x" aria-label="Remove ${x.name}">✕</button>`;
+    chip.querySelector("button").addEventListener("click", ()=>{
+      state.profile.avoid = state.profile.avoid.filter(y=>y!==x);
+      save(); draft = null; renderCreate();
     });
     exWrap.appendChild(chip);
   });
 
-  // the stage's usual avoid-list, one tap to add whatever isn't there yet
-  const sug = document.getElementById("excludeSuggest");
-  sug.innerHTML = "";
-  const missing = (st.avoid||[]).filter(a=>!state.excludedFoods.some(f=>f.toLowerCase()===a.toLowerCase()));
-  if(missing.length){
-    sug.append("Usually avoided at this age:");
-    missing.forEach(a=>{
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = "+ " + a;
-      b.addEventListener("click", ()=>{ state.excludedFoods.push(a); save(); draft = null; renderCreate(); });
-      sug.appendChild(b);
-    });
-  }
+  // locked: always kept out at this age; tap one to hear why
+  const lk = document.getElementById("lockedRules");
+  lk.innerHTML = `<p class="locked-head">Always kept out</p>`;
+  const why = document.createElement("p");
+  why.className = "locked-why";
+  why.setAttribute("aria-live", "polite");
+  LOCKED_RULES.filter(r=>!r.until || months < r.until).forEach(r=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "locked-rule";
+    b.innerHTML = `<span class="lock" aria-hidden="true"></span>${r.label}`;
+    b.setAttribute("aria-label", `${r.label}, locked. Why?`);
+    b.addEventListener("click", ()=>{ why.textContent = r.why; });
+    lk.appendChild(b);
+  });
+  lk.appendChild(why);
 
   if(st.solids){
     document.getElementById("createBanner").textContent =
@@ -2094,28 +2466,30 @@ function renderCreateControls(){
   renderSummaries();
 }
 
-/* one handler for the stepper and the slider: a new age drops a stale preview */
+/* one handler for the stepper and the slider: they move the birth date a
+   month at a time (onboarding and Settings set it exactly); a new age drops
+   a stale preview */
 function setAge(months){
   months = Math.min(AGE_MAX, Math.max(0, Math.round(months)));
-  if(months===state.createAge) return;
-  state.createAge = months;
+  if(months===ageNow()) return;
+  state.profile.birthDate = birthDateFromMonths(months);
   save();
   draft = null;
   renderCreate();
   renderVariety();   // the checklist follows the stage too
 }
-document.getElementById("ageMinus").addEventListener("click", ()=>setAge(state.createAge-1));
-document.getElementById("agePlus").addEventListener("click", ()=>setAge(state.createAge+1));
+document.getElementById("ageMinus").addEventListener("click", ()=>setAge(ageNow()-1));
+document.getElementById("agePlus").addEventListener("click", ()=>setAge(ageNow()+1));
 document.getElementById("ageRange").addEventListener("input", e=>setAge(+e.target.value));
 
-function addExclusion(){
+function addExclusion(kind){
   const inp = document.getElementById("excludeName");
   const v = inp.value.trim();
   if(!v) return;
-  if(!state.excludedFoods.some(f=>f.toLowerCase()===v.toLowerCase())){
-    state.excludedFoods.push(v);
-    save();
-  }
+  const have = state.profile.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
+  if(have) have.kind = kind;                 // re-adding switches allergy / dislike
+  else state.profile.avoid.push({name:v, kind});
+  save();
   inp.value = "";
   draft = null;
   renderCreate();
@@ -2123,7 +2497,7 @@ function addExclusion(){
 
 function generateDraft(){
   if(!stageNow().solids) return;
-  draft = generateWeek(state.createAge, state.excludedFoods);
+  draft = generateWeek(ageNow(), state.profile);
   renderCreate();
 }
 
@@ -2143,7 +2517,7 @@ function renderCreatePreview(){
   const s = draftStats();
   const stats = document.createElement("div");
   stats.className = "card";
-  stats.innerHTML = `<div class="section-title">Preview · ${ageLabel(state.createAge)} · ${stageNow().name}</div>
+  stats.innerHTML = `<div class="section-title">Preview · ${ageLabel(ageNow())} · ${stageNow().name}</div>
     <div class="preview-stats">
       <span><strong>${s.distinct}</strong> different foods</span>
       <span><strong>${s.ironDays}/7</strong> days iron-rich</span>
@@ -2278,8 +2652,8 @@ function renderSummaries(){
   setMeter("meter-variety", total ? covered/total : 0);
 
   // plan: where the child is on the 0–36 month road
-  document.getElementById("sum-plan").textContent = `${ageLabel(state.createAge)} · ${stageNow().name}`;
-  setMeter("meter-plan", state.createAge/AGE_MAX);
+  document.getElementById("sum-plan").textContent = `${ageLabel(ageNow())} · ${stageNow().name}`;
+  setMeter("meter-plan", Math.min(1, ageNow()/AGE_MAX));
 }
 
 /* ---------- desktop: all four open side by side ---------- */

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · safety tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}.f{color:#a02}.p{color:#060}</style></head>
+<body>
+<h1>Safety tests</h1>
+<p>Locked rules, allergy vs dislike, and 500 generated weeks across 6–36 months with random keep-out lists and priorities. Every line should be PASS.</p>
+<pre id="out">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test";
+f.style.cssText = "width:390px;height:400px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    const rule = (name, m) => (w.lockedRule(name, m) || {}).id || null;
+
+    // locked rules, one by one
+    ok("honey at 11 months is locked", rule("Honey", 11) === "honey");
+    ok("honey yogurt at 6 months is locked", rule("Greek yogurt with honey", 6) === "honey");
+    ok("honey at 12 months is allowed", rule("Honey", 12) === null, rule("Honey", 12));
+    ok("cow's milk as a drink at 10 months is locked", rule("Cow's milk as a drink", 10) === "cowsmilk");
+    ok("cow's milk at 12 months is allowed", rule("Cow's milk", 12) === null, rule("Cow's milk", 12));
+    ok("whole nuts locked at 30 months", rule("Whole nuts", 30) === "nuts");
+    ok("almonds locked", rule("Almonds", 24) === "nuts");
+    ok("smooth peanut butter allowed", rule("Smooth peanut butter", 12) === null, rule("Smooth peanut butter", 12));
+    ok("ground almonds allowed", rule("Ground almonds", 12) === null, rule("Ground almonds", 12));
+    ok("whole grapes locked at 30 months", rule("Whole grapes", 30) === "grapes");
+    ok("grapes, quartered allowed", rule("Grapes, quartered", 12) === null, rule("Grapes, quartered", 12));
+    ok("raw carrot sticks locked", rule("Raw carrot sticks", 20) === "hardraw");
+    ok("popcorn locked", rule("Popcorn", 36) === "hardraw");
+    ok("salted crackers locked", rule("Salted crackers", 18) === "salt");
+    ok("added sugar locked", rule("Added sugar", 36) === "sugar");
+    ok("apple juice locked", rule("Apple juice", 24) === "sugar");
+    ok("sugar snap peas allowed", rule("Sugar snap peas", 18) === null, rule("Sugar snap peas", 18));
+    ok("brie locked", rule("Brie", 24) === "unpasteurised");
+    ok("eggplant isn't egg, carrots aren't raw", rule("Eggplant", 12) === null && rule("Carrots, soft-cooked", 9) === null);
+    ok("every food in the pool passes at its own minimum age",
+       E("FOOD_POOL.every(f => !lockedRule(f.name, f.min))"), E("FOOD_POOL.filter(f => lockedRule(f.name, f.min)).map(f => f.name)"));
+
+    // allergy strict, dislike soft
+    const P = o => Object.assign(E("freshProfile()"), o);
+    const pool = E("FOOD_POOL"), allowed = (name, m, prof) => w.isAllowed(pool.find(x => x.name === name), m, prof);
+    ok("egg allergen blocks Egg and the meatballs (hidden egg)", !allowed("Egg, well cooked", 18, P({allergens: {egg: "avoid"}})) && !allowed("Beef meatballs, soft", 18, P({allergens: {egg: "avoid"}})));
+    ok("milk allergen blocks yogurt, ricotta and cheese", ["Greek yogurt", "Ricotta", "Cheese, grated"].every(n => !allowed(n, 18, P({allergens: {milk: "avoid"}}))));
+    ok("'tried, all good' blocks nothing", allowed("Egg, well cooked", 18, P({allergens: {egg: "ok"}})));
+    ok("typed allergy 'Kiwi' blocks Kiwi", !allowed("Kiwi", 18, P({avoid: [{name: "Kiwi", kind: "allergy"}]})));
+    ok("typed allergy 'fish' blocks Salmon (allergen word)", !allowed("Salmon", 18, P({avoid: [{name: "fish", kind: "allergy"}]})));
+    ok("a dislike doesn't block", allowed("Kiwi", 18, P({avoid: [{name: "Kiwi", kind: "dislike"}]})));
+    ok("hand-added honey at 10 months is refused with a reason", (() => { E("state.profile.birthDate = birthDateFromMonths(10)"); return /Honey/.test(w.keepOutReason("Honey toast")); })());
+    ok("hand-added soft pear is fine", w.keepOutReason("Pear, ripe") === "");
+
+    // fuzz: 500 weeks
+    const ids = E("ALLERGENS.map(a => a.id)"), prios = E("PRIORITIES.map(p => p.id)");
+    const typed = ["Kiwi", "Banana", "Peas", "Mango", "fish", "egg", "Avocado", "Tofu"];
+    const pick = (a, n) => a.slice().sort(() => Math.random() - .5).slice(0, n);
+    let weeks = 0, items = 0, bad = [], ironShort = 0, dislikeHits = 0, dislikeChances = 0;
+    for (let t = 0; t < 500; t++) {
+      const m = 6 + Math.floor(Math.random() * 31);
+      const allergens = {}; pick(ids, Math.floor(Math.random() * 4)).forEach(a => allergens[a] = "avoid");
+      const avoid = pick(typed, Math.floor(Math.random() * 4)).map((n, k) => ({name: n, kind: k % 2 ? "dislike" : "allergy"}));
+      const prof = P({allergens, avoid, priorities: pick(prios, Math.floor(Math.random() * 4))});
+      const wk = w.generateWeek(m, prof);
+      if (!wk) { bad.push(`no week at ${m} months`); continue; }
+      weeks++;
+      const ironNames = new Set(pool.filter(x => x.iron).map(x => x.name));
+      const canIron = pool.some(x => x.iron && w.isAllowed(x, m, prof));
+      wk.days.forEach(d => {
+        let iron = false;
+        d.meals.forEach(ml => ml.items.forEach(i => {
+          items++;
+          const food = pool.find(x => x.name === i.name);
+          if (!food) bad.push(`unknown food ${i.name}`);
+          else if (food.min > m || (food.max && food.max < m)) bad.push(`${i.name} too young at ${m}`);
+          if (w.lockedRule(i.name, m)) bad.push(`${i.name} breaks a locked rule at ${m}`);
+          if (w.allergyMatch(i.name, prof)) bad.push(`${i.name} is an allergy for ${JSON.stringify(allergens)} ${JSON.stringify(avoid)}`);
+          if (ironNames.has(i.name)) iron = true;
+          if (prof.avoid.some(a => a.kind === "dislike")) { dislikeChances++; if (w.dislikeMatch(i.name, prof)) dislikeHits++; }
+        }));
+        if (canIron && !iron && d.meals.some(x => x.label === "Lunch")) ironShort++;
+      });
+    }
+    ok(`500 weeks generated (${weeks} with solids, ${items} dishes)`, weeks === 500, weeks);
+    ok("no locked, allergy or too-young food in any of them", bad.length === 0, bad.slice(0, 5));
+    ok("every day with a lunch has an iron-rich food", ironShort === 0, ironShort);
+    out.push(`INFO disliked foods appeared in ${dislikeHits} of ${dislikeChances} dishes in dislike weeks (soft, so a few is right)`);
+
+    // priorities tilt the odds
+    const share = (prio, test) => { let hit = 0, all = 0;
+      for (let t = 0; t < 60; t++) { const wk = w.generateWeek(18, P({priorities: prio}));
+        wk.days.forEach(d => d.meals.forEach(ml => ml.items.forEach(i => { all++; if (test(i)) hit++; }))); }
+      return hit / all; };
+    const isIron = i => pool.find(x => x.name === i.name).iron;
+    const ironOn = share(["iron"], isIron), ironOff = share([], isIron);
+    ok(`iron priority raises iron-rich dishes (${(ironOff*100).toFixed(0)}% → ${(ironOn*100).toFixed(0)}%)`, ironOn > ironOff, [ironOff, ironOn]);
+    const cheap = i => (w.metaOf(i.name).cost === "high");
+    const hiOn = share(["affordable"], cheap), hiOff = share([], cheap);
+    ok(`affordable lowers pricey foods (${(hiOff*100).toFixed(0)}% → ${(hiOn*100).toFixed(0)}%)`, hiOn < hiOff, [hiOff, hiOn]);
+    const batch = w.generateWeek(18, P({priorities: ["batch"]}));
+    const dn = k => batch.days[k].meals.find(x => x.label === "Dinner").items.map(i => i.name).join("+");
+    ok("batch-cook repeats Monday's dinner on Wednesday", dn(0) === dn(2) && batch.days[2].meals.find(x => x.label === "Dinner").from === "Monday", [dn(0), dn(2)]);
+    ok("priority line reads naturally", w.priorityLine(["iron", "quick"]) === "We'll lean on iron-rich meals and 20-minute recipes.", w.priorityLine(["iron", "quick"]));
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("out").innerHTML = out.map(l => `<span class="${l.startsWith("PASS") ? "p" : l.startsWith("INFO") ? "" : "f"}">${l.replace(/</g, "&lt;")}</span>`).join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · safety";
+};
+</script>
+</body></html>
