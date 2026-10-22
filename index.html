@@ -147,8 +147,6 @@
     -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     -webkit-mask-image:linear-gradient(#000 40%, transparent);mask-image:linear-gradient(#000 40%, transparent);
   }
-  .large-title{margin:0;padding:calc(env(safe-area-inset-top) + 18px) 4px 10px;font-size:var(--fs-display);font-weight:700;letter-spacing:var(--track-display);line-height:1.15;color:var(--olive-900);transition:color 60s linear;}
-  [data-tod="evening"] .large-title{color:#fff;}
 
   /* ---------- buttons (iOS 26: capsules) ---------- */
   .btn{
@@ -175,34 +173,6 @@
   }
   .seg button{position:relative;border:none;background:none;min-height:36px;padding:0 4px;font-size:var(--fs-sub);font-weight:500;white-space:nowrap;cursor:pointer;}
   .seg button[aria-pressed="true"]{font-weight:600;}
-
-  /* ---------- calendar ---------- */
-  .cal{background:var(--cell);border-radius:var(--r-sheet);padding:16px 12px 14px;margin-bottom:16px;}
-  .cal-title{margin:0 8px 10px;font-size:var(--fs-headline);font-weight:600;}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;}
-  .cal-wd{text-align:center;font-size:var(--fs-cap);font-weight:600;color:var(--muted);padding:0 0 4px;text-transform:uppercase;}
-  .cal-cell{height:48px;display:grid;place-items:center;}
-  .cal-day{
-    width:44px;height:44px;border:none;border-radius:50%;background:none;font:inherit;font-size:var(--fs-title3);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;cursor:pointer;line-height:1;
-    transition:transform var(--dur-1) var(--ease-out);
-  }
-  .cal-day:not(:disabled):active{transform:scale(.9);}
-  .cal-day:disabled{color:var(--label-3);cursor:default;}
-  .cal-dot{width:5px;height:5px;border-radius:50%;background:var(--tint);}
-  /* the rest of the planned week: a soft tint capsule, today and the last day filled */
-  .cal-cell.band{background:linear-gradient(var(--tint-soft),var(--tint-soft)) center / 100% 44px no-repeat;transform-origin:left center;}
-  .cal-cell.band:nth-child(7n+1){border-radius:22px 0 0 22px;}
-  .cal-cell.band:nth-child(7n){border-radius:0 22px 22px 0;}
-  .cal-cell.first{background:linear-gradient(90deg, transparent 50%, var(--tint-soft) 50%) center / 100% 44px no-repeat;}
-  .cal-cell.last{background:linear-gradient(90deg, var(--tint-soft) 50%, transparent 50%) center / 100% 44px no-repeat;}
-  .cal-cell.first.last{background:none;}
-  .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--tint);color:#fff;font-weight:600;}
-  .cal-cell.first .cal-dot, .cal-cell.last .cal-dot{background:#fff;}
-  .cal-cell.sel:not(.first):not(.last) .cal-day{background:var(--cell);color:var(--tint);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12);}
-  .cal-cell.sel.first .cal-day, .cal-cell.sel.last .cal-day{box-shadow:0 0 0 2px var(--cell), 0 0 0 4px var(--tint);}
-  .cal-cell.sel.pop .cal-day{animation:pop var(--dur-3) var(--spring);}
-  .cal.draw .cal-cell.band{animation:band-in var(--dur-3) var(--ease-out) both;animation-delay:calc(var(--k) * 45ms);}
 
   /* ---------- sections ----------
      Each section is a grouped sheet: a header that opens and closes it
@@ -423,7 +393,7 @@
      bold, olive and tightly tracked, and ends in an arrow; the whole card
      answers a press (scale .985 here, .97 on smaller controls) and springs
      back. Inside, groups are a whisper of olive rather than more white. */
-  .cal, .acc{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);}
+  .acc{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);}
   .acc{overflow:visible;transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);}
   .acc:has(> .acc-head:active){transform:scale(.985);box-shadow:var(--shadow-tile);transition-duration:var(--dur-1);}
   .acc-head{padding:22px 22px 4px;}
@@ -445,9 +415,6 @@
   .acc-pad{padding:0 18px 8px;}
   .card, .meal-block{background:var(--olive-50);}
   .row-fg{background:var(--olive-50);}
-  .cal-cell.band, .cal-cell.first, .cal-cell.last{--tint-soft:var(--olive-100);}
-  .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--olive-700);}
-  .cal-dot{background:var(--olive-500);}
 
   /* ---------- onboarding ----------
      Full screen over the gradient, one question per screen on one big white
@@ -625,22 +592,96 @@
   .tile:focus-visible .tile-art{outline:3px solid var(--olive-700);outline-offset:3px;}
   .fan-empty{font-size:var(--fs-body);color:var(--muted);text-align:center;padding:20px 22px;}
 
-  /* ---------- desktop: all four sections in one view ---------- */
-  @media (min-width:1200px){
-    body{padding-bottom:0;}
-    .container{
-      max-width:1680px;height:100vh;padding:0 24px 24px;
-      display:grid;grid-template-columns:minmax(0, 1.3fr) repeat(3, minmax(0, 1fr));grid-template-rows:auto auto minmax(0, 1fr);column-gap:20px;
-    }
-    .large-title{grid-column:1 / -1;padding-top:16px;}
-    .cal{grid-column:1 / -1;margin-bottom:20px;padding:12px 16px;display:flex;align-items:center;gap:24px;}
-    .cal-title{margin:0;flex:0 0 auto;width:150px;}
-    .cal-grid{flex:1;}
-    .acc{margin:0;min-height:0;}
-    .acc-head{cursor:default;}
-    .acc-x{display:none;}
-    .acc-body{flex:1 1 auto;min-height:0;grid-template-rows:minmax(0, 1fr);}
-    .acc-inner{overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+  /* ---------- home ----------
+     One calm column: a greeting with their name and age, the Today card
+     with the fan, then three quiet cards that each show one thing. On wide
+     screens a small rail takes the week, the rainbow and the tip. */
+  .container{max-width:492px;}
+  .hello{display:flex;align-items:center;gap:14px;padding:calc(env(safe-area-inset-top) + 24px) 4px 18px;}
+  .hello-text{flex:1;min-width:0;}
+  .hello-time{margin:0;font-size:17px;font-weight:600;color:var(--olive-900);transition:color 60s linear;}
+  .hello-name{margin:4px 0 0;display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;
+    font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--ink);transition:color 60s linear;}
+  .age-chip{font-size:14px;font-weight:600;letter-spacing:0;padding:6px 12px;border-radius:var(--r-pill);background:rgba(255,255,255,.88);color:var(--olive-900);}
+  [data-tod="evening"] .hello-time, [data-tod="evening"] .hello-name{color:#fff;}
+  .profile-btn{
+    flex:0 0 auto;width:48px;height:48px;border:none;border-radius:50%;background:rgba(255,255,255,.92);box-shadow:var(--shadow-tile);
+    font:inherit;font-weight:800;font-size:19px;color:var(--olive-700);cursor:pointer;transition:transform var(--dur-1) var(--ease-out);
+  }
+  .profile-btn:active{transform:scale(.94);}
+  .home-grid, .home-main, .home-rail{display:flex;flex-direction:column;gap:16px;}
+  .hcard{
+    position:relative;display:block;width:100%;text-align:left;font:inherit;color:inherit;border:none;
+    background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:22px;
+    transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);
+  }
+  button.hcard{cursor:pointer;}
+  button.hcard:active, .hcard.pressable:has(> .hhead:active){transform:scale(.97);box-shadow:var(--shadow-tile);transition-duration:var(--dur-1);}
+  .hhead{
+    display:inline-flex;align-items:baseline;gap:.3em;border:none;background:none;padding:0;margin:0;font:inherit;cursor:pointer;
+    font-size:26px;font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--olive-700);
+  }
+  .hhead::after{content:"→";font-weight:700;transition:transform var(--dur-3) var(--spring);}
+  .hcard:hover .hhead::after, .hhead:hover::after{transform:translateX(4px);}
+  .hhead.static{cursor:default;}
+  .hhead.static::after{content:none;}
+  .hero .hhead{font-size:var(--fs-display);}
+  .hero .fan{margin:6px 0 0;padding-top:14px;}
+  .hero-line{margin:14px 2px 0;font-size:17px;line-height:1.45;color:var(--ink);}
+  .hero-line:empty{display:none;}
+  .hero .pill{margin-top:16px;width:100%;}
+  .glance{display:block;margin:10px 0 0;font-size:17px;line-height:1.35;color:var(--ink);}
+  .hint{display:block;margin:4px 0 0;font-size:14px;color:var(--muted);}
+  .hint:empty{display:none;}
+  /* Shop: a little stack of what's needed first */
+  .thumbs{position:absolute;right:22px;top:22px;display:flex;}
+  .thumb{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:var(--soft, var(--olive-100));box-shadow:0 0 0 3px var(--card);margin-left:-10px;}
+  /* This week: seven days, a soft ring each that fills as meals are marked */
+  .strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin:14px -6px 0;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;}
+  .strip::-webkit-scrollbar{display:none;}
+  .wd{
+    scroll-snap-align:start;border:none;background:none;border-radius:18px;padding:8px 0 10px;min-height:44px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit;cursor:pointer;transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
+  }
+  .wd:active{transform:scale(.92);}
+  .wd-l{font-size:12px;font-weight:600;color:var(--muted);}
+  .wd.today{background:var(--olive-50);}
+  .wd.today .wd-l{color:var(--olive-700);}
+  .ring{position:relative;width:38px;height:38px;}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .ring circle{fill:none;stroke-width:3.5;}
+  .r-bg{stroke:var(--olive-100);}
+  .r-fg{stroke:var(--olive-500);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p) * 100);transition:stroke-dashoffset 700ms var(--spring-soft);}
+  .wd.done .r-fg{stroke:var(--olive-700);}
+  .wd-n{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:600;color:var(--ink);}
+  .wd.done .wd-n{color:var(--olive-700);}
+  /* Variety: one dot per food group, filled once it's been tasted this week */
+  .rainbow{display:flex;gap:14px;margin-top:14px;}
+  .rdot{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--muted);}
+  .rdot i{width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--c);transition:background-color var(--dur-3);}
+  .rdot.on i{background:var(--c);}
+  .rdot.on{color:var(--ink);}
+  /* a small kind tip, dismissible */
+  .tip{display:flex;gap:12px;align-items:flex-start;margin:0;background:rgba(255,255,255,.9);border-radius:22px;padding:14px 12px 14px 18px;font-size:14px;line-height:1.45;color:var(--ink);}
+  .tip p{margin:0;flex:1;}
+  .tip button{flex:0 0 auto;width:32px;height:32px;margin:-4px 0;border:none;border-radius:50%;background:none;color:var(--muted);font-size:15px;cursor:pointer;}
+  .tip[hidden]{display:none;}
+  /* a gentle notice: a stage change, a reminder that came due */
+  .notice{background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-200), var(--shadow-card);}
+  .notice p{margin:0 0 14px;font-size:17px;line-height:1.45;}
+  .notice .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .notice .pill{min-height:46px;padding:10px 20px;font-size:16px;}
+  #notices:empty{display:none;}
+  .details{margin-top:28px;display:flex;flex-direction:column;}
+  .details-h{margin:0 4px 12px;font-size:15px;font-weight:600;color:var(--olive-900);}
+  [data-tod="evening"] .details-h{color:#fff;}
+
+  /* ---------- wide screens: the main column and a small rail ---------- */
+  @media (min-width:1024px){
+    .container{max-width:880px;padding:0 24px;}
+    .home-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;}
+    .details{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start;}
+    .details-h{grid-column:1 / -1;}
   }
 
   /* ---------- motion ---------- */
@@ -656,11 +697,11 @@
   @keyframes pop{from{transform:scale(.6);}}
   @keyframes band-in{from{transform:scaleX(0);}}
   @media (prefers-reduced-motion: reduce){
-    .blob, .cal.draw .cal-cell.band, .cal-cell.sel.pop .cal-day,
+    .blob,
     .acc.opening .acc-pad > *, .acc.opening #dayContent > *, #dayContent.swap-next > *, #dayContent.swap-prev > *,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
     .float .tile-art, .al-tile.bump{animation:none;}
-    .acc-x::before, .acc-body, .acc-meter i, .seg::before, .btn, .chip, .buy-chip, .cal-day, .row-fg,
+    .acc-x::before, .acc-body, .acc-meter i, .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
 </style>
@@ -703,18 +744,49 @@ function timeOfDay(d){
 </div>
 <div class="scroll-edge" aria-hidden="true"></div>
 <div class="container">
-  <h1 class="large-title">Chicho</h1>
+  <header class="hello">
+    <div class="hello-text">
+      <p class="hello-time" id="helloTime"></p>
+      <h1 class="hello-name"><span id="helloName"></span><span class="age-chip" id="ageChip"></span></h1>
+    </div>
+    <button type="button" class="profile-btn" id="profileBtn" aria-label="Profile and settings"></button>
+  </header>
 
-  <section class="cal" aria-labelledby="calTitle">
-    <h2 class="cal-title" id="calTitle"></h2>
-    <div class="cal-grid" id="calGrid"></div>
-  </section>
+  <div class="home-grid">
+    <div class="home-main">
+      <div id="notices"></div>
+      <section class="hcard hero pressable" id="hero" aria-labelledby="heroHead">
+        <button type="button" class="hhead" id="heroHead">Today</button>
+        <div class="fan" id="todayFan" role="group" aria-label="Today's meals"></div>
+        <p class="hero-line" id="heroLine"></p>
+      </section>
+      <button type="button" class="hcard" id="shopCard">
+        <span class="hhead">Shop</span>
+        <span class="thumbs" id="shopThumbs" aria-hidden="true"></span>
+        <span class="glance" id="shopGlance"></span>
+        <span class="hint" id="shopHint"></span>
+      </button>
+    </div>
+    <aside class="home-rail" aria-label="This week and variety">
+      <section class="hcard pressable" aria-labelledby="weekHead">
+        <button type="button" class="hhead" id="weekHead">This week</button>
+        <div class="strip" id="weekStrip"></div>
+      </section>
+      <button type="button" class="hcard" id="varietyHome">
+        <span class="hhead">Variety</span>
+        <span class="glance" id="rainbowGlance"></span>
+        <span class="rainbow" id="rainbow"></span>
+      </button>
+      <div class="tip" id="tip" role="note" hidden><p id="tipText"></p><button type="button" id="tipClose" aria-label="Dismiss today's tip">✕</button></div>
+    </aside>
+  </div>
 
+  <div class="details" id="details">
+  <h2 class="details-h">Everything in detail</h2>
   <section class="acc" id="card-meals">
     <button class="acc-head" id="head-meals" aria-expanded="false" aria-controls="body-meals">
       <span class="acc-title">Meals</span><span class="acc-sum" id="sum-meals"></span><span class="acc-x" aria-hidden="true"></span>
     </button>
-    <div class="fan" id="todayFan" role="group" aria-label="Today's meals"></div>
     <div class="acc-meter" aria-hidden="true"><i id="meter-meals"></i></div>
     <div class="acc-body" id="body-meals" role="region" aria-labelledby="head-meals" inert><div class="acc-inner"><div class="acc-pad">
     <div id="dayContent"></div>
@@ -813,6 +885,7 @@ function timeOfDay(d){
     <div id="createPreview"></div>
     </div></div></div>
   </section>
+  </div>
 
 </div>
 
@@ -1160,7 +1233,8 @@ const baseName = i=>i.name.split(",")[0].trim();
 const lower1 = t=>t.charAt(0).toLowerCase() + t.slice(1);
 /* "Oatmeal with banana", "Lentils and sweet potato mash", "Chicken with
    carrots and rice": the meal's foods read as one dish */
-function dishName(m){
+function dishName(m, opts){
+  const afters = !(opts && opts.afters===false);
   if(!m.items.length) return "";
   const byCat = c=>m.items.find(i=>i.cats[0]===c);
   if(m.label==="Snack") return listJoin(m.items.map((i,k)=>k ? lower1(baseName(i)) : baseName(i)));
@@ -1181,7 +1255,7 @@ function dishName(m){
   const lead = p || v || mains[0];
   const rest = mains.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
   return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "") +
-         (fruit.length ? ", then " + listJoin(fruit.map(i=>lower1(baseName(i)))) : "");
+         (fruit.length && afters ? ", then " + listJoin(fruit.map(i=>lower1(baseName(i)))) : "");
 }
 const FORM_TIPS = {
   meat:"Cook it right through, then shred or chop finely; a splash of the cooking water keeps it moist.",
@@ -1581,7 +1655,7 @@ function renderFan(){
     t.addEventListener("click", ()=>{
       t.classList.add("lift"); setTimeout(()=>t.classList.remove("lift"), 260);
       currentDay = dayIdx;
-      if(state.openCard!=="meals" && !desk.matches) openCard("meals"); else renderDayContent();
+      if(state.openCard!=="meals") openCard("meals"); else renderDayContent();
     });
     wrap.appendChild(t);
   });
@@ -1689,75 +1763,6 @@ function daysLeftInWeek(){
   return ((anchor - new Date().getDay() + 7) % 7) || 7;
 }
 
-let calDrawn = false, calPop = false;
-function renderCalendar(){
-  const today = new Date(); today.setHours(0,0,0,0);
-  // the band draws in from today once, on first paint; later renders just update it
-  const cal = document.getElementById("calGrid").parentElement;
-  if(!calDrawn){ calDrawn = true; cal.classList.add("draw"); setTimeout(()=>cal.classList.remove("draw"), 900); }
-  const order = dayDisplayOrder();
-  const left = Math.min(daysLeftInWeek(), order.length);
-  const end = new Date(today); end.setDate(end.getDate() + left - 1);
-
-  const title = MONTHS[today.getMonth()] + (end.getMonth()!==today.getMonth() ? " · " + MONTHS[end.getMonth()] : "");
-  document.getElementById("calTitle").textContent = title + " " + end.getFullYear();
-
-  const grid = document.getElementById("calGrid");
-  grid.innerHTML = "";
-  ["M","T","W","T","F","S","S"].forEach(l=>{   // weekday letters, as iOS calendars head their columns
-    const w = document.createElement("div");
-    w.className = "cal-wd"; w.textContent = l; w.setAttribute("aria-hidden", "true");
-    grid.appendChild(w);
-  });
-  // only the weeks the band touches, Monday first: one row, or two
-  const d = new Date(today);
-  d.setDate(d.getDate() - (d.getDay()+6)%7);
-  while(d <= end || (d.getDay()+6)%7 !== 0){
-    const pos = Math.round((d - today) / 864e5);
-    const idx = pos>=0 && pos<left ? order[pos] : null;
-    const cell = document.createElement("div");
-    cell.className = "cal-cell";
-    if(idx!==null){
-      cell.classList.add("band");
-      cell.style.setProperty("--k", pos);   // stagger for the band's draw
-      if(pos===0) cell.classList.add("first");
-      if(pos===left-1) cell.classList.add("last");
-      if(idx===currentDay) cell.classList.add("sel");
-      if(idx===currentDay && calPop) cell.classList.add("pop");
-    }
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "cal-day";
-    const planned = idx!==null && state.plan.days[idx].meals.some(m=>m.items.length);
-    b.innerHTML = `<span>${d.getDate()}</span>${planned ? `<span class="cal-dot"></span>` : ""}`;
-    b.setAttribute("aria-label", formatDate(d) + (planned ? ", meals planned" : ""));
-    if(pos===0) b.setAttribute("aria-current", "date");
-    if(idx===null) b.disabled = true;
-    else{
-      b.setAttribute("aria-pressed", String(idx===currentDay));
-      b.addEventListener("click", ()=>{
-        const from = order.indexOf(currentDay);
-        currentDay = idx;
-        calPop = true;
-        if(!desk.matches && state.openCard!=="meals") return openCard("meals");
-        renderDayContent();
-        // the new day slides in from the side it lies on
-        const dc = document.getElementById("dayContent");
-        dc.classList.remove("swap-next","swap-prev");
-        if(pos!==from && !calm()){
-          void dc.offsetWidth;
-          dc.classList.add(pos>from ? "swap-next" : "swap-prev");
-          setTimeout(()=>dc.classList.remove("swap-next","swap-prev"), 400);   // so a later tick doesn't replay it
-        }
-      });
-    }
-    cell.appendChild(b);
-    grid.appendChild(cell);
-    d.setDate(d.getDate() + 1);
-  }
-  calPop = false;
-}
-
 /* The plan's days in display order lead with today, so position k is k days from now. */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function dateForDay(idx){
@@ -1780,7 +1785,6 @@ function haveChip(c, name){
 function renderDayContent(){
   const day = state.plan.days[currentDay];
   const wrap = document.getElementById("dayContent");
-  renderCalendar();   // the selected day, and its dot if the last food went
   wrap.innerHTML = "";
 
   const cover = coverOnPlan();
@@ -1807,19 +1811,16 @@ function renderDayContent(){
         addToStock(foodKey(item.name), item.name, short===null ? null : buyPacks(item.name, short).g);
         justChanged = item.id;
         renderDayContent();
-        syncDesk(renderKitchen);
       });
       row.querySelector("input").addEventListener("change", e=>{
         setAte(item, e.target.checked ? "all" : null);
         save();
         justChanged = item.id;
         renderDayContent();
-        syncDesk(renderKitchen, renderVariety);
       });
       swipeable(row, item.name, ()=>{
         m.items = m.items.filter(x=>x.id!==item.id);
         save(); renderDayContent();
-        syncDesk(renderKitchen, renderVariety);
       });
       block.appendChild(row);
     });
@@ -2088,7 +2089,6 @@ function renderKitchen(){
       addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g);
       justChanged = n.key;   // it slides into Stock
       renderKitchen();
-      syncDesk(renderDayContent);
     }));
     list.appendChild(row);
   });
@@ -2152,7 +2152,7 @@ function renderKitchen(){
         const g = gramsOf(inp.value + " g");
         if(g!==null) st.g = g;
         st.plenty = row.querySelector("[data-plenty]").checked;   // the switch decides, not the amount
-        editingStock = null; save(); renderKitchen(); syncDesk(renderDayContent);
+        editingStock = null; save(); renderKitchen();
       });
       row.querySelector("[data-rm]").addEventListener("click", ()=>{ delete state.stock[key]; editingStock = null; save(); renderKitchen(); });
       setTimeout(()=>inp.focus(), 0);
@@ -2162,7 +2162,7 @@ function renderKitchen(){
       row.innerHTML = `<div class="row-fg"><button type="button" class="k-stock" aria-label="Change how much ${st.name} is left">
           <span class="k-name">${st.name}</span><span class="k-sub${status.low ? " low" : ""}">${status.text}</span></button></div>`;
       row.querySelector(".k-stock").addEventListener("click", ()=>{ editingStock = key; renderKitchen(); });
-      swipeable(row, st.name, ()=>{ delete state.stock[key]; save(); renderKitchen(); syncDesk(renderDayContent); });
+      swipeable(row, st.name, ()=>{ delete state.stock[key]; save(); renderKitchen(); });
     }
     hl.appendChild(row);
   });
@@ -2741,7 +2741,7 @@ function openCard(name, opts){
 }
 CARDS.forEach((c,i)=>{
   const head = document.getElementById("head-"+c);
-  head.addEventListener("click", ()=>{ if(!desk.matches) openCard(state.openCard===c ? null : c); });
+  head.addEventListener("click", ()=>openCard(state.openCard===c ? null : c));
   head.addEventListener("keydown", e=>{
     if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
     e.preventDefault();
@@ -2786,22 +2786,166 @@ function renderSummaries(){
   // plan: where the child is on the 0–36 month road
   document.getElementById("sum-plan").textContent = `${ageLabel(ageNow())} · ${stageNow().name}`;
   setMeter("meter-plan", Math.min(1, ageNow()/AGE_MAX));
+  renderHome();
 }
 
-/* ---------- desktop: all four open side by side ---------- */
-const desk = matchMedia("(min-width: 1200px)");
-function applyLayout(){
-  if(desk.matches){
-    CARDS.forEach(c=>{
-      document.getElementById("head-"+c).setAttribute("aria-expanded", "true");
-      document.getElementById("card-"+c).classList.add("open");
-      document.getElementById("body-"+c).inert = false;
-    });
-  }else openCard(state.openCard, {noScroll:true});
+/* ---------- voice: a few written lines per moment ----------
+   pick() chooses one per day, the same all day long, so nothing flickers
+   between visits. More variants arrive with the content pass. */
+const CONTENT = {
+  greet:{morning:["Good morning"], afternoon:["Good afternoon"], evening:["Good evening"]},
+  rainbow:{none:"A rainbow waiting to begin", some:"A rainbow in progress", all:"A whole rainbow this week"},
+  shopDone:["All stocked up", "Nothing to pick up"],
+  empty:"Nothing planned yet. Want to set the table for the week?",
+  tips:[
+    "Offer new foods 10–15 times. Refusal is normal.",
+    "Eating together is the best lesson: they copy what you enjoy.",
+    "A little mess is a lot of learning.",
+    "Small portions first; seconds feel like a win.",
+    "Let them decide how much. Your job is what and when.",
+    "A familiar food on the plate makes a new one feel safer.",
+    "Water in an open cup from 6 months, little sips at a time.",
+    "Iron loves vitamin C: pair lentils or spinach with fruit."
+  ]
+};
+function pick(list, key){
+  const seed = todayISO() + "|" + (key || "");
+  let h = 2166136261;
+  for(let k=0; k<seed.length; k++){ h ^= seed.charCodeAt(k); h = Math.imul(h, 16777619) >>> 0; }
+  return list[h % list.length];
 }
-desk.addEventListener("change", applyLayout);
-/* on desktop every card is on screen, so a change in one re-renders the others */
-function syncDesk(...renders){ if(desk.matches) renders.forEach(r=>r()); }
+function dayPart(d){
+  const h = (d || new Date()).getHours();
+  return h>=5 && h<12 ? "morning" : h>=12 && h<18 ? "afternoon" : "evening";
+}
+const STAGE_NEWS = {
+  first:"First tastes can begin: smooth purées and soft finger foods.",
+  textures:"Lumpier textures and finger foods are on the table.",
+  family:"Whole milk and more family foods are on the table.",
+  nearfamily:"Bite-size family meals now, and a say in what goes on the plate."
+};
+const DAY_FULL = d=>DAY_ORDER[d.getDay()];
+
+/* the one inspiring line under the fan, from today's own menu */
+function heroLine(day){
+  const by = l=>day.meals.find(m=>m.label===l && m.items.length);
+  const bf = by("Breakfast"), lu = by("Lunch"), di = by("Dinner");
+  const lines = [];
+  const main = m=>dishName(m, {afters:false});   // the dish itself, without the fruit after
+  if(di && di.from) lines.push(`${main(di)} again tonight, straight from ${di.from}'s batch.`);
+  if(di && di.items.some(i=>metaOf(i.name).freezes && i.cats[0]!=="fruit")) lines.push(`${main(di)} tonight, and yes, it freezes beautifully.`);
+  if(lu && lu.items.some(i=>(FOOD_POOL.find(f=>f.name===i.name)||{}).iron)) lines.push(`${main(lu)} for lunch: a lovely little iron boost.`);
+  const fresh = day.meals.flatMap(m=>m.items).find(i=>!state.exposures[foodKey(baseName(i))]);
+  if(fresh && Object.keys(state.exposures).length) lines.push(`Something new today: ${lower1(baseName(fresh))}. One curious taste is a win.`);
+  if(bf) lines.push(`${dishName(bf)} to start the day.`);
+  return lines.length ? pick(lines, "hero") : "";
+}
+
+function renderHome(){
+  const P = state.profile, name = P.name || "your little one", months = ageNow(), st = stageNow();
+
+  // greeting
+  document.getElementById("helloTime").textContent = pick(CONTENT.greet[dayPart()], dayPart()) + ",";
+  document.getElementById("helloName").textContent = P.name || "little one";
+  document.getElementById("ageChip").textContent = ageLabel(months);
+  document.getElementById("profileBtn").textContent = (P.name || "·").trim().charAt(0).toUpperCase();
+
+  // notices: a stage change on the birthday-month boundary, a reminder that came due
+  const notes = document.getElementById("notices");
+  notes.innerHTML = "";
+  if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
+  const notice = (text, label, act)=>{
+    const n = document.createElement("section");
+    n.className = "hcard notice";
+    n.innerHTML = `<p>${text}</p><div class="row"><button type="button" class="pill">${label}</button><button type="button" class="link-btn">Not now</button></div>`;
+    n.querySelector(".pill").addEventListener("click", act);
+    return n;
+  };
+  if(P.remindAt && todayISO() >= P.remindAt && months >= 6){
+    notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}: ready for first tastes?`, "Plan a first week",
+      ()=>{ P.remindAt = null; save(); openOnboarding(6); }));
+    notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.remindAt = null; save(); renderHome(); });
+  }else if(P.lastStage!==st.id && st.solids){
+    notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}. ${STAGE_NEWS[st.id] || ""} Update the plan?`, "Update the plan",
+      ()=>{ P.lastStage = st.id; save(); openOnboarding(6); }));
+    notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.lastStage = st.id; save(); renderHome(); });
+  }
+
+  // Today: the fan and one line, or a calm word when there's nothing to fan
+  const dayIdx = dayDisplayOrder()[0], day = state.plan.days[dayIdx];
+  const line = document.getElementById("heroLine"), fan = document.getElementById("todayFan");
+  const old = document.querySelector("#hero .pill");
+  if(old) old.remove();
+  if(months < 6 && !P.exploreEarly){
+    fan.innerHTML = sampleFan(["🍼"]).replace(/^<div[^>]*>|<\/div>$/g, "");   // just the tile, no second fan
+    const at = P.remindAt ? localDate(P.remindAt) : null;
+    line.textContent = `Milk is all ${name} needs right now.` + (at ? ` First tastes come around ${MONTHS[at.getMonth()]} ${at.getDate()}.` : "");
+  }else if(!day || !day.meals.some(m=>m.items.length)){
+    fan.innerHTML = "";
+    line.textContent = CONTENT.empty;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pill"; b.textContent = "Set the table";
+    b.addEventListener("click", ()=>openOnboarding(6));
+    document.getElementById("hero").appendChild(b);
+  }else{
+    line.textContent = heroLine(day);
+  }
+
+  // Shop: how many things for the chosen window, the first three to need, and urgency in words
+  const win = GROCERY_FILTERS.find(f=>f.key===state.groceryFilter);
+  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+  const need = Object.values(needOn(windowDays(win.key)))
+    .filter(n=>{ const a = toBuy(n); return a===null || a>0; })
+    .sort((a,b)=>Math.min(...a.days.map(d=>order.indexOf(d))) - Math.min(...b.days.map(d=>order.indexOf(d))));
+  const extras = state.extras.filter(x=>!x.checked).length;
+  const count = need.length + extras;
+  document.getElementById("shopThumbs").innerHTML = need.slice(0,3).map(n=>
+    `<span class="thumb" style="--soft:var(--${n.cat}-soft, var(--olive-100))">${emojiFor({name:n.name, cats:[n.cat]})}</span>`).join("");
+  document.getElementById("shopGlance").textContent = count ? `${count} thing${count===1 ? "" : "s"} to pick up` : pick(CONTENT.shopDone, "shop");
+  let soon = null;
+  Object.keys(state.stock).forEach(k=>{
+    const sx = state.stock[k];
+    if(sx.plenty || sx.g===null || !(sx.g>0)) return;
+    const {short} = shortfall(k);
+    if(short && (!soon || order.indexOf(short) < order.indexOf(soon.day))) soon = {name:sx.name.split(",")[0], day:short};
+  });
+  document.getElementById("shopHint").textContent = soon
+    ? `${soon.name} runs out ${soon.day===order[0] ? "today" : soon.day}`
+    : win.meta.replace(/^For/, "for").replace(/^./, c=>c.toUpperCase());
+
+  // This week: seven days from today, a ring each
+  const strip = document.getElementById("weekStrip");
+  strip.innerHTML = "";
+  dayDisplayOrder().forEach((idx, pos)=>{
+    const d = dateForDay(idx), items = state.plan.days[idx].meals.flatMap(m=>m.items);
+    const marked = items.filter(i=>i.ate).length, p = items.length ? marked/items.length : 0;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "wd" + (pos===0 ? " today" : "") + (items.length && marked===items.length ? " done" : "");
+    b.innerHTML = `<span class="wd-l">${DAY_FULL(d).charAt(0)}</span><span class="ring"><svg viewBox="0 0 38 38" aria-hidden="true">
+      <circle class="r-bg" cx="19" cy="19" r="15.9" pathLength="100"/><circle class="r-fg" cx="19" cy="19" r="15.9" pathLength="100" style="--p:${p.toFixed(3)}"/></svg>
+      <span class="wd-n">${d.getDate()}</span></span>`;
+    b.setAttribute("aria-label", `${formatDate(d)}${pos===0 ? ", today" : ""}: ${items.length ? `${marked} of ${items.length} meals marked` : "nothing planned"}`);
+    b.addEventListener("click", ()=>{ currentDay = idx; state.openCard==="meals" ? renderDayContent() : openCard("meals"); });
+    strip.appendChild(b);
+  });
+
+  // Variety: which food groups have been tasted this week
+  const now = varietyNow(), rb = document.getElementById("rainbow");
+  let on = 0;
+  rb.innerHTML = Object.keys(CATS).map(cat=>{
+    const tasted = (now[cat] || []).some(f=>isCovered(cat, f));
+    if(tasted) on++;
+    const short = {protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats"}[cat];
+    return `<span class="rdot${tasted ? " on" : ""}" style="--c:var(--${cat})"><i aria-hidden="true"></i>${short}<span class="sr-only">${tasted ? ": tasted this week" : ": not yet"}</span></span>`;
+  }).join("");
+  document.getElementById("rainbowGlance").textContent = on===0 ? CONTENT.rainbow.none : on===Object.keys(CATS).length ? CONTENT.rainbow.all : CONTENT.rainbow.some;
+
+  // the tip of the day, unless it's been dismissed today
+  const tip = document.getElementById("tip");
+  tip.hidden = state.tipDismissed===todayISO();
+  document.getElementById("tipText").textContent = pick(CONTENT.tips, "tip");
+}
 
 /* ---------- onboarding ----------
    One question per screen; every answer is saved as it's given, so closing
@@ -3250,7 +3394,14 @@ renderCreate();
 renderSummaries();
 const startCard = location.hash.slice(1);
 openCard(CARDS.includes(startCard) ? startCard : state.openCard, {noScroll:true});
-applyLayout();
+/* home cards open their detail: for now the sections below, sheets next */
+function openDetail(card){ openCard(card); }
+document.getElementById("heroHead").addEventListener("click", ()=>{ currentDay = dayDisplayOrder()[0]; openDetail("meals"); });
+document.getElementById("shopCard").addEventListener("click", ()=>openDetail("food"));
+document.getElementById("weekHead").addEventListener("click", ()=>openDetail("meals"));
+document.getElementById("varietyHome").addEventListener("click", ()=>openDetail("variety"));
+document.getElementById("profileBtn").addEventListener("click", ()=>openOnboarding(0));
+document.getElementById("tipClose").addEventListener("click", ()=>{ state.tipDismissed = todayISO(); save(); renderHome(); });
 if(!state.profile.onboarded) openOnboarding();
 document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
   state.groceryFilter = b.dataset.w; save(); renderKitchen();
