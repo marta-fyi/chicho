@@ -32,15 +32,16 @@ f.onload = async () => {
     await Promise.all(files.map(p => fetch("../" + p, {method: "HEAD"}).then(r => { if (!r.ok) missing.push(p); }, () => missing.push(p))));
     ok(`all ${files.length} drawing files exist`, missing.length === 0, missing);
 
-    // rendering: a picture with explicit size, or the emoji, never a broken image
+    // rendering: a picture with explicit size, or a hairline circle; never a broken image, never an emoji
     const html = E("foodArt('Banana', {size: 150, lazy: true})");
     ok("a drawn food renders <picture> with WebP and a PNG fallback", /<picture[^>]*>.*type="image\/webp".*banana-192\.webp 1x, img\/food\/banana-384\.webp 2x.*src="img\/food\/banana-384\.png"/.test(html), html);
     ok("…with explicit width/height, async decoding and lazy loading", /width="150" height="150"/.test(html) && /decoding="async"/.test(html) && /loading="lazy"/.test(html), html);
     ok("small sizes use the 64px file", /banana-64\.webp 1x/.test(E("foodArt('banana', {size: 28})")));
-    ok("alt='' hides the art from screen readers", /aria-hidden="true"/.test(E("foodArt('banana', {alt: ''})")) && /alt=""/.test(E("foodArt('banana', {alt: ''})")));
-    ok("a food with no drawing renders its emoji, labelled", /food-emoji[^>]*role="img" aria-label="Milk">🍼/.test(E("foodArt('milk')")), E("foodArt('milk')"));
-    ok("a held drawing (raspberries) renders its emoji", /food-emoji/.test(E("foodArt('raspberries')")));
-    ok("an unknown food renders a plate", /🍽️/.test(E("foodArt('Dragon fruit')")));
+    ok("alt is empty by default (a visible label always sits beside it) and the art is hidden", /aria-hidden="true"/.test(E("foodArt('banana')")) && /alt=""/.test(E("foodArt('banana')")));
+    const none = E("foodArt('milk')");
+    ok("a food with no drawing is a hairline circle, not an emoji", /food-none/.test(none) && !/\p{Extended_Pictographic}/u.test(none), none);
+    ok("a held drawing (raspberries) is a hairline circle", /food-none/.test(E("foodArt('raspberries')")));
+    ok("an unknown food is a hairline circle", /food-none/.test(E("foodArt('Dragon fruit')")));
     ok("missing art is collected for the console warning", E("MISSING_ART.has('milk') && MISSING_ART.has('raspberries')"));
     const hero = E("HERO_FOODS.filter(id => hasArt(foodOf(id)))");
     ok("the whole welcome set is drawn (7 foods)", hero.length === 7, hero);
@@ -49,7 +50,7 @@ f.onload = async () => {
     box.innerHTML = E("foodArt('banana', {size: 40})").replace(/banana-(64|192|384)\.(webp|png)/g, "nope.$2");
     doc.body.append(box);
     await new Promise(r => setTimeout(r, 400));
-    ok("a drawing that fails to load becomes its emoji", !!box.querySelector(".food-emoji") && !box.querySelector("img"), box.innerHTML);
+    ok("a drawing that fails to load becomes the hairline circle", !!box.querySelector(".food-none") && !box.querySelector("img"), box.innerHTML);
     box.remove();
 
     // copy: the voice rules
@@ -59,20 +60,22 @@ f.onload = async () => {
     const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
     const onbHeads = [C.onb.welcome.title, C.onb.name.sentence, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
       C.onb.atHome.title, C.onb.mealTimes.title, C.onb.reveal.title, C.onb.done.title, C.onb.restful.title];
-    const headlines = [...flat(C.home.headline), ...onbHeads, C.home.weekDone];
+    const headlines = [...flat(C.home.headline), ...onbHeads];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
-    const support = [...C.home.support, C.onb.welcome.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
+    const support = [C.onb.welcome.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
     ok("no onboarding headline is a question", onbHeads.every(h => !h.trim().endsWith("?")), onbHeads.filter(h => h.trim().endsWith("?")));
     ok("support lines are at most 12 words", support.every(s => words(s) <= 12), support.filter(s => words(s) > 12));
     const all = JSON.stringify(C);
+    ok("the copy never says eaten, cleared, missed, score, streak or behind", !/\b(eaten|cleared|missed|score|streak|behind|not logged)\b/i.test(all), (all.match(/\b(eaten|cleared|missed|score|streak|behind|not logged)\b/ig) || []));
+    ok("no emoji in any message: the only symbol is ☐", !/\p{Extended_Pictographic}/u.test(JSON.stringify(C.share)));
     ok("no percentages anywhere in the copy", !/\d\s?%/.test(all));
 
     // say(): placeholders, plurals, daily variants
     ok("say() fills placeholders", E("say('home.headline.soon', {meal: 'Lunch', n: 25})") === "Lunch in 25 minutes." && E("say('home.headline.soon', {meal: 'Lunch', n: 1})") === "Lunch in 1 minute.");
-    ok("say() reads months", E("say('home.stageChange', {name: 'Lula', months: 9})") === "Lula is 9 months. Textures are changing. Update the week?");
-    ok("say() picks singular, plural and none", E("[say('home.shop', {n: 1}), say('home.shop', {n: 4}), say('home.shop', {n: 0})].join('|')") === "1 thing to pick up|4 things to pick up|All stocked up.");
-    ok("say() picks the same support line all day", E("say('home.support') === say('home.support') && CONTENT.home.support.includes(say('home.support'))"));
+    ok("say() reads months", E("say('moment.stage', {name: 'Lula', months: 9})") === "Lula is 9 months. Textures are changing.");
+    ok("say() picks singular, plural and none", E("[say('home.shop', {n: 1}), say('home.shop', {n: 4}), say('home.shop', {n: 0})].join('|')") === "1 thing for the next 3 days|4 things for the next 3 days|Nothing to pick up for the next 3 days.", E("[say('home.shop', {n: 1}), say('home.shop', {n: 4}), say('home.shop', {n: 0})].join('|')"));
+    ok("say() picks the same tip all day", E("say('cook.tips', {name: 'Lula', food: 'peas'}, 'tip') === say('cook.tips', {name: 'Lula', food: 'peas'}, 'tip')"));
     ok("say() on a missing key returns an empty string", E("say('home.nope')") === "");
   } catch (e) { out.push("FAIL threw: " + e.message); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

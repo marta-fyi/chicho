@@ -75,6 +75,22 @@ const FOODS = [
   {id:"plate",          label:"A plate",         group:"other",   tint:"#F2F0EC", emoji:"🍽️", files:null, aliases:[]}
 ];
 
+/* the cooking layer: how each food is usually made ready, and how long it takes.
+   method: steam · roast · boil (simmer) · toast · raw (wash, peel, cut) · none (stirred in).
+   The one-line "how" comes from content.js (cook.how.{method}); steam/roast/boil foods can be cooked ahead. */
+const COOK = {
+  egg:"boil:10", chicken:"boil:20", turkey:"boil:20", beef:"boil:30", meatballs:"roast:20", salmon:"roast:15", "white-fish":"steam:10",
+  lentils:"boil:20", chickpeas:"none:0", tofu:"none:0", hummus:"none:0",
+  "greek-yogurt":"none:0", "cottage-cheese":"none:0", ricotta:"none:0", cheese:"none:0", milk:"none:0",
+  carrot:"steam:12", "sweet-potato":"roast:30", pumpkin:"roast:30", "butternut-squash":"roast:30", zucchini:"steam:6",
+  "green-beans":"steam:8", peas:"boil:4", cauliflower:"steam:10", potato:"boil:20", spinach:"steam:3", beetroot:"roast:40",
+  cucumber:"raw:0", tomato:"raw:0",
+  banana:"raw:0", pear:"raw:0", apple:"steam:8", peach:"raw:0", plum:"raw:0", mango:"raw:0", melon:"raw:0", kiwi:"raw:0",
+  blueberries:"raw:0", strawberries:"raw:0", raspberries:"raw:0", grapes:"raw:0",
+  oatmeal:"boil:5", "baby-rice":"none:0", toast:"toast:3", pasta:"boil:10", rice:"boil:15", quinoa:"boil:15", couscous:"boil:5",
+  avocado:"raw:0", "olive-oil":"none:0", chia:"none:0", "peanut-butter":"none:0", plate:"none:0"
+};
+
 /* the welcome screen's crossfade, in order; foods without a drawing are skipped */
 const HERO_FOODS = ["banana","carrot","mango","white-fish","egg","avocado","oatmeal"];
 
@@ -82,6 +98,8 @@ const FOOD_BY_ID = {};
 const FOOD_BY_ALIAS = {};
 FOODS.forEach(f=>{
   f.scale = f.scale || 1;
+  const [method, min] = (COOK[f.id] || "raw:0").split(":");
+  f.cook = {method, min:+min};
   f.files = f.files ? {
     w64:`img/food/${f.id}-64.webp`, w192:`img/food/${f.id}-192.webp`, w384:`img/food/${f.id}-384.webp`, png:`img/food/${f.id}-384.png`
   } : null;
@@ -104,45 +122,44 @@ function noteMissing(id){
   if(MISSING_ART.has(id)) return;
   MISSING_ART.add(id);
   clearTimeout(missingTimer);
-  missingTimer = setTimeout(()=>console.warn(`CHICHO: no illustration yet for ${MISSING_ART.size} food(s), showing emoji: ${[...MISSING_ART].join(", ")}`), 400);
+  missingTimer = setTimeout(()=>console.warn(`CHICHO: no illustration yet for ${MISSING_ART.size} food(s), showing a hairline circle: ${[...MISSING_ART].join(", ")}`), 400);
 }
 
-/* a drawing that fails to load (offline before it was cached, a typo) becomes its emoji */
+/* a drawing that fails to load (offline before it was cached, a typo) becomes the hairline circle */
 function artFailed(img){
   const pic = img.closest("picture"), f = foodOf(pic && pic.dataset.food);
-  if(!pic || !f) return;
+  if(!pic) return;
   const span = document.createElement("span");
-  span.className = pic.className + " food-emoji";
+  span.className = pic.className + " food-none";
   span.style.cssText = pic.style.cssText;
   span.setAttribute("aria-hidden", "true");
-  span.textContent = f.emoji;
   pic.replaceWith(span);
-  noteMissing(f.id);
+  if(f) noteMissing(f.id);
 }
 
 const escAttr = s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 
-/* The art for a food, as an HTML string.
+/* The art for a food, as an HTML string: a small line-art bullet beside its label.
    size:  the CSS size it's shown at (px); picks the file (≤32 → 64, ≤96 → 192, else 192/384 for 1x/2x)
-   alt:   the label (meaningful) or "" (decorating a visible label: also aria-hidden)
+   alt:   "" by default (a visible label always sits beside it), so it's hidden from screen readers
    lazy:  true below the fold
    cls:   extra classes on the wrapper
-   Never a broken image: an unknown food or a missing drawing renders its emoji, or a plate. */
+   Never a broken image and never an emoji: an unknown food or a missing drawing
+   is a 1.5px hairline circle. */
 function foodArt(idOrName, opts){
-  const o = opts || {}, size = o.size || 64;
+  const o = opts || {}, size = o.size || 28;
   const f = foodOf(idOrName);
   const label = f ? f.label : String(idOrName || "");
-  const alt = o.alt===undefined ? label : o.alt;
+  const alt = o.alt===undefined ? "" : o.alt;
   const hide = alt==="" ? ` aria-hidden="true"` : "";
   const cls = "food-art" + (o.cls ? " "+o.cls : "");
   const style = `--art:${size}px;--tint:${f ? f.tint : "#F2F0EC"};--scale:${f ? f.scale : 1}`;
   if(!hasArt(f)){
     noteMissing(f ? f.id : "?"+label);
-    const emoji = f ? f.emoji : "🍽️";
-    return `<span class="${cls} food-emoji" style="${style}"${alt==="" ? hide : ` role="img" aria-label="${escAttr(alt)}"`}>${emoji}</span>`;
+    return `<span class="${cls} food-none" style="${style}"${alt==="" ? hide : ` role="img" aria-label="${escAttr(alt)}"`}></span>`;
   }
   const F = f.files;
-  const srcset = size<=32 ? `${F.w64} 1x, ${F.w192} 2x` : size<=96 ? `${F.w192} 1x, ${F.w384} 2x` : `${F.w192} 1x, ${F.w384} 2x`;
+  const srcset = size<=32 ? `${F.w64} 1x, ${F.w192} 2x` : `${F.w192} 1x, ${F.w384} 2x`;
   return `<picture class="${cls}" style="${style}" data-food="${f.id}"${hide}><source type="image/webp" srcset="${srcset}">` +
     `<img src="${F.png}" width="${size}" height="${size}" alt="${escAttr(alt)}" decoding="async"${o.lazy ? ` loading="lazy"` : ""}` +
     ` onerror="artFailed(this)"></picture>`;

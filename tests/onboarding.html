@@ -78,25 +78,9 @@ f.onload = async () => {
     ok("the locked line names this stage's rules", /^Always off the plate at this age: honey/.test(d.querySelector(".locked-say p").textContent.trim()));
     next().click(); await settle();
 
-    // priorities
-    ok("priorities: 'This week, we care most about…'", step() === "priorities" && d.getElementById("onbTitle").textContent === "This week, we care most about…");
-    const pills = [...d.querySelectorAll(".pill-o")];
-    pills.slice(0, 4).forEach(b => b.click());
-    ok("at most three, the rest disabled", E("state.profile.priorities.length") === 3 && pills[4].disabled);
-    ok("one line says how the week changes", /^We'll lean on iron-rich meals/.test(d.querySelector(".onb-lean").textContent));
-    next().click(); await settle();
-    ok("at home", step() === "athome");
-    d.querySelectorAll("#onbCard .btn-text")[0].click(); await settle();
-
-    // meal times
-    ok("meal times, for the stage's meals", step() === "mealtimes" && [...d.querySelectorAll(".mt-row label")].map(l => l.textContent).join() === "Breakfast at,Lunch at,Dinner at");
-    const lunch = d.getElementById("mt-lunch");
-    ok("prefilled with the stage's times", lunch.value === "12:30");
-    lunch.value = "12:00"; lunch.dispatchEvent(new w.Event("change", {bubbles: true}));
-    ok("a changed time is saved as theirs", E("state.profile.mealTimes.lunch") === "12:00");
-    const din = d.getElementById("mt-dinner"); din.value = "18:30"; din.dispatchEvent(new w.Event("change", {bubbles: true}));
-    ok("a default time isn't stored (it keeps following the stage)", !("dinner" in E("state.profile.mealTimes")));
-    next().click(); await settle();
+    // ask late: a first run goes from the allergens straight to the week
+    ok("a first run skips priorities, the kitchen and meal times (asked later)", step() === "reveal", step());
+    ok("…and only shows dots for the steps it asks", d.querySelectorAll("#onbDots i").length === 4, d.querySelectorAll("#onbDots i").length);
 
     // reveal, then the week, applied only on Love it
     ok("the reveal: 'Setting the table…'", step() === "reveal" && d.getElementById("onbTitle").textContent === "Setting the table…");
@@ -110,6 +94,25 @@ f.onload = async () => {
     next().click(); await settle();
     ok("Love it applies that week and closes", JSON.stringify(E("state.plan")) === draft && d.getElementById("onboarding").hidden && E("state.profile.onboarded") === true);
     ok("…its meals carry slots", E("state.plan.days.every(d => d.meals.every(m => m.slot))"));
+
+    // the late steps open one at a time (from the profile sheet or a late question) and close after
+    E('openOnboarding("priorities", {single: true})'); await settle();
+    ok("priorities: 'This week, we care most about…'", step() === "priorities" && d.getElementById("onbTitle").textContent === "This week, we care most about…");
+    const pills = [...d.querySelectorAll(".pill-o")];
+    pills.slice(0, 4).forEach(b => b.click());
+    ok("at most three, the rest disabled", E("state.profile.priorities.length") === 3 && pills[4].disabled);
+    ok("one line says how the week changes", /^We'll lean on iron-rich meals/.test(d.querySelector(".onb-lean").textContent));
+    ok("a single step says Save", next().textContent === "Save");
+    next().click(); await settle();
+    ok("…and Save closes it", d.getElementById("onboarding").hidden);
+    E('openOnboarding("mealtimes", {single: true})'); await settle();
+    ok("meal times, for the stage's meals", step() === "mealtimes" && [...d.querySelectorAll(".mt-row label")].map(l => l.textContent).join() === "Breakfast at,Lunch at,Dinner at", [...d.querySelectorAll(".mt-row label")].map(l => l.textContent).join());
+    const lunch = d.getElementById("mt-lunch");
+    ok("prefilled with the stage's anchors", lunch.value === "12:30");
+    lunch.value = "12:00"; lunch.dispatchEvent(new w.Event("change", {bubbles: true}));
+    ok("a changed time is saved as theirs", E("state.profile.mealTimes.lunch") === "12:00");
+    next().click(); await settle();
+    ok("…and confirmed, so the late question doesn't ask again", E("state.profile.mealTimesConfirmed") === true && d.getElementById("onboarding").hidden);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

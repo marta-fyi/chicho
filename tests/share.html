@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sharing tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Sharing tests</h1>
+<p>Message templates, the sms: links and numbers, the snapshot payload and its read-only view (which must never write to this device). Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T09:30";
+f.style.cssText = "width:390px;height:500px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01",
+         people: [{id: "p1", name: "Ana", phone: "+34600112233", role: "nanny"}], self: {phone: "+447700900123"}});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-22"; state.profile.lastStage = stageNow().id; state.stock = {}; state.exposures = {}; save(); closeOnboarding();`);
+
+    // numbers and sms: links
+    ok("numbers keep digits and a leading +", E(`normPhone("+34 600-11 22 33")`) === "+34600112233" && E(`normPhone("(07700) 900.123")`) === "07700900123");
+    ok("iOS and macOS: sms:{n}&body=", E(`smsHref("+34 600 11 22 33", "Hi & bye", "apple")`) === "sms:+34600112233&body=Hi%20%26%20bye");
+    ok("Android: sms:{n}?body=", E(`smsHref("+34600112233", "Hi", "android")`) === "sms:+34600112233?body=Hi");
+    ok("the platform from the user agent", E(`[platform("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"), platform("Mozilla/5.0 (Linux; Android 15)"), platform("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5)"), platform("Mozilla/5.0 (Windows NT 10.0)")].join()`) === "apple,android,apple,other");
+
+    // groceries
+    const g = E("groceriesText()"), gl = g.trim().split("\n");
+    ok("groceries: '{name}'s groceries · {date}' then 'Updated {time}'", gl[0] === `Lula's groceries · ${E("fmtDayMonth(now())")}` && gl[1] === `Updated ${E("fmtTime(now())")}`, gl.slice(0, 2));
+    ok("…one '☐ ' line per item, and no other symbol", gl.slice(2).every(l => l.startsWith("☐ ")) && !/\p{Extended_Pictographic}/u.test(g), gl.slice(2, 5));
+    const order = E("dayDisplayOrder().map(i => state.plan.days[i].name)");
+    const expectBy = E(`shopList("week").map(n => { const s = shortfall(n.key).short, first = n.days.slice().sort((a, b) => dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(a) - dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(b))[0]; return dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(s || first) < 3; })`);
+    ok("…' · by {weekday}' only when it runs out within 3 days", gl.slice(2, 2 + expectBy.length).every((l, k) => / · by [A-Z][a-z]+day$/.test(l) === expectBy[k]) && expectBy.some(Boolean));
+
+    // a day for a caretaker
+    let t = E("dayText(tomorrowOf(now()))");
+    ok("day: '{name} · {weekday} {date}'", t.split("\n")[0] === `Lula · ${E("fmtWeekday(tomorrowOf(now()))")} ${E("fmtDayMonth(tomorrowOf(now()))")}`, t.split("\n")[0]);
+    ok("…'Allergies: none. Not yet: …' when there are none", /^Allergies: none\. Not yet: whole nuts, whole grapes/.test(t.split("\n")[2]) || /^Allergies: none\. Not yet: /.test(t.split("\n")[2]), t.split("\n")[2]);
+    ok("…a line per meal: '{time} {Meal}: {food} {amount} ({texture}), …'", t.split("\n").slice(4).filter(l => /^\S.* (Breakfast|Snack|Lunch|Dinner): /.test(l)).length >= 3 && /\d+ g \(/.test(t), t);
+    E(`state.profile.allergens.egg = "avoid"; state.profile.avoid = [{name: "Kiwi", kind: "allergy"}]`);
+    t = E("dayText(tomorrowOf(now()), 'https://example.org/x')");
+    ok("…with allergies: 'Allergies: egg and kiwi.'", /^Allergies: egg and kiwi\. Not yet: /.test(t.split("\n")[2]), t.split("\n")[2]);
+    ok("…and 'Full day: {link}' when there's a link", t.trim().split("\n").pop() === "Full day: https://example.org/x");
+    E(`state.exposures = {banana: 1}`);
+    ok("…'New today: {food}.' when the day has a new food", /\nNew today: [a-z].*\.\n?/.test(E("dayText(tomorrowOf(now()))")));
+    E(`state.exposures = {}`);
+    // the week
+    const wk = E("weekText('https://example.org/w')").split("\n");
+    ok("week: '{name}'s week', 'Updated {date} {time}', a line per day, then the link", wk[0] === "Lula's week" && /^Updated /.test(wk[1]) && wk.slice(2, -1).every(l => /^[A-Z][a-z]+day: /.test(l)) && wk.pop() === "Full week: https://example.org/w", wk);
+
+    // the snapshot payload
+    const p = E("snapshotPayload([now(), tomorrowOf(now())])");
+    ok("payload v1: name, age in months, generated-at, allergies, dislikes, locked, days", p.v === 1 && p.n === "Lula" && p.m === 18 && typeof p.g === "string" && Array.isArray(p.a) && Array.isArray(p.k) && p.days.length === 2);
+    const raw = JSON.stringify(p);
+    ok("…never the birth date", !raw.includes(E("state.profile.birthDate")));
+    ok("…never a phone number, never another person's name", !/600112233|7700900123/.test(raw) && !raw.includes("Ana") && !raw.includes("nanny"));
+    ok("…foods by manifest id", p.days[0].ml[0].f.every(([id]) => typeof id === "string" && (id[0] === "~" || E(`!!FOOD_BY_ID[${JSON.stringify(id)}]`))));
+    const enc = await w.encodePayload(p);
+    ok("gzip + base64url ('z…', URL-safe)", enc[0] === "z" && /^[A-Za-z0-9_-]+$/.test(enc.slice(1)));
+    ok("round trip", JSON.stringify(await w.decodePayload(enc)) === raw);
+    const keep = w.CompressionStream; w.CompressionStream = undefined;
+    const plain = await w.encodePayload(p); w.CompressionStream = keep;
+    ok("without CompressionStream: the plain fallback ('j…') round-trips too", plain[0] === "j" && JSON.stringify(await w.decodePayload(plain)) === raw);
+    ok("a damaged payload reads as nothing", (await w.decodePayload("z" + enc.slice(1, 30))) === null && (await w.decodePayload("qwerty")) === null && (await w.decodePayload("j" + btoa("{\"v\":2}"))) === null);
+    const s = await w.snapshotURL();
+    ok("the link fits in ~1.8k characters (or is shortened to today and tomorrow, and says so)", s.url.length <= E("LINK_CAP") || s.short, [s.url.length, s.short]);
+    ok("…and lives in the fragment: {origin}{path}#/s/{payload}", s.url.startsWith(E("linkBase()") + "#/s/"));
+    E(`state.plan.days.forEach(d => d.meals.forEach(m => { for (let k = 0; k < 12; k++) m.items.push(it("Custom " + Math.random().toString(36).slice(2, 12), "100 g", ["other"])); }))`);
+    const big = await w.snapshotURL();
+    ok("a week too big for one link becomes today and tomorrow", big.short === true, [big.url.length]);
+
+    // the read-only view: it must never write to this device
+    E(`state.profile.allergens = {}; state.profile.avoid = []; ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok"); state.profile.allergens.egg = "avoid"; state.plan = generateWeek(18, state.profile); save();`);
+    const link = (await w.snapshotURL()).url;
+    localStorage.setItem("toddlerMealPlanner.v1", "MINE");
+    const keys = Object.keys(localStorage).sort().join();
+    const v = document.createElement("iframe");
+    v.style.cssText = "width:390px;height:600px;border:1px solid #ccc";
+    v.src = "../index.html?test#/s/" + link.split("#/s/")[1];
+    document.body.append(v);
+    await new Promise(r => v.onload = r); await wait(500);
+    const vd = v.contentDocument;
+    ok("the view: allergies first, in plain large text", /^Please avoid: egg\. Not yet: /.test(vd.querySelector(".snap-avoid").textContent.trim()), vd.querySelector(".snap-avoid") && vd.querySelector(".snap-avoid").textContent);
+    ok("…then the days, with times, foods, amounts and textures", vd.querySelectorAll(".snap-day").length >= 1 && vd.querySelectorAll(".snap-food").length >= 3);
+    ok("…and 'Updated …. This is a snapshot; ask for the latest if plans change.'", /This is a snapshot; ask for the latest if plans change\.$/.test(vd.querySelector(".snap-updated").textContent));
+    ok("…no ticks, no editing, no onboarding", !vd.querySelector(".ring-btn, .offer-pill, input, .top") && vd.getElementById("onboarding").hidden);
+    ok("…noindex", !!vd.querySelector('meta[name="robots"][content="noindex"]'));
+    ok("…and nothing written: this device's data is exactly as it was", localStorage.getItem("toddlerMealPlanner.v1") === "MINE" && Object.keys(localStorage).sort().join() === keys);
+    const bad = document.createElement("iframe");
+    bad.style.cssText = "width:390px;height:200px;border:1px solid #ccc";
+    bad.src = "../index.html?test#/s/zAAAA";
+    document.body.append(bad);
+    await new Promise(r => bad.onload = r); await wait(400);
+    ok("a broken link: 'This link looks incomplete. Ask for it to be sent again.'", bad.contentDocument.querySelector(".snap-broken").textContent === "This link looks incomplete. Ask for it to be sent again.");
+    ok("…and still nothing written", localStorage.getItem("toddlerMealPlanner.v1") === "MINE");
+
+    // delivery: no number and no share sheet → copied, said once
+    let copied = null;
+    Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
+    Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
+    const status = w.document.createElement("p");
+    const how = await w.deliver({text: "hello"}, status);
+    ok("no number, no share sheet: the text is copied, with a short 'Copied'", how === "copied" && copied === "hello" && status.textContent === "Copied");
+    await wait(60);
+    ok("…and 'List copied' is announced", w.document.getElementById("liveStatus").textContent === "List copied");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · share";
+};
+</script>
+</body></html>

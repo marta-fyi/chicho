@@ -98,9 +98,15 @@ f.onload = () => {
     const cheap = i => (w.metaOf(i.name).cost === "high");
     const hiOn = share(["affordable"], cheap), hiOff = share([], cheap);
     ok(`affordable lowers pricey foods (${(hiOff*100).toFixed(0)}% → ${(hiOn*100).toFixed(0)}%)`, hiOn < hiOff, [hiOff, hiOn]);
-    const batch = w.generateWeek(18, P({priorities: ["batch"]}));
+    const allOk = {}; E("ALLERGENS.map(a => a.id)").forEach(a => allOk[a] = "ok");
+    const batch = w.generateWeek(18, P({priorities: ["batch"], allergens: allOk}));
     const dn = k => batch.days[k].meals.find(x => x.label === "Dinner").items.map(i => i.name).join("+");
     ok("batch-cook repeats Monday's dinner on Wednesday", dn(0) === dn(2) && batch.days[2].meals.find(x => x.label === "Dinner").from === "Monday", [dn(0), dn(2)]);
+    ok("a dinner carrying a first allergen is never repeated by batch-cooking", (() => { E("state.foods = {}; state.exposures = {}");
+      for (let n = 0; n < 60; n++) { const wk = w.generateWeek(18, P({priorities: ["batch"]}));
+        const rep = wk.days.flatMap(d => d.meals.filter(m => m.from));
+        if (rep.some(m => m.items.some(i => w.allergensOf(i.name).length && !w.introducedAllergens(P({})).size && w.newAllergens(i.name, w.introducedAllergens(P({}))).length))) return false; }
+      return true; })());
     ok("priority line reads naturally", w.priorityLine(["iron", "quick"]) === "We'll lean on iron-rich meals and 20-minute recipes.", w.priorityLine(["iron", "quick"]));
 
     // allergy vs dislike, measured: the same food, strict vs soft
@@ -133,6 +139,32 @@ f.onload = () => {
     ok("every locked line names nuts, grapes, salt and sugar", [6, 9, 12, 24].every(m => /whole nuts, whole grapes, added salt and sugar/.test(E(`lockedLine(${m})`))));
     ok("stages for 6+ months each carry slots, portions and food groups",
        E("STAGES.filter(s => s.solids).every(s => s.slots.length && s.portions && s.groups.length === 5 && s.meals && s.textureShort && s.locked)"));
+
+    // first allergens come one at a time, ALLERGEN_SPACING_DAYS apart, from the plan's first day
+    E("state.foods = {}; state.exposures = {}");
+    let schedBad = [];
+    const gap = E("ALLERGEN_SPACING_DAYS");
+    for (let t = 0; t < 300; t++) {
+      const m = 7 + Math.floor(Math.random() * 30);
+      const prof = P({});
+      const wk = w.generateWeek(m, prof);
+      const start = wk.days.findIndex(d => d.name === E("DAY_ORDER[now().getDay()]"));
+      const seen = {}, perDay = [];
+      for (let pos = 0; pos < 7; pos++) {
+        const day = wk.days[(start + pos) % 7], fresh = new Set();
+        day.meals.forEach(ml => ml.items.forEach(i => w.allergensOf(i.name).forEach(a => { if (!(a in seen)) { fresh.add(a); } })));
+        fresh.forEach(a => seen[a] = pos);
+        if (fresh.size > 1) schedBad.push(`${m} mo: ${[...fresh].join("+")} on day ${pos}`);
+        if (fresh.size) perDay.push(pos);
+      }
+      for (let k = 1; k < perDay.length; k++) if (perDay[k] - perDay[k - 1] < gap) schedBad.push(`${m} mo: new allergens on days ${perDay[k - 1]} and ${perDay[k]}`);
+    }
+    ok(`300 weeks: at most one new allergen a day, ${gap} days apart`, schedBad.length === 0, schedBad.slice(0, 5));
+    ok("an allergen marked 'tried and loved' isn't scheduled as new", (() => { const prof = P({allergens: {egg: "ok", milk: "ok", wheat: "ok", soy: "ok", fish: "ok", sesame: "ok", peanut: "ok", treenuts: "ok", shellfish: "ok"}});
+      const known = w.introducedAllergens(prof); return ["egg", "milk", "wheat", "fish"].every(a => known.has(a)); })());
+    ok("a swap never brings a first allergen", (() => { E("state.foods = {}; state.exposures = {}; state.profile = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(10)}); state.plan = generateWeek(10, state.profile)");
+      const known = E("[...introducedAllergens(state.profile)]");
+      return E(`state.plan.days.every(d => d.meals.every(m => m.items.every((x, k) => alternatives(m, k).every(f => newAllergens(f.name, introducedAllergens(state.profile)).length === 0))))`); })());
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("out").innerHTML = out.map(l => `<span class="${l.startsWith("PASS") ? "p" : l.startsWith("INFO") ? "" : "f"}">${l.replace(/</g, "&lt;")}</span>`).join("\n");

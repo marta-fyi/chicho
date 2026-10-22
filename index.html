@@ -14,7 +14,10 @@
 <meta name="color-scheme" content="light">
 <link rel="preload" href="bg.jpg" as="image">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" id="favicon" href="icon-192.png">
 <script>
+/* a shared snapshot link is never indexed (the payload lives in the fragment, which is never sent anyway) */
+if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.name = "robots"; m.content = "noindex"; document.head.appendChild(m); }
 /* first run only: the welcome's first two drawings (HERO_FOODS[0], [1] in foods.js) start loading with the page */
 try{
   const saved = JSON.parse(localStorage.getItem("toddlerMealPlanner.v1") || "null");
@@ -44,9 +47,9 @@ try{
     --olive-100:#EEF1E4;
     --olive-50:#F6F8F0;
     --ink:#0A0A0A;         /* all text is black */
-    --ink-70:rgba(10,10,10,.7);   /* secondary text: never lighter */
-    --ink-25:rgba(10,10,10,.25);  /* inactive dots, hairlines; never text */
-    --muted:var(--ink-70);
+    --ink-85:rgba(10,10,10,.85);  /* secondary text: never lighter */
+    --ink-20:rgba(10,10,10,.2);   /* hairlines and inactive dots; never text */
+    --muted:var(--ink-85);
     --faint:#8A919C;       /* decoration only, never text */
     --card:#FFFFFF;
     --hairline:rgba(31,35,40,.10);
@@ -145,11 +148,11 @@ try{
      Black on the navy measures 2:1; white passes. Surfaces (white cards, peeks)
      keep black ink. Add each frameless screen to this list as it lands. */
   [data-tod="evening"] :is(.onb, .home){
-    --ink:#FFFFFF; --ink-70:rgba(255,255,255,.78); --ink-25:rgba(255,255,255,.32);
+    --ink:#FFFFFF; --ink-85:rgba(255,255,255,.85); --ink-20:rgba(255,255,255,.2);
     --on-ink:#0A0A0A; --art-ink:invert(1); --art-ink-on:none;
   }
   [data-tod="evening"] .onb-card:not(.bare){
-    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --ink-25:rgba(10,10,10,.25); --on-ink:#FFFFFF; --art-ink:none;
+    --ink:#0A0A0A; --ink-85:rgba(10,10,10,.85); --ink-20:rgba(10,10,10,.2); --on-ink:#FFFFFF; --art-ink:none;
   }
 
   /* ---------- navigation: large title + the iOS 26 scroll edge ----------
@@ -162,76 +165,22 @@ try{
   }
 
   /* ---------- buttons (iOS 26: capsules) ---------- */
-  .btn{
-    border:none;border-radius:999px;min-height:44px;padding:11px 20px;font-size:var(--fs-callout);font-weight:600;
-    background:var(--fill-3);color:var(--tint);cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), opacity var(--dur-1);
-  }
-  .btn.primary{background:var(--tint);color:#fff;}
-  .btn.danger{background:var(--fill-3);color:var(--red);}
-  .btn:active{transform:scale(.96);opacity:.85;}
-  .btn:disabled{opacity:.4;cursor:default;}
-  .btn:disabled:active{transform:none;}
-  .btnrow{display:flex;gap:10px;margin:6px 0 16px;flex-wrap:wrap;}
-  .btnrow .btn.primary{flex:1;}
 
   /* segmented control: a capsule track, the selected segment a raised glass
      capsule that springs across */
-  .seg{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:var(--fill-3);border-radius:999px;padding:3px;margin:0 0 18px;}
-  .seg::before{
-    content:"";position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 3);border-radius:999px;
-    background:rgba(255,255,255,.92);
-    box-shadow:0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04), inset 0 0 0 .5px rgba(0,0,0,.04);
-    transform:translateX(calc(var(--i, 0) * 100%));transition:transform var(--dur-3) var(--spring);
-  }
-  .seg button{position:relative;border:none;background:none;min-height:36px;padding:0 4px;font-size:var(--fs-sub);font-weight:500;white-space:nowrap;cursor:pointer;}
-  .seg button[aria-pressed="true"]{font-weight:600;}
 
   /* an inset-grouped list */
   .card, .meal-block{background:var(--cell);border-radius:var(--r-group);padding:4px 0 4px 16px;margin-bottom:18px;overflow:hidden;}
-  .section-title{font-size:var(--fs-headline);font-weight:600;margin:12px 16px 4px 0;}
-  .section-title.small{font-size:var(--fs-foot);font-weight:400;color:var(--label-2);margin:12px 0 6px;}
-  .subtle{font-size:var(--fs-foot);color:var(--label-2);margin:0 4px 12px;line-height:1.4;}
-  .subtle.center{text-align:center;}
+
   .empty{font-size:var(--fs-sub);color:var(--label-2);text-align:center;padding:16px 16px 16px 0;margin:0;}
   /* rows: 44pt minimum, hairline separators inset to the text */
-  .item-row + .item-row > .row-fg::before, .k-row + .k-row > .row-fg::before,
-  .history-row + .history-row::before, .preview-line + .preview-line::before{
-    content:"";position:absolute;left:0;right:0;top:0;height:.5px;background:var(--separator);
-  }
 
   /* ---------- meals ---------- */
-  .meal-head{display:flex;align-items:baseline;justify-content:space-between;padding:10px 16px 6px 0;}
-  .meal-head .label{font-size:var(--fs-headline);font-weight:600;}
-  .meal-head .count{font-size:var(--fs-sub);color:var(--label-2);}
-  .item-row{position:relative;}
-  .row-fg{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 16px 6px 0;background:var(--cell);touch-action:pan-y;}
-  .item-row label{flex:1;min-width:0;font-size:var(--fs-body);display:flex;align-items:center;gap:8px;}
-  .item-row.checked .nm{color:var(--label-2);}
-  .nmw{min-width:0;display:flex;flex-direction:column;gap:1px;}
-  .nmw > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .nmw .qty{display:block;}
-  .tag-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+
   .tex, .qty{font-size:var(--fs-foot);color:var(--label-2);}
-  .have-chip{flex:0 0 auto;font-size:var(--fs-foot);font-weight:600;color:var(--green);white-space:nowrap;display:flex;align-items:center;gap:4px;}
-  .have-chip::before{content:"";width:6px;height:10px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;rotate:45deg;translate:0 -2px;}
-  .buy-chip{
-    flex:0 0 auto;border:none;border-radius:999px;background:var(--tint-soft);color:var(--tint);
-    font-size:var(--fs-foot);font-weight:600;white-space:nowrap;min-height:30px;padding:5px 12px;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out);
-  }
-  .buy-chip:active{transform:scale(.94);}
-  .item-row.just .have-chip{animation:pop var(--dur-3) var(--spring);}
 
   /* swipe to delete: the row slides, a red Delete waits underneath; swipe
      all the way and it goes */
-  .swipe-del{
-    position:absolute;right:0;top:0;bottom:0;width:88px;border:none;background:var(--red);color:#fff;
-    font-size:var(--fs-sub);font-weight:600;cursor:pointer;
-  }
-  .row-fg{position:relative;z-index:1;transition:transform var(--dur-3) var(--spring);}
-  .dragging .row-fg{transition:none;}
-  .item-row:focus-within .row-fg:has(+ .swipe-del:focus-visible), .k-row:focus-within .row-fg:has(+ .swipe-del:focus-visible){transform:translateX(-88px);}
 
   /* the tick: Reminders' circle that fills */
   input[type=checkbox]:not([role=switch]){
@@ -246,21 +195,8 @@ try{
   input[type=checkbox]:not([role=switch]):checked{background:var(--tint);border-color:var(--tint);}
   input[type=checkbox]:not([role=switch]):checked::before{transform:translateY(-1px) rotate(-45deg) scale(1);}
   .just input[type=checkbox]:checked::before{animation:tick-pop var(--dur-3) var(--spring);}
-  .leaving-r{animation:out-right var(--dur-2) var(--ease-out) forwards;}
-  .leaving-l{animation:out-left var(--dur-2) var(--ease-out) forwards;}
 
   /* the switch */
-  .switch{display:flex;align-items:center;gap:10px;font-size:var(--fs-body);cursor:pointer;}
-  .switch input{
-    -webkit-appearance:none;appearance:none;margin:0;position:relative;width:51px;height:31px;border-radius:999px;
-    background:var(--fill);cursor:pointer;transition:background-color var(--dur-2) var(--ease-out);
-  }
-  .switch input::before{
-    content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
-    box-shadow:0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06);transition:transform var(--dur-3) var(--spring);
-  }
-  .switch input:checked{background:var(--green);}
-  .switch input:checked::before{transform:translateX(20px);}
 
   /* ---------- forms ---------- */
   input[type=text], select{
@@ -268,111 +204,32 @@ try{
   }
   input[type=text]::placeholder{color:var(--muted);}
   input[type=text]:focus, select:focus{outline:none;box-shadow:0 0 0 2px var(--tint);}
-  .add-item-row{display:flex;gap:8px;margin:8px 0 4px;flex-wrap:wrap;}
-  .add-item-row input.name{flex:1 1 120px;min-width:90px;}
-  .add-item-row button{border:none;border-radius:999px;background:var(--tint);color:#fff;padding:0 18px;min-height:44px;font-size:var(--fs-callout);font-weight:600;cursor:pointer;}
-  .addform{position:relative;}
-  .addform::before{content:"";position:absolute;left:0;right:0;top:0;height:.5px;background:var(--separator);}
+
   /* "Add" rows, iOS-style: the tint, a filled plus circle */
-  .add-toggle{
-    width:100%;background:none;border:none;padding:13px 16px 13px 0;font-size:var(--fs-body);color:var(--tint);
-    display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;
-  }
-  .add-toggle::before{content:"+";flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-size:20px;line-height:23px;text-align:center;font-weight:500;}
-  .add-toggle:active{background:var(--fill-3);}
-  .addform-open{padding:10px 16px 12px 0;animation:rise var(--dur-2) var(--spring);}
-  .addform-open input.full{width:100%;}
-  .addform-row{display:flex;gap:8px;margin-top:8px;}
-  .addform-row input, .addform-row select{flex:1 1 0;min-width:0;}
-  .addform-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
-  .addform-actions .btn:not(.primary){background:none;}
-  .banner{font-size:var(--fs-foot);color:var(--label-2);line-height:1.45;margin:8px 4px 16px;}
 
   /* ---------- chips (capsule buttons) ---------- */
-  .chips{display:flex;flex-wrap:wrap;gap:8px;}
-  .chips.spaced{margin:4px 16px 12px 0;}
-  .chips.below{margin-bottom:8px;}
-  .chip{
-    border:none;border-radius:999px;padding:7px 13px;font-size:var(--fs-sub);
-    background:var(--fill-3);color:var(--label);display:flex;align-items:center;gap:6px;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
-  }
-  .chip.tap:active{transform:scale(.94);}
-  .chip.covered{background:var(--olive-100);color:var(--olive-900);}   /* tasted: 9.4:1 */
-  .chip.selected{background:var(--tint);color:#fff;}
-  .chip .x{color:var(--muted);font-size:var(--fs-foot);}
+
+   /* tasted: 9.4:1 */
+
   .suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px;font-size:var(--fs-foot);color:var(--label-2);}
   .suggest button{border:none;background:var(--tint-soft);border-radius:999px;padding:6px 12px;font-size:var(--fs-foot);font-weight:600;color:var(--tint);min-height:32px;cursor:pointer;}
   .suggest button:active{transform:scale(.94);}
-  .filter-note{font-size:var(--fs-foot);color:var(--label-2);margin:6px 16px 10px 0;}
 
   /* ---------- variety ---------- */
-  .cat-block{padding:4px 0 0;}
-  .cat-block + .cat-block{border-top:.5px solid var(--separator);}
-  .cat-block h3{font-size:var(--fs-headline);font-weight:600;display:flex;align-items:center;gap:8px;margin:10px 16px 8px 0;}
-  .history-row{position:relative;display:flex;justify-content:space-between;font-size:var(--fs-body);padding:13px 16px 13px 0;}
-  .history-row span:last-child{color:var(--label-2);}
 
   /* ---------- food ---------- */
-  .k-row{position:relative;}
-  .k-row > .row-fg > label{flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer;}
-  .k-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-  .k-name{font-size:var(--fs-body);}
-  .k-sub{font-size:var(--fs-sub);color:var(--label-2);white-space:nowrap;}
-  .k-sub.low{color:var(--orange);font-weight:600;}
-  .k-row.done .k-name{color:var(--label-2);}
-  .k-row.just{animation:from-left var(--dur-3) var(--spring);}
-  .k-group{font-size:var(--fs-foot);color:var(--label-2);padding:14px 16px 4px 0;}
-  .k-stock{
-    flex:1;min-width:0;border:none;background:none;padding:0;font:inherit;text-align:left;cursor:pointer;
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-  }
-  .k-stock::after{content:"";flex:0 0 auto;width:7px;height:7px;border-right:2px solid var(--gray3);border-top:2px solid var(--gray3);rotate:45deg;margin-left:2px;}
-  .k-stock .k-name{flex:1;min-width:0;}
-  .k-edit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;padding:10px 0;}
-  .k-edit .k-name{flex:1 0 100%;font-weight:600;}
-  .k-edit input[type=text]{width:96px;}
-  .k-edit .k-unit{font-size:var(--fs-body);color:var(--label-2);}
-  .k-edit button{border:none;border-radius:999px;background:var(--fill-3);color:var(--tint);padding:0 16px;min-height:38px;font-size:var(--fs-sub);font-weight:600;cursor:pointer;}
-  .k-edit button.save{background:var(--tint);color:#fff;}
-  .k-edit button.rm{color:var(--red);margin-left:auto;}
 
   /* ---------- plan ---------- */
-  .age-ctl{display:flex;align-items:center;gap:12px;padding:10px 16px 6px 0;}
-  .age-read{flex:1;text-align:left;font-size:var(--fs-sub);color:var(--label-2);line-height:1.3;order:-1;}
-  .age-read b{display:block;font-size:var(--fs-title2);font-weight:700;color:var(--label);white-space:nowrap;}
+
   /* the stepper: one capsule, two halves */
-  .stepper{display:flex;background:var(--fill-3);border-radius:999px;overflow:hidden;}
-  .age-step{
-    width:48px;height:34px;border:none;background:none;color:var(--label);font-size:22px;line-height:1;cursor:pointer;
-    display:grid;place-items:center;transition:background-color var(--dur-1);
-  }
-  .age-step + .age-step{border-left:.5px solid var(--separator);}
-  .age-step:active{background:var(--fill);}
-  .age-step:disabled{color:var(--label-3);}
+
   /* the slider: tint fills the track up to the thumb */
-  .age-range{-webkit-appearance:none;appearance:none;width:calc(100% - 16px);height:36px;margin:0 0 6px;background:none;--fillpct:50%;}
-  .age-range::-webkit-slider-runnable-track{height:6px;border-radius:999px;background:linear-gradient(var(--tint),var(--tint)) 0 / var(--fillpct) 100% no-repeat, var(--fill);}
-  .age-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15), 0 3px 1px rgba(0,0,0,.06), 0 0 0 .5px rgba(0,0,0,.04);}
-  .age-range::-moz-range-track{height:6px;border-radius:999px;background:var(--fill);}
-  .age-range::-moz-range-progress{height:6px;border-radius:999px;background:var(--tint);}
-  .age-range::-moz-range-thumb{width:28px;height:28px;border:none;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15);}
-  .stage-sum{font-size:var(--fs-foot);color:var(--label-2);padding:0 16px 12px 0;margin:0;}
-  .milk-state{text-align:center;padding:18px 16px 12px 0;}
-  .milk-state .big{font-size:var(--fs-headline);font-weight:600;margin:0 0 6px;}
-  .milk-state p{font-size:var(--fs-sub);color:var(--label-2);margin:0;}
-  .preview-stats{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:var(--fs-foot);color:var(--label-2);padding:0 16px 12px 0;}
-  .preview-stats strong{color:var(--label);font-size:var(--fs-title3);}
-  .preview-line{position:relative;display:flex;gap:8px;padding:11px 16px 11px 0;font-size:var(--fs-sub);}
-  .preview-line .lbl{flex:0 0 92px;color:var(--label-2);}
-  .preview-line .foods{flex:1;}
 
   /* ---------- card system ----------
      White cards (.hcard on the home, the sheet itself), 28px corners, soft
      diffuse shadows; headlines big, bold, olive, tightly tracked, ending in
      an arrow. Inside, groups are a whisper of olive rather than more white. */
   .card, .meal-block{background:var(--olive-50);}
-  .row-fg{background:var(--olive-50);}
 
   /* ---------- onboarding ----------
      Full screen over the gradient, one question per screen on one big white
@@ -398,7 +255,7 @@ try{
   .onb-back[hidden], .onb-close[hidden]{display:none;}
   .onb-back::before{content:"";width:10px;height:10px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
   .onb-dots{flex:1;display:flex;justify-content:center;gap:8px;}
-  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--ink-25);transition:background-color var(--dur-2);}
+  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--ink-20);transition:background-color var(--dur-2);}
   .onb-dots i.on{background:var(--ink);}
   .is-welcome .onb-dots{visibility:hidden;}
   .is-welcome .onb-top{width:min(420px,100%);}
@@ -418,7 +275,7 @@ try{
   .pill:disabled{opacity:.4;cursor:default;box-shadow:none;}
   .pill:disabled:active{transform:none;}
   .pill.quiet{background:var(--olive-100);color:var(--olive-900);box-shadow:none;}
-  .link-btn{border:none;background:none;font:inherit;font-size:15px;color:var(--olive-700);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:44px;align-self:center;}
+
   /* ---------- welcome: no card. One drawing, one line, one button, straight on the background ---------- */
   .wel-art{width:140px;height:140px;margin:0 0 32px;}
   .wel-bob{position:relative;width:100%;height:100%;animation:wel-bob 2s ease-in-out infinite alternate;}
@@ -427,7 +284,7 @@ try{
   .wel-layer.is-on{opacity:1;}
   .wel-layer .food-art{width:100%;height:100%;}
   .wel-h{margin:0 0 14px;font-size:var(--fs-hero);font-weight:700;letter-spacing:var(--track-hero);line-height:1.04;color:var(--ink);text-wrap:balance;}
-  .wel-p{margin:0 0 32px;max-width:340px;font-size:17px;line-height:1.4;color:var(--ink-70);text-wrap:balance;}
+  .wel-p{margin:0 0 32px;max-width:340px;font-size:17px;line-height:1.4;color:var(--ink-85);text-wrap:balance;}
   .keep{display:inline-block;}
   .wel-in > *{animation:wel-rise 400ms var(--ease-out) both;animation-delay:var(--d, 0ms);}
   @keyframes wel-rise{from{opacity:0;transform:translateY(12px);}}
@@ -438,7 +295,6 @@ try{
     box-shadow:0 10px 24px -12px rgba(0,0,0,.5);
     transition:transform var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
   }
-  .btn-ink:hover{box-shadow:0 14px 28px -12px rgba(0,0,0,.55);}
   .btn-ink:active{transform:scale(.97);box-shadow:0 4px 10px -6px rgba(0,0,0,.5);transition-duration:60ms;}
   .btn-ink:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   /* quiet text buttons: Skip, Shuffle, Use the usual */
@@ -458,11 +314,11 @@ try{
   .sent{margin:0;font-size:40px;font-weight:700;letter-spacing:var(--track-hero);line-height:1.22;color:var(--ink);text-wrap:balance;}
   .sent:focus{outline:none;}
   .sent label{cursor:text;}
-  .onb-line{margin:16px 0 0;max-width:420px;font-size:17px;line-height:1.4;color:var(--ink-70);text-wrap:balance;}
-  .onb-hint{margin:10px 0 0;min-height:1.4em;font-size:15px;line-height:1.4;color:var(--ink-70);}
+  .onb-line{margin:16px 0 0;max-width:420px;font-size:17px;line-height:1.4;color:var(--ink-85);text-wrap:balance;}
+  .onb-hint{margin:10px 0 0;min-height:1.4em;font-size:15px;line-height:1.4;color:var(--ink-85);}
   .onb-hint:empty{visibility:hidden;}
   .onb-note{margin-top:20px;font-size:13px;}
-  .onb-lean{margin-top:20px;font-size:16px;color:var(--ink-70);min-height:1.4em;}
+  .onb-lean{margin-top:20px;font-size:16px;color:var(--ink-85);min-height:1.4em;}
   /* the blank: grows with what's typed, on a thick underline that pulses until the first keystroke */
   .blank{position:relative;display:inline-block;vertical-align:baseline;min-width:var(--min, 3ch);}
   .blank-mirror{visibility:hidden;white-space:pre;padding:0 3px;}
@@ -488,16 +344,15 @@ try{
   .month-peek{
     position:absolute;z-index:5;transform:translateX(-50%);display:grid;grid-template-columns:repeat(3, 72px);gap:4px;padding:10px;
     background:#fff;border-radius:var(--r-peek);box-shadow:var(--shadow-peek);
-    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --on-ink:#fff; color:var(--ink);
+    --ink:#0A0A0A; --ink-85:rgba(10,10,10,.85); --on-ink:#fff; color:var(--ink);
   }
   .month-peek[hidden]{display:none;}
   .month-peek button{min-height:44px;border:none;border-radius:14px;background:none;font:inherit;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer;}
-  .month-peek button:hover{background:rgba(10,10,10,.06);}
   .month-peek button[aria-selected="true"]{background:var(--ink);color:var(--on-ink);}
   /* the stage, following the birthday as it's typed */
   .stage-say{margin-top:28px;min-height:84px;}
   .stage-name{margin:0;font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.15;color:var(--ink);}
-  .stage-line{margin:6px 0 0;font-size:16px;color:var(--ink-70);}
+  .stage-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
   /* pills: a thin black outline; on = black with white text */
   .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:28px;}
   .pill-o{
@@ -507,7 +362,7 @@ try{
   }
   .pill-o:has(.food-art){padding-left:10px;}
   .pill-o .food-art{--art:24px;}
-  .pill-o .food-emoji{font-size:17px;}
+
   .pill-o:active{transform:scale(.97);transition-duration:60ms;}
   .pill-o:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .pill-o:disabled{opacity:.3;cursor:default;}
@@ -530,7 +385,7 @@ try{
   .kind-toggle button{min-height:44px;margin:-4px 0;padding:0 10px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;opacity:.6;}
   .kind-toggle button[aria-pressed="true"]{opacity:1;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
   /* the locked line, and its reasons on tap */
-  .locked-say{margin-top:24px;max-width:460px;font-size:15px;line-height:1.45;color:var(--ink-70);}
+  .locked-say{margin-top:24px;max-width:460px;font-size:15px;line-height:1.45;color:var(--ink-85);}
   .locked-say p{margin:0;}
   .lock-i{width:14px;height:14px;margin-right:6px;vertical-align:-1px;fill:currentColor;stroke:currentColor;stroke-width:1.6;}
   .lock-i path{fill:none;}
@@ -550,228 +405,187 @@ try{
   .wk-day{display:flex;flex-direction:column;align-items:center;gap:2px;}
   .wk-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;}
   .wk-art{display:block;rotate:var(--r);filter:var(--art-shadow);}
-  @media (max-width:420px){ .sent{font-size:34px;} .mt-row{font-size:24px;} .wk-art .food-art{--art:34px !important;} }
+  @media (max-width:420px){ .sent{font-size:34px;} .mt-row{font-size:24px;} }
   @media (prefers-reduced-motion: reduce){
     .wel-bob, .blank.idle:focus-within::after{animation:none;}
     .rv-item{animation:wel-fade 300ms both;animation-delay:calc(var(--k) * 70ms);}
     .wel-in > *{animation-name:wel-fade;}
     @keyframes wel-fade{from{opacity:0;}}
   }
-  .note-calm{font-size:13px;color:var(--muted);margin:0;line-height:1.45;}
 
   /* ---------- keep out, priorities ---------- */
-  .lean-line{font-size:var(--fs-caption);color:var(--muted);margin:2px 16px 12px 0;line-height:1.4;}
-  .chip .kind{font-size:12px;color:var(--muted);}
-  .chip.allergy{background:#F6E3DE;color:#7A2E22;}
-  .chip.allergy .kind{color:#7A2E22;font-weight:600;}
-  .chip button.x{border:none;background:none;padding:0 0 0 2px;font:inherit;font-size:var(--fs-caption);color:var(--muted);cursor:pointer;min-width:24px;min-height:24px;}
-  .chip:disabled{opacity:.45;cursor:default;}
-  .add-item-row button.quiet{background:var(--olive-100);color:var(--olive-700);}
+
   .locked{margin:4px 16px 12px 0;}
-  .locked-head{font-size:var(--fs-caption);color:var(--muted);margin:0 0 6px;}
-  .locked-rule{
-    display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;padding:6px 10px;border:none;border-radius:var(--r-pill);
-    background:transparent;box-shadow:inset 0 0 0 1px var(--hairline);font:inherit;font-size:var(--fs-caption);color:var(--ink);cursor:pointer;min-height:32px;
-  }
+
   /* a small padlock drawn in CSS: a shackle over a body */
   .lock{position:relative;width:9px;height:7px;border-radius:2px;background:var(--muted);margin-top:4px;}
   .lock::before{content:"";position:absolute;left:1.5px;bottom:5px;width:6px;height:5px;border:1.5px solid var(--muted);border-bottom:none;border-radius:4px 4px 0 0;box-sizing:border-box;}
-  .locked-why{font-size:var(--fs-caption);color:var(--ink);margin:4px 0 0;line-height:1.45;min-height:1em;}
-  .form-note{font-size:var(--fs-caption);color:rgba(10,10,10,.7);margin:8px 0 0;line-height:1.45;}
 
-
-  /* ---------- home: a poster, no boxes ----------
-     One centred column (≤760px), one page scroll, the block sitting a little
-     above centre on tall screens. Type and space make the hierarchy. */
-  .home{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 10px) 20px calc(env(safe-area-inset-bottom) + 40px);
-        min-height:100svh;display:flex;flex-direction:column;color:var(--ink);}
-  .top{display:flex;justify-content:flex-end;min-height:44px;}
+  /* ---------- home: a lock screen ----------
+     One centred column (~520px), content left-aligned under a centred header.
+     No cards, no panels: type size, weight and space carry the hierarchy.
+     Nothing responds to hover; everything is a tap. */
+  .home{max-width:560px;margin:0 auto;padding:0 20px calc(env(safe-area-inset-bottom) + 48px);color:var(--ink);}
+  .top{position:relative;z-index:2;display:flex;justify-content:flex-end;align-items:center;gap:8px;
+       padding:calc(env(safe-area-inset-top) + 10px) 0 0;min-height:54px;}
+  .top-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:none;border-radius:999px;background:none;color:var(--ink);
+           font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
+  .top-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;}
   .me{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--ink);background:none;color:var(--ink);
       font:inherit;font-size:17px;font-weight:700;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
-  .me:active{transform:scale(.94);}
-  .poster{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2vh 0 9vh;}
-  .greet{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em;}
-  .clock{display:block;margin:2px 0 0;font-size:15px;color:var(--ink-70);font-variant-numeric:tabular-nums;}
-  .headline{margin:16px 0 0;max-width:640px;font-size:var(--fs-hero);font-weight:700;letter-spacing:var(--track-hero);line-height:1.05;text-wrap:balance;}
+  .top-btn:active, .me:active{transform:scale(.95);}
+  .lockscreen{min-height:calc(100svh - 54px - env(safe-area-inset-top));display:flex;flex-direction:column;padding:2vh 0 0;}
+  .head{text-align:center;}
+  .clock{display:block;font-size:20px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+  .who{margin:4px 0 0;font-size:17px;color:var(--ink-85);}
+  .headline{margin:22px 0 0;font-size:clamp(44px, 9.5vw, 62px);font-weight:700;letter-spacing:var(--track-hero);line-height:1.02;text-wrap:balance;}
   .headline:focus{outline:none;}
-  .support{margin:12px 0 0;max-width:560px;min-height:1.45em;font-size:17px;line-height:1.45;color:var(--ink-70);text-wrap:balance;}
-  .btn-text.inline{min-height:44px;padding:0 6px;font-size:inherit;color:var(--ink);vertical-align:baseline;}
-  .sec{width:100%;margin-top:52px;}
-  .label{margin:0 0 14px;font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em;}
-  .label-btn{position:relative;min-height:44px;padding:0 6px;border:none;background:none;color:inherit;font:inherit;cursor:pointer;}
-  .label-btn .arrow{position:absolute;left:100%;top:50%;translate:-6px -50%;opacity:0;font-style:normal;white-space:nowrap;
-                    transition:opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--spring);}
-  .label-btn:hover .arrow, .label-btn:focus-visible .arrow{opacity:1;translate:0 -50%;}
-  .label-btn:focus-visible, .me:focus-visible, .shop-line:focus-visible, .vdot:focus-visible, .wd:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:12px;}
-  .me:focus-visible{border-radius:50%;}
-  /* the meals: drawings, slightly turned and overlapping, the next one lifted */
-  .meals{--n:3;display:flex;justify-content:center;align-items:flex-end;flex-wrap:nowrap;
-         --s:clamp(72px, calc((min(100vw, 760px) - 40px) / var(--n) * 1.06), 150px);}
-  .meal{position:relative;z-index:var(--z, 1);display:flex;flex-direction:column;align-items:center;width:var(--s);margin:0 calc(var(--s) * -.03);padding-top:26px;}
-  .meal-btn{position:relative;display:block;width:var(--s);height:var(--s);padding:0;border:none;background:none;cursor:pointer;border-radius:30%;}
-  .meal-art{display:block;width:100%;height:100%;rotate:var(--r, 0deg);filter:var(--art-shadow);
-            transition:transform 400ms var(--spring), rotate 250ms var(--ease-out);}
-  .meal-art .food-art{--art:100% !important;width:100%;height:100%;}
-  .meal-art .food-emoji{font-size:calc(var(--s) * .56);}
-  .meal.next .meal-art{transform:translateY(-6px) scale(1.15);}
-  .meal-btn:hover .meal-art, .meal-btn.is-open .meal-art, .meal-btn:focus-visible .meal-art{rotate:0deg;transform:translateY(-6px) scale(var(--lift, 1));}
-  .meal.next .meal-btn:hover .meal-art, .meal.next .meal-btn.is-open .meal-art{--lift:1.15;}
-  .meal-btn:active .meal-art{transform:translateY(-4px) scale(.97);transition-duration:80ms;}
-  .meal-btn:focus-visible{outline:2px solid var(--ink);outline-offset:4px;}
-  .meal-name{display:flex;flex-direction:column;align-items:center;margin-top:12px;font-size:15px;line-height:1.3;}
-  .meal-name b{font-weight:600;white-space:nowrap;}
-  .meal-time{color:var(--ink-70);white-space:nowrap;font-size:14px;}
-  .meal-time .sep{display:none;}
-  @media (min-width:700px){ .meal-name{flex-direction:row;gap:4px;} .meal-time .sep{display:inline;} }
-  @media (max-width:420px){ .meal-name{font-size:14px;} .meal-time{font-size:13px;} }
-  .meal-note{min-height:1.3em;font-size:13px;color:var(--ink-70);}
-  .meal-tag{position:absolute;top:0;left:50%;translate:-50% 0;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;opacity:0;transition:opacity var(--dur-3);}
-  .meal.next .meal-tag{opacity:1;}
-  .meal-tag i{width:7px;height:7px;border-radius:50%;background:var(--ink);animation:soft-dot 3.2s ease-in-out infinite alternate;}
-  @keyframes soft-dot{from{opacity:.35;}to{opacity:1;}}
-  /* the quick tick: on hover (or always, on touch); filled black with a check once eaten */
-  .qtick{position:absolute;top:22px;right:calc(var(--s) * .04);width:30px;height:30px;padding:0;border-radius:50%;
-         border:1.5px solid var(--ink);background:rgba(255,255,255,.55);color:var(--ink);cursor:pointer;opacity:0;
-         transition:opacity var(--dur-2), transform var(--dur-1) var(--ease-out), background-color 160ms;}
-  .qtick::after{content:"";position:absolute;inset:-8px;}
-  .qtick svg{width:18px;height:18px;margin:5px 0 0 5px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;
-             stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
-  .meal:hover .qtick, .meal:focus-within .qtick{opacity:1;}
-  @media (hover:none), (pointer:coarse){ .qtick{opacity:1;} }
-  .qtick[aria-pressed="true"]{opacity:1;background:var(--ink);color:var(--on-ink);border-color:var(--ink);}
-  .qtick[aria-pressed="true"] svg, .meal .qtick:hover svg{stroke-dashoffset:0;}
-  .qtick:active{transform:scale(.9);}
-  .qtick:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .meal.solo{width:150px;--s:150px;padding-top:0;}
-  .is-milk .week-sec, .is-milk .lines, .is-milk .today-sec .label, .is-empty .today-sec, .is-empty .week-sec, .is-empty .lines{display:none;}
-  /* This week: seven days, a thin black ring that fills; today is a dot, not a box */
-  .strip{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));max-width:520px;margin:0 auto;}
-  .wd{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:44px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;}
-  .wd-l{font-size:13px;font-weight:600;}
-  .ring{position:relative;width:40px;height:40px;transition:transform var(--dur-2) var(--spring);}
-  .wd:hover .ring, .wd.is-open .ring{transform:translateY(-3px);}
+  .moment{margin:14px 0 0;min-height:1.4em;font-size:20px;line-height:1.4;color:var(--ink);text-wrap:pretty;}
+  .moment.calm-tone{font-weight:500;}
+  /* inline text actions keep the line's rhythm; their 44px target is an invisible pad around the words */
+  .btn-text.inline{position:relative;min-height:0;min-width:0;padding:0 2px;font-size:inherit;line-height:inherit;color:var(--ink);vertical-align:baseline;}
+  .btn-text.inline::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:44px;translate:0 -50%;}
+  .btn-text.quiet{color:var(--ink-85);font-weight:500;}
+  .mini{margin:0 0 6px;font-size:15px;font-weight:600;color:var(--ink);letter-spacing:0;}   /* full ink: at 85% the night sky took it to 4.2:1 */
+  /* the open meal: one object, in place */
+  .open-meal{margin-top:28px;}
+  .mx{display:flex;flex-direction:column;}
+  .mx-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .mx-title{margin:0;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:24px;font-weight:600;letter-spacing:-.02em;text-align:left;cursor:pointer;min-height:44px;}
+  h2.mx-title{cursor:default;min-height:0;}
+  .mx-title:focus{outline:none;}
+  button.mx-title:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
+  .mx-meta{margin:2px 0 10px;font-size:17px;color:var(--ink-85);}
+  .mx-foods{list-style:none;margin:0;padding:0;}
+  .fr{display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:12px;width:100%;min-height:56px;padding:6px 0;border:none;border-bottom:1px solid var(--ink-20);
+      background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
+  .fr .food-art{--art:28px;}
+  .fr-text{display:flex;flex-direction:column;min-width:0;}
+  .fr-name{font-size:20px;font-weight:600;line-height:1.2;}
+  .fr-sub{font-size:17px;color:var(--ink-85);line-height:1.3;}
+  .chev{width:10px;height:10px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;rotate:45deg;translate:0 -3px;transition:rotate var(--dur-2) var(--ease-out);opacity:.85;}
+  .fr[aria-expanded="true"] .chev{rotate:225deg;translate:0 3px;}
+  .fr:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
+  .fr-more{padding:4px 0 12px 40px;font-size:17px;line-height:1.45;}
+  .fr-more p{margin:6px 0 0;}
+  .fr-why{color:var(--ink-85);}
+  .fr-alts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .alt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 8px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .alt .food-art{--art:24px;}
+  .mx-how{margin:14px 0 0;font-size:17px;line-height:1.45;color:var(--ink-85);}
+  .mx-acts{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:18px;}
+  .offer-pill{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 24px;border-radius:999px;border:1.5px solid var(--ink);
+              background:var(--ink);color:var(--on-ink);font:inherit;font-size:17px;font-weight:600;cursor:pointer;
+              transition:transform var(--dur-1) var(--ease-out), background-color 160ms, color 160ms;}
+  .offer-pill[aria-pressed="true"]{background:none;color:var(--ink);}
+  .offer-pill i svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
+  .offer-pill:active{transform:scale(.97);}
+  .offer-pill:focus-visible, .outcome:focus-visible, .alt:focus-visible, .ring-btn:focus-visible, .mrow-btn:focus-visible, .also-btn:focus-visible,
+  .top-btn:focus-visible, .me:focus-visible, .more:focus-visible, .wd:focus-visible, .shop-line:focus-visible, .s-row:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .outcome{min-height:44px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
+  .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:10px 0 0;font-size:17px;}
+  .mx-links .btn-text.small{min-height:44px;padding:0;font-size:17px;}
+  .mx-links label{font-weight:600;}
+  .undo-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
+  /* the ring: on every meal, always; filled once offered */
+  .ring-btn{position:relative;flex:none;width:44px;height:44px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;}
+  .ring-btn i{position:absolute;inset:9px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;transition:background-color 160ms, transform var(--dur-1) var(--ease-out);}
+  .ring-btn svg{width:16px;height:16px;fill:none;stroke:var(--on-ink);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
+  .ring-btn[aria-pressed="true"] i{background:var(--ink);}
+  .ring-btn[aria-pressed="true"] svg{stroke-dashoffset:0;}
+  .ring-btn:active i{transform:scale(.9);}
+  /* while you're at it */
+  .also{margin-top:26px;}
+  .also-row{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:12px;padding:6px 0;}
+  .also-row .food-art{--art:24px;}
+  .also-text{margin:0;font-size:17px;line-height:1.4;}
+  .also-note{display:block;font-size:15px;color:var(--ink-85);}
+  .also-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px 0 6px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:600;cursor:pointer;}
+  .also-btn i{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;}
+  .also-btn svg{width:14px;height:14px;fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
+  /* up next, earlier today: compact rows that open in place */
+  .rows{margin-top:26px;}
+  .rows[hidden], .also[hidden]{display:none;}
+  .mrow{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+  .mrow-btn{flex:1;display:flex;align-items:center;gap:12px;min-height:48px;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
+  .mrow-btn .food-art{--art:24px;}
+  .mrow-t{display:flex;flex-direction:column;}
+  .mrow-sub{font-size:15px;color:var(--ink-85);}
+  .mrow.is-earlier .mrow-btn{color:var(--ink-85);}
+  .mrow .undo-line{flex-basis:100%;margin:0 0 4px 36px;}
+  .rows .mx{margin:6px 0 10px;}
+  /* the more chevron at the bottom edge */
+  .more{align-self:center;margin:auto 0 8px;width:56px;height:44px;border:none;background:none;color:var(--ink);opacity:.6;cursor:pointer;
+        animation:more-idle 5s ease-in-out infinite;}
+  .more svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  @keyframes more-idle{0%, 100%{transform:translateY(0);} 50%{transform:translateY(4px);}}
+  .is-milk .open-meal, .is-milk .also, .is-milk .rows, .is-milk .below, .is-empty .open-meal, .is-empty .rows, .is-empty .also, .is-empty .below{display:none;}
+  /* below the fold: fades up as it arrives */
+  .below{margin-top:40px;opacity:0;transform:translateY(16px);transition:opacity 500ms var(--ease-out), transform 500ms var(--ease-out);}
+  .below.in{opacity:1;transform:none;}
+  .label{margin:0 0 12px;font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em;}
+  .strip{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));}
+  .wd{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;}
+  .wd-l{font-size:14px;font-weight:600;}
+  .wd-n{font-size:15px;font-variant-numeric:tabular-nums;}
+  .ring{position:relative;width:28px;height:28px;margin-top:2px;}
   .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
-  .ring circle{fill:none;stroke-width:2;}
-  .r-bg{stroke:var(--ink-25);}
+  .ring circle{fill:none;stroke-width:3;}
+  .r-bg{stroke:var(--ink-20);}
   .r-fg{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p, 0) * 100);transition:stroke-dashoffset 600ms var(--ease-out);}
-  .wd-n{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;}
-  .wd-dot{width:5px;height:5px;border-radius:50%;background:transparent;}
+  .wd-dot{width:5px;height:5px;border-radius:50%;background:transparent;margin-top:2px;}
   .wd.today .wd-dot{background:var(--ink);}
-  /* Shop and Variety: two quiet lines, side by side, stacked on a phone */
-  .lines{display:grid;grid-template-columns:1fr 1fr;gap:28px;width:100%;margin-top:52px;}
-  @media (max-width:560px){ .lines{grid-template-columns:1fr;gap:36px;} }
-  .line-sec .label{margin-bottom:8px;}
-  .shop-line{display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:4px 10px;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;cursor:pointer;}
-  .stack{display:inline-flex;}
-  .stack .st{display:block;margin-left:-14px;rotate:var(--r);z-index:var(--z);filter:var(--art-shadow);transition:transform var(--dur-2) var(--spring);}
-  .stack .st:first-child{margin-left:0;}
-  .shop-line:hover .st, .shop-line.is-open .st{transform:translateY(-4px);}
-  .var-line{margin:0 0 12px;font-size:17px;}
-  .vdots{display:flex;justify-content:center;gap:6px;}
-  .vdot{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:52px;min-height:52px;padding:6px 2px;border:none;background:none;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;border-radius:12px;}
-  .vdot i{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink);transition:background-color var(--dur-3), transform var(--dur-2) var(--spring);}
+  .var-line{margin:18px 0 6px;font-size:17px;}
+  .var-line .mini{display:inline;margin:0 6px 0 0;}
+  .vdots{display:flex;gap:16px;}
+  .vdot{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;}
+  .vdot i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink);}
   .vdot.on i{background:var(--ink);}
-  .vdot:hover i, .vdot.is-open i{transform:translateY(-3px);}
-  .vlegend{margin:8px 0 0;font-size:13px;color:var(--ink-70);}
-
-  /* ---------- peeks: the only surfaces ----------
-     White, radius 24, a soft diffuse shadow; black ink day and night. */
-  .peek{
-    position:fixed;z-index:200;left:0;top:0;width:min(360px, calc(100vw - 16px));overflow:auto;overscroll-behavior:contain;
-    background:#fff;border-radius:var(--r-peek);box-shadow:var(--shadow-peek);text-align:left;
-    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --ink-25:rgba(10,10,10,.25); --on-ink:#FFFFFF; --art-ink:none; --art-ink-on:invert(1);
-    color:var(--ink);transform-origin:top center;
-  }
-  .peek.above{transform-origin:bottom center;}
-  .peek[hidden]{display:none;}
-  .peek:focus{outline:none;}
-  /* a bridge over the gap back to the trigger, so the pointer can cross it */
-  .peek::before{content:"";position:fixed;left:auto;width:var(--bridge-w, 0);height:12px;margin-left:var(--bridge-x, 0);margin-top:-12px;}
-  .peek.above::before{display:none;}
-  .peek-body{padding:18px 16px 10px;}
-  .p-head{padding:0 6px 8px;}
-  .p-head h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;}
-  .p-sub{margin:2px 0 0;font-size:14px;color:var(--ink-70);display:flex;flex-wrap:wrap;align-items:center;gap:0 2px;}
-  .p-sub .btn-text.small{min-height:32px;font-size:14px;padding:0 4px;position:relative;}
-  .p-sub .btn-text.small::after{content:"";position:absolute;inset:-6px 0;}
-  .p-time input{font:inherit;font-size:16px;border:none;border-bottom:2px solid var(--ink);background:none;padding:2px 0;color:var(--ink);}
-  .p-switch{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin:2px 0 6px;padding:0 6px;border:none;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;border-radius:14px;}
-  .p-switch i{position:relative;width:42px;height:26px;border-radius:13px;background:var(--ink-25);transition:background-color 180ms;}
-  .p-switch i::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform 220ms var(--spring);}
-  .p-switch[aria-pressed="true"] i{background:var(--ink);}
-  .p-switch[aria-pressed="true"] i::after{transform:translateX(16px);}
-  .p-rows{display:flex;flex-direction:column;}
-  .p-row{position:relative;display:grid;grid-template-columns:28px 1fr auto auto;align-items:center;gap:10px;min-height:52px;padding:4px 6px;border-radius:14px;}
-  .p-row:hover{background:rgba(10,10,10,.04);}
-  .p-row .food-art{--art:28px;}
-  .p-row .food-emoji{font-size:20px;}
-  .p-name{font-size:16px;font-weight:600;line-height:1.25;min-width:0;}
-  .p-meta{display:block;font-size:13px;font-weight:400;color:var(--ink-70);}
-  .p-amt{font-weight:400;color:var(--ink-70);}
-  .p-new{font-style:normal;font-size:12px;font-weight:600;padding:1px 7px;border:1px solid var(--ink);border-radius:999px;}
-  .p-acts{display:flex;gap:2px;}
-  .p-act{min-height:36px;min-width:44px;padding:0 8px;border:none;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;}
-  .p-act::after{content:"";position:absolute;inset:-4px 0;}
-  .p-act:hover, .p-act[aria-expanded="true"]{background:rgba(10,10,10,.07);}
-  .p-dots{font-size:18px;line-height:1;letter-spacing:1px;}
-  @media (hover:hover) and (pointer:fine){
-    /* the row's actions float over its right edge on hover/focus, so names keep the full width */
-    .peek:not(.as-sheet) .p-row{grid-template-columns:28px 1fr auto;}
-    .peek:not(.as-sheet) .p-row .p-acts{position:absolute;right:44px;top:50%;translate:0 -50%;padding-left:16px;
-      background:linear-gradient(90deg, rgba(255,255,255,0), #fff 16px);}
-    .peek:not(.as-sheet) .p-row:hover .p-acts{background:linear-gradient(90deg, rgba(246,246,246,0), #F6F6F6 16px);}
-    .peek:not(.as-sheet) .p-row:not(:has(.tick)) .p-acts{right:6px;}
-    .p-row .p-acts{opacity:0;transition:opacity 120ms;}
-    .p-row:hover .p-acts, .p-row:focus-within .p-acts, .p-row .p-act[aria-expanded="true"]{opacity:1;}
-    .p-row:has(.p-act[aria-expanded="true"]) .p-acts{opacity:1;}
-  }
-  /* a 44px button, drawn as a 28px circle (rows paint over pseudo hit areas, so the button itself is the target) */
-  .tick{position:relative;width:44px;height:44px;margin:-8px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
-  .tick::before{content:"";position:absolute;inset:8px;border-radius:50%;border:1.5px solid var(--ink);transition:background-color 160ms;}
-  .tick svg{position:absolute;left:14px;top:14px;width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
-  .tick[aria-pressed="true"], .tick[data-on]{color:var(--on-ink);}
-  .tick[aria-pressed="true"]::before, .tick[data-on]::before{background:var(--ink);}
-  .tick[aria-pressed="true"] svg, .tick[data-on] svg{stroke-dashoffset:0;}
-  .tick:active{transform:scale(.9);}
-  .tick.static{cursor:default;}
-  .tick:focus-visible{outline:none;}
-  .tick:focus-visible::before{outline:2px solid var(--ink);outline-offset:2px;}
-  .p-act:focus-visible, .p-alt:focus-visible, .p-switch:focus-visible, .p-foot:focus-visible, .p-menu-row:focus-visible, .p-idea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .p-swap{display:flex;flex-wrap:wrap;gap:6px;padding:2px 6px 10px 44px;font-size:14px;color:var(--ink-70);}
-  .p-alt{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 6px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
-  .p-more .p-alt{padding:0 14px;}
-  .p-alt[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
-  .p-alt .food-art{--art:28px;}
-  .p-log{margin:4px 6px 0;font-size:16px;font-weight:600;}
-  .p-logbtn{margin:2px 0 0;font-size:14px;}
-  .p-sec{margin:12px 6px 6px;font-size:13px;font-weight:600;color:var(--ink-70);}
-  .p-art-row{display:flex;flex-wrap:wrap;gap:6px 10px;padding:0 6px 4px;}
-  .p-art{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;font-size:12px;text-align:center;line-height:1.2;}
-  .p-art .food-art{--art:40px;}
-  .p-idea{padding:6px 2px;border:none;border-radius:14px;background:none;color:var(--ink);font:inherit;font-size:12px;cursor:pointer;}
-  .p-idea:hover{background:rgba(10,10,10,.05);}
-  .p-empty{margin:4px 6px 8px;font-size:14px;color:var(--ink-70);}
-  .p-foot{display:block;width:100%;min-height:48px;margin-top:6px;padding:0 6px;border:none;border-top:1px solid rgba(10,10,10,.08);background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:600;text-align:left;cursor:pointer;}
-  .p-menu-row{display:block;width:100%;min-height:48px;padding:0 6px;border:none;border-radius:14px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;text-align:left;cursor:pointer;}
-  .p-menu-row:hover{background:rgba(10,10,10,.05);}
-  .p-menu-row:disabled{opacity:.4;cursor:default;}
-  /* on touch, the same peek is a bottom sheet over a scrim, dragged down to let go */
-  .peek.as-sheet{left:0;right:0;top:auto;bottom:0;width:100%;max-height:82vh !important;border-radius:var(--r-peek) var(--r-peek) 0 0;padding-bottom:env(safe-area-inset-bottom);transform-origin:bottom center;}
-  .peek.as-sheet::before{display:none;}
-  .peek-grab{display:flex;justify-content:center;padding:10px 0 0;touch-action:none;cursor:grab;}
-  .peek-grab i{width:40px;height:5px;border-radius:3px;background:rgba(10,10,10,.2);}
-  .peek.as-sheet .p-acts{opacity:1;}
-  .scrim{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.28);}
-  .scrim[hidden]{display:none;}
-  /* the toast: a line and an Undo */
-  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);z-index:300;transform:translateX(-50%);
-         display:flex;align-items:center;gap:6px;max-width:calc(100vw - 24px);padding:6px 6px 6px 18px;border-radius:var(--r-peek);
-         background:#fff;box-shadow:var(--shadow-peek);color:#0A0A0A;font-size:15px;font-weight:600;--ink:#0A0A0A;}
-  .toast[hidden]{display:none;}
-  .toast .btn-text{min-height:40px;font-size:15px;}
+  .shop-line{display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
+  .stack{display:inline-flex;}
+  .stack .st{display:block;margin-left:-10px;z-index:var(--z);}
+  .stack .st:first-child{margin-left:0;}
+  /* a food with no drawing: a hairline circle, never an emoji */
+  .food-none{display:inline-block;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-20);}
+  /* sheets: the one overlay (white, black ink, a visible ✕) */
+  .s-rows{display:flex;flex-direction:column;}
+  .s-row{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;min-height:52px;padding:8px 2px;border:none;border-bottom:1px solid rgba(10,10,10,.1);
+         background:none;color:#0A0A0A;font:inherit;font-size:17px;font-weight:600;text-align:left;cursor:pointer;}
+  .s-row:disabled{opacity:.4;cursor:default;}
+  .s-row-sub{font-size:15px;font-weight:400;color:rgba(10,10,10,.85);}
+  .s-hint, .s-note, .s-status{font-size:15px;line-height:1.45;color:rgba(10,10,10,.85);margin:12px 0 0;}
+  .s-status:empty{display:none;}
+  .s-note{margin-top:18px;}
+  .s-warn{font-size:17px;line-height:1.45;margin:0 0 16px;}
+  .s-empty{font-size:17px;color:rgba(10,10,10,.85);}
+  .s-sec{margin:20px 0 6px;font-size:15px;font-weight:600;color:rgba(10,10,10,.85);}
+  .s-meal, .s-item{display:flex;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid rgba(10,10,10,.08);}
+  .s-meal-t, .s-item-t{flex:1;margin:0;display:flex;flex-direction:column;}
+  .s-meal-t p{margin:0;}
+  .s-meal-h, .s-item-n{font-size:17px;font-weight:600;}
+  .s-meal-f, .s-item-sub{font-size:15px;color:rgba(10,10,10,.85);}
+  .s-add, .s-sentence{margin:14px 0 0;font-size:20px;font-weight:600;line-height:1.5;}
+  .s-sentence.small{font-size:17px;}
+  .s-person{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(10,10,10,.08);}
+  .s-person p{margin:0;font-size:17px;}
+  .s-foot{margin-top:22px;}
+  .sheet .btn-text{color:#0A0A0A;}
+  .sheet .blank{color:#0A0A0A;}
+  /* the read-only snapshot */
+  .snap{padding:calc(env(safe-area-inset-top) + 24px) 0 40px;}
+  .snap-who{font-size:17px;color:var(--ink-85);margin:0;}
+  .snap-avoid{margin:10px 0 24px;font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.2;}
+  .snap-day h2{margin:24px 0 8px;font-size:22px;font-weight:700;}
+  .snap-meal{margin:0 0 14px;}
+  .snap-meal-h{margin:0 0 4px;font-size:17px;font-weight:600;}
+  .snap-food{display:flex;align-items:center;gap:10px;margin:2px 0;font-size:17px;}
+  .snap-updated, .snap-broken{margin-top:28px;font-size:17px;color:var(--ink-85);}
   @media (prefers-reduced-motion: reduce){
-    .meal-tag i{animation:none;}
-    .meal-art, .ring, .stack .st, .vdot i, .label-btn .arrow{transition:none;}
+    .more{animation:none;}
+    .below{transform:none;transition:opacity 300ms linear;}
+    .r-fg, .chev, .ring-btn i, .ring-btn svg{transition:none;}
   }
 
   /* ---------- sheets ----------
@@ -786,13 +600,12 @@ try{
   }
   /* the full views share the peeks' look: white, radius 24, black ink at 100% or 70%, no olive, no red */
   .sheet{
-    --olive-900:#0A0A0A; --olive-700:#0A0A0A; --olive-500:rgba(10,10,10,.7); --olive-200:rgba(10,10,10,.14);
+    --olive-900:#0A0A0A; --olive-700:#0A0A0A; --olive-500:rgba(10,10,10,.85); --olive-200:rgba(10,10,10,.14);
     --olive-100:rgba(10,10,10,.06); --olive-50:rgba(10,10,10,.035); --tint:#0A0A0A; --tint-soft:rgba(10,10,10,.06);
-    --ink:#0A0A0A; --muted:rgba(10,10,10,.7); --faint:rgba(10,10,10,.35); --label-2:rgba(10,10,10,.7);
+    --ink:#0A0A0A; --muted:rgba(10,10,10,.85); --faint:rgba(10,10,10,.35); --label-2:rgba(10,10,10,.85);
     --green:#0A0A0A; --orange:#0A0A0A; --red:#0A0A0A; --r-card:var(--r-peek); box-shadow:var(--shadow-peek);
   }
-  .sheet .chip.allergy{background:#0A0A0A;color:#fff;}
-  .sheet .chip.allergy .kind{color:#fff;}
+
   .sheet .pill{background:#0A0A0A;color:#fff;box-shadow:none;}
   .sheet .pill.quiet{background:rgba(10,10,10,.06);color:#0A0A0A;}
   .sheet[open]{display:flex;flex-direction:column;}
@@ -816,10 +629,7 @@ try{
     .sheet-grab i{display:none;}
   }
   /* the meal */
-  .ms-hero{display:flex;align-items:center;gap:14px;margin:4px 0 16px;}
-  .ms-emoji{flex:0 0 auto;width:64px;height:64px;display:grid;place-items:center;filter:var(--art-shadow);}
-  .ms-slot{margin:0;font-size:14px;color:var(--muted);}
-  .ms-dish{margin:2px 0 0;font-size:24px;font-weight:800;letter-spacing:var(--track-title);line-height:1.15;color:var(--olive-700);}
+
   .ate{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px;}
   .ate button{
     border:none;border-radius:var(--r-pill);min-height:50px;padding:10px 6px;font:inherit;font-size:15px;font-weight:700;
@@ -828,64 +638,17 @@ try{
   }
   .ate button:active{transform:scale(.95);}
   .ate button[aria-pressed="true"]{background:var(--olive-700);color:#fff;box-shadow:none;}
-  .ms-items{padding:4px 12px 4px 14px;}
+
   /* a food: dot, name and grams, its chip and actions; the tip runs full width beneath */
-  .ms-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;column-gap:10px;row-gap:4px;padding:12px 0;border-top:1px solid var(--hairline);}
-  .ms-row .ms-tip{grid-column:2 / -1;}
-  .ms-row:first-child{border-top:none;}
-  .ms-dot{flex:0 0 auto;width:40px;height:40px;display:grid;place-items:center;}
-  .ms-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-  .ms-name{font-size:16px;font-weight:600;}
-  .ms-sub{font-size:13px;color:var(--muted);}
-  .ms-tip{font-size:13px;color:var(--ink);line-height:1.4;margin-top:2px;}
-  .ms-acts{display:flex;align-items:center;gap:2px;}
-  .ms-acts .icon-btn{width:40px;height:40px;border:none;border-radius:50%;background:var(--card);box-shadow:none;font-size:16px;color:var(--olive-700);}
-  .ms-acts .icon-btn:active{transform:scale(.9);background:var(--olive-100);}
-  .ms-why p{margin:0 0 8px;font-size:14px;line-height:1.45;}
-  .ms-why p:last-child{margin-bottom:4px;}
-  .ms-why b{font-weight:700;color:var(--olive-900);}
+
   /* the week */
-  .days-rail{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px 18px;padding:2px 16px 8px;scrollbar-width:none;}
-  .days-rail::-webkit-scrollbar{display:none;}
-  .day-card{flex:0 0 84%;scroll-snap-align:center;background:var(--olive-50);border-radius:22px;padding:16px;}
-  .dc-top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
-  .dc-day{flex:1;margin:0;font-size:19px;font-weight:800;letter-spacing:var(--track-title);color:var(--olive-900);}
-  .dc-tag{font-size:12px;font-weight:700;color:var(--olive-700);background:var(--card);border-radius:999px;padding:4px 10px;}
-  .dc-meals{list-style:none;margin:0;padding:0;}
-  .dc-meal{width:100%;display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:baseline;border:none;background:none;padding:10px 0;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;}
-  li:first-child .dc-meal{border-top:none;}
-  .dc-slot{font-size:13px;color:var(--muted);}
-  .dc-dish{font-size:15px;line-height:1.3;color:var(--ink);}
-  .dc-mark{font-size:12px;font-weight:700;color:var(--olive-700);white-space:nowrap;}
-  .history-bar{flex:0 0 120px;height:8px;border-radius:999px;background:var(--olive-100);overflow:hidden;align-self:center;}
-  .history-bar i{display:block;height:100%;width:var(--w);background:var(--olive-500);border-radius:999px;}
+
   /* variety */
-  .vg-list{display:flex;flex-direction:column;}
-  .vg-row{display:flex;align-items:center;gap:14px;border:none;background:none;padding:14px 4px;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;}
-  .vg-row:first-child{border-top:none;}
-  .vg-dot{flex:0 0 auto;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2.5px var(--c);}
-  .vg-dot.on{background:var(--c);}
-  .vg-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-  .vg-name{font-size:17px;font-weight:700;}
-  .vg-sub{font-size:13px;color:var(--muted);}
-  .vg-row::after{content:"";flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--faint);border-top:2px solid var(--faint);rotate:45deg;}
+
   /* settings */
   /* shop */
-  .seg.two{grid-template-columns:1fr 1fr;}
-  .seg.two::before{width:calc((100% - 6px) / 2);}
-  .celebrate{margin:0 4px 14px;font-size:16px;font-weight:700;color:var(--olive-700);}
-  .celebrate[hidden]{display:none;}
-  .k-name{background:linear-gradient(currentColor,currentColor) no-repeat 0 58% / 0 1.5px;transition:background-size var(--dur-2) var(--ease-out);}
-  .k-row.bought .k-name{background-size:100% 1.5px;color:var(--muted);}
+
   .sheet-body > *{animation:none;}
-  .sheet-body.enter > :nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
-  .sheet-body.enter > :nth-child(2){animation-delay:30ms;}
-  .sheet-body.enter > :nth-child(3){animation-delay:60ms;}
-  .sheet-body.enter > :nth-child(4){animation-delay:90ms;}
-  .sheet-body.enter > :nth-child(5){animation-delay:120ms;}
-  .sheet-body.enter > :nth-child(6){animation-delay:150ms;}
-  .sheet-body.enter > :nth-child(7){animation-delay:180ms;}
-  .sheet-body.enter > :nth-child(8){animation-delay:210ms;}
 
   /* small controls keep their size on screen but take a 44px tap */
   .buy-chip, .chip button.x, .locked-rule, .suggest button, .have-chip{position:relative;}
@@ -896,7 +659,6 @@ try{
   /* ---------- food art (foods.js → foodArt()): a drawing, or its emoji ---------- */
   .food-art{display:inline-block;width:var(--art);height:var(--art);flex:none;line-height:1;}
   .food-art img{display:block;width:100%;height:100%;transform:scale(var(--scale,1));filter:var(--art-ink);}
-  .food-emoji{display:inline-grid;place-items:center;font-size:calc(var(--art) * .62);}
 
   /* ---------- micro-interactions ---------- */
   .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}
@@ -905,21 +667,11 @@ try{
   .bp.dot{width:6px;height:6px;border-radius:50%;background:var(--grain);}
   .bp.star{width:9px;height:9px;background:var(--fruit);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);}
   /* every row answers a press at once, then springs back */
-  .vg-row, .dc-meal, .k-stock, .history-row{transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-1);}
-  .vg-row:active, .dc-meal:active, .k-stock:active{transform:scale(.985);background-color:var(--olive-50);}
+
   /* a sheet's rows and chips arrive in a short stagger (at most eight) */
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip, .dc-meal):nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(2){animation-delay:40ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(3){animation-delay:80ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(4){animation-delay:120ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(5){animation-delay:160ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(6){animation-delay:200ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(7){animation-delay:240ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(8){animation-delay:280ms;}
+
   .ate button[aria-pressed="true"]{animation:pop var(--dur-3) var(--spring);}
   /* the bought tick pops and the strike draws */
-  .k-row.just input[type=checkbox]:checked::before{animation:tick-pop var(--dur-3) var(--spring);}
-
 
   /* ---------- motion ---------- */
   @keyframes rise{from{transform:translateY(10px);}}
@@ -938,7 +690,7 @@ try{
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
     .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip, .dc-meal),
     .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
-    .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
+
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
@@ -980,96 +732,36 @@ function timeOfDay(d){
 </div>
 <div class="scroll-edge" aria-hidden="true"></div>
 <div class="container home" id="home">
-  <div class="top"><button type="button" class="me" id="profileBtn" data-k="me"></button></div>
-  <main class="poster">
-    <p class="greet" id="greet"></p>
-    <time class="clock" id="clock"></time>
-    <h1 class="headline" id="headline"></h1>
-    <p class="support" id="support"></p>
-
-    <section class="sec today-sec" aria-labelledby="todayLabel">
-      <h2 class="label"><button type="button" class="label-btn" id="todayLabel" data-k="lbl-today"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
-      <div class="meals" id="meals" role="list"></div>
-    </section>
-
-    <section class="sec week-sec" id="weekSec" aria-labelledby="weekLabel">
-      <h2 class="label"><button type="button" class="label-btn" id="weekLabel" data-k="lbl-week"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
-      <div class="strip" id="weekStrip"></div>
-    </section>
-
-    <div class="lines" id="lines">
-      <section class="line-sec" aria-labelledby="shopLabel">
-        <h2 class="label"><button type="button" class="label-btn" id="shopLabel" data-k="lbl-shop"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
-        <button type="button" class="shop-line" id="shopLine" data-k="shop"><span class="stack" id="shopStack" aria-hidden="true"></span><span id="shopText"></span></button>
-      </section>
-      <section class="line-sec" aria-labelledby="varLabel">
-        <h2 class="label"><button type="button" class="label-btn" id="varLabel" data-k="lbl-var"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
-        <p class="var-line" id="varText"></p>
-        <div class="vdots" id="vdots"></div>
-        <p class="vlegend" id="vlegend" hidden></p>
-      </section>
-    </div>
-  </main>
-
-  <!-- detail panels that keep their own renderers; they live here, hidden,
-       and move into the sheet while it shows them -->
-  <div id="parts" hidden>
-    <div id="part-shop">
-      <div class="seg two" id="shopTabs" role="tablist" aria-label="Shop">
-        <button type="button" role="tab" id="tabBuy" aria-controls="panelBuy" aria-selected="true">To buy</button>
-        <button type="button" role="tab" id="tabStock" aria-controls="panelStock" aria-selected="false">In stock</button>
-      </div>
-      <div id="panelBuy" role="tabpanel" aria-labelledby="tabBuy">
-        <div class="seg" id="windowSeg" role="group" aria-label="Shop for">
-          <button type="button" data-w="today">Today</button><button type="button" data-w="next3">Next 3 days</button><button type="button" data-w="week">Week</button>
-        </div>
-        <p class="celebrate" id="shopCelebrate" role="status" hidden></p>
-        <div class="card">
-          <div class="section-title" id="toBuyTitle">To buy</div>
-          <div id="toBuyList"></div>
-          <div id="extrasAdd"></div>
-        </div>
-      </div>
-      <div id="panelStock" role="tabpanel" aria-labelledby="tabStock" hidden>
-        <div class="card">
-          <div class="section-title" id="homeTitle">Stock</div>
-          <div id="homeList"></div>
-          <div id="homeAdd"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="part-plan">
-      <p class="subtle">Seven days of menus for their age. Nothing changes until you use the preview.</p>
-      <div class="card"><p class="stage-sum" id="stageSummary"></p></div>
-      <div id="solidsControls">
-        <div class="card">
-          <div class="section-title">What matters most</div>
-          <div class="chips below" id="priorityChips" role="group" aria-label="Up to three priorities"></div>
-          <p class="lean-line" id="priorityLine"></p>
-        </div>
-        <div class="card">
-          <div class="section-title">Keep out</div>
-          <div class="chips below" id="excludeChips"></div>
-          <div class="add-item-row" style="padding-right:16px">
-            <label class="sr-only" for="excludeName">Food to keep out</label>
-            <input class="name" id="excludeName" type="text" placeholder="A food (e.g. kiwi)">
-            <button type="button" data-kind="allergy" onclick="addExclusion('allergy')">Allergy</button>
-            <button type="button" data-kind="dislike" class="quiet" onclick="addExclusion('dislike')">Dislike</button>
-          </div>
-          <p class="lean-line">Allergy: never on the plate. Dislike: it comes up less often.</p>
-          <div class="locked" id="lockedRules"></div>
-        </div>
-        <p class="banner" id="createBanner"></p>
-      </div>
-      <div class="card milk-state" id="milkState" hidden></div>
-      <div class="btnrow">
-        <button class="btn primary" id="generateBtn" onclick="generateDraft()">Shuffle a preview</button>
-      </div>
-      <div id="createPreview"></div>
-    </div>
+  <div class="top">
+    <button type="button" class="top-btn" id="sendBtn" data-f="top:send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg><span id="sendLabel"></span></button>
+    <button type="button" class="me" id="profileBtn" data-f="top:me"></button>
   </div>
+  <main class="lockscreen" id="lock">
+    <header class="head">
+      <time class="clock" id="clock"></time>
+      <p class="who" id="who"></p>
+    </header>
+    <h1 class="headline" id="headline" tabindex="-1"></h1>
+    <p class="moment" id="moment"></p>
+    <section class="open-meal" id="openMeal"></section>
+    <section class="also" id="alsoSec" hidden><h2 class="mini" id="alsoLabel"></h2><div id="alsoList"></div></section>
+    <section class="rows" id="nextSec"><h2 class="mini" id="nextLabel"></h2><div id="nextList"></div></section>
+    <section class="rows" id="earlierSec"><h2 class="mini" id="earlierLabel"></h2><div id="earlierList"></div></section>
+    <button type="button" class="more" id="moreBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+  </main>
+  <section class="below week-sec" id="weekSec" aria-labelledby="weekLabel">
+    <h2 class="label" id="weekLabel"></h2>
+    <div class="strip" id="weekStrip"></div>
+    <p class="var-line"><span class="mini" id="varLabel"></span> <span id="varText"></span></p>
+    <div class="vdots" id="vdots"></div>
+  </section>
+  <section class="below shop-sec" aria-labelledby="shopLabel">
+    <h2 class="label" id="shopLabel"></h2>
+    <button type="button" class="shop-line" id="shopLine" data-f="shop"><span class="stack" id="shopStack" aria-hidden="true"></span><span id="shopText"></span></button>
+  </section>
 </div>
+
+
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
   <div class="sheet-grab" id="sheetGrab" aria-hidden="true"><i></i></div>
@@ -1081,7 +773,6 @@ function timeOfDay(d){
   <div class="sheet-body" id="sheetBody"></div>
 </dialog>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
-<div class="toast" id="toast" role="status" hidden></div>
 
 <script src="foods.js"></script>
 <script src="content.js"></script>
@@ -1149,7 +840,7 @@ const STAGES = [
 STAGES.forEach(st=>Object.assign(st, CONTENT.stages[st.id]));
 /* What a dish is like to eat depends on what kind of food it is, so each
    food has a form and each form a texture per stage; null = no label (the
-   name already says it, or it is eaten as it comes). */
+   name already says it, or it is served as it comes). */
 const FORMS = {
   //          First tastes          Textures & finger foods    Family foods     Near-family
   meat:   {first:"puréed",       textures:"minced",            family:"shredded",   nearfamily:"bite-size"},
@@ -1192,12 +883,6 @@ function ageLabel(months){ return months===1 ? "1 month" : months+" months"; }
 function stageLine(st){ return st.solids ? `${st.meals} · ${st.textureShort}` : st.meals; }
 /* "Always off the plate at this age: honey, whole nuts, …" (the gate itself is LOCKED_RULES) */
 function lockedLine(months){ return say("onb.keepOut.locked", {list: stageFor(months).locked}); }
-/* "3 meals + 2 snacks · soft pieces · no whole nuts or whole grapes" */
-function stageSummary(st){
-  if(!st.solids) return "Milk only · no solids yet";
-  const no = st.avoid.slice(0,2).map(a=>a.charAt(0).toLowerCase()+a.slice(1));
-  return `${st.meals} · ${st.textureShort} · no ${no.join(" or ")}`;
-}
 
 /* ---------- menu generator: age-gated food pool ----------
    min   = earliest age in months this food is suitable; max = latest, if any
@@ -1307,9 +992,9 @@ function ageNow(){
    (profile.mealTimes), and a meal's peek can move one meal for today only
    (profile.timesToday). Times are local "HH:mm"; a meal's moment is built
    from the calendar date, so daylight-saving days land on the right hour.
-   A meal is upcoming, now (from its time until GRACE_MIN later), past
-   (unlogged, never nagged), eaten (every food marked) or skipped. */
-const GRACE_MIN = 90;
+   A meal is upcoming, now (from its anchor for NOW_WINDOW_MIN), earlier
+   (it just loses emphasis and stays tickable; never a failure), or offered. */
+const NOW_WINDOW_MIN = 60;
 function hhmm(v){
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || "").trim());
   return m && +m[1] < 24 && +m[2] < 60 ? [+m[1], +m[2]] : null;
@@ -1344,9 +1029,9 @@ function planDayIndex(date){
 }
 function mealStatus(m, start, t){
   if(m.skipped) return "skipped";
-  if(m.items.length && m.items.every(i=>i.ate)) return "eaten";
+  if(mealOffered(m)) return "offered";
   if(t < start) return "upcoming";
-  return t - start < GRACE_MIN*60000 ? "now" : "past";
+  return t - start < NOW_WINDOW_MIN*60000 ? "now" : "earlier";
 }
 /* a day's meals in time order: {m, k (index in the day), dayIdx, slot, time, start, status} */
 function mealsOn(date){
@@ -1371,9 +1056,6 @@ function nextMeal(){
 /* times and dates in the reader's own locale and clock (12 or 24 h), never a fixed format */
 const FMT = {};
 function fmtTime(d){ return (FMT.t = FMT.t || new Intl.DateTimeFormat(undefined, {hour:"numeric", minute:"2-digit"})).format(d); }
-function fmtDateTime(d){
-  return (FMT.d = FMT.d || new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"})).format(d) + ", " + fmtTime(d);
-}
 
 /* is this food new to them? (only once something has been offered, so a first week isn't all "new") */
 function isNewFood(item){
@@ -1384,40 +1066,26 @@ const upper1 = t=>t.charAt(0).toUpperCase() + t.slice(1);
 /* "Lentils and sweet potato." */
 function foodsLine(m){ return upper1(listJoin(m.items.map(i=>lower1(baseName(i))))) + "."; }
 
-/* The top of home, from the clock and the plan: the first rule that applies.
-   Returns {kind, headline, support, action, title, key}; key changes only when
-   the state does (so the live region announces "Lunch time" once, not every minute). */
-function homeMoment(){
+/* The headline, from the clock and the plan: the first rule that applies.
+   Returns {kind, headline, title, key, next, announce}; key changes only when the
+   state does (so the live region speaks once, not every minute). */
+function headlineNow(){
   const P = state.profile, name = P.name || "", months = ageNow();
-  if(months < 6 && !P.exploreEarly){
-    return {kind:"milk", headline:say("home.headline.milk", {name}), support:say("home.milkLine", {n:Math.max(1, 6 - months)}),
-            title:say("home.title.plain"), key:"milk"};
-  }
-  if(!state.plan || !state.plan.days.some(d=>d.meals.some(m=>m.items.length))){
-    return {kind:"empty", headline:say("home.headline.empty"), action:say("home.emptyAction"), title:say("home.title.plain"), key:"empty"};
-  }
+  if(months < 6 && !P.exploreEarly) return {kind:"milk", headline:say("home.headline.milk", {name}), title:say("home.title.plain"), key:"milk"};
+  if(!state.plan || !state.plan.days.some(d=>d.meals.some(m=>m.items.length))) return {kind:"empty", headline:say("home.headline.empty"), title:say("home.title.plain"), key:"empty"};
   const t = now(), today = mealsOn(t), nx = nextMeal();
-  const v = x=>({meal:x.m.label, time:fmtTime(x.start), food:x.m.items[0] ? lower1(baseName(x.m.items[0])) : ""});
-  const about = x=>{
-    const fresh = x.m.items.find(isNewFood);
-    return fresh ? say("home.newFood", {food:upper1(baseName(fresh))}) : foodsLine(x.m);
-  };
+  const v = x=>({meal:x.m.label, time:fmtTime(x.start)});
   if(nx && nx.when==="today"){
-    if(nx.status==="now") return {kind:"now", next:nx, headline:say("home.headline.now", v(nx)), support:about(nx),
-                                  title:say("home.title.now", v(nx)), key:"now:"+nx.slot, announce:say("home.announce.now", v(nx))};
+    if(nx.status==="now") return {kind:"now", next:nx, headline:say("home.headline.now", v(nx)), title:say("home.title.now", v(nx)), key:"now:"+nx.slot, announce:say("home.announce.now", v(nx))};
     const mins = Math.max(1, Math.ceil((nx.start - t) / 60000));
-    if(mins < 60) return {kind:"soon", next:nx, headline:say("home.headline.soon", Object.assign(v(nx), {n:mins})), support:about(nx),
-                          title:say("home.title.soon", Object.assign(v(nx), {n:mins})), key:"soon:"+nx.slot};
-    return {kind:"at", next:nx, headline:say("home.headline.at", v(nx)), support:about(nx), title:say("home.title.at", v(nx)), key:"at:"+nx.slot};
+    if(mins < 60) return {kind:"soon", next:nx, headline:say("home.headline.soon", Object.assign(v(nx), {n:mins})), title:say("home.title.soon", Object.assign(v(nx), {n:mins})), key:"soon:"+nx.slot};
+    return {kind:"at", next:nx, headline:say("home.headline.at", v(nx)), title:say("home.title.at", v(nx)), key:"at:"+nx.slot};
   }
-  // today is over: cleared if every meal was marked (or skipped), otherwise just what's next, no nagging
-  const cleared = today.length > 0 && today.every(x=>x.status==="eaten" || x.status==="skipped");
-  if(!nx) return {kind:cleared ? "cleared" : "done", headline:cleared ? say("home.headline.cleared") : say("home.headline.empty"),
-                  support:say("home.support", null, "home"), title:say("home.title.plain"), key:cleared ? "cleared" : "done"};
-  if(cleared) return {kind:"cleared", next:nx, headline:say("home.headline.cleared"), support:say("home.tomorrowLine", v(nx)),
-                      title:say("home.title.tomorrow", v(nx)), key:"cleared", announce:say("home.announce.cleared")};
-  return {kind:"tomorrow", next:nx, headline:say("home.headline.tomorrow", v(nx)), support:about(nx),
-          title:say("home.title.tomorrow", v(nx)), key:"tomorrow"};
+  // today is over: done if every meal was offered (or skipped); otherwise just what's next
+  const done = today.length > 0 && today.every(x=>x.status==="offered" || x.status==="skipped");
+  if(done) return {kind:"done", next:nx, headline:say("home.headline.done"), title:nx ? say("home.title.tomorrow", v(nx)) : say("home.title.plain"), key:"done", announce:say("home.announce.done")};
+  if(nx) return {kind:"tomorrow", next:nx, headline:say("home.headline.tomorrow", v(nx)), title:say("home.title.tomorrow", v(nx)), key:"tomorrow"};
+  return {kind:"empty", headline:say("home.headline.empty"), title:say("home.title.plain"), key:"empty"};
 }
 
 /* a whole word or phrase inside a food name: "egg" finds "Egg, well cooked"
@@ -1540,32 +1208,6 @@ function metaOf(name){
 function listJoin(a){ return a.length<=1 ? (a[0]||"") : a.slice(0,-1).join(", ") + " and " + a[a.length-1]; }
 const baseName = i=>i.name.split(",")[0].trim();
 const lower1 = t=>t.charAt(0).toLowerCase() + t.slice(1);
-/* "Oatmeal with banana", "Lentils and sweet potato mash", "Chicken with
-   carrots and rice": the meal's foods read as one dish */
-function dishName(m, opts){
-  const afters = !(opts && opts.afters===false);
-  if(!m.items.length) return "";
-  const byCat = c=>m.items.find(i=>i.cats[0]===c);
-  if(m.label==="Snack") return listJoin(m.items.map((i,k)=>k ? lower1(baseName(i)) : baseName(i)));
-  if(m.label==="Breakfast"){
-    const lead = byCat("grain") || byCat("fruit") || m.items[0];
-    const rest = m.items.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
-    return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "");
-  }
-  const p = byCat("protein"), v = byCat("vegetable"), g = byCat("grain");
-  const soft = m.items.map(i=>i.tex||"").find(t=>/purée|mash/.test(t));
-  if(p && v && soft && m.items.length<=3 && !g){
-    return `${baseName(p)} and ${lower1(baseName(v))} ${/purée/.test(soft) ? "purée" : "mash"}`;
-  }
-  // lunch and dinner: the main dish, and any fruit as the afters
-  const fruit = m.items.filter(i=>i.cats[0]==="fruit");
-  const mains = m.items.filter(i=>i.cats[0]!=="fruit");
-  if(!mains.length) return listJoin(fruit.map((i,k)=>k ? lower1(baseName(i)) : baseName(i)));
-  const lead = p || v || mains[0];
-  const rest = mains.filter(i=>i!==lead).map(i=>lower1(baseName(i)));
-  return baseName(lead) + (rest.length ? " with " + listJoin(rest) : "") +
-         (fruit.length && afters ? ", then " + listJoin(fruit.map(i=>lower1(baseName(i)))) : "");
-}
 const FORM_TIPS = {
   meat:"Cook it right through, then shred or chop finely; a splash of the cooking water keeps it moist.",
   fish:"Bake or poach until it flakes, then check carefully for bones.",
@@ -1618,20 +1260,26 @@ function keepOutReason(name){
   if(allergyMatch(name, state.profile)) return `${name} is on their keep-out list, so we'll leave it off.`;
   return "";
 }
-function setAte(item, v){
-  const was = item.eaten;
-  if(!item.ate && v){
+/* Offered means "I put this in front of them". It counts the food as tried
+   (exposures, variety) and takes its portion from stock; undoing puts it back. */
+function setOffered(item, on){
+  const was = !!item.offered;
+  if(on && !was){
     const k = foodKey(baseName(item));
     state.exposures[k] = (state.exposures[k] || 0) + 1;
+  }else if(!on && was){
+    const k = foodKey(baseName(item));
+    if(state.exposures[k]) state.exposures[k]--;
+    if(!state.exposures[k]) delete state.exposures[k];
   }
-  item.ate = v || null;
-  item.eaten = item.ate!==null;
-  if(was!==item.eaten) useStock(item);
+  item.offered = !!on;
+  if(was!==item.offered) useStock(item);
 }
+function mealOffered(m){ return m.items.length > 0 && m.items.every(i=>i.offered); }
 
 /* item: {id, name, qty, cats:[...], tex?} ; cats reference CATS keys, first = primary (used for grocery grouping).
    tex is the stage's texture for a generated dish ("mashed", "soft pieces"). */
-function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, eaten:false}; if(tex) i.tex = tex; return i; }
+function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, offered:false}; if(tex) i.tex = tex; return i; }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 /* today as YYYY-MM-DD on the local clock (toISOString is UTC: wrong day after midnight in Europe) */
 function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -1697,7 +1345,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 let state = loadState();
 
 function freshProfile(){
@@ -1707,7 +1355,11 @@ function freshProfile(){
           priorities:[],     // up to 3 PRIORITIES ids
           staples:[], remindAt:null, lastStage:null,
           mealTimes:{},      // the family's own times, {lunch:"12:00"}; the stage's defaults fill the rest
-          timesToday:null};  // {date:"2026-10-22", times:{lunch:"13:15"}}: one day's change, from a meal's peek
+          timesToday:null,   // {date:"2026-10-22", times:{lunch:"13:15"}}: one day's change
+          mealTimesConfirmed:false,
+          people:[],         // [{id, name, phone, role}]: on this device only, never in a link
+          self:{phone:""},   // where notes to self go (optional)
+          firstDay:null};    // the day onboarding finished: no late questions on day one
 }
 function freshState(){
   return {
@@ -1722,7 +1374,12 @@ function freshState(){
     exposures: {},       // how many times each food has been offered: {"banana": 3}
     openCard: "meals",   // the one card that's open, or null
     groceryFilter: "week", // "today" | "next3" | "week" (the rest of the planned week)
-    weekStarted: todayISO()
+    weekStarted: todayISO(),
+    foods: {},           // per food: {safety:"notyet"|"introduced"|"keepout", safetyOn, noReactionOn, preference}
+    moment: {},          // {date, later:[keys]}: moment lines put away for today
+    asked: {},           // late questions already asked: {mealTimes:"2026-10-22", …}
+    prepped: {},         // {date, done:[suggestion ids]}
+    shown: {}            // how often a suggestion has shown: {salt: 2, saltDay:"2026-10-22"}
   };
 }
 
@@ -1823,12 +1480,24 @@ function migrate(saved){
   delete s.createAge; delete s.ageYears; delete s.ageMonths; delete s.age;
   delete s.excludedFoods;
   if(!s.exposures || typeof s.exposures!=="object" || Array.isArray(s.exposures)) s.exposures = {};
-  // marking: eaten:true becomes "ate it"; eaten keeps meaning "served"
-  s.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{
-    if(!["all","some","refused"].includes(i.ate)) i.ate = i.eaten ? "all" : null;
-    i.eaten = i.ate!==null;
-  })));
-
+  // schema 8: offered replaces the old marks. A food that was marked in any way
+  // was put in front of them, so it's offered; how it went moves to the meal
+  // (ate some → "some", refused → "nottoday"; nothing counts against them)
+  s.plan.days.forEach(d=>d.meals.forEach(m=>{
+    const marks = m.items.map(i=>i.ate);   // legacy: the schema-7 mark
+    m.items.forEach(i=>{ i.offered = !!(i.offered || i.ate || i.eaten); delete i.ate; delete i.eaten; });   // legacy: old field names
+    if(!m.outcome && marks.length && marks.every(Boolean)){
+      m.outcome = marks.every(a=>a==="refused") ? "nottoday" : marks.some(a=>a==="some" || a==="refused") ? "some" : null;
+    }
+    if(!["loved","some","nottoday"].includes(m.outcome)) delete m.outcome;
+  }));
+  if(!s.foods || typeof s.foods!=="object" || Array.isArray(s.foods)) s.foods = {};
+  prof.people = (Array.isArray(prof.people) ? prof.people : []).filter(x=>x && typeof x.name==="string" && x.name.trim())
+    .map(x=>({id:x.id || uid(), name:x.name.trim(), phone:normPhone(x.phone), role:x.role || ""}));
+  prof.self = {phone:normPhone(prof.self && prof.self.phone)};
+  if(!prof.firstDay) prof.firstDay = prof.onboarded ? (s.weekStarted || todayISO()) : null;
+  if(prof.mealTimesConfirmed===undefined) prof.mealTimesConfirmed = Object.keys(prof.mealTimes || {}).length > 0;
+  ["day","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object") s[k] = {}; });
   // schema 7: every meal knows its slot (older plans only had labels), and
   // meal times are the family's own overrides of the stage's defaults
   ensureSlots(s.plan);
@@ -1842,112 +1511,9 @@ function migrate(saved){
 }
 
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+/* phone numbers keep only digits and a leading + ("+34 600-11 22" → "+346001122") */
+function normPhone(v){ const t = String(v || "").trim(); return (t.startsWith("+") ? "+" : "") + t.replace(/\D/g, ""); }
 
-
-/* ---------- collapsible add form ----------
-   One "+ Add" button that expands into its fields. Open state and typed values
-   are held per form key so an unrelated re-render (ticking a checkbox, say)
-   doesn't close the form or wipe what you've typed. */
-const addForms = {};   // key -> {open, values}
-
-function addFormState(key){
-  return addForms[key] || (addForms[key] = {open:false, values:{}});
-}
-
-/* fields: [{name, type:"text"|"select", placeholder, full, options:[[value,label]]}] */
-function addForm(key, opts){
-  const st = addFormState(key);
-  const wrap = document.createElement("div");
-  wrap.className = "addform";
-
-  if(!st.open){
-    const toggle = document.createElement("button");
-    toggle.className = "add-toggle";
-    toggle.textContent = opts.label;   // the green plus circle is drawn by CSS
-    toggle.addEventListener("click", ()=>{ st.open = true; opts.rerender(); });
-    wrap.appendChild(toggle);
-    return wrap;
-  }
-
-  const form = document.createElement("div");
-  form.className = "addform-open";
-  const inputs = {};
-
-  const full = opts.fields.filter(f=>f.full);
-  const rest = opts.fields.filter(f=>!f.full);
-
-  function build(field){
-    let el;
-    if(field.type==="select"){
-      el = document.createElement("select");
-      el.setAttribute("aria-label", field.label || (field.name==="cat" ? "Food group" : field.name));
-      field.options.forEach(([v,label])=>{
-        const o = document.createElement("option");
-        o.value = v; o.textContent = label;
-        el.appendChild(o);
-      });
-      el.value = st.values[field.name] || field.options[0][0];
-    }else{
-      el = document.createElement("input");
-      el.type = "text";
-      el.placeholder = field.placeholder || "";
-      el.setAttribute("aria-label", field.placeholder || field.name);
-      el.value = st.values[field.name] || "";
-      el.addEventListener("keydown", e=>{ if(e.key==="Enter") submit(); });
-    }
-    if(field.full) el.className = "full";
-    el.addEventListener("input", ()=>{ st.values[field.name] = el.value; });
-    el.addEventListener("change", ()=>{ st.values[field.name] = el.value; });
-    inputs[field.name] = el;
-    return el;
-  }
-
-  full.forEach(f=>form.appendChild(build(f)));
-  if(rest.length){
-    const row = document.createElement("div");
-    row.className = "addform-row";
-    rest.forEach(f=>row.appendChild(build(f)));
-    form.appendChild(row);
-  }
-
-  function close(){ st.open = false; st.values = {}; st.note = ""; }
-
-  function submit(){
-    const values = {};
-    Object.entries(inputs).forEach(([k,el])=>{ values[k] = el.value.trim(); });
-    const r = opts.onSubmit(values);
-    if(typeof r==="string"){ st.note = r; opts.rerender(); return; }   // a calm reason, stay open
-    if(r === false) return;   // validation failed, stay open
-    close();
-    opts.rerender();
-  }
-
-  if(st.note){
-    const note = document.createElement("p");
-    note.className = "form-note";
-    note.setAttribute("role", "status");
-    note.textContent = st.note;
-    form.appendChild(note);
-  }
-  const actions = document.createElement("div");
-  actions.className = "addform-actions";
-  const cancel = document.createElement("button");
-  cancel.className = "btn";
-  cancel.textContent = "Cancel";
-  cancel.addEventListener("click", ()=>{ close(); opts.rerender(); });
-  const add = document.createElement("button");
-  add.className = "btn primary";
-  add.textContent = "Add";
-  add.addEventListener("click", submit);
-  actions.appendChild(cancel); actions.appendChild(add);
-  form.appendChild(actions);
-
-  wrap.appendChild(form);
-  setTimeout(()=>{ const first = form.querySelector("input"); if(first) first.focus(); }, 0);
-  return wrap;
-}
-
-const CAT_OPTIONS = Object.entries(CATS).map(([k,v])=>[k, v.label]);
 
 /* ---------- view switching ---------- */
 let currentDay = 0;
@@ -1959,63 +1525,6 @@ let currentDay = 0;
    the re-render waits for it. With reduced motion everything is instant. */
 let justChanged = null;
 function calm(){ return matchMedia("(prefers-reduced-motion: reduce)").matches; }
-/* Swipe to delete, the iOS list gesture: drag a row left to show Delete,
-   drag it most of the way across to delete at once. Pointer events, so it
-   works with touch, pen and mouse; vertical drags still scroll. */
-let openSwipe = null;
-function closeSwipe(){
-  if(openSwipe){ const fg = openSwipe.querySelector(".row-fg"); if(fg) fg.style.transform = ""; }
-  openSwipe = null;
-}
-function swipeable(row, label, onDelete){
-  const fg = row.querySelector(".row-fg");
-  const del = document.createElement("button");
-  del.type = "button"; del.className = "swipe-del"; del.textContent = "Delete";
-  del.setAttribute("aria-label", "Delete " + label);
-  del.addEventListener("click", ()=>{ openSwipe = null; leave(row, "left", onDelete); });
-  row.appendChild(del);
-  let x0 = 0, y0 = 0, dx = 0, base = 0, id = null, horiz = null;
-  const set = v=>{ fg.style.transform = v ? `translateX(${v}px)` : ""; };
-  fg.addEventListener("pointerdown", e=>{
-    if(e.button>0 || e.target.closest("input,select,.buy-chip,.swipe-del")) return;   // taps on controls stay taps
-    id = e.pointerId; x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = null;
-    base = openSwipe===row ? -88 : 0;
-    if(openSwipe && openSwipe!==row) closeSwipe();
-  });
-  fg.addEventListener("pointermove", e=>{
-    if(e.pointerId!==id) return;
-    const mx = e.clientX - x0, my = e.clientY - y0;
-    if(horiz===null){
-      if(Math.abs(mx)<6 && Math.abs(my)<6) return;
-      horiz = Math.abs(mx) > Math.abs(my);
-      if(horiz){ row.classList.add("dragging"); fg.setPointerCapture(id); }
-    }
-    if(!horiz) return;
-    dx = Math.min(0, base + mx);
-    set(dx);
-  });
-  const end = e=>{
-    if(e.pointerId!==id) return;
-    id = null; row.classList.remove("dragging");
-    if(!horiz) return;
-    if(dx < -row.offsetWidth*0.6){   // a full swipe deletes
-      set(-row.offsetWidth); openSwipe = null;
-      return setTimeout(onDelete, calm() ? 0 : 200);
-    }
-    if(dx < -44){ set(-88); openSwipe = row; }
-    else{ set(0); if(openSwipe===row) openSwipe = null; }
-  };
-  fg.addEventListener("pointerup", end);
-  fg.addEventListener("pointercancel", end);
-  // the click that ends a drag mustn't tick the row's checkbox
-  fg.addEventListener("click", e=>{ if(horiz){ e.preventDefault(); e.stopPropagation(); horiz = null; } }, true);
-}
-function leave(el, side, then){
-  if(calm()) return then();
-  el.classList.add(side==="left" ? "leaving-l" : "leaving-r");
-  setTimeout(then, 220);
-}
-
 /* ---------- PLAN RENDER ---------- */
 /* Plan days stay in their canonical Mon–Sun order (grocery badges depend on it);
    only the tab strip is rotated so today leads. */
@@ -2041,25 +1550,9 @@ function daysLeftInWeek(){
 }
 
 /* The plan's days in display order lead with today, so position k is k days from now. */
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function dateForDay(idx){
   const pos = dayDisplayOrder().indexOf(idx), t = now();
   return new Date(t.getFullYear(), t.getMonth(), t.getDate() + (pos<0 ? 0 : pos));   // local calendar days, never 24h steps
-}
-
-function haveChip(c, name){
-  if(!c) return "";   // eaten: nothing left to check
-  if(c.have) return `<span class="have-chip">At home</span>`;
-  const pack = c.buy===null ? null : buyPacks(name, c.buy);
-  return `<button type="button" class="buy-chip" data-buy aria-label="Mark ${name} bought${pack ? ", " + pack.label : ""}">${pack ? "Buy " + pack.short : "Buy"}</button>`;
-}
-
-/* Every change to the plan ends here: the fan, whatever sheet is open, and
-   the home cards follow along. */
-function renderDayContent(){
-  refreshSheet();
-  justChanged = null;
-  renderSummaries();
 }
 
 /* A tiny celebration: six leaves and sparkles burst from a point and
@@ -2096,122 +1589,7 @@ function announce(text){
   setTimeout(()=>{ el.textContent = text; }, 30);
 }
 
-/* ---------- the meal sheet ----------
-   Everything about one meal, shown only when it's asked for: the dishes,
-   grams, textures, a prep tip, why these foods, a swap, and how it went. */
 const SLOT_OF = {Breakfast:"breakfast", Snack:"snack", Lunch:"lunch", Dinner:"dinner"};
-const ATE_WORDS = {all:"Ate it", some:"Ate some", refused:"Refused"};
-function dayWord(idx){
-  const pos = dayDisplayOrder().indexOf(idx);
-  return pos===0 ? "Today" : pos===1 ? "Tomorrow" : DAY_FULL(dateForDay(idx));
-}
-/* how a meal went, if every food in it has been marked the same way */
-function mealMark(m){
-  if(!m.items.length || m.items.some(i=>!i.ate)) return null;
-  const a = m.items[0].ate;
-  return m.items.every(i=>i.ate===a) ? a : "some";
-}
-function renderMealSheet(body, arg){
-  const day = state.plan.days[arg.day], m = day && day.meals[arg.meal];
-  if(!m){ body.innerHTML = `<p class="empty">This meal has moved on.</p>`; return; }
-  setSheetTitle(`${m.label} · ${dayWord(arg.day)}`);
-  const main = m.items[0];
-  const cover = coverOnPlan();
-  const hero = document.createElement("div");
-  hero.className = "ms-hero";
-  hero.innerHTML = `<span class="ms-emoji">${foodArt(main ? main.name : "plate", {size:64, alt:""})}</span>
-    <div><p class="ms-slot">${m.label}${m.from ? ` · from ${m.from}'s batch` : ""}</p><h3 class="ms-dish">${dishName(m) || "Nothing here yet"}</h3></div>`;
-  body.appendChild(hero);
-
-  // how it went: one tap for the whole meal
-  if(m.items.length){
-    const mark = mealMark(m);
-    const ate = document.createElement("div");
-    ate.className = "ate"; ate.setAttribute("role", "group"); ate.setAttribute("aria-label", "How did it go?");
-    ["all","some","refused"].forEach(v=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.textContent = ATE_WORDS[v]; b.dataset.k = "ate-" + v;
-      b.setAttribute("aria-pressed", String(mark===v));
-      b.addEventListener("click", ()=>{
-        const next = mealMark(m)===v ? null : v;
-        m.items.forEach(i=>setAte(i, next));
-        m.items.forEach(i=>{ justChanged = i.id; });
-        save();
-        const dayDone = day.meals.flatMap(x=>x.items).every(i=>i.ate);
-        announce(`${m.label}: ${next ? ATE_WORDS[next].toLowerCase() : "unmarked"}` + (next && dayDone ? `. ${pick(CONTENT.dayDone, "done")}` : ""));
-        if(next==="all" || next==="some"){ burst(b); haptic(); }
-        renderDayContent();
-        if(next && dayDone){   // the day's ring completes on the home strip
-          const pos = dayDisplayOrder().indexOf(arg.day);
-          const wd = document.querySelectorAll("#weekStrip .wd")[pos];
-          if(wd){ wd.classList.add("complete"); setTimeout(()=>wd.classList.remove("complete"), 900); }
-        }
-      });
-      ate.appendChild(b);
-    });
-    body.appendChild(ate);
-  }
-
-  // the foods: grams and texture, a prep tip, at home or to buy, swap, remove
-  const list = document.createElement("div");
-  list.className = "card ms-items";
-  m.items.forEach((item, k)=>{
-    const row = document.createElement("div");
-    row.className = "ms-row" + (item.id===justChanged ? " just" : "");
-    const tip = prepTip(item);
-    row.innerHTML = `<span class="ms-dot">${foodArt(item.name, {size:40, alt:""})}</span>
-      <div class="ms-main"><span class="ms-name">${item.name.split(",")[0]}</span>
-        <span class="ms-sub">${[item.qty, item.tex].filter(Boolean).join(" · ")}</span></div>
-      ${haveChip(cover[item.id], item.name) || "<span></span>"}
-      <div class="ms-acts"><button type="button" class="icon-btn" data-k="swap-${k}" aria-label="Swap ${item.name} for something similar">↻</button>
-      <button type="button" class="icon-btn" data-k="rm-${k}" aria-label="Remove ${item.name}">✕</button></div>
-      ${tip ? `<span class="ms-tip">${tip}</span>` : ""}`;
-    const buy = row.querySelector("[data-buy]");
-    if(buy) buy.addEventListener("click", ()=>{
-      const short = cover[item.id].buy;   // as if just bought: whole packs
-      addToStock(foodKey(item.name), item.name, short===null ? null : buyPacks(item.name, short).g);
-      justChanged = item.id;
-      announce(`${item.name}: at home now`);
-      renderDayContent();
-    });
-    row.querySelector(`[data-k="swap-${k}"]`).addEventListener("click", ()=>{
-      const was = item.name;
-      if(swapItem(m, k)){ announce(`Swapped ${was} for ${m.items[k].name}`); renderDayContent(); }
-      else announce(`Nothing similar to swap ${was} for`);
-    });
-    row.querySelector(`[data-k="rm-${k}"]`).addEventListener("click", ()=>leave(row, "left", ()=>{
-      m.items.splice(m.items.indexOf(item), 1);
-      save(); renderDayContent();
-    }));
-    list.appendChild(row);
-  });
-  list.appendChild(addForm(`meal:${arg.day}:${arg.meal}`, {
-    label: "Add a food",
-    rerender: renderDayContent,
-    fields: [
-      {name:"name", type:"text",   placeholder:"Food name", full:true},
-      {name:"qty",  type:"text",   placeholder:"qty (e.g. 50 g)"},
-      {name:"cat",  type:"select", options:CAT_OPTIONS}
-    ],
-    onSubmit: v=>{
-      if(!v.name) return false;
-      const why = keepOutReason(v.name);
-      if(why) return why;
-      m.items.push(it(v.name, v.qty, [v.cat]));
-      save();
-    }
-  }));
-  body.appendChild(list);
-
-  // why these foods: one line each, plain and kind
-  if(m.items.length){
-    const why = document.createElement("div");
-    why.className = "card ms-why";
-    why.innerHTML = `<p class="section-title">Why these foods</p>` +
-      m.items.slice(0, 3).map(i=>`<p><b>${i.name.split(",")[0]}</b>: ${lower1(whyFor(i))}</p>`).join("");
-    body.appendChild(why);
-  }
-}
 /* a similar food for the same meal, still passing every safety check */
 function swapItem(m, k){
   const item = m.items[k], months = planMonths(), st = stageFor(months);
@@ -2223,7 +1601,7 @@ function swapItem(m, k){
   const ws = pool.map(f=>weightFor(f, ctx, dayCtx));
   let r = Math.random() * ws.reduce((a,b)=>a+b, 0), j = 0;
   for(; j<ws.length-1; j++){ r -= ws[j]; if(r <= 0) break; }
-  if(item.eaten){ setAte(item, null); }   // put back what it took from stock
+  if(item.offered){ setOffered(item, false); }   // put back what it took from stock
   const fresh = dish(pool[j], st);
   m.items[k] = fresh;
   justChanged = fresh.id;
@@ -2241,7 +1619,7 @@ function windowDays(key){
 }
 /* ---------- KITCHEN: what to buy for the window, what's at home ----------
    Only stock and extras are stored. What to buy is worked out on every
-   render: the plan's portions not yet eaten, on the window's days, minus
+   render: the plan's portions not yet offered, on the window's days, minus
    what's at home. Quantities count when they're in grams ("50 g"); a food
    with no gram amount is just needed, or covered once it's at home. */
 function foodKey(name){ return String(name).trim().toLowerCase(); }
@@ -2330,15 +1708,13 @@ function buyPacks(name, grams){
   const n = Math.max(1, Math.ceil((grams - 0.5) / p.g));
   return {g:n*p.g, label:(n>1 ? n+" × " : "") + p.label, short:(n>1 ? n+" × " : "") + p.short};
 }
-function shortDay(name){ return name.slice(0,3); }
-const CAT_ORDER = ["protein","vegetable","fruit","grain","fat","other"];
 
 function needOn(daySet){
   const need = {};
   state.plan.days.forEach(day=>{
     if(daySet && !daySet.has(day.name)) return;
     day.meals.forEach(m=>m.items.forEach(item=>{
-      if(item.eaten) return;
+      if(item.offered) return;
       const k = foodKey(item.name);
       const n = need[k] || (need[k] = {key:k, name:item.name, cat:item.cats[0]||"other", g:0, days:[]});
       n.g += gramsOf(item.qty) || 0;
@@ -2365,7 +1741,7 @@ function shortfall(key){
   for(const idx of dayDisplayOrder()){
     const day = state.plan.days[idx];
     let g = 0;
-    day.meals.forEach(m=>m.items.forEach(i=>{ if(!i.eaten && foodKey(i.name)===key) g += gramsOf(i.qty) || 0; }));
+    day.meals.forEach(m=>m.items.forEach(i=>{ if(!i.offered && foodKey(i.name)===key) g += gramsOf(i.qty) || 0; }));
     if(!g) continue;
     last = day.name;
     left -= g;
@@ -2374,56 +1750,9 @@ function shortfall(key){
   return {short, last};
 }
 
-function homeStatus(key){
-  const st = state.stock[key];
-  if(st.plenty) return {text:"plenty"};
-  const {short, last} = shortfall(key);
-  if(!last) return {text:"not in this week's plan"};
-  if(st.g===null) return {text:"needed this week"};
-  if(!short) return {text:lastsFor(key, st.g)};
-  const today = short===DAY_ORDER[now().getDay()];
-  return {text: today ? "runs out today" : "runs out " + shortDay(short), low:true};
-}
-
-/* A pack outlives the week, so say roughly how long: grams at home over
-   what a whole week of the plan uses. */
-function lastsFor(key, g){
-  let perWeek = 0;
-  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(i=>{ if(foodKey(i.name)===key) perWeek += gramsOf(i.qty) || 0; })));
-  const weeks = perWeek ? g / perWeek : Infinity;
-  if(weeks < 2) return "enough for the week";
-  if(weeks < 4) return "lasts about " + Math.floor(weeks) + " weeks";
-  if(weeks < 6) return "lasts about a month";
-  return "lasts over a month";
-}
-
-/* For every dish not yet eaten, from today on: covered by what's at home,
-   or how much is missing for this portion. Stock is spent in plan order, so
-   100 g of oatmeal at 40 g a day covers two days and leaves 20 g of the third
-   to buy. Plenty, or a "have" with no amount, always covers. */
-function coverOnPlan(){
-  const left = {}, out = {};
-  for(const idx of dayDisplayOrder()){
-    state.plan.days[idx].meals.forEach(m=>m.items.forEach(item=>{
-      if(item.eaten) return;
-      const k = foodKey(item.name), st = state.stock[k];
-      if(st && (st.plenty || st.g===null)){ out[item.id] = {have:true}; return; }
-      const g = gramsOf(item.qty);
-      if(g===null){ out[item.id] = st && st.g>0 ? {have:true} : {buy:null}; return; }
-      if(!(k in left)) left[k] = st ? st.g : 0;
-      if(left[k] >= g - 0.5){ left[k] -= g; out[item.id] = {have:true}; }
-      else{ out[item.id] = {buy: Math.ceil(g - Math.max(0, left[k]))}; left[k] = 0; }
-    }));
-  }
-  return out;
-}
-
-/* Eating takes the portion out of what's at home; un-ticking puts back
-   exactly what was taken (item.took), even if stock had hit zero. Plenty,
-   unmeasured stock and quantities not in grams are left alone. */
 function useStock(item){
   const st = state.stock[foodKey(item.name)];
-  if(item.eaten){
+  if(item.offered){
     const g = gramsOf(item.qty);
     if(!st || st.plenty || st.g===null || g===null){ delete item.took; return; }
     item.took = Math.min(st.g, g);
@@ -2441,244 +1770,7 @@ function addToStock(key, name, grams){
   save();
 }
 
-let editingStock = null;   // the At home row whose amount is open for editing
-
-function renderKitchen(){
-  // to buy, for the rest of the planned week
-  const filter = state.groceryFilter;
-  const seg = document.getElementById("windowSeg");
-  seg.style.setProperty("--i", GROCERY_FILTERS.findIndex(f=>f.key===filter));   // slides the pill
-  seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.w===filter)));
-  const need = needOn(windowDays(filter));
-  // most urgent first: grouped by the day each thing is first needed
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
-  const firstDay = n=>Math.min(...n.days.map(d=>order.indexOf(d)));
-  const buy = Object.values(need).map(n=>({n, amt:toBuy(n)})).filter(x=>x.amt===null || x.amt>0)
-    .sort((a,b)=>firstDay(a.n)-firstDay(b.n) || CAT_ORDER.indexOf(a.n.cat)-CAT_ORDER.indexOf(b.n.cat) || a.n.name.localeCompare(b.n.name));
-  const list = document.getElementById("toBuyList");
-  list.innerHTML = "";
-  let lastDay = null;
-  buy.forEach(({n, amt})=>{
-    const fd = firstDay(n);
-    if(fd!==lastDay){
-      lastDay = fd;
-      const h = document.createElement("div");
-      h.className = "k-group";
-      h.textContent = fd===0 ? "Needed today" : fd===1 ? "Tomorrow" : "By " + order[fd];
-      list.appendChild(h);
-    }
-    const row = document.createElement("div");
-    row.className = "k-row";
-    // just the name: ticking it buys whole packs, which land in Stock
-    row.innerHTML = `<div class="row-fg"><label><input type="checkbox"><span class="k-name">${n.name}</span></label></div>`;
-    row.querySelector("input").setAttribute("aria-label", "Bought " + n.name);
-    row.querySelector("input").addEventListener("change", ()=>{
-      row.classList.add("just", "bought");   // the tick pops, a short strike, then it slides off
-      announce(`${n.name}: bought`);
-      burst(row.querySelector("input")); haptic();
-      const go = ()=>leave(row, "right", ()=>{
-        addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g);
-        justChanged = n.key;   // it slides into Stock
-        renderKitchen(); renderSummaries();
-      });
-      if(calm()) go(); else setTimeout(go, 200);
-    });
-    list.appendChild(row);
-  });
-
-  // extras: things that aren't food, ticked off as they're bought
-  if(state.extras.length){
-    const h = document.createElement("div");
-    h.className = "k-group";
-    h.textContent = "Extras";
-    list.appendChild(h);
-  }
-  state.extras.forEach(x=>{
-    const row = document.createElement("div");
-    row.className = "k-row" + (x.checked ? " done" : "");
-    row.innerHTML = `<div class="row-fg"><label><input type="checkbox" ${x.checked ? "checked" : ""}>
-        <span class="k-main"><span class="k-name">${x.name}</span>${x.qty ? `<span class="k-sub">${x.qty}</span>` : ""}</span></label></div>`;
-    row.querySelector("input").addEventListener("change", e=>{ x.checked = e.target.checked; save(); renderKitchen(); });
-    swipeable(row, x.name, ()=>{ state.extras = state.extras.filter(y=>y!==x); save(); renderKitchen(); });
-    list.appendChild(row);
-  });
-  if(!buy.length && !state.extras.length){
-    list.innerHTML = `<p class="empty">Nothing to buy ${GROCERY_FILTERS.find(f=>f.key===filter).meta.replace(/^For/, "for")}.</p>`;
-  }
-  const done = !buy.length && !state.extras.some(x=>!x.checked);
-  const cel = document.getElementById("shopCelebrate");
-  cel.hidden = !done;
-  if(done) cel.textContent = pick(CONTENT.shopCelebrate, "cel" + filter);
-  const buyCount = buy.length + state.extras.filter(x=>!x.checked).length;
-  document.getElementById("toBuyTitle").textContent = `To buy · ${buyCount}`;
-
-  const addX = document.getElementById("extrasAdd");
-  addX.innerHTML = "";
-  addX.appendChild(addForm("extras", {
-    label: "Add extra item",
-    rerender: renderKitchen,
-    fields: [
-      {name:"name", type:"text", placeholder:"Extra item (e.g. diapers, bread)", full:true},
-      {name:"qty",  type:"text", placeholder:"qty"}
-    ],
-    onSubmit: v=>{
-      if(!v.name) return false;
-      state.extras.push({id:uid(), name:v.name, qty:v.qty||"", checked:false});
-      save();
-    }
-  }));
-
-  // at home: everything with something left, and how long it lasts
-  const home = Object.entries(state.stock).filter(([,st])=>st.plenty || st.g===null || st.g>0)
-    .sort((a,b)=>a[1].name.localeCompare(b[1].name));
-  const hl = document.getElementById("homeList");
-  hl.innerHTML = "";
-  home.forEach(([key, st])=>{
-    const row = document.createElement("div");
-    row.className = "k-row" + (key===justChanged ? " just" : "");
-    if(editingStock===key){
-      row.innerHTML = `<div class="row-fg"><div class="k-edit"><span class="k-name">${st.name}</span>
-          <input type="text" inputmode="decimal" aria-label="Amount of ${st.name} in grams" value="${st.g>0 ? Math.round(st.g) : ""}" placeholder="amount">
-          <span class="k-unit">g</span>
-          <label class="switch"><input type="checkbox" role="switch" data-plenty ${st.plenty ? "checked" : ""}>Plenty</label>
-          <button type="button" class="save" data-save>Save</button>
-          <button type="button" class="rm" data-rm>Remove</button></div></div>`;
-      const inp = row.querySelector("input[type=text]");
-      row.querySelector("[data-plenty]").addEventListener("change", e=>{ st.plenty = e.target.checked; save(); });
-      row.querySelector("[data-save]").addEventListener("click", ()=>{
-        const g = gramsOf(inp.value + " g");
-        if(g!==null) st.g = g;
-        st.plenty = row.querySelector("[data-plenty]").checked;   // the switch decides, not the amount
-        editingStock = null; save(); renderKitchen();
-      });
-      row.querySelector("[data-rm]").addEventListener("click", ()=>{ delete state.stock[key]; editingStock = null; save(); renderKitchen(); });
-      setTimeout(()=>inp.focus(), 0);
-    }else{
-      const status = homeStatus(key);
-      // what's left after the meals ticked as eaten, said as time not grams; tap to correct it
-      row.innerHTML = `<div class="row-fg"><button type="button" class="k-stock" aria-label="Change how much ${st.name} is left">
-          <span class="k-name">${st.name}</span><span class="k-sub${status.low ? " low" : ""}">${status.text}</span></button></div>`;
-      row.querySelector(".k-stock").addEventListener("click", ()=>{ editingStock = key; renderKitchen(); });
-      swipeable(row, st.name, ()=>{ delete state.stock[key]; save(); renderKitchen(); });
-    }
-    hl.appendChild(row);
-  });
-  if(!home.length) hl.innerHTML = `<p class="empty">Nothing in stock yet: tick foods as you buy them.</p>`;
-  justChanged = null;
-  document.getElementById("homeTitle").textContent = `Stock · ${home.length}`;
-
-  const addH = document.getElementById("homeAdd");
-  addH.innerHTML = "";
-  addH.appendChild(addForm("home", {
-    label: "Add something you have",
-    rerender: renderKitchen,
-    fields: [
-      {name:"name", type:"text", placeholder:"Food (e.g. oatmeal)", full:true},
-      {name:"qty",  type:"text", placeholder:"amount in g (optional)"}
-    ],
-    onSubmit: v=>{
-      if(!v.name) return false;
-      const g = gramsOf((v.qty||"").replace(/\s*g\s*$/i,"") + " g");
-      const k = foodKey(v.name), st = state.stock[k];
-      state.stock[k] = {name: st ? st.name : v.name, g: g!==null ? g : (st ? st.g : null), plenty:false};
-      save();
-    }
-  }));
-
-  renderSummaries();
-}
-
-/* ---------- VARIETY ---------- */
-function eatenFoodNamesThisWeek(){
-  const set = new Set();
-  state.plan.days.forEach(day=>{
-    day.meals.forEach(m=>{
-      m.items.forEach(item=>{
-        if(item.ate==="all" || item.ate==="some") set.add(item.name.trim().toLowerCase());
-      });
-    });
-  });
-  return set;
-}
-
-function isCovered(cat, food){
-  const manualKey = cat+"::"+food;
-  if(state.manualCovered[manualKey]) return true;
-  return eatenFoodNamesThisWeek().has(food.trim().toLowerCase());
-}
-
-function toggleManual(cat, food){
-  const key = cat+"::"+food;
-  if(eatenFoodNamesThisWeek().has(food.trim().toLowerCase())){
-    // it's auto-covered by an eaten item; manual toggle would only act as an "un-cover" which we don't support to avoid confusion
-    return;
-  }
-  state.manualCovered[key] = !state.manualCovered[key];
-  save(); renderVariety();
-}
-
-/* A checklist food the child is too young for (by the food pool's minimum
-   age) waits until they reach it; foods the pool doesn't know always show. */
-function suitableNow(food){
-  if(!stageNow().solids) return true;
-  const t = food.trim().toLowerCase();
-  const match = FOOD_POOL.find(f=>{
-    const n = f.name.toLowerCase();
-    return n===t || n.startsWith(t+",") || n.startsWith(t+" ") || n.endsWith(" "+t);
-  });
-  return !match || match.min <= ageNow();
-}
-function varietyNow(){
-  const out = {};
-  Object.entries(state.variety).forEach(([cat, foods])=>{ out[cat] = foods.filter(suitableNow); });
-  return out;
-}
-
-function renderVariety(){ refreshSheet(); renderSummaries(); }
-
-/* past weeks: a soft bar each, the number only for screen readers (no
-   percentages on show, nothing that reads like a grade) */
-function renderHistory(wrap){
-  if(!state.history || state.history.length===0){
-    wrap.innerHTML = `<p class="empty">${CONTENT.pastWeeks}</p>`;
-    return;
-  }
-  wrap.innerHTML = "";
-  state.history.slice().reverse().forEach(h=>{
-    const row = document.createElement("div");
-    const d = localDate(h.weekOf);
-    row.className = "history-row";
-    row.innerHTML = `<span>Week of ${isNaN(d) ? h.weekOf : MONTHS[d.getMonth()] + " " + d.getDate()}</span>`
-      + `<span class="history-bar" role="img" aria-label="${h.overallPct} percent of the checklist tasted"><i style="--w:${Math.max(4, h.overallPct)}%"></i></span>`;
-    wrap.appendChild(row);
-  });
-}
-
-function startNewWeek(){
-  // compute this week's overall pct for history before clearing
-  let totalItems=0, totalCovered=0;
-  Object.entries(varietyNow()).forEach(([cat, foods])=>{
-    totalItems += foods.length;
-    totalCovered += foods.filter(f=>isCovered(cat,f)).length;
-  });
-  const overallPct = totalItems? Math.round(100*totalCovered/totalItems) : 0;
-  state.history.push({ weekOf: state.weekStarted, overallPct });
-
-  // reset eaten flags + manual covers + ticked extras (stock stays: the food is still at home)
-  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>{ item.eaten=false; item.ate=null; delete item.took; })));
-  state.manualCovered = {};
-  state.extras.forEach(x=>x.checked=false);
-  state.weekStarted = todayISO();
-  currentDay = dayDisplayOrder()[0];   // the new week starts today
-
-  save();
-  renderDayContent();
-  renderKitchen();
-  renderVariety();
-}
-
 /* ---------- CREATE: generate a week of age-appropriate menus ---------- */
-let draft = null;   // preview only — deliberately never written to state until applied
 
 function stageNow(){ return stageFor(ageNow()); }
 
@@ -2760,7 +1852,7 @@ function planContext(months, profile){
     .filter(([,x])=>x.plenty || x.g===null || x.g>0).map(([k])=>k.split(",")[0].trim()));
   const known = new Set(Object.keys(state.exposures || {}));
   (state.plan ? state.plan.days : []).forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{
-    if(i.ate==="all" || i.ate==="some") known.add(foodKey(baseName(i)));
+    if(i.offered) known.add(foodKey(baseName(i)));
   })));
   return {st, profile, priorities:new Set(profile.priorities || []), atHome, known,
           finger:["textures","family","nearfamily"].includes(st.id)};
@@ -2790,19 +1882,63 @@ function generateWeek(months, profile){
   });
 
   const week = {days};
+  ensureIron(week, foods, st);
+  scheduleAllergens(week, foods, st, profile);
+  // after scheduling, so the repeat is the same dish (a first allergen on Monday is no longer first on Wednesday)
   // batch-cook: Monday's and Thursday's dinners come round again two days later
   if(ctx.priorities.has("batch")){
     [[0,2],[3,5]].forEach(([from, to])=>{
       const src = days[from].meals.find(m=>m.label==="Dinner");
       const k = days[to].meals.findIndex(m=>m.label==="Dinner");
       if(!src || k<0) return;
+      // a dinner carrying a first allergen isn't repeated (in a week that starts midweek the repeat could come first)
+      if(src.items.some(i=>newAllergens(i.name, introducedAllergens(profile)).length)) return;
       const copy = meal(src.label, src.icon, src.items.map(i=>it(i.name, i.qty, i.cats.slice(), i.tex)), src.slot);
       copy.from = days[from].name;   // "from Monday's batch"
       days[to].meals[k] = copy;
     });
   }
-  ensureIron(week, foods, st);
   return week;
+}
+
+/* First tastes of the common allergens come one at a time: at most one new
+   allergen a day, ALLERGEN_SPACING_DAYS apart, counted from the plan's first
+   day (today). A food bringing a second new allergen too soon is swapped for
+   one from its group that brings none. Introduced = offered before, or marked
+   "tried and loved" in onboarding. (Spacing: check with a pediatric source.) */
+const ALLERGEN_SPACING_DAYS = 3;
+function introducedAllergens(profile){
+  const done = new Set(Object.entries(profile.allergens || {}).filter(([,v])=>v==="ok").map(([k])=>k));
+  Object.entries(state.foods || {}).forEach(([k, r])=>{ if(r && r.safety==="introduced") allergensOf(upper1(k)).forEach(a=>done.add(a)); });
+  Object.keys(state.exposures || {}).forEach(k=>allergensOf(upper1(k)).forEach(a=>done.add(a)));
+  return done;
+}
+function newAllergens(name, known){ return allergensOf(name).filter(a=>!known.has(a)); }
+function scheduleAllergens(week, foods, st, profile){
+  const known = introducedAllergens(profile), first = {};   // allergen → day position it first appears
+  const start = Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[now().getDay()]));
+  let lastNew = -Infinity;
+  for(let pos = 0; pos < week.days.length; pos++){
+    const day = week.days[(start + pos) % week.days.length];
+    let newToday = null;
+    day.meals.forEach(m=>{
+      for(let k = 0; k < m.items.length; k++){
+        const item = m.items[k];
+        const fresh = newAllergens(item.name, known).filter(a=>!(a in first));
+        const ok = fresh.length===0 || (fresh.length===1 && (newToday===fresh[0] || (newToday===null && pos - lastNew >= ALLERGEN_SPACING_DAYS)));
+        if(ok){
+          if(fresh.length){ newToday = fresh[0]; first[fresh[0]] = pos; lastNew = pos; }
+          continue;
+        }
+        const slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || "lunch";
+        const alt = foods.find(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !m.items.some(i=>i.name===f.name)
+                                 && newAllergens(f.name, known).filter(a=>!(a in first)).length===0);
+        if(alt) m.items[k] = dish(alt, st);
+        else { m.items.splice(k, 1); k--; }
+      }
+    });
+  }
+  return first;
 }
 
 /* Babies and toddlers need iron daily, so guarantee at least one iron-rich
@@ -2823,1232 +1959,7 @@ function ensureIron(week, foods, st){
   });
 }
 
-/* ---------- CREATE: preview stats ---------- */
-function draftStats(){
-  const names = new Set(), ironNames = new Set(FOOD_POOL.filter(f=>f.iron).map(f=>f.name));
-  let ironDays = 0;
-  draft.days.forEach(day=>{
-    let dayIron = false;
-    day.meals.forEach(m=>m.items.forEach(i=>{
-      names.add(i.name);
-      if(ironNames.has(i.name)) dayIron = true;
-    }));
-    if(dayIron) ironDays++;
-  });
-  // what the variety checklist would reach if every generated food were eaten
-  let totalFoods = 0, covered = 0;
-  const lower = new Set([...names].map(n=>n.toLowerCase()));
-  Object.values(state.variety).forEach(foods=>{
-    totalFoods += foods.length;
-    covered += foods.filter(f=>{
-      const t = f.trim().toLowerCase();
-      return [...lower].some(n=>n===t || n.startsWith(t+",") || t.startsWith(n.split(",")[0]));
-    }).length;
-  });
-  return {
-    distinct: names.size,
-    ironDays,
-    coverage: totalFoods ? Math.round(100*covered/totalFoods) : 0
-  };
-}
-
-/* ---------- CREATE: render ---------- */
-function renderCreate(){
-  renderCreateControls();
-  renderCreatePreview();
-}
-
-function renderCreateControls(){
-  const months = ageNow(), st = stageNow();
-
-  const sum = document.getElementById("stageSummary");
-  sum.textContent = stageSummary(st);
-  sum.hidden = !st.solids;   // the milk-only note below already says it
-
-  // under six months there is nothing to plan: a calm note instead of controls
-  const milk = document.getElementById("milkState");
-  document.getElementById("solidsControls").hidden = !st.solids;
-  milk.hidden = st.solids;
-  if(!st.solids){
-    const left = 6 - months;
-    milk.innerHTML = `<p class="big">No solids yet, milk is all they need.</p>
-      <p>Come back around 6 months${left===1 ? ", in about a month" : `, in about ${left} months`}.</p>`;
-  }
-
-  // priorities: up to three, and a line saying how they steer the plan
-  const pWrap = document.getElementById("priorityChips");
-  pWrap.innerHTML = "";
-  const chosen = state.profile.priorities;
-  PRIORITIES.forEach(pr=>{
-    const on = chosen.includes(pr.id);
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "chip tap" + (on ? " selected" : "");
-    b.setAttribute("aria-pressed", String(on));
-    b.textContent = pr.label;
-    b.disabled = !on && chosen.length>=3;
-    b.addEventListener("click", ()=>{
-      state.profile.priorities = on ? chosen.filter(x=>x!==pr.id) : chosen.concat(pr.id).slice(0,3);
-      save(); draft = null; renderCreate();
-    });
-    pWrap.appendChild(b);
-  });
-  document.getElementById("priorityLine").textContent = priorityLine(chosen);
-
-  // the household's own keep-out list: allergies strict, dislikes soft
-  const exWrap = document.getElementById("excludeChips");
-  exWrap.innerHTML = "";
-  if(state.profile.avoid.length===0){
-    const none = document.createElement("span");
-    none.className = "subtle";
-    none.style.margin = "0";
-    none.textContent = "Nothing on the list yet.";
-    exWrap.appendChild(none);
-  }
-  state.profile.avoid.forEach(x=>{
-    const chip = document.createElement("div");
-    chip.className = "chip" + (x.kind==="allergy" ? " allergy" : "");
-    chip.innerHTML = `${x.name} <span class="kind">${x.kind==="allergy" ? "Allergy" : "Dislike"}</span><button type="button" class="x" aria-label="Remove ${x.name}">✕</button>`;
-    chip.querySelector("button").addEventListener("click", ()=>{
-      state.profile.avoid = state.profile.avoid.filter(y=>y!==x);
-      save(); draft = null; renderCreate();
-    });
-    exWrap.appendChild(chip);
-  });
-
-  // locked: always kept out at this age; tap one to hear why
-  buildLockedRow(document.getElementById("lockedRules"), months);
-
-  if(st.solids){
-    document.getElementById("createBanner").textContent =
-      `At ${ageLabel(months)}, foods are ${st.textureShort}; portions are ${st.portionHint}. ${st.note} `
-      + `No added salt or sugar, and nothing served whole that could block a small airway. General guidance `
-      + `only; check allergen introduction and anything you're unsure about with your paediatrician.`;
-  }
-
-  const gen = document.getElementById("generateBtn");
-  gen.disabled = !st.solids;
-  gen.textContent = draft ? "Shuffle again" : "Shuffle a preview";
-  renderSummaries();
-}
-
-function addExclusion(kind){
-  const inp = document.getElementById("excludeName");
-  const v = inp.value.trim();
-  if(!v) return;
-  const have = state.profile.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
-  if(have) have.kind = kind;                 // re-adding switches allergy / dislike
-  else state.profile.avoid.push({name:v, kind});
-  save();
-  inp.value = "";
-  draft = null;
-  renderCreate();
-}
-
-function generateDraft(){
-  if(!stageFor(planMonths()).solids) return;
-  draft = generateWeek(planMonths(), state.profile);
-  renderCreate();
-}
-
-function discardDraft(){
-  draft = null;
-  renderCreate();
-}
-
-function renderCreatePreview(){
-  const wrap = document.getElementById("createPreview");
-  wrap.innerHTML = "";
-  if(!draft){
-    wrap.innerHTML = "";
-    return;
-  }
-
-  const s = draftStats();
-  const stats = document.createElement("div");
-  stats.className = "card";
-  stats.innerHTML = `<div class="section-title">Preview · ${ageLabel(ageNow())} · ${stageNow().name}</div>
-    <div class="preview-stats">
-      <span><strong>${s.distinct}</strong> different foods</span>
-      <span><strong>${s.ironDays}/7</strong> days iron-rich</span>
-      <span><strong>${s.coverage}%</strong> variety if all eaten</span>
-    </div>`;
-  wrap.appendChild(stats);
-
-  const card = document.createElement("div");
-  card.className = "preview-days";
-  draft.days.forEach(day=>{
-    const block = document.createElement("div");
-    block.className = "meal-block";
-    const rows = day.meals.map(m=>
-      `<div class="preview-line"><span class="lbl">${m.items[0] ? foodArt(m.items[0].name, {size:24, alt:""}) : ""} ${m.label}</span>`
-      + `<span class="foods">${m.items.map(i=>i.name + (i.tex ? ` <span class="tex">${i.tex}</span>` : "")).join(", ") || "—"}</span></div>`
-    ).join("");
-    block.innerHTML = `<div class="meal-head"><div class="label">${day.name}</div></div>${rows}`;
-    card.appendChild(block);
-  });
-  wrap.appendChild(card);
-
-  const row = document.createElement("div");
-  row.className = "btnrow";
-  row.innerHTML = `<button class="btn primary" id="applyBtn">Use this week</button>
-    <button class="btn" id="discardBtn">Not this one</button>`;
-  row.querySelector("#applyBtn").addEventListener("click", applyDraft);
-  row.querySelector("#discardBtn").addEventListener("click", discardDraft);
-  wrap.appendChild(row);
-
-  const note = document.createElement("p");
-  note.className = "subtle";
-  note.style.textAlign = "center";
-  note.textContent = "Using it replaces this week's menu. What's at home, past weeks and the variety checklist stay.";
-  wrap.appendChild(note);
-}
-
-function applyDraft(){
-  if(!draft) return;
-
-  state.plan = draft;   // stock and extras stay: the food at home doesn't change
-  state.weekStarted = todayISO();
-  save();
-
-  draft = null;
-  currentDay = dayDisplayOrder()[0];
-  renderDayContent();
-  renderKitchen();
-  renderVariety();
-  renderCreate();
-  showSheet("week");
-}
-
-/* ---------- sheets ----------
-   One dialog shows every detail. showSheet() opens it (or, when it's
-   already open, goes one view deeper with a Back); views re-render in place
-   when the plan changes, keeping scroll and focus. Shop and Plan are panels
-   with their own renderers: they move in while shown and back out after. */
-const sheetEl = document.getElementById("sheet");
-const sheetBody = document.getElementById("sheetBody");
-let sheetStack = [], sheetOpener = null, sheetOpenerKey = null;
-const PARTS = {shop:"part-shop", plan:"part-plan"};
-function setSheetTitle(t){ document.getElementById("sheetTitle").textContent = t; }
-const wideSheet = ()=>matchMedia("(min-width:768px)").matches;
-
-function showSheet(kind, arg){
-  if(sheetEl.open){ unmountParts(); sheetStack.push({kind, arg}); renderSheet(1); return; }
-  sheetOpener = document.activeElement;
-  // a redraw may replace the opener (a fan tile), so remember how to find it again
-  sheetOpenerKey = sheetOpener ? (sheetOpener.id ? "#" + sheetOpener.id : sheetOpener.dataset.k ? `[data-k="${sheetOpener.dataset.k}"]` : null) : null;
-  sheetStack = [{kind, arg}];
-  renderSheet(0);
-  sheetEl.showModal();
-  document.getElementById("sheetTitle").focus({preventScroll:true});   // start on the title, not the close button
-  sheetEl.style.transform = "";
-  if(calm()) sheetEl.animate([{opacity:0},{opacity:1}], {duration:180});
-  else sheetEl.animate(wideSheet() ? [{transform:"scale(.96)", opacity:0}, {transform:"none", opacity:1}]
-                                   : [{transform:"translateY(100%)"}, {transform:"none"}],
-                       {duration: wideSheet() ? 260 : 420, easing:"cubic-bezier(.32,1.2,.5,1)"});
-  enterStagger();
-}
-function backSheet(){
-  if(sheetStack.length < 2) return closeSheet();
-  unmountParts(); sheetStack.pop(); renderSheet(-1);
-}
-function closeSheet(){
-  if(!sheetEl.open) return;
-  const done = ()=>{
-    unmountParts(); sheetEl.close(); sheetStack = []; sheetEl.style.transform = "";
-    const back = sheetOpener && document.contains(sheetOpener) ? sheetOpener : sheetOpenerKey ? document.querySelector(sheetOpenerKey) : null;
-    if(back) back.focus({preventScroll:true});
-  };
-  if(calm()){ done(); return; }
-  // exits are quicker than entrances
-  const from = sheetEl.style.transform || "none";
-  const a = sheetEl.animate(wideSheet() ? [{opacity:1}, {transform:"scale(.97)", opacity:0}]
-                                        : [{transform:from}, {transform:"translateY(100%)"}],
-                            {duration: wideSheet() ? 150 : 220, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
-  a.onfinish = ()=>{ done(); a.cancel(); };
-}
-function unmountParts(){
-  Object.values(PARTS).forEach(id=>{
-    const el = document.getElementById(id);
-    if(el.parentElement!==document.getElementById("parts")) document.getElementById("parts").appendChild(el);
-  });
-}
-function enterStagger(){
-  if(calm()) return;
-  sheetBody.classList.remove("enter"); void sheetBody.offsetWidth; sheetBody.classList.add("enter");
-  setTimeout(()=>sheetBody.classList.remove("enter"), 600);
-}
-function renderSheet(dir){
-  const top = sheetStack[sheetStack.length-1];
-  document.getElementById("sheetBack").hidden = sheetStack.length < 2;
-  sheetBody.innerHTML = "";
-  if(PARTS[top.kind]){
-    sheetBody.appendChild(document.getElementById(PARTS[top.kind]));
-    if(top.kind==="shop"){ setSheetTitle("Shop"); renderKitchen(); }
-    if(top.kind==="plan"){ setSheetTitle("Plan next week"); renderCreate(); }
-  }else{
-    ({meal:renderMealSheet, week:renderWeekSheet, variety:renderVarietySheet, group:renderGroupSheet,
-      })[top.kind](sheetBody, top.arg || {});
-  }
-  if(dir){
-    sheetBody.scrollTop = 0;
-    if(!calm()) sheetBody.animate([{transform:`translateX(${dir*32}px)`, opacity:0}, {transform:"none", opacity:1}],
-                                  {duration:280, easing:"cubic-bezier(.32,1.2,.5,1)"});
-    else sheetBody.animate([{opacity:0},{opacity:1}], {duration:160});
-  }
-}
-/* the plan changed: redraw the view on show, keeping scroll and focus */
-function refreshSheet(){
-  if(!sheetEl.open || !sheetStack.length) return;
-  const top = sheetStack[sheetStack.length-1];
-  if(PARTS[top.kind]) return;   // Shop and Plan redraw themselves
-  const y = sheetBody.scrollTop, rail = sheetBody.querySelector(".days-rail");
-  const railX = rail ? rail.scrollLeft : 0;
-  const focusKey = document.activeElement && sheetBody.contains(document.activeElement) ? document.activeElement.dataset.k : null;
-  renderSheet(0);
-  sheetBody.scrollTop = y;
-  const r2 = sheetBody.querySelector(".days-rail"); if(r2) r2.scrollLeft = railX;
-  if(focusKey){ const f = sheetBody.querySelector(`[data-k="${focusKey}"]`); if(f) f.focus({preventScroll:true}); }
-}
-document.getElementById("sheetClose").addEventListener("click", closeSheet);
-document.getElementById("sheetBack").addEventListener("click", backSheet);
-sheetEl.addEventListener("cancel", e=>{ e.preventDefault(); closeSheet(); });   // Escape
-sheetEl.addEventListener("click", e=>{ if(e.target===sheetEl) closeSheet(); });   // a tap on the backdrop
-/* drag the handle (or the header) down to dismiss */
-(function(){
-  let y0 = null, dy = 0, id = null;
-  const start = e=>{ if(wideSheet() || e.target.closest("button")) return; y0 = e.clientY; dy = 0; id = e.pointerId; e.currentTarget.setPointerCapture(id); };
-  const move = e=>{ if(e.pointerId!==id || y0===null) return; dy = Math.max(0, e.clientY - y0); sheetEl.style.transform = `translateY(${dy}px)`; };
-  const end = e=>{
-    if(e.pointerId!==id || y0===null) return;
-    y0 = null; id = null;
-    if(dy > 110) closeSheet();
-    else{
-      const from = sheetEl.style.transform; sheetEl.style.transform = "";
-      if(from && !calm()) sheetEl.animate([{transform:from}, {transform:"none"}], {duration:300, easing:"cubic-bezier(.32,1.2,.5,1)"});
-    }
-  };
-  ["sheetGrab","sheetHead"].forEach(i=>{
-    const el = document.getElementById(i);
-    el.addEventListener("pointerdown", start); el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
-  });
-})();
-/* Shop's tabs: To buy | In stock, the pill sliding between them */
-let shopTab = "buy";
-function setShopTab(t){
-  shopTab = t;
-  const tabs = document.getElementById("shopTabs");
-  tabs.style.setProperty("--i", t==="buy" ? 0 : 1);
-  document.getElementById("tabBuy").setAttribute("aria-selected", String(t==="buy"));
-  document.getElementById("tabStock").setAttribute("aria-selected", String(t==="stock"));
-  document.getElementById("tabBuy").setAttribute("aria-pressed", String(t==="buy"));
-  document.getElementById("tabStock").setAttribute("aria-pressed", String(t==="stock"));
-  document.getElementById("panelBuy").hidden = t!=="buy";
-  document.getElementById("panelStock").hidden = t!=="stock";
-}
-document.getElementById("tabBuy").addEventListener("click", ()=>setShopTab("buy"));
-document.getElementById("tabStock").addEventListener("click", ()=>setShopTab("stock"));
-document.getElementById("shopTabs").addEventListener("keydown", e=>{
-  if(e.key==="ArrowRight" || e.key==="ArrowLeft"){ e.preventDefault(); const t = shopTab==="buy" ? "stock" : "buy"; setShopTab(t); document.getElementById(t==="buy" ? "tabBuy" : "tabStock").focus(); }
-});
-setShopTab("buy");
-
-/* the old open-a-section calls, now opening sheets */
-function openCard(name){
-  if(!name) return closeSheet();
-  showSheet({meals:"week", food:"shop", variety:"variety", plan:"plan"}[name] || name);
-}
-
-/* ---------- the week sheet: seven days to swipe through, and past weeks ---------- */
-function renderWeekSheet(body, arg){
-  setSheetTitle("This week");
-  const all = dayDisplayOrder().flatMap(i=>state.plan.days[i].meals.flatMap(m=>m.items));
-  if(all.length && all.every(i=>i.ate)) body.insertAdjacentHTML("beforeend", `<p class="celebrate">${pick(CONTENT.weekDone, "week")}</p>`);
-  const rail = document.createElement("div");
-  rail.className = "days-rail";
-  rail.setAttribute("role", "list");
-  dayDisplayOrder().forEach((idx, pos)=>{
-    const day = state.plan.days[idx], d = dateForDay(idx);
-    const items = day.meals.flatMap(m=>m.items), marked = items.filter(i=>i.ate).length;
-    const p = items.length ? marked/items.length : 0;
-    const card = document.createElement("article");
-    card.className = "day-card"; card.setAttribute("role", "listitem"); card.dataset.day = idx;
-    card.innerHTML = `<div class="dc-top"><p class="dc-day">${DAY_FULL(d)} ${d.getDate()}</p>${pos===0 ? `<span class="dc-tag">Today</span>` : ""}
-      <span class="ring" aria-hidden="true"><svg viewBox="0 0 38 38"><circle class="r-bg" cx="19" cy="19" r="15.9" pathLength="100"/><circle class="r-fg" cx="19" cy="19" r="15.9" pathLength="100" style="--p:${p.toFixed(3)}"/></svg></span></div>
-      <ul class="dc-meals"></ul>`;
-    const ul = card.querySelector("ul");
-    day.meals.forEach((m, mi)=>{
-      if(!m.items.length) return;
-      const li = document.createElement("li");
-      const mark = mealMark(m);
-      li.innerHTML = `<button type="button" class="dc-meal" data-k="m-${idx}-${mi}"><span class="dc-slot">${m.label}</span><span class="dc-dish">${dishName(m)}</span><span class="dc-mark">${mark ? "✓ " + ATE_WORDS[mark] : ""}</span></button>`;
-      li.querySelector("button").addEventListener("click", ()=>showSheet("meal", {day:idx, meal:mi}));
-      ul.appendChild(li);
-    });
-    if(!ul.children.length) ul.innerHTML = `<li class="empty">${CONTENT.emptyDay}</li>`;
-    rail.appendChild(card);
-  });
-  body.appendChild(rail);
-  if(arg.day!==undefined){
-    const pos = dayDisplayOrder().indexOf(arg.day);
-    requestAnimationFrame(()=>{ const c = rail.children[pos]; if(c) rail.scrollLeft = c.offsetLeft - 16; });
-  }
-  const plan = document.createElement("button");
-  plan.type = "button"; plan.className = "pill"; plan.style.width = "100%"; plan.textContent = "Plan next week →";
-  plan.addEventListener("click", ()=>showSheet("plan"));
-  body.appendChild(plan);
-  const hist = document.createElement("div");
-  hist.className = "card"; hist.style.marginTop = "18px";
-  hist.innerHTML = `<div class="section-title">Past weeks</div><div class="history-list"></div>`;
-  renderHistory(hist.querySelector(".history-list"));
-  body.appendChild(hist);
-  const fresh = document.createElement("button");
-  fresh.type = "button"; fresh.className = "link-btn"; fresh.textContent = "Start a fresh week";
-  fresh.addEventListener("click", ()=>{ startNewWeek(); announce("A fresh week. Last week is saved below."); });
-  body.appendChild(fresh);
-  body.insertAdjacentHTML("beforeend", `<p class="subtle center">A fresh week keeps the menu and what's at home, clears the marks, and saves this week's rainbow to Past weeks.</p>`);
-}
-
-/* ---------- variety: the rainbow, one food group at a time ---------- */
-const GROUP_NAMES = {protein:"Proteins", vegetable:"Vegetables", fruit:"Fruits", grain:"Grains & starches", fat:"Healthy fats"};
-function renderVarietySheet(body){
-  setSheetTitle("Variety");
-  const vnow = varietyNow();
-  const on = Object.keys(CATS).filter(c=>(vnow[c]||[]).some(f=>isCovered(c, f))).length;
-  body.insertAdjacentHTML("beforeend", `<p class="glance" style="margin:0 4px 12px">${on===0 ? CONTENT.rainbow.none : on===Object.keys(CATS).length ? CONTENT.rainbow.all : CONTENT.rainbow.some}</p>`);
-  const list = document.createElement("div");
-  list.className = "card vg-list";
-  Object.keys(CATS).forEach(cat=>{
-    const tasted = (vnow[cat]||[]).filter(f=>isCovered(cat, f));
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "vg-row"; b.dataset.k = "g-" + cat;
-    b.innerHTML = `<i class="vg-dot${tasted.length ? " on" : ""}" style="--c:var(--${cat})" aria-hidden="true"></i>
-      <span class="vg-text"><span class="vg-name">${GROUP_NAMES[cat]}</span><span class="vg-sub">${tasted.length ? tasted.slice(0,4).join(", ") + (tasted.length>4 ? "…" : "") : "Not yet this week"}</span></span>`;
-    b.addEventListener("click", ()=>showSheet("group", {cat}));
-    list.appendChild(b);
-  });
-  body.appendChild(list);
-  // log something else they tried
-  const log = document.createElement("div");
-  log.className = "card";
-  log.innerHTML = `<div class="section-title">Log something else</div>`;
-  log.appendChild(addForm("variety:log", {
-    label: "Something they tried",
-    rerender: ()=>refreshSheet(),
-    fields: [{name:"name", type:"text", placeholder:"Food (e.g. mango)", full:true}, {name:"cat", type:"select", options:CAT_OPTIONS}],
-    onSubmit: v=>{
-      if(!v.name) return false;
-      const list = state.variety[v.cat];
-      const have = list.find(f=>f.toLowerCase()===v.name.toLowerCase());
-      const food = have || v.name;
-      if(!have) list.push(food);
-      state.manualCovered[v.cat + "::" + food] = true;
-      save(); announce(`${food} logged`); renderSummaries();
-    }
-  }));
-  body.appendChild(log);
-}
-let groupEditing = false;
-function renderGroupSheet(body, arg){
-  const cat = arg.cat;
-  setSheetTitle(GROUP_NAMES[cat]);
-  const foods = varietyNow()[cat] || [];
-  body.insertAdjacentHTML("beforeend", `<p class="subtle">${groupEditing ? "Remove foods from the list, or add new ones." : "Tasted this week light up by themselves when a meal is marked. Tap a food to mark it yourself."}</p>`);
-  const card = document.createElement("div");
-  card.className = "card";
-  const chips = document.createElement("div");
-  chips.className = "chips spaced";
-  foods.forEach(food=>{
-    const covered = isCovered(cat, food);
-    const c = document.createElement("button");
-    c.type = "button"; c.className = "chip tap" + (covered ? " covered" : ""); c.dataset.k = "f-" + food;
-    c.setAttribute("aria-pressed", String(covered));
-    c.innerHTML = groupEditing ? `${food} <span class="x" aria-hidden="true">✕</span>` : `${covered ? "✓ " : ""}${food}`;
-    c.setAttribute("aria-label", groupEditing ? `Remove ${food}` : `${food}${covered ? ", tasted this week" : ""}`);
-    c.addEventListener("click", ()=>{
-      if(groupEditing){
-        state.variety[cat] = state.variety[cat].filter(f=>f!==food);
-        delete state.manualCovered[cat + "::" + food];
-        save(); refreshSheet(); renderSummaries();
-      }else toggleManual(cat, food);
-    });
-    chips.appendChild(c);
-  });
-  card.appendChild(chips);
-  if(groupEditing) card.appendChild(addForm("variety:" + cat, {
-    label: "Add a food to " + GROUP_NAMES[cat].toLowerCase(),
-    rerender: ()=>refreshSheet(),
-    fields: [{name:"name", type:"text", placeholder:"Food to add", full:true}],
-    onSubmit: v=>{
-      if(!v.name) return false;
-      if(!state.variety[cat].some(f=>f.toLowerCase()===v.name.toLowerCase())){ state.variety[cat].push(v.name); save(); }
-    }
-  }));
-  body.appendChild(card);
-  const edit = document.createElement("button");
-  edit.type = "button"; edit.className = "link-btn"; edit.dataset.k = "edit"; edit.textContent = groupEditing ? "Done" : "Edit the list";
-  edit.addEventListener("click", ()=>{ groupEditing = !groupEditing; refreshSheet(); });
-  body.appendChild(edit);
-}
-
-
-/* every render ends with the home cards following along */
-function renderSummaries(){ renderHome(); }
-
-/* ---------- voice: every string lives in content.js (CONTENT, pick, say) ---------- */
-function dayPart(d){
-  const h = (d || now()).getHours();
-  return h>=5 && h<12 ? "morning" : h>=12 && h<18 ? "afternoon" : "evening";
-}
 const DAY_FULL = d=>DAY_ORDER[d.getDay()];
-
-/* ====================================================================
-   HOME: a poster, no boxes. The greeting, the clock, the next meal, then
-   Today, This week, Shop and Variety. Everything about a thing opens in
-   a peek (hover, focus or tap); "Open →" goes to the full view (the sheet).
-   ==================================================================== */
-const GROUPS = ["protein","vegetable","fruit","grain","fat"];
-const $ = id=>document.getElementById(id);
-/* only touch the DOM when the words actually change (the clock ticks every minute) */
-function setText(el, text){ if(el && el.textContent!==text) el.textContent = text; }
-function weekStart(){ const d = localDate(state.weekStarted); return isNaN(d) ? now() : d; }
-/* the plan's seven days, from the day it started (not Monday): {pos, date, dayIdx} */
-function weekDays(){
-  const s = weekStart();
-  return Array.from({length:7}, (_, pos)=>{ const date = new Date(s.getFullYear(), s.getMonth(), s.getDate() + pos); return {pos, date, dayIdx:planDayIndex(date)}; });
-}
-function weekDone(){ const s = weekStart(); return now() >= new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7); }
-function milkOnly(){ return ageNow() < 6 && !state.profile.exploreEarly; }
-function hasPlan(){ return !!state.plan && state.plan.days.some(d=>d.meals.some(m=>m.items.length)); }
-/* the foods of a group tried this week: marked eaten (all or some), or logged by hand */
-function triedFoods(cat){
-  const out = new Set();
-  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ if((i.ate==="all" || i.ate==="some") && i.cats[0]===cat) out.add(baseName(i)); })));
-  Object.keys(state.manualCovered || {}).forEach(k=>{ const [c, f] = k.split("::"); if(c===cat && state.manualCovered[k]) out.add(f); });
-  return [...out];
-}
-/* what to pick up for the rest of the week, the soonest-needed first */
-function shopList(){
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
-  const first = n=>Math.min(...n.days.map(d=>order.indexOf(d)));
-  return Object.values(needOn(windowDays("week")))
-    .filter(n=>{ const a = toBuy(n); return a===null || a>0; })
-    .sort((a, b)=>first(a) - first(b));
-}
-function dayWordFor(name){
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
-  const k = order.indexOf(name);
-  return k===0 ? "today" : k===1 ? "tomorrow" : shortDay(name);
-}
-function mealEaten(m){ return m.items.length > 0 && m.items.every(i=>i.ate); }
-
-/* ---------- render ---------- */
-let homeKey = null, homeDrawn = false, mealsSig = "", lastISO = null;
-function renderHome(){
-  if(!$("home")) return;
-  const P = state.profile, st = stageNow();
-  if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
-  lastISO = todayISO();
-  setText($("profileBtn"), (P.name || "·").trim().charAt(0).toUpperCase());
-  $("profileBtn").setAttribute("aria-label", say("home.profile.label") + (P.name ? ": " + P.name : ""));
-  const calmState = milkOnly(), empty = !calmState && !hasPlan();
-  $("home").classList.toggle("is-milk", calmState);
-  $("home").classList.toggle("is-empty", empty);
-  renderClock();
-  renderMoment();
-  renderMeals();
-  renderWeek();
-  renderShopLine();
-  renderVarietyLine();
-  if(!homeDrawn){ homeDrawn = true; homeEntrance(); }
-  Peek.refresh();
-}
-function renderClock(){
-  const P = state.profile, t = now();
-  const greet = say("home.greet." + dayPart(t), {name:P.name || ""}).replace(/,\s*$/, "");
-  setText($("greet"), greet + (P.birthDate ? say("home.age", {months:ageNow()}) : ""));
-  setText($("clock"), fmtDateTime(t));
-  $("clock").setAttribute("datetime", t.toISOString());
-}
-/* headline + support (or a prompt in its place) + the tab's title */
-function renderMoment(){
-  const P = state.profile, st = stageNow(), m = homeMoment(), name = P.name || "";
-  document.title = m.title;
-  const h = $("headline"), sup = $("support");
-  const changed = homeKey!==null && homeKey!==m.key;
-  const paint = ()=>{
-    setText(h, m.headline);
-    sup.innerHTML = "";
-    const prompt = (text, acts)=>{
-      sup.append(text + " ");
-      acts.forEach(([label, fn])=>{ const b = document.createElement("button"); b.type = "button"; b.className = "btn-text inline"; b.textContent = label; b.addEventListener("click", fn); sup.append(b); });
-    };
-    if(m.kind==="empty") prompt("", [[m.action, setNextWeek]]);
-    else if(m.kind!=="milk" && st.solids && P.lastStage!==st.id){
-      prompt(say("home.stageChange", {name, months:ageNow()}), [
-        [say("home.stageUpdate"), ()=>setNextWeek()],
-        [say("home.stageLater"), ()=>{ P.lastStage = st.id; save(); renderHome(); }]]);
-    }else if(m.kind!=="milk" && weekDone()) prompt(say("home.weekDone"), [[say("home.weekNext"), setNextWeek]]);
-    else setText(sup, m.support || "");
-  };
-  if(changed && !calm()){
-    [h, sup].forEach(el=>el.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = function(){ this.cancel(); });
-    setTimeout(()=>{ paint(); [h, sup].forEach(el=>el.animate([{opacity:0, transform:"translateY(6px)"}, {opacity:1, transform:"none"}], {duration:300, easing:"cubic-bezier(.32,1.25,.5,1)"})); }, 150);
-  }else paint();
-  if(changed && m.announce) announce(m.announce);
-  homeKey = m.key;
-}
-
-/* Today: the day's meals in time order, drawn, the next one lifted. Built once per
-   shape of the day; the clock only moves classes, so the emphasis glides. */
-const TILT = [-5, 4, -3, 6, -6];
-function renderMeals(){
-  const wrap = $("meals"), t = now();
-  const today = milkOnly() ? [] : mealsOn(t);
-  const sig = todayISO() + "|" + today.map(x=>x.slot + x.time + x.m.items.map(i=>i.id + (i.ate || "")).join(",")).join(";");
-  if(sig!==mealsSig){
-    mealsSig = sig;
-    wrap.innerHTML = "";
-    wrap.style.setProperty("--n", Math.max(1, today.length));
-    if(milkOnly()){
-      wrap.innerHTML = `<div class="meal solo" role="listitem"><span class="meal-art">${foodArt("milk", {size:150, alt:say("home.milkArt")})}</span></div>`;
-    }
-    today.forEach((x, k)=>{
-      const main = x.m.items[0];
-      const el = document.createElement("div");
-      el.className = "meal"; el.setAttribute("role", "listitem");
-      el.dataset.day = x.dayIdx; el.dataset.k = x.k;
-      el.style.setProperty("--r", TILT[k % TILT.length] + "deg");
-      el.style.setProperty("--z", 10 - k);
-      el.innerHTML = `<span class="meal-tag" aria-hidden="true"><i></i><span></span></span>
-        <button type="button" class="meal-btn" data-k="meal-${x.slot}"><span class="meal-art">${foodArt(main.name, {size:150, alt:""})}</span></button>
-        <button type="button" class="qtick" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
-        <span class="meal-name"><b>${esc(x.m.label)}</b><span class="meal-time"><span class="sep">· </span>${esc(fmtTime(x.start))}</span></span>
-        <span class="meal-note"></span>`;
-      const btn = el.querySelector(".meal-btn");
-      Peek.bind(btn, {kind:"meal", arg:{day:x.dayIdx, meal:x.k}});
-      el.querySelector(".qtick").addEventListener("click", e=>{ e.stopPropagation(); quickTick(x.dayIdx, x.k, el); });
-      wrap.appendChild(el);
-    });
-  }
-  updateMeals();
-}
-/* statuses only: Next / Now, eaten badges, "Not logged" */
-function updateMeals(){
-  const t = now(), nx = nextMeal(), today = milkOnly() ? [] : mealsOn(t);
-  today.forEach(x=>{
-    const el = $("meals").querySelector(`.meal[data-day="${x.dayIdx}"][data-k="${x.k}"]`);
-    if(!el) return;
-    const isNext = nx && nx.when==="today" && nx.dayIdx===x.dayIdx && nx.k===x.k;
-    el.classList.toggle("next", !!isNext);
-    el.classList.toggle("eaten", x.status==="eaten");
-    const tag = el.querySelector(".meal-tag span");
-    setText(tag, isNext ? (x.status==="now" ? say("home.nowLabel") : say("home.next")) : "");
-    setText(el.querySelector(".meal-note"), x.status==="past" ? say("home.notLogged") : "");
-    const q = el.querySelector(".qtick");
-    q.setAttribute("aria-pressed", String(x.status==="eaten"));
-    q.setAttribute("aria-label", `${x.m.label}: ${x.status==="eaten" ? say("peek.meal.eatenAll") : say("peek.meal.markAll")}`);
-    const btn = el.querySelector(".meal-btn");
-    const foods = listJoin(x.m.items.map(i=>lower1(baseName(i))));
-    btn.setAttribute("aria-label", `${x.m.label}, ${fmtTime(x.start)}${isNext ? ", " + tag.textContent : ""}: ${foods}${x.status==="eaten" ? ". " + say("peek.meal.eatenAll") : x.status==="past" ? ". " + say("home.notLogged") : ""}`);
-  });
-}
-/* the whole meal, marked or unmarked in one tap, without opening anything */
-function quickTick(dayIdx, k, el){
-  const m = state.plan.days[dayIdx].meals[k], all = mealEaten(m);
-  m.items.forEach(i=>setAte(i, all ? null : "all"));
-  save(); haptic();
-  afterMark(m, el && el.querySelector(".meal-art"), !all);
-}
-/* after any marking: celebrate a meal that's just complete, then let everything follow */
-function afterMark(m, from, completed){
-  if(completed && mealEaten(m)){
-    burst(from); announce(say("peek.meal.doneLine", {meal:m.label}));
-  }
-  justChanged = null;
-  renderHome(); refreshSheet();
-}
-
-/* This week: seven days from the plan's first day; a ring fills as meals are marked */
-const ringDone = {};
-function renderWeek(){
-  const strip = $("weekStrip"), iso = todayISO();
-  const narrow = new Intl.DateTimeFormat(undefined, {weekday:"narrow"}), long = new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"});
-  const days = weekDays();
-  if(strip.children.length!==7){
-    strip.innerHTML = "";
-    days.forEach(()=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "wd";
-      b.innerHTML = `<span class="wd-l"></span><span class="ring"><svg viewBox="0 0 40 40" aria-hidden="true"><circle class="r-bg" cx="20" cy="20" r="17" pathLength="100"/><circle class="r-fg" cx="20" cy="20" r="17" pathLength="100"/></svg><span class="wd-n"></span></span><i class="wd-dot" aria-hidden="true"></i>`;
-      strip.appendChild(b);
-    });
-  }
-  days.forEach((x, k)=>{
-    const b = strip.children[k], day = state.plan.days[x.dayIdx];
-    const items = day ? day.meals.flatMap(m=>m.items) : [];
-    const marked = items.filter(i=>i.ate).length, p = items.length ? marked/items.length : 0;
-    const isToday = isoOf(x.date)===iso;
-    b.dataset.k = "wd-" + k;
-    b.classList.toggle("today", isToday);
-    b.classList.toggle("past", isoOf(x.date) < iso);
-    setText(b.querySelector(".wd-l"), narrow.format(x.date));
-    setText(b.querySelector(".wd-n"), String(x.date.getDate()));
-    b.querySelector(".r-fg").style.setProperty("--p", p.toFixed(3));
-    const full = items.length > 0 && marked===items.length;
-    if(full && ringDone[k]===false && !calm()) b.querySelector(".ring").animate([{transform:"scale(1)"}, {transform:"scale(1.12)"}, {transform:"scale(1)"}], {duration:520, easing:"cubic-bezier(.32,1.25,.5,1)"});
-    ringDone[k] = full;
-    b.setAttribute("aria-label", `${long.format(x.date)}${isToday ? ", " + say("home.sections.today").toLowerCase() : ""}: ${items.length ? say("home.weekRing", {n:marked, of:items.length}) : say("peek.day.nothing")}`);
-    if(!b._bound){ b._bound = true; Peek.bind(b, {kind:"day", get arg(){ return {pos:k}; }}); }
-  });
-}
-function renderShopLine(){
-  const need = shopList(), extras = state.extras.filter(x=>!x.checked).length, n = need.length + extras;
-  setText($("shopText"), say("home.shop", {n}));
-  const stack = need.slice(0, 4);
-  const sig = stack.map(x=>x.key).join();
-  if($("shopStack").dataset.sig!==sig){
-    $("shopStack").dataset.sig = sig;
-    $("shopStack").innerHTML = stack.map((x, k)=>`<span class="st" style="--r:${[-8,5,-4,7][k]}deg;--z:${4-k}">${foodArt(x.name, {size:44, alt:"", lazy:true})}</span>`).join("");
-  }
-}
-function renderVarietyLine(){
-  const dots = $("vdots");
-  let on = 0;
-  if(!dots.children.length){
-    GROUPS.forEach(cat=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "vdot"; b.dataset.cat = cat; b.dataset.k = "v-" + cat;
-      b.innerHTML = `<i aria-hidden="true"></i><span>${esc(say("home.groups." + cat))}</span>`;
-      Peek.bind(b, {kind:"variety", arg:{cat}});
-      b.addEventListener("pointerenter", showLegend);
-      b.addEventListener("focus", showLegend);
-      b.addEventListener("click", showLegend);   // a tap is the first reach on touch
-      dots.appendChild(b);
-    });
-  }
-  [...dots.children].forEach(b=>{
-    const cat = b.dataset.cat, tried = triedFoods(cat).length > 0;
-    if(tried) on++;
-    b.classList.toggle("on", tried);
-    b.setAttribute("aria-label", `${say("home.groups." + cat)}: ${tried ? say("peek.variety.tried") : say("peek.variety.waiting")}`);
-  });
-  setText($("varText"), on===GROUPS.length ? say("home.variety.all") : say("home.variety.some"));
-}
-/* the dots' meaning, the first time someone reaches for them, then never again */
-function showLegend(){
-  if(state.legendSeen) return;
-  state.legendSeen = true; save();
-  const l = $("vlegend");
-  l.textContent = say("home.varietyLegend"); l.hidden = false;
-  if(!calm()) l.animate([{opacity:0}, {opacity:1}], {duration:250});
-  setTimeout(()=>{ l.hidden = true; }, 6000);
-}
-/* greeting, clock, headline, support, the meals (60-80 ms apart), then the rest */
-function homeEntrance(){
-  const els = [$("greet"), $("clock"), $("headline"), $("support"), ...$("meals").children, $("weekSec"), $("lines")];
-  els.forEach((el, k)=>{
-    if(!el) return;
-    el.animate(calm() ? [{opacity:0}, {opacity:1}] : [{opacity:0, transform:"translateY(12px)"}, {opacity:1, transform:"none"}],
-               {duration:420, delay:k*70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"});
-  });
-}
-
-/* a new week: the reveal, then "Love it" applies it (the old week goes to history) */
-function setNextWeek(){ Peek.close(true); openOnboarding("reveal", {single:true}); }
-
-/* ---------- the clock: every minute on the minute, paused while hidden ---------- */
-let clockTimer = 0;
-function tick(){
-  if(todayISO()!==lastISO){ mealsSig = ""; renderHome(); return; }   // midnight: today is a new day, with its own plan
-  renderClock(); renderMoment(); updateMeals(); renderWeek();
-  Peek.refresh();
-}
-function scheduleTick(){
-  clearTimeout(clockTimer);
-  if(document.hidden) return;
-  clockTimer = setTimeout(()=>{ tick(); scheduleTick(); }, 60000 - (Date.now() % 60000) + 40);
-}
-["visibilitychange", "focus", "pageshow"].forEach(ev=>addEventListener(ev, ()=>{ if(!document.hidden){ tick(); } scheduleTick(); }));
-
-/* ---------- the toast: one line and an Undo, never in the way ---------- */
-let toastTimer = 0;
-function toast(text, undo){
-  const t = $("toast");
-  t.innerHTML = "";
-  t.append(text);
-  if(undo){
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "btn-text"; b.textContent = say("peek.undo");
-    b.addEventListener("click", ()=>{ clearTimeout(toastTimer); t.hidden = true; undo(); announce(say("peek.undone")); });
-    t.append(b);
-  }
-  t.hidden = false;
-  if(!calm()) t.animate([{opacity:0, transform:"translate(-50%, 12px)"}, {opacity:1, transform:"translate(-50%, 0)"}], {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"});
-  announce(text);
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ t.hidden = true; }, 6000);
-}
-
-/* ====================================================================
-   PEEKS: the only surfaces. One element, any trigger.
-   Desktop (fine pointer): opens 90 ms into a hover, closes 160 ms after
-   the pointer leaves trigger and peek (a bridge covers the gap); click
-   pins it. Keyboard: focus opens, ↓/↑ move through its rows, Esc closes
-   and returns focus. Touch: a bottom sheet over a scrim, drag to dismiss.
-   Positioned fixed with flip/shift, so nothing on the page moves.
-   ==================================================================== */
-const Peek = (()=>{
-  const fine = matchMedia("(hover: hover) and (pointer: fine)");
-  let el = null, scrim = null, cur = null, opts = null, pinned = false, sheet = false, openT = 0, closeT = 0, quiet = null;
-  function mount(){
-    if(el) return;
-    el = document.createElement("div");
-    el.id = "peek"; el.className = "peek"; el.hidden = true;
-    el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "false"); el.tabIndex = -1;
-    scrim = document.createElement("div");
-    scrim.className = "scrim"; scrim.hidden = true;
-    scrim.addEventListener("click", ()=>close(true));
-    document.body.append(scrim, el);
-    el.addEventListener("pointerenter", ()=>clearTimeout(closeT));
-    el.addEventListener("pointerleave", e=>{ if(!pinned && !sheet && e.pointerType==="mouse") closeSoon(); });
-    el.addEventListener("keydown", onKey);
-    el.addEventListener("focusout", e=>{ if(!pinned && !sheet && !el.contains(e.relatedTarget) && e.relatedTarget!==cur) closeSoon(); });
-    // touch: drag the sheet down to let it go
-    let y0 = null, dy = 0;
-    el.addEventListener("pointerdown", e=>{ if(sheet && e.target.closest(".peek-grab")){ y0 = e.clientY; dy = 0; el.setPointerCapture(e.pointerId); } });
-    el.addEventListener("pointermove", e=>{ if(y0!==null){ dy = Math.max(0, e.clientY - y0); el.style.transform = `translateY(${dy}px)`; } });
-    el.addEventListener("pointerup", ()=>{ if(y0===null) return; y0 = null; if(dy > 80) close(true); else { el.style.transform = ""; } });
-    document.addEventListener("pointerdown", e=>{ if(cur && pinned && !sheet && !el.contains(e.target) && !cur.contains(e.target)) close(false); }, true);
-    document.addEventListener("keydown", e=>{ if(e.key==="Escape" && cur){ e.preventDefault(); close(true); } });
-    addEventListener("resize", ()=>place());
-    addEventListener("scroll", ()=>place(), {passive:true});
-  }
-  function bind(trigger, o){
-    trigger.setAttribute("aria-haspopup", "dialog");
-    trigger.setAttribute("aria-expanded", "false");
-    trigger.setAttribute("aria-controls", "peek");
-    trigger._peek = o;
-    trigger.addEventListener("pointerenter", e=>{
-      if(e.pointerType!=="mouse" || !fine.matches) return;
-      mount(); clearTimeout(closeT);
-      if(cur!==trigger){ clearTimeout(openT); openT = setTimeout(()=>open(trigger, false), 90); }
-    });
-    trigger.addEventListener("pointerleave", e=>{ if(e.pointerType!=="mouse") return; clearTimeout(openT); if(cur===trigger && !pinned) closeSoon(); });
-    trigger.addEventListener("click", ()=>{
-      mount();
-      if(!fine.matches){ open(trigger, true, true); return; }
-      if(cur===trigger && pinned){ close(false); return; }
-      open(trigger, true);
-    });
-    trigger.addEventListener("focus", ()=>{
-      if(quiet===trigger){ quiet = null; return; }   // focus coming back after Esc doesn't reopen it
-      if(trigger.matches(":focus-visible")){ mount(); open(trigger, false); }
-    });
-    trigger.addEventListener("blur", e=>{ if(cur===trigger && !pinned && !(el && el.contains(e.relatedTarget))) closeSoon(); });
-    trigger.addEventListener("keydown", e=>{
-      if(e.key==="ArrowDown" && cur===trigger){ e.preventDefault(); const r = rows(); if(r[0]) r[0].focus(); }
-    });
-  }
-  function rows(){ return el ? [...el.querySelectorAll("button:not([disabled]), input, [data-row][tabindex]")].filter(x=>x.offsetParent!==null) : []; }
-  function onKey(e){
-    if(e.key==="ArrowDown" || e.key==="ArrowUp"){
-      if(e.target.tagName==="INPUT" && e.target.type!=="time") return;
-      e.preventDefault();
-      const r = rows(), i = r.indexOf(document.activeElement);
-      const j = e.key==="ArrowDown" ? Math.min(r.length-1, i+1) : i-1;
-      if(j < 0){ cur && cur.focus(); return; }
-      r[j].focus();
-    }else if(e.key==="Tab" && !sheet && !pinned){
-      // tabbing out of a hover peek goes back to the page after its trigger
-      const r = rows();
-      if(!e.shiftKey && document.activeElement===r[r.length-1]){ const t = cur; close(false); requestAnimationFrame(()=>focusAfter(t)); }
-    }
-  }
-  function focusAfter(t){
-    const all = [...document.querySelectorAll("#home button:not([disabled]), #home a[href]")].filter(x=>x.offsetParent!==null);
-    const k = all.indexOf(t); if(all[k+1]) all[k+1].focus();
-  }
-  function open(trigger, pin, asSheet){
-    mount();
-    clearTimeout(closeT); clearTimeout(openT);
-    const same = cur===trigger && !el.hidden;
-    if(cur && cur!==trigger) close(false, true);
-    cur = trigger; opts = trigger._peek; pinned = !!pin; sheet = !!asSheet;
-    trigger.setAttribute("aria-expanded", "true");
-    trigger.classList.add("is-open");
-    if(same){ el.classList.toggle("pinned", pinned); return; }
-    render();
-    el.classList.toggle("as-sheet", sheet);
-    el.classList.toggle("pinned", pinned);
-    el.hidden = false; el.style.transform = "";
-    scrim.hidden = !sheet;
-    place();
-    if(!calm()){
-      el.animate(sheet ? [{transform:"translateY(100%)"}, {transform:"none"}]
-                       : [{opacity:0, transform:"translateY(8px) scale(.98)"}, {opacity:1, transform:"none"}],
-                 {duration: sheet ? 380 : 220, easing: sheet ? "cubic-bezier(.32,1.2,.5,1)" : "cubic-bezier(.2,.8,.2,1)"});
-      if(sheet) scrim.animate([{opacity:0}, {opacity:1}], {duration:220});
-    }
-    if(sheet){ const r = rows(); (r[0] || el).focus({preventScroll:true}); }
-  }
-  function render(){
-    const keep = el.contains(document.activeElement) ? rows().indexOf(document.activeElement) : -1;
-    const scroll = el.scrollTop;
-    el.innerHTML = sheet ? `<div class="peek-grab" aria-hidden="true"><i></i></div>` : "";
-    const body = document.createElement("div");
-    body.className = "peek-body";
-    PEEKS[opts.kind](body, opts.arg || {});
-    el.appendChild(body);
-    const title = body.querySelector("h2");
-    if(title){ title.id = "peekTitle"; el.setAttribute("aria-labelledby", "peekTitle"); }
-    el.scrollTop = scroll;
-    if(keep >= 0){ const r = rows(); (r[Math.min(keep, r.length-1)] || el).focus({preventScroll:true}); }
-  }
-  function place(){
-    if(!el || el.hidden || !cur || sheet){ if(el && sheet){ el.style.left = el.style.top = ""; } return; }
-    if(!document.contains(cur)){ close(false, true); return; }
-    const r = cur.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight, m = 8, gap = 10;
-    const below = innerHeight - r.bottom - gap - m, above = r.top - gap - m;
-    const down = h <= below || below >= above;
-    el.style.maxHeight = Math.max(200, down ? below : above) + "px";
-    const hh = Math.min(h, down ? below : above);
-    el.style.top = (down ? r.bottom + gap : r.top - gap - hh) + "px";
-    el.style.left = Math.max(m, Math.min(r.left + r.width/2 - w/2, innerWidth - w - m)) + "px";
-    el.classList.toggle("above", !down);
-    // the bridge reaches back to the trigger, so the pointer can travel across the gap
-    el.style.setProperty("--bridge-x", (r.left - parseFloat(el.style.left)) + "px");
-    el.style.setProperty("--bridge-w", r.width + "px");
-  }
-  function closeSoon(){ clearTimeout(closeT); closeT = setTimeout(()=>close(false), 160); }
-  function close(returnFocus, instant){
-    clearTimeout(closeT); clearTimeout(openT);
-    if(!el || !cur) return;
-    const t = cur;
-    t.setAttribute("aria-expanded", "false");
-    t.classList.remove("is-open");
-    cur = null; pinned = false;
-    const wasSheet = sheet; sheet = false;
-    const hide = ()=>{ if(cur) return; el.hidden = true; scrim.hidden = true; el.innerHTML = ""; el.style.transform = ""; };
-    if(instant || calm()) hide();
-    else{
-      const a = el.animate(wasSheet ? [{transform:el.style.transform || "none"}, {transform:"translateY(100%)"}] : [{opacity:1}, {opacity:0, transform:"translateY(4px) scale(.99)"}],
-                           {duration: wasSheet ? 220 : 140, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
-      if(wasSheet) scrim.animate([{opacity:1}, {opacity:0}], {duration:200, fill:"forwards"}).onfinish = function(){ this.cancel(); };
-      a.onfinish = ()=>{ a.cancel(); hide(); };
-    }
-    if(returnFocus && document.contains(t) && document.activeElement!==t){ quiet = t; t.focus({preventScroll:true}); if(document.activeElement!==t) quiet = null; }
-  }
-  /* after any change, an open peek redraws in place (focus and scroll kept) */
-  function refresh(){ if(el && cur && !el.hidden){ if(!document.contains(cur)){ const k = cur.dataset.k; const again = k && document.querySelector(`[data-k="${k}"]`); if(again){ again._peek = again._peek || cur._peek; cur = again; again.setAttribute("aria-expanded", "true"); again.classList.add("is-open"); } else { close(false, true); return; } } render(); place(); } }
-  return {bind, open, close, refresh, get el(){ return el; }, get trigger(){ return cur; }};
-})();
-
-/* ---------- what each peek holds ---------- */
-const tickSVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg>`;
-function peekHead(body, title, sub){
-  body.insertAdjacentHTML("beforeend", `<div class="p-head"><h2>${esc(title)}</h2>${sub ? `<p class="p-sub">${sub}</p>` : ""}</div>`);
-}
-function peekFoot(body, label, fn){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "p-foot"; b.textContent = label;
-  b.addEventListener("click", ()=>{ Peek.close(false, true); fn(); });
-  body.appendChild(b);
-}
-function tickBtn(on, label, fn){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "tick"; b.setAttribute("aria-pressed", String(!!on)); b.setAttribute("aria-label", label);
-  b.innerHTML = tickSVG;
-  b.addEventListener("click", e=>{ e.stopPropagation(); fn(); });
-  return b;
-}
-/* three safe alternatives from the same food group for this meal */
-function alternatives(m, k){
-  const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
-  const taken = new Set(m.items.map(i=>i.name));
-  const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile));
-  const withArt = pool.filter(f=>hasArt(foodOf(f.name))), rest = pool.filter(f=>!hasArt(foodOf(f.name)));
-  return shuffled(withArt).concat(shuffled(rest)).slice(0, 3);
-}
-let peekOpen = {swap:null, more:null, time:false, log:false};   // which inline part of the meal peek is open
-const PEEKS = {
-  /* a meal: its foods, each with texture and amount, a tick, swap / skip / how it went */
-  meal(body, {day, meal}){
-    const d = state.plan.days[day], m = d && d.meals[meal];
-    if(!m){ body.textContent = say("peek.day.nothing"); return; }
-    const isToday = day===planDayIndex(now());
-    const at = mealTime(m.slot, now());
-    peekHead(body, m.label, "");
-    const sub = body.querySelector(".p-sub") || body.querySelector(".p-head").appendChild(Object.assign(document.createElement("p"), {className:"p-sub"}));
-    if(peekOpen.time && isToday){
-      sub.innerHTML = `<label class="p-time"><span class="sr-only">${esc(m.label)}</span><input type="time" step="300" value="${at}"></label> <span>${esc(say("peek.meal.todayOnly"))}</span>`;
-      const ti = sub.querySelector("input");
-      ti.addEventListener("change", ()=>{
-        const v = hhmm(ti.value); if(!v) return;
-        const P = state.profile, iso = todayISO();
-        const times = P.timesToday && P.timesToday.date===iso ? Object.assign({}, P.timesToday.times) : {};
-        times[m.slot] = fmtHHMM(v);
-        P.timesToday = {date:iso, times};
-        peekOpen.time = false; save(); mealsSig = ""; renderHome();
-        announce(say("peek.meal.movedTo", {meal:m.label, time:fmtTime(atTime(now(), times[m.slot]))}));
-      });
-      requestAnimationFrame(()=>ti.focus());
-    }else{
-      sub.append(fmtTime(atTime(now(), at)));
-      if(isToday){
-        const ct = document.createElement("button");
-        ct.type = "button"; ct.className = "btn-text small"; ct.textContent = say("peek.meal.changeTime");
-        ct.addEventListener("click", ()=>{ peekOpen.time = true; Peek.refresh(); });
-        sub.append(" · ", ct);
-      }
-    }
-    // the whole meal at once
-    const all = mealEaten(m);
-    const sw = document.createElement("button");
-    sw.type = "button"; sw.className = "p-switch"; sw.setAttribute("aria-pressed", String(all));
-    sw.innerHTML = `<span>${esc(say("peek.meal.allEaten"))}</span><i aria-hidden="true"></i>`;
-    sw.addEventListener("click", ()=>{ m.items.forEach(i=>setAte(i, all ? null : "all")); save(); haptic(); afterMark(m, Peek.trigger, !all); });
-    body.appendChild(sw);
-    const list = document.createElement("div");
-    list.className = "p-rows";
-    m.items.forEach((item, k)=>{
-      const row = document.createElement("div");
-      row.className = "p-row" + (item.ate ? " marked" : "");
-      const bits = [item.tex, item.qty].filter(Boolean).map(esc);
-      const state_ = item.ate==="some" ? say("peek.meal.ateSome") : item.ate==="refused" ? say("peek.meal.refused") : "";
-      row.innerHTML = `${foodArt(item.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(item))}${isNewFood(item) ? ` <em class="p-new">${esc(say("peek.meal.new"))}</em>` : ""}<span class="p-meta">${item.tex ? esc(item.tex) : ""}${item.tex && item.qty ? " · " : ""}<span class="p-amt">${esc(item.qty || "")}</span>${state_ ? ` · ${esc(state_)}` : ""}</span></span><span class="p-acts"></span>`;
-      const acts = row.querySelector(".p-acts");
-      const act = (label, fn, extra)=>{ const b = document.createElement("button"); b.type = "button"; b.className = "p-act"; b.textContent = label; if(extra) Object.entries(extra).forEach(([a, v])=>b.setAttribute(a, v)); b.addEventListener("click", fn); acts.appendChild(b); return b; };
-      act(say("peek.meal.swap"), ()=>{ peekOpen.swap = peekOpen.swap===item.id ? null : item.id; peekOpen.more = null; Peek.refresh(); }, {"aria-expanded":String(peekOpen.swap===item.id), "aria-label":say("peek.meal.swapFood", {food:baseName(item)})});
-      act(say("peek.meal.skip"), ()=>{
-        const at = m.items.indexOf(item);
-        if(item.eaten) setAte(item, null);
-        m.items.splice(at, 1); save(); renderHome(); refreshSheet();
-        toast(say("peek.meal.skipped", {food:baseName(item)}), ()=>{ m.items.splice(at, 0, item); save(); renderHome(); refreshSheet(); });
-      }, {"aria-label":say("peek.meal.skipFood", {food:baseName(item)})});
-      act("⋯", ()=>{ peekOpen.more = peekOpen.more===item.id ? null : item.id; peekOpen.swap = null; Peek.refresh(); }, {"aria-expanded":String(peekOpen.more===item.id), "aria-label":say("peek.meal.more", {food:baseName(item)}), "class":"p-act p-dots"});
-      row.appendChild(tickBtn(item.ate==="all", say("peek.meal.eatenFood", {food:baseName(item)}), ()=>{
-        const was = mealEaten(m);
-        setAte(item, item.ate==="all" ? null : "all"); save(); haptic();
-        afterMark(m, row.querySelector(".tick"), !was);
-      }));
-      list.appendChild(row);
-      if(peekOpen.swap===item.id){
-        const alts = alternatives(m, k), box = document.createElement("div");
-        box.className = "p-swap";
-        if(!alts.length) box.textContent = say("peek.meal.noSwap");
-        alts.forEach(f=>{
-          const b = document.createElement("button");
-          b.type = "button"; b.className = "p-alt";
-          b.innerHTML = `${foodArt(f.name, {size:28, alt:""})}<span>${esc(f.name.split(",")[0])}</span>`;
-          b.addEventListener("click", ()=>{
-            const at = m.items.indexOf(item), old = item;
-            if(old.eaten) setAte(old, null);
-            const fresh = dish(f, stageFor(planMonths()));
-            m.items[at] = fresh;
-            peekOpen.swap = null; save(); haptic(); renderHome(); refreshSheet();
-            toast(say("peek.meal.swapped", {food:lower1(f.name.split(",")[0])}), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = old; save(); renderHome(); refreshSheet(); });
-          });
-          box.appendChild(b);
-        });
-        list.appendChild(box);
-      }
-      if(peekOpen.more===item.id){
-        const box = document.createElement("div");
-        box.className = "p-swap p-more";
-        [["some", say("peek.meal.ateSome")], ["refused", say("peek.meal.refused")]].forEach(([v, label])=>{
-          const b = document.createElement("button");
-          b.type = "button"; b.className = "p-alt"; b.setAttribute("aria-pressed", String(item.ate===v)); b.textContent = label;
-          b.addEventListener("click", ()=>{ const was = mealEaten(m); setAte(item, item.ate===v ? null : v); peekOpen.more = null; save(); haptic(); afterMark(m, Peek.trigger, !was); });
-          box.appendChild(b);
-        });
-        list.appendChild(box);
-      }
-    });
-    body.appendChild(list);
-    // something that wasn't on the plan
-    if(peekOpen.log){
-      const f = document.createElement("p");
-      f.className = "p-log";
-      const b = blank({min:8, maxLength:30, label:say("peek.meal.logOther"), onEnter:()=>{
-        const v = b.input.value.trim(); if(!v){ peekOpen.log = false; Peek.refresh(); return; }
-        const pool = FOOD_POOL.find(x=>foodOf(x.name) && foodOf(x.name)===foodOf(v));
-        const it_ = it(pool ? pool.name : v, "", pool ? pool.cats.slice() : ["other"]);
-        const rule = lockedRule(it_.name, ageNow());
-        if(rule){ toast(keepOutReason(it_.name)); return; }
-        m.items.push(it_); setAte(it_, "all"); peekOpen.log = false; save(); renderHome(); refreshSheet();
-        toast(say("peek.meal.logged", {food:upper1(v)}), ()=>{ setAte(it_, null); m.items.splice(m.items.indexOf(it_), 1); save(); renderHome(); refreshSheet(); });
-      }});
-      b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.stopPropagation(); peekOpen.log = false; Peek.refresh(); } });
-      f.append(b.el);
-      body.appendChild(f);
-      requestAnimationFrame(()=>b.input.focus());
-    }else{
-      const lb = document.createElement("button");
-      lb.type = "button"; lb.className = "btn-text small p-logbtn"; lb.textContent = say("peek.meal.logOther");
-      lb.addEventListener("click", ()=>{ peekOpen.log = true; Peek.refresh(); });
-      body.appendChild(lb);
-    }
-    peekFoot(body, say("peek.meal.open"), ()=>showSheet("meal", {day, meal}));
-  },
-
-  /* a day: its meals, eaten or planned; future meals can swap their main food */
-  day(body, {pos}){
-    const x = weekDays()[pos], d = state.plan.days[x.dayIdx], iso = todayISO(), past = isoOf(x.date) < iso;
-    peekHead(body, new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"}).format(x.date), "");
-    const list = document.createElement("div");
-    list.className = "p-rows";
-    const meals = d ? d.meals.map((m, k)=>({m, k})).filter(y=>y.m.items.length) : [];
-    if(!meals.length) list.innerHTML = `<p class="p-empty">${esc(say("peek.day.nothing"))}</p>`;
-    meals.forEach(({m, k})=>{
-      const row = document.createElement("div");
-      row.className = "p-row";
-      const status = mealEaten(m) ? say("peek.meal.eatenAll") : past ? say("home.notLogged") : "";
-      row.innerHTML = `${foodArt(m.items[0].name, {size:28, alt:""})}<span class="p-name">${esc(m.label)} <span class="p-amt">· ${esc(fmtTime(atTime(x.date, mealTime(m.slot, x.date))))}</span><span class="p-meta">${esc(foodsLine(m))}${status ? " · " + esc(status) : ""}</span></span><span class="p-acts"></span>`;
-      if(!past && !mealEaten(m)){
-        const b = document.createElement("button");
-        b.type = "button"; b.className = "p-act"; b.textContent = say("peek.meal.swap");
-        b.setAttribute("aria-label", say("peek.meal.swapFood", {food:baseName(m.items[0])}));
-        b.addEventListener("click", ()=>{
-          const old = m.items[0];
-          if(swapItem(m, 0)){ const fresh = m.items[0]; renderHome(); refreshSheet(); toast(say("peek.meal.swapped", {food:lower1(baseName(fresh))}), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = old; save(); renderHome(); refreshSheet(); }); }
-        });
-        row.querySelector(".p-acts").appendChild(b);
-      }
-      if(mealEaten(m)) row.insertAdjacentHTML("beforeend", `<span class="tick static" aria-hidden="true" data-on="1">${tickSVG}</span>`);
-      list.appendChild(row);
-    });
-    body.appendChild(list);
-    if(x.dayIdx >= 0) peekFoot(body, say("peek.day.open"), ()=>showSheet("week", {day:x.dayIdx}));
-  },
-
-  /* shop: what to pick up, soonest first; a tick means bought, and the row settles into In stock */
-  shop(body){
-    const need = shopList();
-    peekHead(body, say("home.sections.shop"), esc(say("home.shop", {n:need.length + state.extras.filter(x=>!x.checked).length})));
-    const list = document.createElement("div");
-    list.className = "p-rows";
-    need.forEach(n=>{
-      const {short} = shortfall(n.key);
-      const st = state.stock[n.key];
-      const when = st && st.g>0 && short ? say("peek.shop.runsOut", {day:dayWordFor(short)}) : say("peek.shop.forDay", {day:dayWordFor(n.days.slice().sort((a, b)=>dayDisplayOrder().map(i=>state.plan.days[i].name).indexOf(a) - dayDisplayOrder().map(i=>state.plan.days[i].name).indexOf(b))[0])});
-      const row = document.createElement("div");
-      row.className = "p-row";
-      row.innerHTML = `${foodArt(n.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(n))}<span class="p-meta">${esc(when)}</span></span>`;
-      row.appendChild(tickBtn(false, say("peek.shop.bought", {food:baseName(n)}), ()=>{
-        const amt = toBuy(n), g = amt===null ? null : buyPacks(n.name, amt).g;
-        const before = state.stock[n.key] ? Object.assign({}, state.stock[n.key]) : null;
-        const t = row.querySelector(".tick"); t.setAttribute("aria-pressed", "true"); haptic();
-        setTimeout(()=>{ addToStock(n.key, n.name, g); renderHome(); refreshSheet(); toast(say("peek.shop.boughtLine", {food:baseName(n)}), ()=>{ if(before) state.stock[n.key] = before; else delete state.stock[n.key]; save(); renderHome(); refreshSheet(); }); }, calm() ? 0 : 200);
-      }));
-      list.appendChild(row);
-    });
-    state.extras.filter(x=>!x.checked).forEach(x=>{
-      const row = document.createElement("div");
-      row.className = "p-row";
-      row.innerHTML = `${foodArt("plate", {size:28, alt:""})}<span class="p-name">${esc(x.name)}<span class="p-meta">${esc(x.qty || "")}</span></span>`;
-      row.appendChild(tickBtn(false, say("peek.shop.bought", {food:x.name}), ()=>{ x.checked = true; save(); haptic(); renderHome(); refreshSheet(); toast(say("peek.shop.boughtLine", {food:x.name}), ()=>{ x.checked = false; save(); renderHome(); refreshSheet(); }); }));
-      list.appendChild(row);
-    });
-    if(!list.children.length) list.innerHTML = `<p class="p-empty">${esc(say("home.shop", {n:0}))}</p>`;
-    body.appendChild(list);
-    // in stock: this week's foods that are at home
-    const week = Object.values(needOn(windowDays("week"))).filter(n=>toBuy(n)===0);
-    if(week.length){
-      body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.shop.inStock"))}</h3>`);
-      const s = document.createElement("div");
-      s.className = "p-rows";
-      week.forEach(n=>{
-        const row = document.createElement("div");
-        row.className = "p-row marked";
-        row.innerHTML = `${foodArt(n.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(n))}</span>`;
-        row.appendChild(tickBtn(true, say("peek.shop.atHome", {food:baseName(n)}), ()=>{
-          const before = state.stock[n.key];
-          delete state.stock[n.key]; save(); haptic(); renderHome(); refreshSheet();
-          toast(say("peek.shop.notHome", {food:baseName(n)}), ()=>{ state.stock[n.key] = before; save(); renderHome(); refreshSheet(); });
-        }));
-        s.appendChild(row);
-      });
-      body.appendChild(s);
-    }
-    peekFoot(body, say("peek.shop.open"), ()=>showSheet("shop"));
-  },
-
-  /* a food group: what's been tried this week, and three safe ideas that drop into the next open meal */
-  variety(body, {cat}){
-    peekHead(body, say("home.groups." + cat), "");
-    const tried = triedFoods(cat);
-    body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.variety.tried"))}</h3>`);
-    const t = document.createElement("div");
-    t.className = "p-art-row";
-    t.innerHTML = tried.length ? tried.map(f=>`<span class="p-art">${foodArt(f, {size:40, alt:""})}<span>${esc(f)}</span></span>`).join("")
-                               : `<p class="p-empty">${esc(say("peek.variety.none"))}</p>`;
-    body.appendChild(t);
-    body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.variety.next"))}</h3>`);
-    const P = state.profile, months = planMonths(), have = new Set(tried.map(f=>f.toLowerCase()));
-    const planned = new Set(state.plan.days.flatMap(d=>d.meals.flatMap(m=>m.items.map(i=>i.name))));
-    // not tried yet this week: not-yet-planned first, then ones with a drawing
-    const ideas = shuffledFor(eligibleFoods(months, P).filter(f=>f.cats[0]===cat && !have.has(f.name.split(",")[0].toLowerCase()) && !dislikeMatch(f.name, P)), cat + todayISO())
-      .sort((a, b)=>(planned.has(a.name) - planned.has(b.name)) || (hasArt(foodOf(b.name)) - hasArt(foodOf(a.name)))).slice(0, 3);
-    const n = document.createElement("div");
-    n.className = "p-art-row";
-    if(!ideas.length) n.innerHTML = `<p class="p-empty">${esc(say("peek.variety.allPlanned"))}</p>`;
-    ideas.forEach(f=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "p-art p-idea";
-      b.innerHTML = `${foodArt(f.name, {size:40, alt:""})}<span>${esc(f.name.split(",")[0])}</span>`;
-      b.setAttribute("aria-label", say("peek.variety.add", {food:f.name.split(",")[0]}));
-      b.addEventListener("click", ()=>{
-        const slot = nextOpenSlot(f);
-        if(!slot){ toast(say("peek.variety.noSlot")); return; }
-        const item = dish(f, stageFor(months));
-        slot.m.items.push(item); save(); haptic(); mealsSig = ""; renderHome(); refreshSheet();
-        toast(say("peek.variety.added", {food:upper1(f.name.split(",")[0]), meal:slot.label}), ()=>{ slot.m.items.splice(slot.m.items.indexOf(item), 1); save(); mealsSig = ""; renderHome(); refreshSheet(); });
-      });
-      n.appendChild(b);
-    });
-    body.appendChild(n);
-    peekFoot(body, say("peek.variety.open"), ()=>showSheet("variety"));
-  },
-
-  /* the profile menu */
-  profile(body){
-    const P = state.profile;
-    peekHead(body, P.name || say("home.profile.label"), P.birthDate ? esc(ageLabel(ageNow()) + " · " + stageNow().name) : "");
-    const list = document.createElement("div");
-    list.className = "p-rows p-menu-rows";
-    [["profile", ()=>openOnboarding("name", {through:"birthday"})],
-     ["allergens", ()=>openOnboarding("keepout", {through:"priorities"})],
-     ["mealTimes", ()=>openOnboarding("mealtimes", {single:true})],
-     ["nextWeek", setNextWeek],
-     ["replay", ()=>openOnboarding("welcome", {replay:true})]].forEach(([k, fn])=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "p-menu-row"; b.textContent = say("home.profile." + k);
-      if(k==="mealTimes" && !stageNow().solids && !P.exploreEarly) b.disabled = true;
-      b.addEventListener("click", ()=>{ Peek.close(false, true); fn(); });
-      list.appendChild(b);
-    });
-    body.appendChild(list);
-  }
-};
-/* the same order all day for the same key, so suggestions don't jump between peeks */
-function shuffledFor(arr, key){
-  const a = arr.slice();
-  let h = 2166136261; for(let k=0; k<key.length; k++){ h ^= key.charCodeAt(k); h = Math.imul(h, 16777619) >>> 0; }
-  for(let i=a.length-1; i>0; i--){ h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; const j = h % (i+1); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-}
-/* the next meal still to come that this food suits (today first, then the rest of the week) */
-function nextOpenSlot(f){
-  for(const x of weekDays()){
-    if(isoOf(x.date) < todayISO() || x.dayIdx < 0) continue;
-    const list = isoOf(x.date)===todayISO() ? mealsOn(now()).filter(y=>y.status==="upcoming" || y.status==="now") : mealsOn(x.date);
-    const hit = list.find(y=>{ const ms = MEAL_SLOTS.find(s=>s.id===y.slot); return ms && f.slots.includes(ms.slot) && !y.m.items.some(i=>i.name===f.name) && !mealEaten(y.m); });
-    if(hit) return {m:hit.m, label:hit.m.label.toLowerCase()};
-  }
-  return null;
-}
 
 /* ---------- onboarding ----------
    One sentence per screen, completed by you: the field sits inside the
@@ -4074,8 +1985,14 @@ function planMonths(){
   const m = ageNow();
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
-/* meal times only matter once there are meals */
-function stepApplies(key){ return key!=="mealtimes" || planMonths() >= 6; }
+/* Ask late: a first run (or a replay) asks only what safety needs (name,
+   birthday, allergens); the rest is asked later, in context, one at a time,
+   and always reachable from the profile sheet. Meal times need meals. */
+const LATE_STEPS = ["priorities","athome","mealtimes"];
+function stepApplies(key){
+  if(key==="mealtimes" && planMonths() < 6) return false;
+  return !LATE_STEPS.includes(key) || !!onb.single;
+}
 function stepAfter(n){ let k = n + 1; while(k < ONB_STEPS.length-1 && !stepApplies(ONB_STEPS[k])) k++; return k; }
 function stepBefore(n){ let k = n - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return Math.max(0, k); }
 function nextStep(){ goStep(stepAfter(onb.step)); }
@@ -4105,10 +2022,10 @@ function closeOnboarding(){
   document.body.classList.remove("onb-open");
   document.querySelector(".container").inert = false;
   clearInterval(welTimer); clearTimeout(onb.revealTimer);
-  mealsSig = "";
-  renderKitchen(); renderCreate(); renderHome();
+  homeChanged();
 }
 function finishOnboarding(){
+  if(!state.profile.firstDay) state.profile.firstDay = todayISO();   // late questions never come on day one
   state.profile.onboarded = true;
   state.profile.onboardingStep = 0;
   delete state.profile.returning;
@@ -4466,7 +2383,6 @@ function onbKeepout(card, P){
   const word = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.loved") : say("onb.keepOut.neutral");
   ALLERGENS.forEach(a=>{
     const b = pillBtn(a.label, ALLERGEN_ART[a.id] || null);
-    if(!ALLERGEN_ART[a.id]) b.querySelector(".food-art").textContent = a.emoji;
     const paint = ()=>{
       const st = P.allergens[a.id] || "";
       b.dataset.state = st==="avoid" ? "out" : st==="ok" ? "loved" : "";
@@ -4543,21 +2459,6 @@ function onbKeepout(card, P){
   why.addEventListener("click", ()=>{ wl.hidden = !wl.hidden; why.setAttribute("aria-expanded", String(!wl.hidden)); });
   card.append(locked, line(say("onb.keepOut.note"), "onb-note"));
   onbCta(card, say("onb.next"), nextStep);
-}
-/* the locked rules, as a quiet row; tap one to hear why (the Plan sheet still uses this) */
-function buildLockedRow(container, months){
-  container.innerHTML = `<p class="locked-head">Always kept out at this age</p>`;
-  const why = document.createElement("p");
-  why.className = "locked-why"; why.setAttribute("aria-live", "polite");
-  LOCKED_RULES.filter(r=>!r.until || months < r.until).forEach(r=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "locked-rule";
-    b.innerHTML = `<span class="lock" aria-hidden="true"></span>${r.label}`;
-    b.setAttribute("aria-label", `${r.label}, always kept out. Why?`);
-    b.addEventListener("click", ()=>{ why.textContent = r.why; });
-    container.appendChild(b);
-  });
-  container.appendChild(why);
 }
 
 /* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */
@@ -4645,7 +2546,8 @@ function onbMealTimes(card, P){
     rows.appendChild(r);
   });
   card.append(rows, line(say("onb.mealTimes.line")));
-  onbCta(card, say("onb.mealTimes.cta"), nextStep, {extra:[{label:say("onb.mealTimes.usual"), on:()=>{ P.mealTimes = {}; save(); nextStep(); }}]});
+  onbCta(card, say("onb.mealTimes.cta"), ()=>{ P.mealTimesConfirmed = true; save(); nextStep(); },
+         {extra:[{label:say("onb.mealTimes.usual"), on:()=>{ P.mealTimes = {}; P.mealTimesConfirmed = true; save(); nextStep(); }}]});
 }
 
 /* 8. the reveal: the table being set (≤ 2.5 s, skippable), then the week; applied only on "Love it" */
@@ -4665,7 +2567,7 @@ function onbReveal(card, P){
     h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.reveal.title");
     const row = document.createElement("div");
     row.className = "rv-row"; row.setAttribute("aria-hidden", "true");
-    row.innerHTML = draw.slice(0, 6).map((id, k)=>`<span class="rv-item" style="--k:${k};--r:${[-6,4,-3,6,-5,3][k]}deg">${foodArt(id, {size:72, alt:""})}</span>`).join("");
+    row.innerHTML = draw.slice(0, 6).map((id, k)=>`<span class="rv-item" style="--k:${k};--r:${[-6,4,-3,6,-5,3][k]}deg">${foodArt(id, {size:32})}</span>`).join("");
     card.append(row, h);
     const done = ()=>{ if(onb.revealed) return; onb.revealed = true; clearTimeout(onb.revealTimer); if(ONB_STEPS[onb.step]==="reveal"){ renderOnb(); focusStep(); } };
     const skip = document.createElement("button");
@@ -4711,52 +2613,14 @@ function weekPreview(week){
     const col = document.createElement("div");
     col.className = "wk-day";
     col.innerHTML = `<span class="wk-name">${narrow.format(date)}</span>` +
-      mains.slice(0, 3).map((i, k)=>`<span class="wk-art" style="--r:${[-6,5,-3][k]}deg">${foodArt(i.name, {size:40, alt:baseName(i)})}</span>`).join("");
+      mains.slice(0, 3).map((i, k)=>`<span class="wk-art" style="--r:${[-6,5,-3][k]}deg">${foodArt(i.name, {size:28})}</span>`).join("");
     col.setAttribute("aria-label", `${DAY_FULL(date)}: ${mains.map(baseName).join(", ")}`);
     col.setAttribute("role", "group");
     wrap.appendChild(col);
   });
   return wrap;
 }
-/* ---------- init ---------- */
-currentDay = dayDisplayOrder()[0];
-
-renderDayContent();
-renderKitchen();
-renderVariety();
-renderCreate();
-renderSummaries();
-/* the section labels become links to the full views; their words come from content.js */
-[["todayLabel", "today", ()=>showSheet("week", {day:planDayIndex(now())})], ["weekLabel", "week", ()=>showSheet("week")],
- ["shopLabel", "shop", ()=>showSheet("shop")], ["varLabel", "variety", ()=>showSheet("variety")]].forEach(([id, k, fn])=>{
-  const b = document.getElementById(id);
-  b.querySelector("span").textContent = say("home.sections." + k);
-  b.setAttribute("aria-label", say("home.sections." + k) + ": " + say("home.openFull"));
-  b.addEventListener("click", fn);
-});
-Peek.bind(document.getElementById("shopLine"), {kind:"shop"});
-Peek.bind(document.getElementById("profileBtn"), {kind:"profile"});
-scheduleTick();
-if(!state.profile.onboarded) openOnboarding();
-/* offline: register the service worker once the page has settled (never on
-   file://, never during tests) */
-if("serviceWorker" in navigator && location.protocol.startsWith("http") && !/[?&]test\b/.test(location.search)){
-  (window.requestIdleCallback || (f=>setTimeout(f, 1500)))(()=>navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(warmArt).catch(()=>{}));
-}
-/* after the first paint, quietly fetch this week's drawings (and the welcome's) at the sizes this screen uses,
-   so peeks and tomorrow's meals open instantly, and offline */
-function warmArt(){
-  const ids = new Set(HERO_FOODS);
-  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(f) ids.add(f.id); })));
-  const big = devicePixelRatio > 1.5 ? "w384" : "w192";
-  const urls = [...ids].map(id=>FOOD_BY_ID[id]).filter(hasArt).flatMap(f=>[f.files[big], f.files.w64]);
-  let k = 0;
-  const next = ()=>{ if(k >= urls.length) return; const batch = urls.slice(k, k += 6); Promise.all(batch.map(u=>fetch(u).catch(()=>{}))).then(()=>(window.requestIdleCallback || setTimeout)(next)); };
-  next();
-}
-document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
-  state.groceryFilter = b.dataset.w; save(); renderKitchen();
-}));
 </script>
+<script src="home.js"></script>
 </body>
 </html>

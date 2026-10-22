@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · moment tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Moment line tests</h1>
+<p>The one line under the headline, picked by the first rule that applies, with the clock set by hand (Thursday 22 October 2026). Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test";
+f.style.cssText = "width:390px;height:300px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    const at = (h, m, d = 22) => `new Date(2026, 9, ${d}, ${h}, ${m})`;
+    // a household with nothing pending: introduced allergens, everything in stock, meal times confirmed, a day-one well past
+    const setup = (months, clock, extra) => {
+      E(`setClock(${clock || at(15, 0)})`);
+      E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months || 18}, now()),
+           firstDay: "2026-10-01", mealTimesConfirmed: true, priorities: ["iron"], allergens: {egg: "ok", milk: "ok", peanut: "ok", treenuts: "ok", wheat: "ok", soy: "ok", fish: "ok", shellfish: "ok", sesame: "ok"}});
+         state.plan = generateWeek(${Math.max(6, months || 18)}, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+         state.foods = {}; state.exposures = {banana: 1}; state.moment = {}; state.asked = {}; state.extras = [];
+         state.stock = {}; state.plan.days.forEach(d => d.meals.forEach(m => m.items.forEach(i => { state.stock[foodKey(i.name)] = {name: i.name, g: null, plenty: true}; })));
+         ${extra || ""}`);
+    };
+    const M = () => E("momentLine()");
+    const actions = m => m.actions.map(a => a[0]);
+
+    setup(); const quiet = M();
+    ok("nothing pending: a daily food tip, the same all day", quiet.key === "tip" && quiet.text && E("momentLine().text") === quiet.text, quiet);
+    ok("…with no actions", quiet.actions.length === 0);
+
+    // 1. under 6 months
+    setup(4, at(9, 0));
+    ok("4 months: 'Solids start in 2 months.' and nothing to tap", M().text === "Solids start in 2 months." && M().actions.length === 0);
+
+    // 2. stage changed this month
+    setup(12, at(15, 0), `state.profile.lastStage = "textures";`);
+    let m = M();
+    ok("12 months, new stage: 'Lula is 12 months. Textures are changing.'", m.text === "Lula is 12 months. Textures are changing." && JSON.stringify(actions(m)) === JSON.stringify(["Update the week", "Later"]), m);
+    m.actions[1][1]();
+    ok("Later puts it away for today", M().key !== "stage" && E("state.moment.later").includes("stage"));
+    E(`setClock(${at(15, 0, 23)})`);
+    ok("…and it's back the next day", M().key === "stage");
+    setup(13, at(15, 0), `state.profile.lastStage = "textures";`);
+    ok("only in the month the stage changes (13 months: no line)", M().key !== "stage", M().key);
+
+    // 3. a first allergen today: calm, never playful
+    setup(18, at(15, 0), `state.profile.allergens = {}; state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`);
+    m = M();
+    ok("egg for the first time: the calm line", /^Egg, for the first time\. A small taste, then keep an eye on how Lula feels\.$/.test(m.text) && m.tone === "calm", m);
+    ok("…with 'What to watch for'", JSON.stringify(actions(m)) === JSON.stringify(["What to watch for"]));
+    m.actions[0][1]();
+    ok("…which opens the note: 'Not medical advice…'", f.contentDocument.getElementById("sheet").open && /Not medical advice\./.test(f.contentDocument.getElementById("sheetBody").textContent));
+    E("closeSheet(true)");
+    setup(18, at(15, 0), `state.profile.allergens = {}; state.foods = {"egg, well cooked": {safety: "introduced", safetyOn: "2026-10-20"}};
+      ALLERGENS.forEach(a => { if (a.id !== "egg") state.profile.allergens[a.id] = "ok"; });
+      state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`);
+    ok("egg introduced on an earlier day: no allergen line", !/^allergen/.test(M().key), M().key);
+    ok("the stage line comes before the allergen line", (setup(12, at(15, 0), `state.profile.lastStage = "textures"; state.profile.allergens = {}; state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`), M().key) === "stage");
+
+    // 4. no plan for today
+    setup(18, at(15, 0), `state.plan.days[planDayIndex(now())].meals.forEach(m => m.items = []);`);
+    ok("nothing planned today: 'Set the week for Lula.' with 'Set the week'", M().text === "Set the week for Lula." && actions(M())[0] === "Set the week", M());
+
+    // 5. the week is over
+    setup(18, at(15, 0), `state.weekStarted = "2026-10-14";`);
+    ok("a week later: 'Week done. Ready for the next?' with 'Set next week'", M().text === "Week done. Ready for the next?" && actions(M())[0] === "Set next week", M());
+
+    // 6. shopping, before 19:00
+    setup(18, at(15, 0), `state.stock = {};`);
+    m = M();
+    ok("things running out: '{n} things for the next 3 days.' with 'Send the list'", /^\d+ things? for the next 3 days\.$/.test(m.text) && actions(m)[0] === "Send the list", m);
+    E(`setClock(${at(19, 5)})`);
+    ok("…not after 19:00", M().key !== "shop", M().key);
+    setup(18, at(15, 0), `state.profile.shopDay = 4;`);
+    ok("nothing running out, but it's shopping day… still nothing to pick up, so no line", M().key !== "shop");
+
+    // 7. after the last meal, tomorrow's plan
+    setup(18, at(20, 30));
+    m = M();
+    ok("after dinner: 'Tomorrow: {food1} and {food2}.' with 'Send tomorrow'", /^Tomorrow: [a-z].* and [a-z].*\.$/.test(m.text) && actions(m)[0] === "Send tomorrow", m);
+    E(`state.profile.people = [{id: "a", name: "Ana", phone: "+34600112233", role: ""}]`);
+    ok("…'Send to Ana' once a person is saved", actions(M())[0] === "Send to Ana");
+
+    // after 21:30: quiet
+    setup(18, at(21, 45), `state.stock = {};`);
+    m = M();
+    ok("after 21:30: only tomorrow's first meal, no actions", m.key === "quiet" && /^Breakfast tomorrow: /.test(m.text) && m.actions.length === 0, m);
+
+    // 8. late questions
+    setup(18, at(15, 0), `state.profile.mealTimesConfirmed = false;`);
+    m = M();
+    ok("meal times not confirmed: 'What time does lunch usually happen?' with Set / Later", m.text === "What time does lunch usually happen?" && JSON.stringify(actions(m)) === JSON.stringify(["Set", "Later"]), m);
+    m.actions[1][1]();
+    ok("Later: no other question today (one a day)", (E(`state.profile.priorities = []`), !/^ask:/.test(M().key)), M().key);
+    E(`setClock(${at(15, 0, 23)})`);
+    ok("…another day, a question can come back", /^ask:/.test(M().key), M().key);
+    setup(18, at(15, 0), `state.profile.mealTimesConfirmed = false; state.profile.firstDay = "2026-10-22";`);
+    ok("never on day one", !/^ask:/.test(M().key));
+    setup(18, at(12, 45), `state.profile.mealTimesConfirmed = false;`);
+    ok("never while a meal is 'now'", !/^ask:/.test(M().key), M().key);
+    setup(18, at(15, 0), `state.profile.priorities = [];`);
+    ok("priorities, after the first week", M().text === "Anything to lean on this week, like iron or quick meals?", M().text);
+    setup(18, at(15, 0), `state.asked = {shared: "2026-10-20"};`);
+    ok("people, after the first share", M().text === "Anyone else looking after Lula?", M().text);
+    E("setClock(null)");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · moment";
+};
+</script>
+</body></html>

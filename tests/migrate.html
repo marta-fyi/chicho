@@ -24,14 +24,14 @@ f.onload = () => {
     const v4 = M({schemaVersion: 4, createAge: 10, plan: week(), excludedFoods: ["Broccoli", "Honey", "Added salt or sugar", "Whole nuts"],
       grocery: [{id: "a", name: "Oatmeal", cat: "grain", checked: true, manual: false, entries: [{day: "Monday", qty: "40 g"}, {day: "Tuesday", qty: "60 g"}]},
                 {id: "b", name: "Diapers", qty: "1 pack", cat: "other", checked: true, manual: true}]});
-    ok("schema becomes 7", v4.schemaVersion === 7, v4.schemaVersion);
+    ok("schema becomes 8", v4.schemaVersion === 8, v4.schemaVersion);
     ok("createAge 10 → birth date 10 months ago", w.ageMonths(v4.profile.birthDate) === 10, [v4.profile.birthDate, w.ageMonths(v4.profile.birthDate)]);
     ok("createAge and excludedFoods are gone", !("createAge" in v4) && !("excludedFoods" in v4), Object.keys(v4));
     ok("Broccoli becomes a dislike", JSON.stringify(v4.profile.avoid) === JSON.stringify([{name: "Broccoli", kind: "dislike"}]), v4.profile.avoid);
     ok("locked items (honey, salt, nuts) drop: they're locked now", !v4.profile.avoid.some(a => /honey|salt|nuts/i.test(a.name)), v4.profile.avoid);
     const mon = v4.plan.days[0].meals[0].items, tue = v4.plan.days[1].meals[0].items;
-    ok("eaten:true → ate:'all', still served", mon[0].ate === "all" && mon[0].eaten === true, mon[0]);
-    ok("not eaten → ate:null", tue[0].ate === null && tue[0].eaten === false, tue[0]);
+    ok("a food marked in an old save is offered now", mon[0].offered === true && !("ate" in mon[0]), mon[0]);
+    ok("an unmarked food is not offered", tue[0].offered === false, tue[0]);
     ok("old ticked grocery becomes stock (100 g oatmeal)", v4.stock.oatmeal && v4.stock.oatmeal.g === 100, v4.stock);
     ok("manual grocery becomes a ticked extra", v4.extras.length === 1 && v4.extras[0].name === "Diapers" && v4.extras[0].checked, v4.extras);
     ok("onboarding still to do, plan kept", v4.profile.onboarded === false && v4.plan.days.length === 7, [v4.profile.onboarded, v4.plan.days.length]);

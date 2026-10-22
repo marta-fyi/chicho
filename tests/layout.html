@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · layout tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
+<body>
+<h1>Layout tests</h1>
+<p>What is above the fold at 1440×900 and 390×844 (Thursday 22 October 2026, 12:10, an 18-month-old's day). Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const load = (W, H) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = W; f.height = H;
+  f.src = "../index.html?test&now=2026-10-22T12:10";
+  document.body.append(f);
+  f.onload = async () => {
+    f.contentWindow.eval(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+      ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+      state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`);
+    await wait(700);
+    res(f);
+  };
+});
+(async () => {
+  try {
+    localStorage.clear();
+    const wide = await load(1440, 900), d = wide.contentDocument;
+    const fold = (doc, sel, H) => { const els = [...doc.querySelectorAll(sel)]; return els.length > 0 && els.every(e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= H && r.height > 0; }); };
+    ["#clock", "#who", "#headline", "#moment", "#openMeal .mx-title", "#openMeal .fr", "#openMeal .offer-pill"].forEach(sel =>
+      ok(`1440×900: ${sel} is above the fold`, fold(d, sel, 900), [...d.querySelectorAll(sel)].map(e => Math.round(e.getBoundingClientRect().bottom))));
+    ok("1440×900: the week and the shop line wait below the fold", d.getElementById("weekSec").getBoundingClientRect().top >= 900 - 1);
+    ok("1440×900: the column is about 520px", Math.abs(d.querySelector(".lockscreen").getBoundingClientRect().width - 520) <= 20, d.querySelector(".lockscreen").getBoundingClientRect().width);
+    ok("1440×900: the header is centred, the content left-aligned", getComputedStyle(d.querySelector(".head")).textAlign === "center" && getComputedStyle(d.querySelector(".mx")).textAlign !== "center");
+    const narrow = await load(390, 844), n = narrow.contentDocument;
+    ["#headline", "#openMeal .mx-title", "#openMeal .fr"].forEach(sel =>
+      ok(`390×844: ${sel} is above the fold`, fold(n, sel, 844), [...n.querySelectorAll(sel)].map(e => Math.round(e.getBoundingClientRect().bottom))));
+    const top = n.querySelector(".top").getBoundingClientRect();
+    ok("390×844: the top bar sits inside the screen (nothing clipped)", top.top >= 0 && n.getElementById("sendBtn").getBoundingClientRect().right <= 390 && n.getElementById("profileBtn").getBoundingClientRect().right <= 390);
+    ok("every control on the first screen is at least 44px", [...n.querySelectorAll("#home button")].filter(b => b.offsetParent && b.getBoundingClientRect().top < 844).every(b => { const r = b.getBoundingClientRect(); return r.height >= 44 || b.classList.contains("inline"); }),
+       [...n.querySelectorAll("#home button")].filter(b => b.offsetParent && b.getBoundingClientRect().height < 44 && !b.classList.contains("inline")).map(b => b.className));
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · layout";
+})();
+</script>
+</body></html>

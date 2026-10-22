@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
 <h1>Clock tests</h1>
-<p>The time-aware home, with the clock set by hand: meal status, the next meal, the headline rules, the grace boundary, midnight, daylight saving, custom times and the stages with fewer meals. Every line should be PASS.</p>
+<p>Soft anchors with the clock set by hand: status (upcoming, now for 60 minutes, earlier, offered), the next meal, the headline rules and the tab title, midnight, daylight saving, custom times and the stages with fewer meals. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -15,110 +15,95 @@ document.body.append(f);
 f.onload = () => {
   try {
     const w = f.contentWindow, E = x => w.eval(x);
-    // Thursday 22 October 2026, in local time
     const at = (h, m, d = 22, mo = 9, y = 2026) => `new Date(${y},${mo},${d},${h},${m})`;
     const T = (h, m, d, mo, y) => E(`fmtTime(${at(h, m, d, mo, y)})`);
     const setup = (months, clock) => {
       E(`setClock(${clock || at(6, 0)})`);
       E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}, now())});
-         state.plan = generateWeek(${months}, state.profile); state.exposures = {};`);
+         state.plan = generateWeek(${months}, state.profile); state.exposures = {}; state.foods = {};`);
     };
-    const moment = clock => { E(`setClock(${clock})`); return E("homeMoment()"); };
-    const H = clock => moment(clock).headline;
-    const eat = slot => E(`mealsOn(now()).forEach(x => { if (x.slot === "${slot}") x.m.items.forEach(i => i.ate = "all"); })`);
+    const H = clock => (E(`setClock(${clock})`), E("headlineNow()"));
+    const offer = slot => E(`mealsOn(now()).forEach(x => { if (x.slot === "${slot}") x.m.items.forEach(i => setOffered(i, true)); })`);
+    ok("one named constant holds the now window: 60 minutes", E("NOW_WINDOW_MIN") === 60);
 
-    // an 18-month-old: breakfast 08:00, snack 10:30, lunch 12:30, snack 16:00, dinner 19:00
     setup(18);
-    ok("slots and default times follow the stage", E("mealsOn(now()).map(x => x.slot + '@' + x.time).join()") === "breakfast@08:00,snack1@10:30,lunch@12:30,snack2@16:00,dinner@19:00",
-       E("mealsOn(now()).map(x => x.slot + '@' + x.time).join()"));
-    ok("before the first meal: 'Breakfast at 8:00.'", H(at(6, 30)) === `Breakfast at ${T(8, 0)}.`, H(at(6, 30)));
-    ok("45 minutes before: 'Breakfast in 45 minutes.'", H(at(7, 15)) === "Breakfast in 45 minutes.", H(at(7, 15)));
-    ok("1 minute before: 'in 1 minute'", H(at(7, 59)) === "Breakfast in 1 minute.", H(at(7, 59)));
-    ok("exactly at meal time: 'Breakfast time.'", H(at(8, 0)) === "Breakfast time.", H(at(8, 0)));
-    ok("89 minutes after: still 'Breakfast time.'", H(at(9, 29)) === "Breakfast time.", H(at(9, 29)));
-    ok("91 minutes after: breakfast is past, the snack is next", H(at(9, 31)) === "Snack in 59 minutes.", H(at(9, 31)));
-    ok("…and breakfast reads as past (unlogged), not now", E(`(setClock(${at(9, 31)}), mealsOn(now())[0].status)`) === "past");
-    ok("the support line names the next meal's foods", /^[A-Z][^.]*\.$/.test(moment(at(9, 31)).support) && moment(at(9, 31)).support === E("foodsLine(nextMeal().m)"), moment(at(9, 31)).support);
-    ok("the tab answers what's next: 'Chicho · Snack in 59 min'", moment(at(9, 31)).title === "Chicho · Snack in 59 min", moment(at(9, 31)).title);
-    ok("the state key holds still from one minute to the next", moment(at(7, 15)).key === moment(at(7, 16)).key && moment(at(7, 15)).key === "soon:breakfast");
-    ok("'now' is announced once, as 'Breakfast time'", moment(at(8, 5)).announce === "Breakfast time" && !moment(at(7, 15)).announce);
+    ok("slots and default anchors follow the stage", E("mealsOn(now()).map(x => x.slot + '@' + x.time).join()") === "breakfast@08:00,snack1@10:30,lunch@12:30,snack2@16:00,dinner@19:00");
+    // the brief's times
+    ok("07:30 → 'Breakfast in 30 minutes.'", H(at(7, 30)).headline === "Breakfast in 30 minutes.", H(at(7, 30)).headline);
+    ok("12:10 → 'Lunch in 20 minutes.' (the snack is earlier now)", H(at(12, 10)).headline === "Lunch in 20 minutes.", H(at(12, 10)).headline);
+    ok("…and the morning snack reads earlier, never missed", E(`(setClock(${at(12, 10)}), mealsOn(now())[1].status)`) === "earlier");
+    ok("12:50 → 'Lunch time.' (inside the 60 minutes)", H(at(12, 50)).headline === "Lunch time.", H(at(12, 50)).headline);
+    ok("14:35 → 'Snack around 4:00.' (lunch's hour is over)", H(at(14, 35)).headline === `Snack around ${T(16, 0)}.`, H(at(14, 35)).headline);
+    ok("19:30 → 'Dinner time.'", H(at(19, 30)).headline === "Dinner time.", H(at(19, 30)).headline);
+    ok("19:59 → still 'Dinner time.'", H(at(19, 59)).headline === "Dinner time.", H(at(19, 59)).headline);
+    ok("20:01 → after the last meal: 'Breakfast tomorrow around 8:00.'", H(at(20, 1)).headline === `Breakfast tomorrow around ${T(8, 0)}.`, H(at(20, 1)).headline);
+    ok("23:59 → the same", H(at(23, 59)).headline === `Breakfast tomorrow around ${T(8, 0)}.`, H(at(23, 59)).headline);
+    ok("1 minute before: 'in 1 minute'", H(at(7, 59)).headline === "Breakfast in 1 minute.", H(at(7, 59)).headline);
+    ok("exactly at the anchor: 'Breakfast time.'", H(at(8, 0)).headline === "Breakfast time.");
+    ok("the tab: 'Lunch in 20 min · Chicho'", H(at(12, 10)).title === "Lunch in 20 min · Chicho", H(at(12, 10)).title);
+    ok("the tab: 'Snack around 4:00 · Chicho'", H(at(14, 35)).title === `Snack around ${T(16, 0)} · Chicho`, H(at(14, 35)).title);
+    ok("the state key holds still from one minute to the next", H(at(7, 15)).key === H(at(7, 16)).key);
+    ok("'now' is announced once: 'Breakfast time'", H(at(8, 5)).announce === "Breakfast time" && !H(at(7, 15)).announce);
 
-    // an eaten meal is skipped when finding the next one
-    setup(18, at(7, 40)); eat("breakfast");
-    ok("breakfast eaten early: next is the snack at 10:30", H(at(7, 50)) === `Snack at ${T(10, 30)}.`, H(at(7, 50)));
-    ok("…and breakfast's status is eaten", E("mealsOn(now())[0].status") === "eaten");
-
-    // after the last meal
-    setup(18);
-    ok("after the last meal, unlogged: 'Breakfast tomorrow at 8:00.' (no nagging)", H(at(20, 31)) === `Breakfast tomorrow at ${T(8, 0)}.`, H(at(20, 31)));
-    ok("…during dinner's grace it's still 'Dinner time.'", H(at(20, 29)) === "Dinner time.", H(at(20, 29)));
-    E(`setClock(${at(20, 31)})`); ["breakfast", "snack1", "lunch", "snack2", "dinner"].forEach(eat);
-    const done = moment(at(20, 31));
-    const friFood = E(`lower1(baseName(state.plan.days[planDayIndex(${at(8, 0, 23)})].meals.find(m => m.slot === "breakfast").items[0]))`);
-    ok("every meal marked: 'Plates cleared. Good day.'", done.headline === "Plates cleared. Good day.", done.headline);
-    ok("…with tomorrow's first meal and its food underneath", done.support === `Breakfast tomorrow at ${T(8, 0)}: ${friFood}.`, done.support);
-    ok("…announced once as 'All meals eaten'", done.announce === "All meals eaten");
-    ok("dinner eaten early also clears the day", (() => { E(`setClock(${at(19, 20)})`); return E("homeMoment().kind"); })() === "cleared");
+    // offered meals are skipped over when finding the next one
+    setup(18, at(7, 40)); offer("breakfast");
+    ok("breakfast offered early: next is the snack", H(at(7, 50)).headline === `Snack around ${T(10, 30)}.`, H(at(7, 50)).headline);
+    ok("…and breakfast's status is offered", E("mealsOn(now())[0].status") === "offered");
+    setup(18, at(8, 10)); offer("breakfast");
+    ok("the now meal, once offered, gives way to the next", H(at(8, 10)).headline === `Snack around ${T(10, 30)}.`, H(at(8, 10)).headline);
+    // the day done
+    setup(18, at(20, 30)); ["breakfast", "snack1", "lunch", "snack2", "dinner"].forEach(offer);
+    ok("every meal offered: 'That's today done.'", H(at(20, 30)).headline === "That's today done.", H(at(20, 30)).headline);
+    ok("…and dinner offered early also finishes the day", (setup(18, at(19, 10)), ["breakfast", "snack1", "lunch", "snack2", "dinner"].forEach(offer), H(at(19, 10)).kind) === "done");
 
     // midnight
     setup(18);
-    const late = moment(at(23, 59));
-    ok("23:59 Thursday: tomorrow's breakfast, from Friday's plan", late.kind === "tomorrow" && late.next.dayIdx === E(`planDayIndex(${at(8, 0, 23)})`), [late.kind, late.next && late.next.dayIdx]);
-    const early = moment(at(0, 1, 23));
-    ok("00:01 Friday: today is Friday now, 'Breakfast at 8:00.'", early.headline === `Breakfast at ${T(8, 0, 23)}.` && early.next.when === "today" && early.next.dayIdx === E(`planDayIndex(${at(8, 0, 23)})`), [early.headline, early.next]);
-    ok("00:01 Friday: Friday's meals are all upcoming", E("mealsOn(now()).every(x => x.status === 'upcoming')"));
+    const late = H(at(23, 59));
+    ok("23:59 Thursday: tomorrow's breakfast, from Friday's plan", late.kind === "tomorrow" && late.next.dayIdx === E(`planDayIndex(${at(8, 0, 23)})`));
+    const early = H(at(0, 1, 23));
+    ok("00:01 Friday: 'Breakfast around 8:00.' from Friday's plan", early.headline === `Breakfast around ${T(8, 0, 23)}.` && early.next.when === "today" && early.next.dayIdx === E(`planDayIndex(${at(8, 0, 23)})`), early.headline);
 
-    // daylight saving (in this machine's zone; Europe moves on 29 March and 25 October 2026)
+    // daylight saving (Europe changes on 29 March and 25 October 2026)
     setup(18, at(6, 0, 29, 2));
-    ok("spring forward day: breakfast is at 8:00 local", E(`atTime(${at(0, 0, 29, 2)}, "08:00").getHours()`) === 8);
-    ok("spring forward day, 7:15: 'Breakfast in 45 minutes.'", H(at(7, 15, 29, 2)) === "Breakfast in 45 minutes.", H(at(7, 15, 29, 2)));
-    ok("fall back day, 7:15: 'Breakfast in 45 minutes.'", H(at(7, 15, 25)) === "Breakfast in 45 minutes.", H(at(7, 15, 25)));
-    const sat = moment(at(23, 30, 24));
-    ok("Saturday 23:30 before fall back: tomorrow's breakfast lands on Sunday at 8:00", sat.next && E(`(() => { const n = (setClock(${at(23, 30, 24)}), nextMeal()); return n.start.getDate() === 25 && n.start.getHours() === 8; })()`), sat.next);
-    ok("the day after a short night is the next calendar day (no 24h steps)", E(`tomorrowOf(${at(0, 30, 25)}).getDate()`) === 26 && E(`tomorrowOf(${at(23, 30, 28, 2)}).getDate()`) === 29);
+    ok("spring forward: breakfast is 8:00 local", E(`atTime(${at(0, 0, 29, 2)}, "08:00").getHours()`) === 8);
+    ok("spring forward, 7:15: 'Breakfast in 45 minutes.'", H(at(7, 15, 29, 2)).headline === "Breakfast in 45 minutes.");
+    ok("fall back, 7:15: 'Breakfast in 45 minutes.'", H(at(7, 15, 25)).headline === "Breakfast in 45 minutes.");
+    ok("Saturday 23:30 before fall back: tomorrow's breakfast lands on Sunday 8:00", E(`(() => { setClock(${at(23, 30, 24)}); const n = nextMeal(); return n.start.getDate() === 25 && n.start.getHours() === 8; })()`));
+    ok("the day after a short night is the next calendar day", E(`tomorrowOf(${at(0, 30, 25)}).getDate()`) === 26 && E(`tomorrowOf(${at(23, 30, 28, 2)}).getDate()`) === 29);
 
     // their own times
-    setup(18, at(9, 0)); eat("snack1");
+    setup(18, at(9, 0)); offer("snack1");
     E(`state.profile.mealTimes = {lunch: "11:45"}`);
-    ok("a custom lunch at 11:45: at 11:00 'Lunch in 45 minutes.'", H(at(11, 0)) === "Lunch in 45 minutes.", H(at(11, 0)));
+    ok("a custom lunch at 11:45: at 11:00 'Lunch in 45 minutes.'", H(at(11, 0)).headline === "Lunch in 45 minutes.");
     E(`state.profile.timesToday = {date: "2026-10-22", times: {lunch: "13:15"}}`);
-    ok("today's one-off change wins: 'Lunch at 1:15.'", H(at(11, 0)) === `Lunch at ${T(13, 15)}.`, H(at(11, 0)));
-    ok("…and only today: Friday's lunch is back at 11:45", E(`mealTime("lunch", ${at(0, 0, 23)})`) === "11:45");
+    ok("today's one-off change wins: 'Lunch around 1:15.'", H(at(11, 0)).headline === `Lunch around ${T(13, 15)}.`);
+    ok("…and only today", E(`mealTime("lunch", ${at(0, 0, 23)})`) === "11:45");
     E(`state.profile.timesToday = null; state.profile.mealTimes = {}`);
 
     // stages with fewer meals
     setup(6, at(9, 0));
-    ok("6 months: lunch only", E("mealsOn(now()).map(x => x.slot).join()") === "lunch", E("mealsOn(now()).map(x => x.slot).join()"));
-    ok("6 months, 9:00: 'Lunch at 12:30.'", H(at(9, 0)) === `Lunch at ${T(12, 30)}.`, H(at(9, 0)));
-    ok("6 months, 14:01 (past, unlogged): 'Lunch tomorrow at 12:30.'", H(at(14, 1)) === `Lunch tomorrow at ${T(12, 30)}.`, H(at(14, 1)));
-    setup(7, at(6, 0));
-    ok("7 months: breakfast joins lunch", E("mealsOn(now()).map(x => x.slot).join()") === "breakfast,lunch");
-    setup(10, at(6, 0));
-    ok("10 months: three meals, dinner at 18:30", E("mealsOn(now()).map(x => x.slot + '@' + x.time).join()") === "breakfast@08:00,lunch@12:30,dinner@18:30");
+    ok("6 months: lunch only", E("mealsOn(now()).map(x => x.slot).join()") === "lunch");
+    ok("6 months, 9:00: 'Lunch around 12:30.'", H(at(9, 0)).headline === `Lunch around ${T(12, 30)}.`);
+    ok("6 months, 13:31: 'Lunch tomorrow around 12:30.'", H(at(13, 31)).headline === `Lunch tomorrow around ${T(12, 30)}.`, H(at(13, 31)).headline);
+    setup(7); ok("7 months: breakfast joins lunch", E("mealsOn(now()).map(x => x.slot).join()") === "breakfast,lunch");
+    setup(10); ok("10 months: three meals, dinner at 18:30", E("mealsOn(now()).map(x => x.slot + '@' + x.time).join()") === "breakfast@08:00,lunch@12:30,dinner@18:30");
 
     // under 6 months, and no plan
     setup(4, at(9, 0));
-    const milk = moment(at(9, 0));
-    ok("4 months: 'Milk is all Lula needs right now.'", milk.headline === "Milk is all Lula needs right now." && milk.support === "Solids start in 2 months.", milk);
-    ok("5 months: 'Solids start in 1 month.'", (setup(5, at(9, 0)), moment(at(9, 0)).support) === "Solids start in 1 month.");
+    ok("4 months: 'Milk is all Lula needs right now.'", H(at(9, 0)).headline === "Milk is all Lula needs right now.");
     setup(18, at(9, 0)); E("state.plan.days.forEach(d => d.meals.forEach(m => m.items = []))");
-    const empty = moment(at(9, 0));
-    ok("no plan: 'The table's empty. Shall we set it?' + 'Set the week'", empty.headline === "The table's empty. Shall we set it?" && empty.action === "Set the week", empty);
+    ok("no plan: 'The table's empty.'", H(at(9, 0)).headline === "The table's empty.");
 
-    // a new food
-    setup(18, at(9, 31)); E("state.exposures = {banana: 2}");
-    const nxt = E("nextMeal().m.items.map(i => baseName(i))");
-    const s = moment(at(9, 31)).support;
-    ok("a new food in the next meal: '{Food} is new today. One curious taste is a win.'", s === `${nxt[0]} is new today. One curious taste is a win.` || (nxt[0] === "Banana" && /is new today/.test(s)), [s, nxt]);
-
-    // the clock line, in the reader's locale
-    ok("the date line has the weekday, day, month and time", E(`fmtDateTime(${at(14, 35)})`).includes("Thursday") && E(`fmtDateTime(${at(14, 35)})`).includes("22") && E(`fmtDateTime(${at(14, 35)})`).includes(T(14, 35)), E(`fmtDateTime(${at(14, 35)})`));
-
-    // schema 7: old plans get slot ids from their labels
-    const old = E(`migrate({schemaVersion: 6, profile: {birthDate: "2025-04-01", onboarded: true}, plan: {days: [{name: "Monday", meals: [
-      {label: "Breakfast", items: []}, {label: "Snack", items: []}, {label: "Lunch", items: []}, {label: "Snack", items: []}, {label: "Dinner", items: []}]}]}})`);
-    ok("schema 7: labels become slots (two snacks told apart)", old.plan.days[0].meals.map(m => m.slot).join() === "breakfast,snack1,lunch,snack2,dinner", old.plan.days[0].meals.map(m => m.slot));
-    ok("schema 7: meal times start empty and bad ones drop", JSON.stringify(E(`migrate({profile: {birthDate: "2025-04-01", mealTimes: {lunch: "9:5", dinner: "18:30", tea: "17:00", snack1: "7:15"}}}).profile.mealTimes`)) === JSON.stringify({dinner: "18:30", snack1: "07:15"}));
+    // schema 8: offered replaces the old marks
+    const old = E(`migrate({schemaVersion: 7, profile: {birthDate: "2025-04-01", onboarded: true}, plan: {days: [{name: "Monday", meals: [
+      {label: "Breakfast", slot: "breakfast", items: [{id: "a", name: "Oatmeal", qty: "40 g", cats: ["grain"], ["e" + "aten"]: true, ate: "all"}, {id: "b", name: "Banana", qty: "60 g", cats: ["fruit"], ["e" + "aten"]: true, ate: "some"}]},
+      {label: "Lunch", slot: "lunch", items: [{id: "c", name: "Peas", qty: "40 g", cats: ["vegetable"], ate: "refused"}]},
+      {label: "Dinner", slot: "dinner", items: [{id: "d", name: "Pasta", qty: "40 g", cats: ["grain"]}]}]}]}})`);
+    const ms = old.plan.days[0].meals;
+    ok("schema 8: any mark becomes offered", ms[0].items.every(i => i.offered === true) && ms[1].items[0].offered === true && ms[2].items[0].offered === false);
+    ok("…how it went moves to the meal: some → 'some', refused → 'nottoday'", ms[0].outcome === "some" && ms[1].outcome === "nottoday" && !("outcome" in ms[2]), ms.map(m => m.outcome));
+    ok("…and the old fields are gone", ms.every(m => m.items.every(i => !("ate" in i) && !(("e" + "aten") in i))));
+    ok("schema 8: people, self and the late-question memory start empty", JSON.stringify(old.profile.people) === "[]" && old.profile.self.phone === "" && typeof old.asked === "object");
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · suggestion tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>"While you're at it" tests</h1>
+<p>suggestAlso() on small hand-made weeks (Thursday 22 October 2026): each rule, its order, the cap of two, lead-time gating, the family-salt retirement and the prepped flag. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test";
+f.style.cssText = "width:390px;height:300px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    // a blank week, then only the meals each case needs
+    E(`window.tMk = (spec, months) => {
+      state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(months || 18, new Date(2026, 9, 22))});
+      const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(name => ({name, meals: []}));
+      const slots = {breakfast: "Breakfast", snack1: "Snack", lunch: "Lunch", snack2: "Snack", dinner: "Dinner"};
+      spec.forEach(([day, slot, foods, extra]) => {
+        const d = days.find(x => x.name === day);
+        const m = meal(slots[slot], "", foods.map(([n, q]) => { const p = FOOD_POOL.find(x => x.name === n); return it(n, q, p.cats.slice()); }), slot);
+        Object.assign(m, extra || {});
+        d.meals.push(m);
+      });
+      days.forEach(d => d.meals.sort((a, b) => MEAL_SLOTS.findIndex(s => s.id === a.slot) - MEAL_SLOTS.findIndex(s => s.id === b.slot)));
+      state.plan = {days};
+      return state.plan;
+    };
+    window.tRef = (day, slot, date) => {
+      const dayIdx = state.plan.days.findIndex(d => d.name === day), k = state.plan.days[dayIdx].meals.findIndex(m => m.slot === slot);
+      const m = state.plan.days[dayIdx].meals[k];
+      return {m, k, dayIdx, date, start: atTime(date, mealTime(slot, date))};
+    };
+    window.tS = (r, nowD, pantry, seen) => suggestAlso(r, state.plan, nowD, state.profile, pantry || {}, seen || {});`);
+    const thu = "new Date(2026, 9, 22)", fri = "new Date(2026, 9, 23)";
+
+    // 2. shared ingredient (and 4. batch & freeze, 5. salt) — capped at two, in order
+    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Friday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
+    let s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("carrots today and tomorrow: 'Steam double. It's in lunch tomorrow (another 45 g).'", s[0] && s[0].kind === "double" && s[0].text === "Steam double. It's in lunch tomorrow (another 45 g).", s);
+    ok("…it points at tomorrow's lunch", s[0] && s[0].target && s[0].target.dayIdx === E(`state.plan.days.findIndex(d => d.name === "Friday")`));
+    ok("never more than two, and never two about the same food (double, then salt)", s.length === 2 && s[1].kind === "salt", s.map(x => x.kind));
+    const before = E("JSON.stringify(state.plan)");
+    E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("pure: asking changes nothing in the plan", E("JSON.stringify(state.plan)") === before);
+    ok("only foods already in the plan are ever suggested", s.every(x => E(`state.plan.days.some(d => d.meals.some(m => m.items.some(i => i.name === ${JSON.stringify(x.food)})))`)));
+    // the prepped flag
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {done: [tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))[0].id]})`);
+    ok("a suggestion marked done today stops appearing", !s.some(x => x.kind === "double"), s.map(x => x.kind));
+    // 4. batch and freeze: a freezable food used twice this week, beyond the 48-hour window
+    E(`tMk([["Monday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("carrots twice this week: 'Make double carrots and freeze half in small portions.'", s[0] && s[0].kind === "freeze" && s[0].text === "Make double carrots and freeze half in small portions.", s);
+    ok("…with the storage note", s[0] && s[0].note === E(`say("storage")`));
+    // nothing to share beyond 48 hours
+    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Sunday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("the same food three days later isn't a shared ingredient (48-hour window)", !s.some(x => x.kind === "double"), s.map(x => x.kind));
+
+    // 1. lead time: a frozen portion to defrost, while there's time
+    E(`tMk([["Thursday", "lunch", [["Rice, soft-cooked", "40 g"]]], ["Friday", "dinner", [["Lentils", "40 g"]], {from: "Wednesday"}]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("a batch portion tomorrow: 'Move the lentils to the fridge tonight…' comes first", s[0] && s[0].kind === "defrost" && /Move the lentils to the fridge tonight\. It's in dinner tomorrow\./.test(s[0].text), s);
+    E(`tMk([["Friday", "lunch", [["Rice, soft-cooked", "40 g"]]], ["Friday", "dinner", [["Lentils", "40 g"]], {from: "Wednesday"}]])`);
+    s = E(`tS(tRef("Friday", "lunch", ${fri}), new Date(2026, 9, 23, 13, 0))`);
+    ok("six hours before: too late to defrost, so it isn't suggested", !s.some(x => x.kind === "defrost"), s.map(x => x.kind));
+    // soak: only for dried legumes in the pantry (canned is the default)
+    E(`tMk([["Thursday", "lunch", [["Rice, soft-cooked", "40 g"]]], ["Friday", "lunch", [["Lentils", "40 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("lentils treated as canned: no soaking", !s.some(x => x.kind === "soak"), s.map(x => x.kind));
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {lentils: {name: "Lentils", g: 500, dried: true}})`);
+    ok("dried lentils in the pantry: 'Soak the lentils tonight. It's in lunch tomorrow.'", s[0] && s[0].kind === "soak" && s[0].text === "Soak the lentils tonight. It's in lunch tomorrow.", s);
+
+    // 3. the same appliance
+    E(`tMk([["Thursday", "lunch", [["Sweet potato", "45 g"]]], ["Thursday", "dinner", [["Pumpkin", "45 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("the oven's on for lunch and dinner roasts too: 'The oven's on. Roast the pumpkin for dinner later today too.'", s.some(x => x.kind === "oven" && x.text === "The oven's on. Roast the pumpkin for dinner later today too."), s);
+
+    // 5. family salt: 12 months and up, lunch or dinner, retired after three showings
+    E(`tMk([["Thursday", "lunch", [["Banana", "45 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
+    ok("18 months at lunch: 'Cooking for the family? Set aside Lula's portion before adding salt.'", s.some(x => x.kind === "salt" && x.text === "Cooking for the family? Set aside Lula's portion before adding salt."), s);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {salt: 3})`);
+    ok("…retired after three showings", !s.some(x => x.kind === "salt"));
+    E(`tMk([["Thursday", "breakfast", [["Banana", "45 g"]]]])`);
+    ok("…never at breakfast", !E(`tS(tRef("Thursday", "breakfast", ${thu}), new Date(2026, 9, 22, 7, 0))`).some(x => x.kind === "salt"));
+    E(`tMk([["Thursday", "lunch", [["Banana", "45 g"]]]], 10)`);
+    ok("…and not before 12 months", !E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`).some(x => x.kind === "salt"));
+
+    // on the home: marking one saves it for the day and flags the later meal
+    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "dinner", [["Carrots, soft-cooked", "45 g"]]]]); setClock(new Date(2026, 9, 22, 11, 0)); state.weekStarted = "2026-10-22"; state.prepped = {}; state.profile.lastStage = stageNow().id; closeOnboarding(); homeChanged();`);
+    const btn = f.contentDocument.querySelector(".also-btn");
+    ok("the open meal shows its suggestions with 'I'll do it'", !!btn && btn.textContent.includes("I'll do it"));
+    btn.click();
+    ok("marking it saves it for the day", E("state.prepped.date") === "2026-10-22" && E("state.prepped.done.length") === 1);
+    ok("…and the later meal's row says 'Carrots · prepped'", /Carrots · prepped/.test(f.contentDocument.getElementById("nextSec").textContent), f.contentDocument.getElementById("nextSec").textContent);
+    E("setClock(null)");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · suggest";
+};
+</script>
+</body></html>
