@@ -3,8 +3,8 @@
    it's online) and falls back to the cached copy; the image and icons are
    cache-first. Everything the family enters lives in localStorage, so it's
    already offline. Bump VERSION with every release so old caches go. */
-const VERSION = "chicho-v1";
-const SHELL = ["./", "index.html", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const VERSION = "chicho-v2";
+const SHELL = ["./", "index.html", "foods.js", "content.js", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(VERSION).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -26,7 +26,7 @@ self.addEventListener("fetch", e=>{
     return;
   }
   e.respondWith(caches.match(req).then(hit=>hit || fetch(req).then(res=>{
-    if(res.ok && SHELL.some(p=>req.url.endsWith(p.replace("./","")))){ const copy = res.clone(); caches.open(VERSION).then(c=>c.put(req, copy)); }
+    if(res.ok && (SHELL.some(p=>req.url.endsWith(p.replace("./",""))) || req.url.includes("/img/food/"))){ const copy = res.clone(); caches.open(VERSION).then(c=>c.put(req, copy)); }
     return res;
   })));
 });

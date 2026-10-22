@@ -713,6 +713,11 @@
     content:"";position:absolute;left:50%;top:50%;width:max(100%, 44px);height:max(100%, 44px);translate:-50% -50%;
   }
 
+  /* ---------- food art (foods.js → foodArt()): a drawing, or its emoji ---------- */
+  .food-art{display:inline-block;width:var(--art);height:var(--art);flex:none;line-height:1;}
+  .food-art img{display:block;width:100%;height:100%;transform:scale(var(--scale,1));}
+  .food-emoji{display:inline-grid;place-items:center;font-size:calc(var(--art) * .62);}
+
   /* ---------- micro-interactions ---------- */
   .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}
   .bp{position:absolute;left:0;top:0;display:block;opacity:0;}
@@ -911,6 +916,8 @@ function timeOfDay(d){
 </dialog>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
 
+<script src="foods.js"></script>
+<script src="content.js"></script>
 <script>
 /* ---------- category meta ---------- */
 const CATS = {
@@ -1633,21 +1640,10 @@ const CAT_OPTIONS = Object.entries(CATS).map(([k,v])=>[k, v.label]);
 /* ---------- the fan: today's meals as tilted tiles ----------
    Each tile shows the meal's main food: a photo if the item carries one
    (item.photo), otherwise a big emoji on its food group's pastel. */
-const FOOD_EMOJI = {
-  "egg":"🥚","chicken":"🍗","turkey":"🦃","beef":"🥩","beef meatballs":"🧆","salmon":"🐟","white fish":"🐟",
-  "lentils":"🫘","chickpeas":"🫘","tofu":"🍢","greek yogurt":"🥛","cottage cheese":"🥛","ricotta":"🥛","cheese":"🧀",
-  "carrots":"🥕","sweet potato":"🍠","pumpkin":"🎃","butternut squash":"🎃","zucchini":"🥒","green beans":"🫛","peas":"🫛",
-  "cauliflower":"🥦","potato":"🥔","spinach":"🥬","beetroot":"🟣","cucumber":"🥒","tomato":"🍅",
-  "banana":"🍌","pear":"🍐","apple":"🍎","apple purée":"🍎","peach":"🍑","plum":"🟣","mango":"🥭","melon":"🍈","kiwi":"🥝",
-  "blueberries":"🫐","strawberries":"🍓","raspberries":"🍓","grapes":"🍇",
-  "oatmeal":"🥣","oats":"🥣","baby rice cereal":"🥣","whole wheat toast":"🍞","whole wheat pasta":"🍝","pasta":"🍝",
-  "rice":"🍚","quinoa":"🍚","couscous":"🍚",
-  "avocado":"🥑","olive oil":"🫒","chia seeds":"🌱","peanut butter":"🥜","smooth peanut butter":"🥜","hummus":"🫘"
-};
 const CAT_EMOJI = {protein:"🍽️", vegetable:"🥕", fruit:"🍓", grain:"🥣", fat:"🥑"};
 function emojiFor(item){
-  const base = foodKey(item.name).split(",")[0].trim();
-  return FOOD_EMOJI[base] || CAT_EMOJI[item.cats[0]] || "🍽️";
+  const f = foodOf(item.name);
+  return f ? f.emoji : CAT_EMOJI[item.cats[0]] || "🍽️";
 }
 /* breakfast, lunch, dinner, and the first snack if the stage has snacks */
 function fanMeals(day){
@@ -3080,45 +3076,7 @@ function renderSettingsSheet(body){
 /* every render ends with the home cards following along */
 function renderSummaries(){ renderHome(); }
 
-/* ---------- voice: a few written lines per moment ----------
-   pick() chooses one per day, the same all day long, so nothing flickers
-   between visits. More variants arrive with the content pass. */
-const CONTENT = {
-  greet:{
-    morning:["Good morning", "Morning", "Hello, early bird"],
-    afternoon:["Good afternoon", "Hello again", "Afternoon"],
-    evening:["Good evening", "Evening", "Hello, tonight"]
-  },
-  dayDone:["Every plate today is done. Lovely work.", "That's today, all marked. Rest easy.", "Today's table is cleared. Well done, you two."],
-  weekDone:["A whole week, every meal marked. That's something.", "Seven days, all done. Time for a fresh week?"],
-  firstLaunch:["Here's today. Tap a tile to see what's in it.", "Your first day. Tap any tile for the details."],
-  rainbow:{none:"A rainbow waiting to begin", some:"A rainbow in progress", all:"A whole rainbow this week"},
-  shopDone:["All stocked up", "Nothing to pick up", "Kitchen's ready"],
-  shopCelebrate:["All set. Nice shopping.", "Everything's in. Lovely.", "That's the lot. Enjoy the cooking."],
-  empty:"Nothing planned yet. Want to set the table for the week?",
-  emptyDay:"Nothing planned for this day.",
-  pastWeeks:"Past weeks will gather here.",
-  tips:[
-    "Offer new foods 10–15 times. Refusal is normal.",
-    "Eating together is the best lesson: they copy what you enjoy.",
-    "A little mess is a lot of learning.",
-    "Small portions first; seconds feel like a win.",
-    "Let them decide how much. Your job is what and when.",
-    "A familiar food on the plate makes a new one feel safer.",
-    "Water in an open cup from 6 months, little sips at a time.",
-    "Iron loves vitamin C: pair lentils or spinach with fruit.",
-    "Soft enough to squash between finger and thumb is soft enough for them.",
-    "Sit them upright and stay close while they eat.",
-    "Hunger comes and goes in waves. A small day is normal.",
-    "Serve the new food first, while they're curious."
-  ]
-};
-function pick(list, key){
-  const seed = todayISO() + "|" + (key || "");
-  let h = 2166136261;
-  for(let k=0; k<seed.length; k++){ h ^= seed.charCodeAt(k); h = Math.imul(h, 16777619) >>> 0; }
-  return list[h % list.length];
-}
+/* ---------- voice: every string lives in content.js (CONTENT, pick, say) ---------- */
 function dayPart(d){
   const h = (d || new Date()).getHours();
   return h>=5 && h<12 ? "morning" : h>=12 && h<18 ? "afternoon" : "evening";
