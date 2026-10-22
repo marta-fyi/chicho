@@ -520,15 +520,14 @@ try{
   .pill-o[data-state="out"] .pill-mark::after{rotate:-45deg;}
   .pill-o[data-state="loved"] .pill-mark::before{content:"";position:absolute;left:1px;top:1px;width:10px;height:5px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;rotate:-45deg;}
   .pill-own{cursor:default;padding-right:4px;}
-  .pill-x{width:36px;height:36px;margin:0 -2px 0 2px;border:none;border-radius:50%;background:none;color:inherit;cursor:pointer;position:relative;}
+  .pill-x{width:44px;height:44px;margin:-4px -6px -4px 0;border:none;border-radius:50%;background:none;color:inherit;cursor:pointer;position:relative;}
   .pill-x::before, .pill-x::after{content:"";position:absolute;inset:0;margin:auto;width:12px;height:2px;border-radius:2px;background:currentColor;rotate:45deg;}
   .pill-x::after{rotate:-45deg;}
-  .pill-x::selection{background:none;}
   .pill-x:focus-visible{outline:2px solid currentColor;outline-offset:-4px;}
   .pill-edit{cursor:text;gap:6px;padding-right:6px;}
   .pill-edit .blank{min-width:5ch;}
   .kind-toggle{display:inline-flex;margin-left:4px;}
-  .kind-toggle button{min-height:36px;padding:0 10px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;opacity:.6;}
+  .kind-toggle button{min-height:44px;margin:-4px 0;padding:0 10px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;opacity:.6;}
   .kind-toggle button[aria-pressed="true"]{opacity:1;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
   /* the locked line, and its reasons on tap */
   .locked-say{margin-top:24px;max-width:460px;font-size:15px;line-height:1.45;color:var(--ink-70);}
@@ -578,7 +577,7 @@ try{
   .lock{position:relative;width:9px;height:7px;border-radius:2px;background:var(--muted);margin-top:4px;}
   .lock::before{content:"";position:absolute;left:1.5px;bottom:5px;width:6px;height:5px;border:1.5px solid var(--muted);border-bottom:none;border-radius:4px 4px 0 0;box-sizing:border-box;}
   .locked-why{font-size:var(--fs-caption);color:var(--ink);margin:4px 0 0;line-height:1.45;min-height:1em;}
-  .form-note{font-size:var(--fs-caption);color:#7A2E22;margin:8px 0 0;line-height:1.45;}
+  .form-note{font-size:var(--fs-caption);color:rgba(10,10,10,.7);margin:8px 0 0;line-height:1.45;}
 
 
   /* ---------- home: a poster, no boxes ----------
@@ -711,7 +710,7 @@ try{
   .p-amt{font-weight:400;color:var(--ink-70);}
   .p-new{font-style:normal;font-size:12px;font-weight:600;padding:1px 7px;border:1px solid var(--ink);border-radius:999px;}
   .p-acts{display:flex;gap:2px;}
-  .p-act{min-height:36px;min-width:36px;padding:0 8px;border:none;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;}
+  .p-act{min-height:36px;min-width:44px;padding:0 8px;border:none;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;}
   .p-act::after{content:"";position:absolute;inset:-4px 0;}
   .p-act:hover, .p-act[aria-expanded="true"]{background:rgba(10,10,10,.07);}
   .p-dots{font-size:18px;line-height:1;letter-spacing:1px;}
@@ -726,14 +725,18 @@ try{
     .p-row:hover .p-acts, .p-row:focus-within .p-acts, .p-row .p-act[aria-expanded="true"]{opacity:1;}
     .p-row:has(.p-act[aria-expanded="true"]) .p-acts{opacity:1;}
   }
-  .tick{position:relative;width:28px;height:28px;padding:0;border-radius:50%;border:1.5px solid var(--ink);background:none;color:var(--ink);cursor:pointer;transition:background-color 160ms, transform var(--dur-1) var(--ease-out);}
-  .tick::after{content:"";position:absolute;inset:-8px;}
-  .tick svg{width:16px;height:16px;display:block;margin:5px 0 0 5px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
-  .tick[aria-pressed="true"], .tick[data-on]{background:var(--ink);color:var(--on-ink);}
+  /* a 44px button, drawn as a 28px circle (rows paint over pseudo hit areas, so the button itself is the target) */
+  .tick{position:relative;width:44px;height:44px;margin:-8px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
+  .tick::before{content:"";position:absolute;inset:8px;border-radius:50%;border:1.5px solid var(--ink);transition:background-color 160ms;}
+  .tick svg{position:absolute;left:14px;top:14px;width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
+  .tick[aria-pressed="true"], .tick[data-on]{color:var(--on-ink);}
+  .tick[aria-pressed="true"]::before, .tick[data-on]::before{background:var(--ink);}
   .tick[aria-pressed="true"] svg, .tick[data-on] svg{stroke-dashoffset:0;}
   .tick:active{transform:scale(.9);}
   .tick.static{cursor:default;}
-  .tick:focus-visible, .p-act:focus-visible, .p-alt:focus-visible, .p-switch:focus-visible, .p-foot:focus-visible, .p-menu-row:focus-visible, .p-idea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .tick:focus-visible{outline:none;}
+  .tick:focus-visible::before{outline:2px solid var(--ink);outline-offset:2px;}
+  .p-act:focus-visible, .p-alt:focus-visible, .p-switch:focus-visible, .p-foot:focus-visible, .p-menu-row:focus-visible, .p-idea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .p-swap{display:flex;flex-wrap:wrap;gap:6px;padding:2px 6px 10px 44px;font-size:14px;color:var(--ink-70);}
   .p-alt{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 6px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
   .p-more .p-alt{padding:0 14px;}
@@ -781,6 +784,17 @@ try{
     padding:0;border:none;border-radius:var(--r-card) var(--r-card) 0 0;background:var(--card);color:var(--ink);
     box-shadow:0 -20px 60px -20px rgba(40,46,30,.35);overflow:hidden;
   }
+  /* the full views share the peeks' look: white, radius 24, black ink at 100% or 70%, no olive, no red */
+  .sheet{
+    --olive-900:#0A0A0A; --olive-700:#0A0A0A; --olive-500:rgba(10,10,10,.7); --olive-200:rgba(10,10,10,.14);
+    --olive-100:rgba(10,10,10,.06); --olive-50:rgba(10,10,10,.035); --tint:#0A0A0A; --tint-soft:rgba(10,10,10,.06);
+    --ink:#0A0A0A; --muted:rgba(10,10,10,.7); --faint:rgba(10,10,10,.35); --label-2:rgba(10,10,10,.7);
+    --green:#0A0A0A; --orange:#0A0A0A; --red:#0A0A0A; --r-card:var(--r-peek); box-shadow:var(--shadow-peek);
+  }
+  .sheet .chip.allergy{background:#0A0A0A;color:#fff;}
+  .sheet .chip.allergy .kind{color:#fff;}
+  .sheet .pill{background:#0A0A0A;color:#fff;box-shadow:none;}
+  .sheet .pill.quiet{background:rgba(10,10,10,.06);color:#0A0A0A;}
   .sheet[open]{display:flex;flex-direction:column;}
   .sheet::backdrop{background:rgba(28,32,20,.34);}
   .sheet-grab{flex:0 0 auto;display:grid;place-items:center;height:22px;cursor:grab;touch-action:none;}
@@ -803,7 +817,7 @@ try{
   }
   /* the meal */
   .ms-hero{display:flex;align-items:center;gap:14px;margin:4px 0 16px;}
-  .ms-emoji{flex:0 0 auto;width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:34px;background:var(--soft, var(--olive-100));rotate:-4deg;box-shadow:var(--shadow-tile);}
+  .ms-emoji{flex:0 0 auto;width:64px;height:64px;display:grid;place-items:center;filter:var(--art-shadow);}
   .ms-slot{margin:0;font-size:14px;color:var(--muted);}
   .ms-dish{margin:2px 0 0;font-size:24px;font-weight:800;letter-spacing:var(--track-title);line-height:1.15;color:var(--olive-700);}
   .ate{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px;}
@@ -819,7 +833,7 @@ try{
   .ms-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;column-gap:10px;row-gap:4px;padding:12px 0;border-top:1px solid var(--hairline);}
   .ms-row .ms-tip{grid-column:2 / -1;}
   .ms-row:first-child{border-top:none;}
-  .ms-dot{flex:0 0 auto;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-size:21px;background:var(--soft, var(--olive-100));}
+  .ms-dot{flex:0 0 auto;width:40px;height:40px;display:grid;place-items:center;}
   .ms-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
   .ms-name{font-size:16px;font-weight:600;}
   .ms-sub{font-size:13px;color:var(--muted);}
@@ -854,13 +868,8 @@ try{
   .vg-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
   .vg-name{font-size:17px;font-weight:700;}
   .vg-sub{font-size:13px;color:var(--muted);}
-  .vg-row::after, .set-row::after{content:"";flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--faint);border-top:2px solid var(--faint);rotate:45deg;}
+  .vg-row::after{content:"";flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--faint);border-top:2px solid var(--faint);rotate:45deg;}
   /* settings */
-  .set-list{padding:2px 14px;}
-  .set-row{width:100%;display:flex;align-items:center;gap:12px;border:none;background:none;padding:14px 0;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;min-height:56px;}
-  .set-row:first-child{border-top:none;}
-  .set-label{flex:0 0 auto;font-size:16px;font-weight:600;}
-  .set-value{flex:1;min-width:0;text-align:right;font-size:15px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* shop */
   .seg.two{grid-template-columns:1fr 1fr;}
   .seg.two::before{width:calc((100% - 6px) / 2);}
@@ -896,17 +905,17 @@ try{
   .bp.dot{width:6px;height:6px;border-radius:50%;background:var(--grain);}
   .bp.star{width:9px;height:9px;background:var(--fruit);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);}
   /* every row answers a press at once, then springs back */
-  .set-row, .vg-row, .dc-meal, .k-stock, .history-row{transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-1);}
-  .set-row:active, .vg-row:active, .dc-meal:active, .k-stock:active{transform:scale(.985);background-color:var(--olive-50);}
+  .vg-row, .dc-meal, .k-stock, .history-row{transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-1);}
+  .vg-row:active, .dc-meal:active, .k-stock:active{transform:scale(.985);background-color:var(--olive-50);}
   /* a sheet's rows and chips arrive in a short stagger (at most eight) */
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal):nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(2){animation-delay:40ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(3){animation-delay:80ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(4){animation-delay:120ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(5){animation-delay:160ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(6){animation-delay:200ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(7){animation-delay:240ms;}
-  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(8){animation-delay:280ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip, .dc-meal):nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(2){animation-delay:40ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(3){animation-delay:80ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(4){animation-delay:120ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(5){animation-delay:160ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(6){animation-delay:200ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(7){animation-delay:240ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip):nth-child(8){animation-delay:280ms;}
   .ate button[aria-pressed="true"]{animation:pop var(--dur-3) var(--spring);}
   /* the bought tick pops and the strike draws */
   .k-row.just input[type=checkbox]:checked::before{animation:tick-pop var(--dur-3) var(--spring);}
@@ -927,9 +936,9 @@ try{
   @media (prefers-reduced-motion: reduce){
     .bg-img,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
-    .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal),
+    .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip, .dc-meal),
     .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
-    .set-row, .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
+    .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
@@ -1940,14 +1949,6 @@ function addForm(key, opts){
 
 const CAT_OPTIONS = Object.entries(CATS).map(([k,v])=>[k, v.label]);
 
-/* ---------- the fan: today's meals as tilted tiles ----------
-   Each tile shows the meal's main food: a photo if the item carries one
-   (item.photo), otherwise a big emoji on its food group's pastel. */
-const CAT_EMOJI = {protein:"🍽️", vegetable:"🥕", fruit:"🍓", grain:"🥣", fat:"🥑"};
-function emojiFor(item){
-  const f = foodOf(item.name);
-  return f ? f.emoji : CAT_EMOJI[item.cats[0]] || "🍽️";
-}
 /* ---------- view switching ---------- */
 let currentDay = 0;
 
@@ -2045,9 +2046,6 @@ function dateForDay(idx){
   const pos = dayDisplayOrder().indexOf(idx), t = now();
   return new Date(t.getFullYear(), t.getMonth(), t.getDate() + (pos<0 ? 0 : pos));   // local calendar days, never 24h steps
 }
-function formatDate(d){
-  return DAY_ORDER[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + d.getDate();
-}
 
 function haveChip(c, name){
   if(!c) return "";   // eaten: nothing left to check
@@ -2121,7 +2119,7 @@ function renderMealSheet(body, arg){
   const cover = coverOnPlan();
   const hero = document.createElement("div");
   hero.className = "ms-hero";
-  hero.innerHTML = `<span class="ms-emoji" aria-hidden="true" style="--soft:var(--${main ? main.cats[0] : "grain"}-soft, var(--olive-100))">${main ? emojiFor(main) : "🍽️"}</span>
+  hero.innerHTML = `<span class="ms-emoji">${foodArt(main ? main.name : "plate", {size:64, alt:""})}</span>
     <div><p class="ms-slot">${m.label}${m.from ? ` · from ${m.from}'s batch` : ""}</p><h3 class="ms-dish">${dishName(m) || "Nothing here yet"}</h3></div>`;
   body.appendChild(hero);
 
@@ -2161,7 +2159,7 @@ function renderMealSheet(body, arg){
     const row = document.createElement("div");
     row.className = "ms-row" + (item.id===justChanged ? " just" : "");
     const tip = prepTip(item);
-    row.innerHTML = `<span class="ms-dot" aria-hidden="true" style="--soft:var(--${item.cats[0]}-soft, var(--olive-100))">${emojiFor(item)}</span>
+    row.innerHTML = `<span class="ms-dot">${foodArt(item.name, {size:40, alt:""})}</span>
       <div class="ms-main"><span class="ms-name">${item.name.split(",")[0]}</span>
         <span class="ms-sub">${[item.qty, item.tex].filter(Boolean).join(" · ")}</span></div>
       ${haveChip(cover[item.id], item.name) || "<span></span>"}
@@ -2983,7 +2981,7 @@ function renderCreatePreview(){
     const block = document.createElement("div");
     block.className = "meal-block";
     const rows = day.meals.map(m=>
-      `<div class="preview-line"><span class="lbl">${m.icon} ${m.label}</span>`
+      `<div class="preview-line"><span class="lbl">${m.items[0] ? foodArt(m.items[0].name, {size:24, alt:""}) : ""} ${m.label}</span>`
       + `<span class="foods">${m.items.map(i=>i.name + (i.tex ? ` <span class="tex">${i.tex}</span>` : "")).join(", ") || "—"}</span></div>`
     ).join("");
     block.innerHTML = `<div class="meal-head"><div class="label">${day.name}</div></div>${rows}`;
@@ -3090,7 +3088,7 @@ function renderSheet(dir){
     if(top.kind==="plan"){ setSheetTitle("Plan next week"); renderCreate(); }
   }else{
     ({meal:renderMealSheet, week:renderWeekSheet, variety:renderVarietySheet, group:renderGroupSheet,
-      settings:renderSettingsSheet})[top.kind](sheetBody, top.arg || {});
+      })[top.kind](sheetBody, top.arg || {});
   }
   if(dir){
     sheetBody.scrollTop = 0;
@@ -3294,39 +3292,6 @@ function renderGroupSheet(body, arg){
   body.appendChild(edit);
 }
 
-/* ---------- settings: the same onboarding screens, one at a time ---------- */
-function renderSettingsSheet(body){
-  setSheetTitle("Settings");
-  const P = state.profile, b = P.birthDate ? localDate(P.birthDate) : null;
-  const avoid = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label), ...P.avoid.map(a=>a.name)];
-  const rows = [
-    ["Name", P.name || "Add their name", "name"],
-    ["Birthday", b ? `${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()} · ${ageLabel(ageNow())}` : "Add it", "birthday"],
-    ["Keep out", avoid.length ? avoid.join(", ") : "Nothing yet", "keepout"],
-    ["What matters most", P.priorities.length ? P.priorities.map(id=>PRIORITIES.find(p=>p.id===id).label).join(", ") : "Balanced", "priorities"],
-    ["At home", P.staples.length ? P.staples.length + " staples" : "Optional", "athome"],
-    ["Meal times", say("home.profile.mealTimes"), "mealtimes"]
-  ];
-  const list = document.createElement("div");
-  list.className = "card set-list";
-  rows.forEach(([label, value, step])=>{
-    const r = document.createElement("button");
-    r.type = "button"; r.className = "set-row"; r.dataset.k = "set-" + step;
-    r.innerHTML = `<span class="set-label">${label}</span><span class="set-value">${value}</span>`;
-    r.addEventListener("click", ()=>{ closeSheet(); setTimeout(()=>openOnboarding(step, {single:true}), calm() ? 0 : 240); });
-    list.appendChild(r);
-  });
-  body.appendChild(list);
-  const plan = document.createElement("button");
-  plan.type = "button"; plan.className = "pill"; plan.style.width = "100%"; plan.textContent = "Plan next week →";
-  plan.addEventListener("click", ()=>showSheet("plan"));
-  body.appendChild(plan);
-  const again = document.createElement("button");
-  again.type = "button"; again.className = "link-btn"; again.style.display = "block"; again.style.margin = "8px auto 0";
-  again.textContent = "Run the whole welcome again";
-  again.addEventListener("click", ()=>{ closeSheet(); setTimeout(()=>openOnboarding(0), calm() ? 0 : 240); });
-  body.appendChild(again);
-}
 
 /* every render ends with the home cards following along */
 function renderSummaries(){ renderHome(); }
@@ -4776,7 +4741,18 @@ if(!state.profile.onboarded) openOnboarding();
 /* offline: register the service worker once the page has settled (never on
    file://, never during tests) */
 if("serviceWorker" in navigator && location.protocol.startsWith("http") && !/[?&]test\b/.test(location.search)){
-  (window.requestIdleCallback || (f=>setTimeout(f, 1500)))(()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  (window.requestIdleCallback || (f=>setTimeout(f, 1500)))(()=>navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(warmArt).catch(()=>{}));
+}
+/* after the first paint, quietly fetch this week's drawings (and the welcome's) at the sizes this screen uses,
+   so peeks and tomorrow's meals open instantly, and offline */
+function warmArt(){
+  const ids = new Set(HERO_FOODS);
+  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(f) ids.add(f.id); })));
+  const big = devicePixelRatio > 1.5 ? "w384" : "w192";
+  const urls = [...ids].map(id=>FOOD_BY_ID[id]).filter(hasArt).flatMap(f=>[f.files[big], f.files.w64]);
+  let k = 0;
+  const next = ()=>{ if(k >= urls.length) return; const batch = urls.slice(k, k += 6); Promise.all(batch.map(u=>fetch(u).catch(()=>{}))).then(()=>(window.requestIdleCallback || setTimeout)(next)); };
+  next();
 }
 document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
   state.groceryFilter = b.dataset.w; save(); renderKitchen();

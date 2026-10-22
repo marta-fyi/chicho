@@ -1,9 +1,12 @@
 /* Chicho's service worker: the app shell works offline.
    The page itself is fetched network-first (a new version shows as soon as
-   it's online) and falls back to the cached copy; the image and icons are
-   cache-first. Everything the family enters lives in localStorage, so it's
-   already offline. Bump VERSION with every release so old caches go. */
-const VERSION = "chicho-v2";
+   it's online) and falls back to the cached copy; the scripts, the
+   background and the icons are cache-first, and every food drawing is
+   cached the first time it's shown (the page also warms the week's
+   drawings after its first paint). Everything the family enters lives in
+   localStorage, so it's already offline. Bump VERSION with every release
+   so old caches go. */
+const VERSION = "chicho-v3";
 const SHELL = ["./", "index.html", "foods.js", "content.js", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e=>{
@@ -14,9 +17,11 @@ self.addEventListener("activate", e=>{
     .then(keys=>Promise.all(keys.filter(k=>k!==VERSION).map(k=>caches.delete(k))))
     .then(()=>self.clients.claim()));
 });
+const isShell = url=>SHELL.some(p=>p!=="./" && url.pathname.endsWith("/" + p));
+const isArt = url=>url.pathname.includes("/img/food/");
 self.addEventListener("fetch", e=>{
-  const req = e.request;
-  if(req.method!=="GET" || new URL(req.url).origin!==location.origin) return;
+  const req = e.request, url = new URL(req.url);
+  if(req.method!=="GET" || url.origin!==location.origin) return;
   if(req.mode==="navigate"){
     e.respondWith(fetch(req).then(res=>{
       const copy = res.clone();
@@ -25,8 +30,9 @@ self.addEventListener("fetch", e=>{
     }).catch(()=>caches.match("index.html").then(r=>r || caches.match("./"))));
     return;
   }
-  e.respondWith(caches.match(req).then(hit=>hit || fetch(req).then(res=>{
-    if(res.ok && (SHELL.some(p=>req.url.endsWith(p.replace("./",""))) || req.url.includes("/img/food/"))){ const copy = res.clone(); caches.open(VERSION).then(c=>c.put(req, copy)); }
+  if(!isShell(url) && !isArt(url)) return;
+  e.respondWith(caches.match(req, {ignoreSearch:true}).then(hit=>hit || fetch(req).then(res=>{
+    if(res.ok){ const copy = res.clone(); caches.open(VERSION).then(c=>c.put(req, copy)); }
     return res;
   })));
 });
