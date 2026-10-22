@@ -174,40 +174,6 @@
   .seg button{position:relative;border:none;background:none;min-height:36px;padding:0 4px;font-size:var(--fs-sub);font-weight:500;white-space:nowrap;cursor:pointer;}
   .seg button[aria-pressed="true"]{font-weight:600;}
 
-  /* ---------- sections ----------
-     Each section is a grouped sheet: a header that opens and closes it
-     (iOS's collapsible section, chevron turning), a thin progress meter,
-     then inset-grouped lists. */
-  .acc{background:var(--grouped);border-radius:var(--r-sheet);margin-bottom:16px;display:flex;flex-direction:column;overflow:hidden;}
-  .acc-head{
-    width:100%;border:none;background:none;padding:18px 16px 4px 20px;
-    display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:center;text-align:left;font:inherit;cursor:pointer;
-  }
-  .acc-title{grid-column:1;font-size:var(--fs-title2);font-weight:700;letter-spacing:.005em;line-height:1.2;}
-  .acc-sum{grid-column:1;font-size:var(--fs-sub);color:var(--label-2);margin-top:2px;}
-  .acc-sum:empty{display:none;}
-  .acc-x{grid-column:2;grid-row:1 / span 2;position:relative;width:30px;height:30px;border-radius:50%;background:var(--fill);}
-  .acc-x::before{
-    content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;
-    border-right:2.5px solid var(--label-2);border-bottom:2.5px solid var(--label-2);border-radius:1px;
-    translate:-50% -70%;rotate:45deg;transition:rotate var(--dur-3) var(--spring), translate var(--dur-3) var(--spring);
-  }
-  .acc.open .acc-x::before{rotate:225deg;translate:-50% -30%;}
-  .acc-meter{margin:10px 20px 14px;height:4px;border-radius:999px;background:var(--fill);overflow:hidden;}
-  .acc-meter i{display:block;height:100%;width:var(--w,0%);border-radius:999px;background:var(--tint);transition:width 600ms var(--spring-soft);}
-  #card-meals .acc-meter i, #card-variety .acc-meter i{background:var(--green);}
-  .acc-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--dur-3) var(--spring-soft);}
-  .acc.open .acc-body{grid-template-rows:1fr;}
-  .acc-inner{overflow:hidden;min-height:0;}
-  .acc-pad{padding:0 16px 6px;}
-  .acc.opening .acc-pad > *, .acc.opening #dayContent > *{animation:rise var(--dur-3) var(--spring) both;}
-  .acc.opening :is(.acc-pad, #dayContent) > :nth-child(2){animation-delay:35ms;}
-  .acc.opening :is(.acc-pad, #dayContent) > :nth-child(3){animation-delay:70ms;}
-  .acc.opening :is(.acc-pad, #dayContent) > :nth-child(4){animation-delay:105ms;}
-  .acc.opening :is(.acc-pad, #dayContent) > :nth-child(n+5){animation-delay:140ms;}
-  #dayContent.swap-next > *{animation:from-right var(--dur-3) var(--spring);}
-  #dayContent.swap-prev > *{animation:from-left var(--dur-3) var(--spring);}
-
   /* an inset-grouped list */
   .card, .meal-block{background:var(--cell);border-radius:var(--r-group);padding:4px 0 4px 16px;margin-bottom:18px;overflow:hidden;}
   .section-title{font-size:var(--fs-headline);font-weight:600;margin:12px 16px 4px 0;}
@@ -389,30 +355,9 @@
   .preview-line .foods{flex:1;}
 
   /* ---------- card system ----------
-     White cards, 28px corners, a soft diffuse shadow. The headline is big,
-     bold, olive and tightly tracked, and ends in an arrow; the whole card
-     answers a press (scale .985 here, .97 on smaller controls) and springs
-     back. Inside, groups are a whisper of olive rather than more white. */
-  .acc{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);}
-  .acc{overflow:visible;transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);}
-  .acc:has(> .acc-head:active){transform:scale(.985);box-shadow:var(--shadow-tile);transition-duration:var(--dur-1);}
-  .acc-head{padding:22px 22px 4px;}
-  .acc-title{
-    font-size:30px;font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--olive-700);
-    display:inline-flex;align-items:baseline;gap:.3em;
-  }
-  /* the arrow: points on, and turns down while the card is open */
-  .acc-title::after{
-    content:"→";font-weight:700;display:inline-block;transition:transform var(--dur-3) var(--spring);
-  }
-  .acc.open .acc-title::after{transform:rotate(90deg);}
-  .acc-head:hover .acc-title::after{transform:translateX(3px);}
-  .acc.open .acc-head:hover .acc-title::after{transform:rotate(90deg) translateX(3px);}
-  .acc-x{display:none;}
-  .acc-sum{margin-top:6px;}
-  .acc-meter{margin:12px 22px 18px;background:var(--olive-100);}
-  .acc-meter i, #card-meals .acc-meter i, #card-variety .acc-meter i{background:var(--olive-500);}
-  .acc-pad{padding:0 18px 8px;}
+     White cards (.hcard on the home, the sheet itself), 28px corners, soft
+     diffuse shadows; headlines big, bold, olive, tightly tracked, ending in
+     an arrow. Inside, groups are a whisper of olive rather than more white. */
   .card, .meal-block{background:var(--olive-50);}
   .row-fg{background:var(--olive-50);}
 
@@ -672,16 +617,118 @@
   .notice .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   .notice .pill{min-height:46px;padding:10px 20px;font-size:16px;}
   #notices:empty{display:none;}
-  .details{margin-top:28px;display:flex;flex-direction:column;}
-  .details-h{margin:0 4px 12px;font-size:15px;font-weight:600;color:var(--olive-900);}
-  [data-tod="evening"] .details-h{color:#fff;}
+
+  /* ---------- sheets ----------
+     One <dialog> for every detail: it springs up from the bottom on a phone
+     and scales in on wide screens, traps focus, closes on Escape or a tap
+     outside, and can be dragged down by its handle. Views inside slide
+     sideways (meal → back to the week). */
+  .sheet{
+    position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:92vh;max-height:92dvh;
+    padding:0;border:none;border-radius:var(--r-card) var(--r-card) 0 0;background:var(--card);color:var(--ink);
+    box-shadow:0 -20px 60px -20px rgba(40,46,30,.35);overflow:hidden;
+  }
+  .sheet[open]{display:flex;flex-direction:column;}
+  .sheet::backdrop{background:rgba(28,32,20,.34);}
+  .sheet-grab{flex:0 0 auto;display:grid;place-items:center;height:22px;cursor:grab;touch-action:none;}
+  .sheet-grab i{width:40px;height:5px;border-radius:3px;background:var(--olive-200);}
+  .sheet-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:2px 16px 10px;touch-action:none;}
+  .sheet-title:focus{outline:none;}
+  .sheet-title{flex:1;min-width:0;margin:0;font-size:var(--fs-title);font-weight:800;letter-spacing:var(--track-title);color:var(--olive-900);}
+  .sheet-back, .sheet-close{
+    flex:0 0 auto;width:44px;height:44px;border:none;border-radius:50%;background:var(--olive-50);color:var(--olive-900);
+    display:grid;place-items:center;font-size:17px;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);
+  }
+  .sheet-back:active, .sheet-close:active{transform:scale(.92);}
+  .sheet-back[hidden]{display:none;}
+  .sheet-back::before{content:"";width:9px;height:9px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
+  .sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 16px calc(24px + env(safe-area-inset-bottom));}
+  @media (min-width:768px){
+    .sheet{inset:0;margin:auto;width:min(560px, 92vw);max-height:86vh;border-radius:var(--r-card);box-shadow:var(--shadow-lift);}
+    .sheet-grab{height:12px;cursor:default;}
+    .sheet-grab i{display:none;}
+  }
+  /* the meal */
+  .ms-hero{display:flex;align-items:center;gap:14px;margin:4px 0 16px;}
+  .ms-emoji{flex:0 0 auto;width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:34px;background:var(--soft, var(--olive-100));rotate:-4deg;box-shadow:var(--shadow-tile);}
+  .ms-slot{margin:0;font-size:14px;color:var(--muted);}
+  .ms-dish{margin:2px 0 0;font-size:24px;font-weight:800;letter-spacing:var(--track-title);line-height:1.15;color:var(--olive-700);}
+  .ate{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px;}
+  .ate button{
+    border:none;border-radius:var(--r-pill);min-height:50px;padding:10px 6px;font:inherit;font-size:15px;font-weight:700;
+    background:var(--olive-50);color:var(--olive-900);box-shadow:inset 0 0 0 1.5px var(--olive-100);cursor:pointer;
+    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), color var(--dur-2);
+  }
+  .ate button:active{transform:scale(.95);}
+  .ate button[aria-pressed="true"]{background:var(--olive-700);color:#fff;box-shadow:none;}
+  .ms-items{padding:4px 12px 4px 14px;}
+  /* a food: dot, name and grams, its chip and actions; the tip runs full width beneath */
+  .ms-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;column-gap:10px;row-gap:4px;padding:12px 0;border-top:1px solid var(--hairline);}
+  .ms-row .ms-tip{grid-column:2 / -1;}
+  .ms-row:first-child{border-top:none;}
+  .ms-dot{flex:0 0 auto;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-size:21px;background:var(--soft, var(--olive-100));}
+  .ms-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .ms-name{font-size:16px;font-weight:600;}
+  .ms-sub{font-size:13px;color:var(--muted);}
+  .ms-tip{font-size:13px;color:var(--ink);line-height:1.4;margin-top:2px;}
+  .ms-acts{display:flex;align-items:center;gap:2px;}
+  .ms-acts .icon-btn{width:40px;height:40px;border:none;border-radius:50%;background:var(--card);box-shadow:none;font-size:16px;color:var(--olive-700);}
+  .ms-acts .icon-btn:active{transform:scale(.9);background:var(--olive-100);}
+  .ms-why p{margin:0 0 8px;font-size:14px;line-height:1.45;}
+  .ms-why p:last-child{margin-bottom:4px;}
+  .ms-why b{font-weight:700;color:var(--olive-900);}
+  /* the week */
+  .days-rail{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px 18px;padding:2px 16px 8px;scrollbar-width:none;}
+  .days-rail::-webkit-scrollbar{display:none;}
+  .day-card{flex:0 0 84%;scroll-snap-align:center;background:var(--olive-50);border-radius:22px;padding:16px;}
+  .dc-top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+  .dc-day{flex:1;margin:0;font-size:19px;font-weight:800;letter-spacing:var(--track-title);color:var(--olive-900);}
+  .dc-tag{font-size:12px;font-weight:700;color:var(--olive-700);background:var(--card);border-radius:999px;padding:4px 10px;}
+  .dc-meals{list-style:none;margin:0;padding:0;}
+  .dc-meal{width:100%;display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:baseline;border:none;background:none;padding:10px 0;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;}
+  li:first-child .dc-meal{border-top:none;}
+  .dc-slot{font-size:13px;color:var(--muted);}
+  .dc-dish{font-size:15px;line-height:1.3;color:var(--ink);}
+  .dc-mark{font-size:12px;font-weight:700;color:var(--olive-700);white-space:nowrap;}
+  .history-bar{flex:0 0 120px;height:8px;border-radius:999px;background:var(--olive-100);overflow:hidden;align-self:center;}
+  .history-bar i{display:block;height:100%;width:var(--w);background:var(--olive-500);border-radius:999px;}
+  /* variety */
+  .vg-list{display:flex;flex-direction:column;}
+  .vg-row{display:flex;align-items:center;gap:14px;border:none;background:none;padding:14px 4px;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;}
+  .vg-row:first-child{border-top:none;}
+  .vg-dot{flex:0 0 auto;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2.5px var(--c);}
+  .vg-dot.on{background:var(--c);}
+  .vg-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .vg-name{font-size:17px;font-weight:700;}
+  .vg-sub{font-size:13px;color:var(--muted);}
+  .vg-row::after, .set-row::after{content:"";flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--faint);border-top:2px solid var(--faint);rotate:45deg;}
+  /* settings */
+  .set-list{padding:2px 14px;}
+  .set-row{width:100%;display:flex;align-items:center;gap:12px;border:none;background:none;padding:14px 0;border-top:1px solid var(--hairline);font:inherit;text-align:left;cursor:pointer;min-height:56px;}
+  .set-row:first-child{border-top:none;}
+  .set-label{flex:0 0 auto;font-size:16px;font-weight:600;}
+  .set-value{flex:1;min-width:0;text-align:right;font-size:15px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* shop */
+  .seg.two{grid-template-columns:1fr 1fr;}
+  .seg.two::before{width:calc((100% - 6px) / 2);}
+  .celebrate{margin:0 4px 14px;font-size:16px;font-weight:700;color:var(--olive-700);}
+  .celebrate[hidden]{display:none;}
+  .k-name{background:linear-gradient(currentColor,currentColor) no-repeat 0 58% / 0 1.5px;transition:background-size var(--dur-2) var(--ease-out);}
+  .k-row.bought .k-name{background-size:100% 1.5px;color:var(--muted);}
+  .sheet-body > *{animation:none;}
+  .sheet-body.enter > :nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
+  .sheet-body.enter > :nth-child(2){animation-delay:30ms;}
+  .sheet-body.enter > :nth-child(3){animation-delay:60ms;}
+  .sheet-body.enter > :nth-child(4){animation-delay:90ms;}
+  .sheet-body.enter > :nth-child(5){animation-delay:120ms;}
+  .sheet-body.enter > :nth-child(6){animation-delay:150ms;}
+  .sheet-body.enter > :nth-child(7){animation-delay:180ms;}
+  .sheet-body.enter > :nth-child(8){animation-delay:210ms;}
 
   /* ---------- wide screens: the main column and a small rail ---------- */
   @media (min-width:1024px){
     .container{max-width:880px;padding:0 24px;}
     .home-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;}
-    .details{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start;}
-    .details-h{grid-column:1 / -1;}
   }
 
   /* ---------- motion ---------- */
@@ -698,10 +745,9 @@
   @keyframes band-in{from{transform:scaleX(0);}}
   @media (prefers-reduced-motion: reduce){
     .blob,
-    .acc.opening .acc-pad > *, .acc.opening #dayContent > *, #dayContent.swap-next > *, #dayContent.swap-prev > *,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
-    .float .tile-art, .al-tile.bump{animation:none;}
-    .acc-x::before, .acc-body, .acc-meter i, .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
+    .float .tile-art, .al-tile.bump, .sheet-body.enter > *{animation:none;}
+    .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
 </style>
@@ -781,113 +827,76 @@ function timeOfDay(d){
     </aside>
   </div>
 
-  <div class="details" id="details">
-  <h2 class="details-h">Everything in detail</h2>
-  <section class="acc" id="card-meals">
-    <button class="acc-head" id="head-meals" aria-expanded="false" aria-controls="body-meals">
-      <span class="acc-title">Meals</span><span class="acc-sum" id="sum-meals"></span><span class="acc-x" aria-hidden="true"></span>
-    </button>
-    <div class="acc-meter" aria-hidden="true"><i id="meter-meals"></i></div>
-    <div class="acc-body" id="body-meals" role="region" aria-labelledby="head-meals" inert><div class="acc-inner"><div class="acc-pad">
-    <div id="dayContent"></div>
-    </div></div></div>
-  </section>
-
-  <section class="acc" id="card-food">
-    <button class="acc-head" id="head-food" aria-expanded="false" aria-controls="body-food">
-      <span class="acc-title">Food</span><span class="acc-sum" id="sum-food"></span><span class="acc-x" aria-hidden="true"></span>
-    </button>
-    <div class="acc-meter" aria-hidden="true"><i id="meter-food"></i></div>
-    <div class="acc-body" id="body-food" role="region" aria-labelledby="head-food" inert><div class="acc-inner"><div class="acc-pad">
-    <div class="seg" id="windowSeg" role="group" aria-label="Shop for">
-      <button type="button" data-w="today">Today</button><button type="button" data-w="next3">Next 3 days</button><button type="button" data-w="week">Week</button>
-    </div>
-    <div class="card">
-      <div class="section-title" id="toBuyTitle">To buy</div>
-      <div id="toBuyList"></div>
-      <div id="extrasAdd"></div>
-    </div>
-    <div class="card">
-      <div class="section-title" id="homeTitle">Stock</div>
-      <div id="homeList"></div>
-      <div id="homeAdd"></div>
-    </div>
-    </div></div></div>
-  </section>
-
-  <section class="acc" id="card-variety">
-    <button class="acc-head" id="head-variety" aria-expanded="false" aria-controls="body-variety">
-      <span class="acc-title">Variety</span><span class="acc-sum" id="sum-variety"></span><span class="acc-x" aria-hidden="true"></span>
-    </button>
-    <div class="acc-meter" aria-hidden="true"><i id="meter-variety"></i></div>
-    <div class="acc-body" id="body-variety" role="region" aria-labelledby="head-variety" inert><div class="acc-inner"><div class="acc-pad">
-    <p class="subtle">Foods marked eaten this week, matched against your checklist. Tap a chip to mark it by hand.</p>
-
-    <div class="card" id="varietyCard"></div>
-
-    <div class="card">
-      <div class="section-title">Week history</div>
-      <div id="historyList"><p class="empty">Start a new week to build history.</p></div>
-    </div>
-
-    <div class="btnrow">
-      <button class="btn primary" onclick="startNewWeek()">Start new week</button>
-    </div>
-    <p class="subtle center">Starting a new week saves this week's variety score to history, then clears "eaten" ticks and ticked extras. Your meal plan and what's at home are kept.</p>
-    </div></div></div>
-  </section>
-
-  <section class="acc" id="card-plan">
-    <button class="acc-head" id="head-plan" aria-expanded="false" aria-controls="body-plan">
-      <span class="acc-title">Plan</span><span class="acc-sum" id="sum-plan"></span><span class="acc-x" aria-hidden="true"></span>
-    </button>
-    <div class="acc-meter" aria-hidden="true"><i id="meter-plan"></i></div>
-    <div class="acc-body" id="body-plan" role="region" aria-labelledby="head-plan" inert><div class="acc-inner"><div class="acc-pad">
-    <p class="subtle">Builds seven days of age-appropriate menus. Nothing changes until you apply the preview.</p>
-    <div class="card">
-      <div class="age-ctl" role="group" aria-label="Age">
-        <output class="age-read" id="ageRead" for="ageRange" aria-live="polite"></output>
-        <div class="stepper">
-          <button type="button" class="age-step" id="ageMinus" aria-label="One month younger">−</button>
-          <button type="button" class="age-step" id="agePlus" aria-label="One month older">+</button>
+  <!-- detail panels that keep their own renderers; they live here, hidden,
+       and move into the sheet while it shows them -->
+  <div id="parts" hidden>
+    <div id="part-shop">
+      <div class="seg two" id="shopTabs" role="tablist" aria-label="Shop">
+        <button type="button" role="tab" id="tabBuy" aria-controls="panelBuy" aria-selected="true">To buy</button>
+        <button type="button" role="tab" id="tabStock" aria-controls="panelStock" aria-selected="false">In stock</button>
+      </div>
+      <div id="panelBuy" role="tabpanel" aria-labelledby="tabBuy">
+        <div class="seg" id="windowSeg" role="group" aria-label="Shop for">
+          <button type="button" data-w="today">Today</button><button type="button" data-w="next3">Next 3 days</button><button type="button" data-w="week">Week</button>
+        </div>
+        <p class="celebrate" id="shopCelebrate" role="status" hidden></p>
+        <div class="card">
+          <div class="section-title" id="toBuyTitle">To buy</div>
+          <div id="toBuyList"></div>
+          <div id="extrasAdd"></div>
         </div>
       </div>
-      <input class="age-range" id="ageRange" type="range" min="0" max="36" step="1" aria-label="Age in months">
-      <p class="stage-sum" id="stageSummary"></p>
-    </div>
-
-    <div id="solidsControls">
-      <div class="card">
-        <div class="section-title">What matters most</div>
-        <div class="chips below" id="priorityChips" role="group" aria-label="Up to three priorities"></div>
-        <p class="lean-line" id="priorityLine"></p>
-      </div>
-      <div class="card">
-        <div class="section-title">Keep out</div>
-        <div class="chips below" id="excludeChips"></div>
-        <div class="add-item-row" style="padding-right:16px">
-          <label class="sr-only" for="excludeName">Food to keep out</label>
-          <input class="name" id="excludeName" type="text" placeholder="A food (e.g. kiwi)">
-          <button type="button" data-kind="allergy" onclick="addExclusion('allergy')">Allergy</button>
-          <button type="button" data-kind="dislike" class="quiet" onclick="addExclusion('dislike')">Dislike</button>
+      <div id="panelStock" role="tabpanel" aria-labelledby="tabStock" hidden>
+        <div class="card">
+          <div class="section-title" id="homeTitle">Stock</div>
+          <div id="homeList"></div>
+          <div id="homeAdd"></div>
         </div>
-        <p class="lean-line">Allergy: never on the plate. Dislike: it comes up less often.</p>
-        <div class="locked" id="lockedRules"></div>
       </div>
-      <p class="banner" id="createBanner"></p>
     </div>
-    <div class="card milk-state" id="milkState" hidden></div>
-    <div class="btnrow">
-      <button class="btn primary" id="generateBtn" onclick="generateDraft()">Generate preview</button>
-    </div>
-    <button type="button" class="link-btn" onclick="openOnboarding(0)">Run the welcome again</button>
 
-    <div id="createPreview"></div>
-    </div></div></div>
-  </section>
+    <div id="part-plan">
+      <p class="subtle">Seven days of menus for their age. Nothing changes until you use the preview.</p>
+      <div class="card"><p class="stage-sum" id="stageSummary"></p></div>
+      <div id="solidsControls">
+        <div class="card">
+          <div class="section-title">What matters most</div>
+          <div class="chips below" id="priorityChips" role="group" aria-label="Up to three priorities"></div>
+          <p class="lean-line" id="priorityLine"></p>
+        </div>
+        <div class="card">
+          <div class="section-title">Keep out</div>
+          <div class="chips below" id="excludeChips"></div>
+          <div class="add-item-row" style="padding-right:16px">
+            <label class="sr-only" for="excludeName">Food to keep out</label>
+            <input class="name" id="excludeName" type="text" placeholder="A food (e.g. kiwi)">
+            <button type="button" data-kind="allergy" onclick="addExclusion('allergy')">Allergy</button>
+            <button type="button" data-kind="dislike" class="quiet" onclick="addExclusion('dislike')">Dislike</button>
+          </div>
+          <p class="lean-line">Allergy: never on the plate. Dislike: it comes up less often.</p>
+          <div class="locked" id="lockedRules"></div>
+        </div>
+        <p class="banner" id="createBanner"></p>
+      </div>
+      <div class="card milk-state" id="milkState" hidden></div>
+      <div class="btnrow">
+        <button class="btn primary" id="generateBtn" onclick="generateDraft()">Shuffle a preview</button>
+      </div>
+      <div id="createPreview"></div>
+    </div>
   </div>
-
 </div>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-grab" id="sheetGrab" aria-hidden="true"><i></i></div>
+  <header class="sheet-head" id="sheetHead">
+    <button type="button" class="sheet-back" id="sheetBack" aria-label="Back" hidden></button>
+    <h2 class="sheet-title" id="sheetTitle" tabindex="-1"></h2>
+    <button type="button" class="sheet-close" id="sheetClose" aria-label="Close">✕</button>
+  </header>
+  <div class="sheet-body" id="sheetBody"></div>
+</dialog>
+<p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
 
 <script>
 /* ---------- category meta ---------- */
@@ -1646,16 +1655,15 @@ function renderFan(){
     const t = document.createElement("button");
     t.type = "button";
     t.className = "tile";
+    t.dataset.k = "tile-" + k;
     t.style.setProperty("--r", tilt[k] + "deg");
     t.style.setProperty("--soft", `var(--${main.cats[0]}-soft, var(--olive-100))`);
     const art = main.photo ? `<img src="${main.photo}" alt="">` : `<span class="tile-emoji" aria-hidden="true">${emojiFor(main)}</span>`;
     t.innerHTML = `<span class="tile-art">${art}<span class="tile-slot">${m.label}</span></span>`;
     t.setAttribute("aria-label", `${m.label}: ${m.items.map(i=>i.name).join(", ")}`);
-    // until meal sheets exist (commit 6), a tile opens today in Meals
     t.addEventListener("click", ()=>{
       t.classList.add("lift"); setTimeout(()=>t.classList.remove("lift"), 260);
-      currentDay = dayIdx;
-      if(state.openCard!=="meals") openCard("meals"); else renderDayContent();
+      showSheet("meal", {day:dayIdx, meal:day.meals.indexOf(m)});
     });
     wrap.appendChild(t);
   });
@@ -1782,70 +1790,148 @@ function haveChip(c, name){
   return `<button type="button" class="buy-chip" data-buy aria-label="Mark ${name} bought${pack ? ", " + pack.label : ""}">${pack ? "Buy " + pack.short : "Buy"}</button>`;
 }
 
+/* Every change to the plan ends here: the fan, whatever sheet is open, and
+   the home cards follow along. */
 function renderDayContent(){
-  const day = state.plan.days[currentDay];
-  const wrap = document.getElementById("dayContent");
-  wrap.innerHTML = "";
-
-  const cover = coverOnPlan();
-  day.meals.forEach((m, mi)=>{
-    const block = document.createElement("div");
-    block.className = "meal-block";
-    const eatenCount = m.items.filter(x=>x.eaten).length;
-    block.innerHTML = `<div class="meal-head">
-        <div class="label">${m.icon} ${m.label}</div>
-        <div class="count">${eatenCount}/${m.items.length} eaten</div>
-      </div>`;
-
-    m.items.forEach(item=>{
-      const row = document.createElement("div");
-      row.className = "item-row" + (item.eaten?" checked":"") + (item.id===justChanged?" just":"");
-      const dotColor = CATS[item.cats[0]]?.color || "#ccc";
-      row.innerHTML = `<div class="row-fg">
-        <input type="checkbox" ${item.eaten?"checked":""} data-id="${item.id}" aria-label="Eaten: ${item.name}">
-        <label><span class="tag-dot" style="background:${dotColor}"></span><span class="nmw"><span><span class="nm">${item.name}</span>${item.tex ? ` <span class="tex">${item.tex}</span>` : ""}</span>${item.qty ? `<span class="qty">${item.qty}</span>` : ""}</span></label>
-        ${haveChip(cover[item.id], item.name)}</div>`;
-      const buyBtn = row.querySelector("[data-buy]");
-      if(buyBtn) buyBtn.addEventListener("click", ()=>{
-        const short = cover[item.id].buy;   // as if just bought: whole packs
-        addToStock(foodKey(item.name), item.name, short===null ? null : buyPacks(item.name, short).g);
-        justChanged = item.id;
-        renderDayContent();
-      });
-      row.querySelector("input").addEventListener("change", e=>{
-        setAte(item, e.target.checked ? "all" : null);
-        save();
-        justChanged = item.id;
-        renderDayContent();
-      });
-      swipeable(row, item.name, ()=>{
-        m.items = m.items.filter(x=>x.id!==item.id);
-        save(); renderDayContent();
-      });
-      block.appendChild(row);
-    });
-
-    block.appendChild(addForm(`meal:${currentDay}:${mi}`, {
-      label: "Add food",
-      rerender: renderDayContent,
-      fields: [
-        {name:"name", type:"text",   placeholder:"Food name", full:true},
-        {name:"qty",  type:"text",   placeholder:"qty (e.g. 50 g)"},
-        {name:"cat",  type:"select", options:CAT_OPTIONS}
-      ],
-      onSubmit: v=>{
-        if(!v.name) return false;
-        const why = keepOutReason(v.name);
-        if(why) return why;
-        m.items.push(it(v.name, v.qty, [v.cat]));
-        save();
-      }
-    }));
-    wrap.appendChild(block);
-  });
-  justChanged = null;
   renderFan();
+  refreshSheet();
+  justChanged = null;
   renderSummaries();
+}
+
+/* a quiet line for screen readers after a mark ("Lunch: ate it") */
+function announce(text){
+  const el = document.getElementById("liveStatus");
+  el.textContent = "";
+  setTimeout(()=>{ el.textContent = text; }, 30);
+}
+
+/* ---------- the meal sheet ----------
+   Everything about one meal, shown only when it's asked for: the dishes,
+   grams, textures, a prep tip, why these foods, a swap, and how it went. */
+const SLOT_OF = {Breakfast:"breakfast", Snack:"snack", Lunch:"lunch", Dinner:"dinner"};
+const ATE_WORDS = {all:"Ate it", some:"Ate some", refused:"Refused"};
+function dayWord(idx){
+  const pos = dayDisplayOrder().indexOf(idx);
+  return pos===0 ? "Today" : pos===1 ? "Tomorrow" : DAY_FULL(dateForDay(idx));
+}
+/* how a meal went, if every food in it has been marked the same way */
+function mealMark(m){
+  if(!m.items.length || m.items.some(i=>!i.ate)) return null;
+  const a = m.items[0].ate;
+  return m.items.every(i=>i.ate===a) ? a : "some";
+}
+function renderMealSheet(body, arg){
+  const day = state.plan.days[arg.day], m = day && day.meals[arg.meal];
+  if(!m){ body.innerHTML = `<p class="empty">This meal has moved on.</p>`; return; }
+  setSheetTitle(`${m.label} · ${dayWord(arg.day)}`);
+  const main = m.items[0];
+  const cover = coverOnPlan();
+  const hero = document.createElement("div");
+  hero.className = "ms-hero";
+  hero.innerHTML = `<span class="ms-emoji" aria-hidden="true" style="--soft:var(--${main ? main.cats[0] : "grain"}-soft, var(--olive-100))">${main ? emojiFor(main) : "🍽️"}</span>
+    <div><p class="ms-slot">${m.label}${m.from ? ` · from ${m.from}'s batch` : ""}</p><h3 class="ms-dish">${dishName(m) || "Nothing here yet"}</h3></div>`;
+  body.appendChild(hero);
+
+  // how it went: one tap for the whole meal
+  if(m.items.length){
+    const mark = mealMark(m);
+    const ate = document.createElement("div");
+    ate.className = "ate"; ate.setAttribute("role", "group"); ate.setAttribute("aria-label", "How did it go?");
+    ["all","some","refused"].forEach(v=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = ATE_WORDS[v]; b.dataset.k = "ate-" + v;
+      b.setAttribute("aria-pressed", String(mark===v));
+      b.addEventListener("click", ()=>{
+        const next = mealMark(m)===v ? null : v;
+        m.items.forEach(i=>setAte(i, next));
+        m.items.forEach(i=>{ justChanged = i.id; });
+        save();
+        announce(`${m.label}: ${next ? ATE_WORDS[next].toLowerCase() : "unmarked"}`);
+        renderDayContent();
+      });
+      ate.appendChild(b);
+    });
+    body.appendChild(ate);
+  }
+
+  // the foods: grams and texture, a prep tip, at home or to buy, swap, remove
+  const list = document.createElement("div");
+  list.className = "card ms-items";
+  m.items.forEach((item, k)=>{
+    const row = document.createElement("div");
+    row.className = "ms-row" + (item.id===justChanged ? " just" : "");
+    const tip = prepTip(item);
+    row.innerHTML = `<span class="ms-dot" aria-hidden="true" style="--soft:var(--${item.cats[0]}-soft, var(--olive-100))">${emojiFor(item)}</span>
+      <div class="ms-main"><span class="ms-name">${item.name.split(",")[0]}</span>
+        <span class="ms-sub">${[item.qty, item.tex].filter(Boolean).join(" · ")}</span></div>
+      ${haveChip(cover[item.id], item.name) || "<span></span>"}
+      <div class="ms-acts"><button type="button" class="icon-btn" data-k="swap-${k}" aria-label="Swap ${item.name} for something similar">↻</button>
+      <button type="button" class="icon-btn" data-k="rm-${k}" aria-label="Remove ${item.name}">✕</button></div>
+      ${tip ? `<span class="ms-tip">${tip}</span>` : ""}`;
+    const buy = row.querySelector("[data-buy]");
+    if(buy) buy.addEventListener("click", ()=>{
+      const short = cover[item.id].buy;   // as if just bought: whole packs
+      addToStock(foodKey(item.name), item.name, short===null ? null : buyPacks(item.name, short).g);
+      justChanged = item.id;
+      announce(`${item.name}: at home now`);
+      renderDayContent();
+    });
+    row.querySelector(`[data-k="swap-${k}"]`).addEventListener("click", ()=>{
+      const was = item.name;
+      if(swapItem(m, k)){ announce(`Swapped ${was} for ${m.items[k].name}`); renderDayContent(); }
+      else announce(`Nothing similar to swap ${was} for`);
+    });
+    row.querySelector(`[data-k="rm-${k}"]`).addEventListener("click", ()=>leave(row, "left", ()=>{
+      m.items.splice(m.items.indexOf(item), 1);
+      save(); renderDayContent();
+    }));
+    list.appendChild(row);
+  });
+  list.appendChild(addForm(`meal:${arg.day}:${arg.meal}`, {
+    label: "Add a food",
+    rerender: renderDayContent,
+    fields: [
+      {name:"name", type:"text",   placeholder:"Food name", full:true},
+      {name:"qty",  type:"text",   placeholder:"qty (e.g. 50 g)"},
+      {name:"cat",  type:"select", options:CAT_OPTIONS}
+    ],
+    onSubmit: v=>{
+      if(!v.name) return false;
+      const why = keepOutReason(v.name);
+      if(why) return why;
+      m.items.push(it(v.name, v.qty, [v.cat]));
+      save();
+    }
+  }));
+  body.appendChild(list);
+
+  // why these foods: one line each, plain and kind
+  if(m.items.length){
+    const why = document.createElement("div");
+    why.className = "card ms-why";
+    why.innerHTML = `<p class="section-title">Why these foods</p>` +
+      m.items.slice(0, 3).map(i=>`<p><b>${i.name.split(",")[0]}</b>: ${lower1(whyFor(i))}</p>`).join("");
+    body.appendChild(why);
+  }
+}
+/* a similar food for the same meal, still passing every safety check */
+function swapItem(m, k){
+  const item = m.items[k], months = planMonths(), st = stageFor(months);
+  const slot = SLOT_OF[m.label] || "lunch";
+  const taken = new Set(m.items.map(i=>i.name));
+  const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile));
+  if(!pool.length) return false;
+  const ctx = planContext(months, state.profile), dayCtx = {taken:new Set(), colours:new Set(), newCount:0};
+  const ws = pool.map(f=>weightFor(f, ctx, dayCtx));
+  let r = Math.random() * ws.reduce((a,b)=>a+b, 0), j = 0;
+  for(; j<ws.length-1; j++){ r -= ws[j]; if(r <= 0) break; }
+  if(item.eaten){ setAte(item, null); }   // put back what it took from stock
+  const fresh = dish(pool[j], st);
+  m.items[k] = fresh;
+  justChanged = fresh.id;
+  save();
+  return true;
 }
 
 /* ---------- GROCERY ---------- */
@@ -2067,17 +2153,21 @@ function renderKitchen(){
   seg.style.setProperty("--i", GROCERY_FILTERS.findIndex(f=>f.key===filter));   // slides the pill
   seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.w===filter)));
   const need = needOn(windowDays(filter));
+  // most urgent first: grouped by the day each thing is first needed
+  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+  const firstDay = n=>Math.min(...n.days.map(d=>order.indexOf(d)));
   const buy = Object.values(need).map(n=>({n, amt:toBuy(n)})).filter(x=>x.amt===null || x.amt>0)
-    .sort((a,b)=>CAT_ORDER.indexOf(a.n.cat)-CAT_ORDER.indexOf(b.n.cat) || a.n.name.localeCompare(b.n.name));
+    .sort((a,b)=>firstDay(a.n)-firstDay(b.n) || CAT_ORDER.indexOf(a.n.cat)-CAT_ORDER.indexOf(b.n.cat) || a.n.name.localeCompare(b.n.name));
   const list = document.getElementById("toBuyList");
   list.innerHTML = "";
-  let lastCat = null;
+  let lastDay = null;
   buy.forEach(({n, amt})=>{
-    if(n.cat!==lastCat){   // grouped like the shop's aisles
-      lastCat = n.cat;
+    const fd = firstDay(n);
+    if(fd!==lastDay){
+      lastDay = fd;
       const h = document.createElement("div");
       h.className = "k-group";
-      h.textContent = (CATS[n.cat] && CATS[n.cat].label) || "Other";
+      h.textContent = fd===0 ? "Needed today" : fd===1 ? "Tomorrow" : "By " + order[fd];
       list.appendChild(h);
     }
     const row = document.createElement("div");
@@ -2085,11 +2175,16 @@ function renderKitchen(){
     // just the name: ticking it buys whole packs, which land in Stock
     row.innerHTML = `<div class="row-fg"><label><input type="checkbox"><span class="k-name">${n.name}</span></label></div>`;
     row.querySelector("input").setAttribute("aria-label", "Bought " + n.name);
-    row.querySelector("input").addEventListener("change", ()=>leave(row, "right", ()=>{
-      addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g);
-      justChanged = n.key;   // it slides into Stock
-      renderKitchen();
-    }));
+    row.querySelector("input").addEventListener("change", ()=>{
+      row.classList.add("just", "bought");   // the tick pops, a short strike, then it slides off
+      announce(`${n.name}: bought`);
+      const go = ()=>leave(row, "right", ()=>{
+        addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g);
+        justChanged = n.key;   // it slides into Stock
+        renderKitchen(); renderSummaries();
+      });
+      if(calm()) go(); else setTimeout(go, 200);
+    });
     list.appendChild(row);
   });
 
@@ -2112,6 +2207,10 @@ function renderKitchen(){
   if(!buy.length && !state.extras.length){
     list.innerHTML = `<p class="empty">Nothing to buy ${GROCERY_FILTERS.find(f=>f.key===filter).meta.replace(/^For/, "for")}.</p>`;
   }
+  const done = !buy.length && !state.extras.some(x=>!x.checked);
+  const cel = document.getElementById("shopCelebrate");
+  cel.hidden = !done;
+  if(done) cel.textContent = pick(CONTENT.shopCelebrate, "cel" + filter);
   const buyCount = buy.length + state.extras.filter(x=>!x.checked).length;
   document.getElementById("toBuyTitle").textContent = `To buy · ${buyCount}`;
 
@@ -2237,78 +2336,22 @@ function varietyNow(){
   return out;
 }
 
-function renderVariety(){
-  const card = document.getElementById("varietyCard");
-  card.innerHTML = "";
-  const later = [];
-  Object.entries(state.variety).forEach(([cat, foods])=>foods.forEach(f=>{ if(!suitableNow(f)) later.push(f); }));
+function renderVariety(){ refreshSheet(); renderSummaries(); }
 
-  Object.entries(varietyNow()).forEach(([cat, foods])=>{
-    const meta = CATS[cat] || { label:cat, color:"#ccc" };
-    const block = document.createElement("div");
-    block.className = "cat-block";
-    const coveredCount = foods.filter(f=>isCovered(cat,f)).length;
-
-    block.innerHTML = `
-      <h3><span class="tag-dot" style="background:${meta.color}"></span>${meta.label} — ${coveredCount}/${foods.length}</h3>
-      <div class="chips spaced"></div>`;
-    const chips = block.querySelector(".chips");
-    foods.forEach(food=>{
-      const covered = isCovered(cat, food);
-      const chip = document.createElement("div");
-      chip.className = "chip tap" + (covered?" covered":"");
-      chip.innerHTML = `${covered?"✓ ":""}${food} <span class="x" data-rm="${food}">✕</span>`;
-      chip.addEventListener("click", (e)=>{
-        if(e.target.dataset.rm) return;
-        toggleManual(cat, food);
-      });
-      chip.querySelector("[data-rm]").addEventListener("click",(e)=>{
-        e.stopPropagation();
-        state.variety[cat] = state.variety[cat].filter(f=>f!==food);
-        delete state.manualCovered[cat+"::"+food];
-        save(); renderVariety();
-      });
-      chips.appendChild(chip);
-    });
-    block.appendChild(addForm("variety:"+cat, {
-      label: "Add to " + meta.label.toLowerCase(),
-      rerender: renderVariety,
-      fields: [
-        {name:"name", type:"text", placeholder:`Food to add to ${meta.label.toLowerCase()}`, full:true}
-      ],
-      onSubmit: v=>{
-        if(!v.name) return false;
-        if(!state.variety[cat].some(f=>f.toLowerCase()===v.name.toLowerCase())){
-          state.variety[cat].push(v.name);
-          save();
-        }
-      }
-    }));
-    card.appendChild(block);
-  });
-
-  if(later.length){
-    const n = document.createElement("p");
-    n.className = "filter-note";
-    n.textContent = `Waiting until they're older: ${later.join(", ")}.`;
-    card.appendChild(n);
-  }
-
-  renderHistory();
-  renderSummaries();
-}
-
-function renderHistory(){
-  const wrap = document.getElementById("historyList");
+/* past weeks: a soft bar each, the number only for screen readers (no
+   percentages on show, nothing that reads like a grade) */
+function renderHistory(wrap){
   if(!state.history || state.history.length===0){
-    wrap.innerHTML = `<p class="empty">Start a new week to build history.</p>`;
+    wrap.innerHTML = `<p class="empty">Past weeks will gather here.</p>`;
     return;
   }
   wrap.innerHTML = "";
   state.history.slice().reverse().forEach(h=>{
     const row = document.createElement("div");
+    const d = localDate(h.weekOf);
     row.className = "history-row";
-    row.innerHTML = `<span>${h.weekOf}</span><span>${h.overallPct}% variety</span>`;
+    row.innerHTML = `<span>Week of ${isNaN(d) ? h.weekOf : MONTHS[d.getMonth()] + " " + d.getDate()}</span>`
+      + `<span class="history-bar" role="img" aria-label="${h.overallPct} percent of the checklist tasted"><i style="--w:${Math.max(4, h.overallPct)}%"></i></span>`;
     wrap.appendChild(row);
   });
 }
@@ -2334,7 +2377,6 @@ function startNewWeek(){
   renderDayContent();
   renderKitchen();
   renderVariety();
-  alert("New week started! Last week's variety score (" + overallPct + "%) was saved to history.");
 }
 
 /* ---------- CREATE: generate a week of age-appropriate menus ---------- */
@@ -2521,12 +2563,6 @@ function renderCreate(){
 function renderCreateControls(){
   const months = ageNow(), st = stageNow();
 
-  const range = document.getElementById("ageRange");
-  range.value = months;
-  range.style.setProperty("--fillpct", (months/AGE_MAX*100) + "%");   // the tint runs up to the thumb
-  document.getElementById("ageMinus").disabled = months<=0;
-  document.getElementById("agePlus").disabled = months>=AGE_MAX;
-  document.getElementById("ageRead").innerHTML = `<b>${ageLabel(months)}</b>${st.name}`;
   const sum = document.getElementById("stageSummary");
   sum.textContent = stageSummary(st);
   sum.hidden = !st.solids;   // the milk-only note below already says it
@@ -2594,25 +2630,9 @@ function renderCreateControls(){
 
   const gen = document.getElementById("generateBtn");
   gen.disabled = !st.solids;
-  gen.textContent = draft ? "Shuffle again" : "Generate preview";
+  gen.textContent = draft ? "Shuffle again" : "Shuffle a preview";
   renderSummaries();
 }
-
-/* one handler for the stepper and the slider: they move the birth date a
-   month at a time (onboarding and Settings set it exactly); a new age drops
-   a stale preview */
-function setAge(months){
-  months = Math.min(AGE_MAX, Math.max(0, Math.round(months)));
-  if(months===ageNow()) return;
-  state.profile.birthDate = birthDateFromMonths(months);
-  save();
-  draft = null;
-  renderCreate();
-  renderVariety();   // the checklist follows the stage too
-}
-document.getElementById("ageMinus").addEventListener("click", ()=>setAge(ageNow()-1));
-document.getElementById("agePlus").addEventListener("click", ()=>setAge(ageNow()+1));
-document.getElementById("ageRange").addEventListener("input", e=>setAge(+e.target.value));
 
 function addExclusion(kind){
   const inp = document.getElementById("excludeName");
@@ -2642,7 +2662,7 @@ function renderCreatePreview(){
   const wrap = document.getElementById("createPreview");
   wrap.innerHTML = "";
   if(!draft){
-    wrap.innerHTML = stageNow().solids ? `<p class="empty">No preview yet — pick an age and hit Generate preview.</p>` : "";
+    wrap.innerHTML = "";
     return;
   }
 
@@ -2673,8 +2693,8 @@ function renderCreatePreview(){
 
   const row = document.createElement("div");
   row.className = "btnrow";
-  row.innerHTML = `<button class="btn primary" id="applyBtn">Apply to my week</button>
-    <button class="btn danger" id="discardBtn">Discard</button>`;
+  row.innerHTML = `<button class="btn primary" id="applyBtn">Use this week</button>
+    <button class="btn" id="discardBtn">Not this one</button>`;
   row.querySelector("#applyBtn").addEventListener("click", applyDraft);
   row.querySelector("#discardBtn").addEventListener("click", discardDraft);
   wrap.appendChild(row);
@@ -2682,14 +2702,12 @@ function renderCreatePreview(){
   const note = document.createElement("p");
   note.className = "subtle";
   note.style.textAlign = "center";
-  note.textContent = "Applying replaces your meal plan; Kitchen works out what to buy from it. "
-    + "What's at home, week history and your variety checklist are kept.";
+  note.textContent = "Using it replaces this week's menu. What's at home, past weeks and the variety checklist stay.";
   wrap.appendChild(note);
 }
 
 function applyDraft(){
   if(!draft) return;
-  if(!confirm("Replace your current meal plan with this generated week? Eaten checkmarks will be cleared.")) return;
 
   state.plan = draft;   // stock and extras stay: the food at home doesn't change
   state.weekStarted = todayISO();
@@ -2701,93 +2719,314 @@ function applyDraft(){
   renderKitchen();
   renderVariety();
   renderCreate();
-  openCard("meals");
+  showSheet("week");
 }
 
-/* ---------- cards: one open at a time ----------
-   Opening a card closes the one that was open; tapping the open one closes
-   it. The open card is remembered and named in the hash (#food). */
-const CARDS = ["meals","food","variety","plan"];
+/* ---------- sheets ----------
+   One dialog shows every detail. showSheet() opens it (or, when it's
+   already open, goes one view deeper with a Back); views re-render in place
+   when the plan changes, keeping scroll and focus. Shop and Plan are panels
+   with their own renderers: they move in while shown and back out after. */
+const sheetEl = document.getElementById("sheet");
+const sheetBody = document.getElementById("sheetBody");
+let sheetStack = [], sheetOpener = null, sheetOpenerKey = null;
+const PARTS = {shop:"part-shop", plan:"part-plan"};
+function setSheetTitle(t){ document.getElementById("sheetTitle").textContent = t; }
+const wideSheet = ()=>matchMedia("(min-width:768px)").matches;
 
-function renderCard(name){
-  if(name==="meals")   renderDayContent();
-  if(name==="food")    renderKitchen();
-  if(name==="variety") renderVariety();
-  if(name==="plan")    renderCreate();
+function showSheet(kind, arg){
+  if(sheetEl.open){ unmountParts(); sheetStack.push({kind, arg}); renderSheet(1); return; }
+  sheetOpener = document.activeElement;
+  // a redraw may replace the opener (a fan tile), so remember how to find it again
+  sheetOpenerKey = sheetOpener ? (sheetOpener.id ? "#" + sheetOpener.id : sheetOpener.dataset.k ? `[data-k="${sheetOpener.dataset.k}"]` : null) : null;
+  sheetStack = [{kind, arg}];
+  renderSheet(0);
+  sheetEl.showModal();
+  document.getElementById("sheetTitle").focus({preventScroll:true});   // start on the title, not the close button
+  sheetEl.style.transform = "";
+  if(calm()) sheetEl.animate([{opacity:0},{opacity:1}], {duration:180});
+  else sheetEl.animate(wideSheet() ? [{transform:"scale(.96)", opacity:0}, {transform:"none", opacity:1}]
+                                   : [{transform:"translateY(100%)"}, {transform:"none"}],
+                       {duration: wideSheet() ? 260 : 420, easing:"cubic-bezier(.32,1.2,.5,1)"});
+  enterStagger();
 }
-function openCard(name, opts){
-  const target = CARDS.includes(name) ? name : null;
-  CARDS.forEach(c=>{
-    const open = c===target;
-    document.getElementById("head-"+c).setAttribute("aria-expanded", String(open));
-    document.getElementById("card-"+c).classList.toggle("open", open);
-    document.getElementById("body-"+c).inert = !open;
+function backSheet(){
+  if(sheetStack.length < 2) return closeSheet();
+  unmountParts(); sheetStack.pop(); renderSheet(-1);
+}
+function closeSheet(){
+  if(!sheetEl.open) return;
+  const done = ()=>{
+    unmountParts(); sheetEl.close(); sheetStack = []; sheetEl.style.transform = "";
+    const back = sheetOpener && document.contains(sheetOpener) ? sheetOpener : sheetOpenerKey ? document.querySelector(sheetOpenerKey) : null;
+    if(back) back.focus({preventScroll:true});
+  };
+  if(calm()){ done(); return; }
+  // exits are quicker than entrances
+  const from = sheetEl.style.transform || "none";
+  const a = sheetEl.animate(wideSheet() ? [{opacity:1}, {transform:"scale(.97)", opacity:0}]
+                                        : [{transform:from}, {transform:"translateY(100%)"}],
+                            {duration: wideSheet() ? 150 : 220, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
+  a.onfinish = ()=>{ done(); a.cancel(); };
+}
+function unmountParts(){
+  Object.values(PARTS).forEach(id=>{
+    const el = document.getElementById(id);
+    if(el.parentElement!==document.getElementById("parts")) document.getElementById("parts").appendChild(el);
   });
-  state.openCard = target;
-  save();
-  history.replaceState(null, "", target ? "#"+target : location.pathname + location.search);
-  if(!target) return;
-  renderCard(target);
-  // its rows arrive one after another
-  const card = document.getElementById("card-"+target);
-  card.classList.add("opening");
-  setTimeout(()=>card.classList.remove("opening"), 900);
-  if(!(opts && opts.noScroll)){
-    // the card that closed above may pull this one up as it collapses: once it
-    // has, bring this card's header to the top
-    const go = ()=>card.scrollIntoView({block:"start", behavior: calm() ? "auto" : "smooth"});
-    if(calm()) go(); else setTimeout(go, 360);
+}
+function enterStagger(){
+  if(calm()) return;
+  sheetBody.classList.remove("enter"); void sheetBody.offsetWidth; sheetBody.classList.add("enter");
+  setTimeout(()=>sheetBody.classList.remove("enter"), 600);
+}
+function renderSheet(dir){
+  const top = sheetStack[sheetStack.length-1];
+  document.getElementById("sheetBack").hidden = sheetStack.length < 2;
+  sheetBody.innerHTML = "";
+  if(PARTS[top.kind]){
+    sheetBody.appendChild(document.getElementById(PARTS[top.kind]));
+    if(top.kind==="shop"){ setSheetTitle("Shop"); renderKitchen(); }
+    if(top.kind==="plan"){ setSheetTitle("Plan next week"); renderCreate(); }
+  }else{
+    ({meal:renderMealSheet, week:renderWeekSheet, variety:renderVarietySheet, group:renderGroupSheet,
+      settings:renderSettingsSheet})[top.kind](sheetBody, top.arg || {});
+  }
+  if(dir){
+    sheetBody.scrollTop = 0;
+    if(!calm()) sheetBody.animate([{transform:`translateX(${dir*32}px)`, opacity:0}, {transform:"none", opacity:1}],
+                                  {duration:280, easing:"cubic-bezier(.32,1.2,.5,1)"});
+    else sheetBody.animate([{opacity:0},{opacity:1}], {duration:160});
   }
 }
-CARDS.forEach((c,i)=>{
-  const head = document.getElementById("head-"+c);
-  head.addEventListener("click", ()=>openCard(state.openCard===c ? null : c));
-  head.addEventListener("keydown", e=>{
-    if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
-    e.preventDefault();
-    const j = (i + (e.key==="ArrowDown" ? 1 : -1) + CARDS.length) % CARDS.length;
-    document.getElementById("head-"+CARDS[j]).focus();
+/* the plan changed: redraw the view on show, keeping scroll and focus */
+function refreshSheet(){
+  if(!sheetEl.open || !sheetStack.length) return;
+  const top = sheetStack[sheetStack.length-1];
+  if(PARTS[top.kind]) return;   // Shop and Plan redraw themselves
+  const y = sheetBody.scrollTop, rail = sheetBody.querySelector(".days-rail");
+  const railX = rail ? rail.scrollLeft : 0;
+  const focusKey = document.activeElement && sheetBody.contains(document.activeElement) ? document.activeElement.dataset.k : null;
+  renderSheet(0);
+  sheetBody.scrollTop = y;
+  const r2 = sheetBody.querySelector(".days-rail"); if(r2) r2.scrollLeft = railX;
+  if(focusKey){ const f = sheetBody.querySelector(`[data-k="${focusKey}"]`); if(f) f.focus({preventScroll:true}); }
+}
+document.getElementById("sheetClose").addEventListener("click", closeSheet);
+document.getElementById("sheetBack").addEventListener("click", backSheet);
+sheetEl.addEventListener("cancel", e=>{ e.preventDefault(); closeSheet(); });   // Escape
+sheetEl.addEventListener("click", e=>{ if(e.target===sheetEl) closeSheet(); });   // a tap on the backdrop
+/* drag the handle (or the header) down to dismiss */
+(function(){
+  let y0 = null, dy = 0, id = null;
+  const start = e=>{ if(wideSheet() || e.target.closest("button")) return; y0 = e.clientY; dy = 0; id = e.pointerId; e.currentTarget.setPointerCapture(id); };
+  const move = e=>{ if(e.pointerId!==id || y0===null) return; dy = Math.max(0, e.clientY - y0); sheetEl.style.transform = `translateY(${dy}px)`; };
+  const end = e=>{
+    if(e.pointerId!==id || y0===null) return;
+    y0 = null; id = null;
+    if(dy > 110) closeSheet();
+    else{
+      const from = sheetEl.style.transform; sheetEl.style.transform = "";
+      if(from && !calm()) sheetEl.animate([{transform:from}, {transform:"none"}], {duration:300, easing:"cubic-bezier(.32,1.2,.5,1)"});
+    }
+  };
+  ["sheetGrab","sheetHead"].forEach(i=>{
+    const el = document.getElementById(i);
+    el.addEventListener("pointerdown", start); el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
   });
+})();
+/* Shop's tabs: To buy | In stock, the pill sliding between them */
+let shopTab = "buy";
+function setShopTab(t){
+  shopTab = t;
+  const tabs = document.getElementById("shopTabs");
+  tabs.style.setProperty("--i", t==="buy" ? 0 : 1);
+  document.getElementById("tabBuy").setAttribute("aria-selected", String(t==="buy"));
+  document.getElementById("tabStock").setAttribute("aria-selected", String(t==="stock"));
+  document.getElementById("tabBuy").setAttribute("aria-pressed", String(t==="buy"));
+  document.getElementById("tabStock").setAttribute("aria-pressed", String(t==="stock"));
+  document.getElementById("panelBuy").hidden = t!=="buy";
+  document.getElementById("panelStock").hidden = t!=="stock";
+}
+document.getElementById("tabBuy").addEventListener("click", ()=>setShopTab("buy"));
+document.getElementById("tabStock").addEventListener("click", ()=>setShopTab("stock"));
+document.getElementById("shopTabs").addEventListener("keydown", e=>{
+  if(e.key==="ArrowRight" || e.key==="ArrowLeft"){ e.preventDefault(); const t = shopTab==="buy" ? "stock" : "buy"; setShopTab(t); document.getElementById(t==="buy" ? "tabBuy" : "tabStock").focus(); }
 });
+setShopTab("buy");
 
-/* Each section header says how things stand in one line, with a thin
-   progress meter under it, so a closed section is still useful. */
-function setMeter(id, frac){
-  document.getElementById(id).style.setProperty("--w", (Math.max(0, Math.min(1, frac || 0))*100).toFixed(1) + "%");
+/* the old open-a-section calls, now opening sheets */
+function openCard(name){
+  if(!name) return closeSheet();
+  showSheet({meals:"week", food:"shop", variety:"variety", plan:"plan"}[name] || name);
 }
 
-function renderSummaries(){
-  // meals: the day on show and how much of it is eaten
-  const day = state.plan.days[currentDay];
-  if(day){
-    const cover = coverOnPlan(), items = day.meals.flatMap(m=>m.items);
-    const eaten = items.filter(i=>i.eaten).length;
-    const buy = items.filter(i=>!i.eaten && cover[i.id] && !cover[i.id].have).length;
-    document.getElementById("sum-meals").textContent =
-      `${formatDate(dateForDay(currentDay))} · ${eaten} of ${items.length} eaten` + (buy ? ` · ${buy} to buy` : "");
-    setMeter("meter-meals", items.length ? eaten/items.length : 0);
+/* ---------- the week sheet: seven days to swipe through, and past weeks ---------- */
+function renderWeekSheet(body, arg){
+  setSheetTitle("This week");
+  const rail = document.createElement("div");
+  rail.className = "days-rail";
+  rail.setAttribute("role", "list");
+  dayDisplayOrder().forEach((idx, pos)=>{
+    const day = state.plan.days[idx], d = dateForDay(idx);
+    const items = day.meals.flatMap(m=>m.items), marked = items.filter(i=>i.ate).length;
+    const p = items.length ? marked/items.length : 0;
+    const card = document.createElement("article");
+    card.className = "day-card"; card.setAttribute("role", "listitem"); card.dataset.day = idx;
+    card.innerHTML = `<div class="dc-top"><p class="dc-day">${DAY_FULL(d)} ${d.getDate()}</p>${pos===0 ? `<span class="dc-tag">Today</span>` : ""}
+      <span class="ring" aria-hidden="true"><svg viewBox="0 0 38 38"><circle class="r-bg" cx="19" cy="19" r="15.9" pathLength="100"/><circle class="r-fg" cx="19" cy="19" r="15.9" pathLength="100" style="--p:${p.toFixed(3)}"/></svg></span></div>
+      <ul class="dc-meals"></ul>`;
+    const ul = card.querySelector("ul");
+    day.meals.forEach((m, mi)=>{
+      if(!m.items.length) return;
+      const li = document.createElement("li");
+      const mark = mealMark(m);
+      li.innerHTML = `<button type="button" class="dc-meal" data-k="m-${idx}-${mi}"><span class="dc-slot">${m.label}</span><span class="dc-dish">${dishName(m)}</span><span class="dc-mark">${mark ? "✓ " + ATE_WORDS[mark] : ""}</span></button>`;
+      li.querySelector("button").addEventListener("click", ()=>showSheet("meal", {day:idx, meal:mi}));
+      ul.appendChild(li);
+    });
+    if(!ul.children.length) ul.innerHTML = `<li class="empty">Nothing planned.</li>`;
+    rail.appendChild(card);
+  });
+  body.appendChild(rail);
+  if(arg.day!==undefined){
+    const pos = dayDisplayOrder().indexOf(arg.day);
+    requestAnimationFrame(()=>{ const c = rail.children[pos]; if(c) rail.scrollLeft = c.offsetLeft - 16; });
   }
-
-  // food: for the chosen window, how much of what's needed is covered
-  const win = GROCERY_FILTERS.find(f=>f.key===state.groceryFilter);
-  const needed = Object.values(needOn(windowDays(win.key)));
-  const short = needed.filter(n=>{ const a = toBuy(n); return a===null || a>0; }).length;
-  const extras = state.extras.filter(x=>!x.checked).length;
-  const stock = Object.values(state.stock).filter(st=>st.plenty || st.g===null || st.g>0).length;
-  document.getElementById("sum-food").textContent = `${win.meta} · ${short + extras} to buy · ${stock} in stock`;
-  setMeter("meter-food", needed.length ? (needed.length - short)/needed.length : 1);
-
-  // variety: foods covered this week
-  let total = 0, covered = 0;
-  Object.entries(varietyNow()).forEach(([cat, foods])=>{ total += foods.length; covered += foods.filter(f=>isCovered(cat,f)).length; });
-  document.getElementById("sum-variety").textContent = `${covered} of ${total} foods this week`;
-  setMeter("meter-variety", total ? covered/total : 0);
-
-  // plan: where the child is on the 0–36 month road
-  document.getElementById("sum-plan").textContent = `${ageLabel(ageNow())} · ${stageNow().name}`;
-  setMeter("meter-plan", Math.min(1, ageNow()/AGE_MAX));
-  renderHome();
+  const plan = document.createElement("button");
+  plan.type = "button"; plan.className = "pill"; plan.style.width = "100%"; plan.textContent = "Plan next week →";
+  plan.addEventListener("click", ()=>showSheet("plan"));
+  body.appendChild(plan);
+  const hist = document.createElement("div");
+  hist.className = "card"; hist.style.marginTop = "18px";
+  hist.innerHTML = `<div class="section-title">Past weeks</div><div class="history-list"></div>`;
+  renderHistory(hist.querySelector(".history-list"));
+  body.appendChild(hist);
+  const fresh = document.createElement("button");
+  fresh.type = "button"; fresh.className = "link-btn"; fresh.textContent = "Start a fresh week";
+  fresh.addEventListener("click", ()=>{ startNewWeek(); announce("A fresh week. Last week is saved below."); });
+  body.appendChild(fresh);
+  body.insertAdjacentHTML("beforeend", `<p class="subtle center">A fresh week keeps the menu and what's at home, clears the marks, and saves this week's rainbow to Past weeks.</p>`);
 }
+
+/* ---------- variety: the rainbow, one food group at a time ---------- */
+const GROUP_NAMES = {protein:"Proteins", vegetable:"Vegetables", fruit:"Fruits", grain:"Grains & starches", fat:"Healthy fats"};
+function renderVarietySheet(body){
+  setSheetTitle("Variety");
+  const now = varietyNow();
+  const on = Object.keys(CATS).filter(c=>(now[c]||[]).some(f=>isCovered(c, f))).length;
+  body.insertAdjacentHTML("beforeend", `<p class="glance" style="margin:0 4px 12px">${on===0 ? CONTENT.rainbow.none : on===Object.keys(CATS).length ? CONTENT.rainbow.all : CONTENT.rainbow.some}</p>`);
+  const list = document.createElement("div");
+  list.className = "card vg-list";
+  Object.keys(CATS).forEach(cat=>{
+    const tasted = (now[cat]||[]).filter(f=>isCovered(cat, f));
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "vg-row"; b.dataset.k = "g-" + cat;
+    b.innerHTML = `<i class="vg-dot${tasted.length ? " on" : ""}" style="--c:var(--${cat})" aria-hidden="true"></i>
+      <span class="vg-text"><span class="vg-name">${GROUP_NAMES[cat]}</span><span class="vg-sub">${tasted.length ? tasted.slice(0,4).join(", ") + (tasted.length>4 ? "…" : "") : "Not yet this week"}</span></span>`;
+    b.addEventListener("click", ()=>showSheet("group", {cat}));
+    list.appendChild(b);
+  });
+  body.appendChild(list);
+  // log something else they tried
+  const log = document.createElement("div");
+  log.className = "card";
+  log.innerHTML = `<div class="section-title">Log something else</div>`;
+  log.appendChild(addForm("variety:log", {
+    label: "Something they tried",
+    rerender: ()=>refreshSheet(),
+    fields: [{name:"name", type:"text", placeholder:"Food (e.g. mango)", full:true}, {name:"cat", type:"select", options:CAT_OPTIONS}],
+    onSubmit: v=>{
+      if(!v.name) return false;
+      const list = state.variety[v.cat];
+      const have = list.find(f=>f.toLowerCase()===v.name.toLowerCase());
+      const food = have || v.name;
+      if(!have) list.push(food);
+      state.manualCovered[v.cat + "::" + food] = true;
+      save(); announce(`${food} logged`); renderSummaries();
+    }
+  }));
+  body.appendChild(log);
+}
+let groupEditing = false;
+function renderGroupSheet(body, arg){
+  const cat = arg.cat;
+  setSheetTitle(GROUP_NAMES[cat]);
+  const foods = varietyNow()[cat] || [];
+  body.insertAdjacentHTML("beforeend", `<p class="subtle">${groupEditing ? "Remove foods from the list, or add new ones." : "Tasted this week light up by themselves when a meal is marked. Tap a food to mark it yourself."}</p>`);
+  const card = document.createElement("div");
+  card.className = "card";
+  const chips = document.createElement("div");
+  chips.className = "chips spaced";
+  foods.forEach(food=>{
+    const covered = isCovered(cat, food);
+    const c = document.createElement("button");
+    c.type = "button"; c.className = "chip tap" + (covered ? " covered" : ""); c.dataset.k = "f-" + food;
+    c.setAttribute("aria-pressed", String(covered));
+    c.innerHTML = groupEditing ? `${food} <span class="x" aria-hidden="true">✕</span>` : `${covered ? "✓ " : ""}${food}`;
+    c.setAttribute("aria-label", groupEditing ? `Remove ${food}` : `${food}${covered ? ", tasted this week" : ""}`);
+    c.addEventListener("click", ()=>{
+      if(groupEditing){
+        state.variety[cat] = state.variety[cat].filter(f=>f!==food);
+        delete state.manualCovered[cat + "::" + food];
+        save(); refreshSheet(); renderSummaries();
+      }else toggleManual(cat, food);
+    });
+    chips.appendChild(c);
+  });
+  card.appendChild(chips);
+  if(groupEditing) card.appendChild(addForm("variety:" + cat, {
+    label: "Add a food to " + GROUP_NAMES[cat].toLowerCase(),
+    rerender: ()=>refreshSheet(),
+    fields: [{name:"name", type:"text", placeholder:"Food to add", full:true}],
+    onSubmit: v=>{
+      if(!v.name) return false;
+      if(!state.variety[cat].some(f=>f.toLowerCase()===v.name.toLowerCase())){ state.variety[cat].push(v.name); save(); }
+    }
+  }));
+  body.appendChild(card);
+  const edit = document.createElement("button");
+  edit.type = "button"; edit.className = "link-btn"; edit.dataset.k = "edit"; edit.textContent = groupEditing ? "Done" : "Edit the list";
+  edit.addEventListener("click", ()=>{ groupEditing = !groupEditing; refreshSheet(); });
+  body.appendChild(edit);
+}
+
+/* ---------- settings: the same onboarding screens, one at a time ---------- */
+function renderSettingsSheet(body){
+  setSheetTitle("Settings");
+  const P = state.profile, b = P.birthDate ? localDate(P.birthDate) : null;
+  const avoid = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label), ...P.avoid.map(a=>a.name)];
+  const rows = [
+    ["Name", P.name || "Add their name", 1],
+    ["Birthday", b ? `${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()} · ${ageLabel(ageNow())}` : "Add it", 2],
+    ["Keep out", avoid.length ? avoid.join(", ") : "Nothing yet", 3],
+    ["What matters most", P.priorities.length ? P.priorities.map(id=>PRIORITIES.find(p=>p.id===id).label).join(", ") : "Balanced", 4],
+    ["At home", P.staples.length ? P.staples.length + " staples" : "Optional", 5]
+  ];
+  const list = document.createElement("div");
+  list.className = "card set-list";
+  rows.forEach(([label, value, step])=>{
+    const r = document.createElement("button");
+    r.type = "button"; r.className = "set-row"; r.dataset.k = "set-" + step;
+    r.innerHTML = `<span class="set-label">${label}</span><span class="set-value">${value}</span>`;
+    r.addEventListener("click", ()=>{ closeSheet(); setTimeout(()=>openOnboarding(step, {single:true}), calm() ? 0 : 240); });
+    list.appendChild(r);
+  });
+  body.appendChild(list);
+  const plan = document.createElement("button");
+  plan.type = "button"; plan.className = "pill"; plan.style.width = "100%"; plan.textContent = "Plan next week →";
+  plan.addEventListener("click", ()=>showSheet("plan"));
+  body.appendChild(plan);
+  const again = document.createElement("button");
+  again.type = "button"; again.className = "link-btn"; again.style.display = "block"; again.style.margin = "8px auto 0";
+  again.textContent = "Run the whole welcome again";
+  again.addEventListener("click", ()=>{ closeSheet(); setTimeout(()=>openOnboarding(0), calm() ? 0 : 240); });
+  body.appendChild(again);
+}
+
+/* every render ends with the home cards following along */
+function renderSummaries(){ renderHome(); }
 
 /* ---------- voice: a few written lines per moment ----------
    pick() chooses one per day, the same all day long, so nothing flickers
@@ -2796,6 +3035,7 @@ const CONTENT = {
   greet:{morning:["Good morning"], afternoon:["Good afternoon"], evening:["Good evening"]},
   rainbow:{none:"A rainbow waiting to begin", some:"A rainbow in progress", all:"A whole rainbow this week"},
   shopDone:["All stocked up", "Nothing to pick up"],
+  shopCelebrate:["All set. Nice shopping.", "Everything's in. Lovely.", "That's the lot. Enjoy the cooking."],
   empty:"Nothing planned yet. Want to set the table for the week?",
   tips:[
     "Offer new foods 10–15 times. Refusal is normal.",
@@ -2926,7 +3166,7 @@ function renderHome(){
       <circle class="r-bg" cx="19" cy="19" r="15.9" pathLength="100"/><circle class="r-fg" cx="19" cy="19" r="15.9" pathLength="100" style="--p:${p.toFixed(3)}"/></svg>
       <span class="wd-n">${d.getDate()}</span></span>`;
     b.setAttribute("aria-label", `${formatDate(d)}${pos===0 ? ", today" : ""}: ${items.length ? `${marked} of ${items.length} meals marked` : "nothing planned"}`);
-    b.addEventListener("click", ()=>{ currentDay = idx; state.openCard==="meals" ? renderDayContent() : openCard("meals"); });
+    b.addEventListener("click", ()=>showSheet("week", {day:idx}));
     strip.appendChild(b);
   });
 
@@ -2967,8 +3207,9 @@ function planMonths(){
   const m = ageNow();
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
-function openOnboarding(step){
+function openOnboarding(step, opts){
   const P = state.profile;
+  onb.single = !!(opts && opts.single);   // from Settings: one step, then back home
   onb.step = Math.max(0, Math.min(ONB_STEPS.length-1, step===undefined ? (P.onboardingStep||0) : step));
   onb.sub = null; onb.draft = null; onb.revealed = false;
   document.body.classList.add("onb-open");
@@ -3002,11 +3243,13 @@ function rushSky(){
   }));
 }
 function goStep(n, sub){
+  if(onb.single && n!==onb.step){ save(); closeOnboarding(); return; }
   const card = document.getElementById("onbCard");
   onb.dir = n > onb.step || (n===onb.step && sub) ? 1 : -1;
   const swap = ()=>{
     onb.step = n; onb.sub = sub || null;
-    state.profile.onboardingStep = n; save();
+    if(!onb.single) state.profile.onboardingStep = n;
+    save();
     renderOnb();
     if(!calm()) card.animate([{transform:`translateX(${onb.dir*36}px)`, opacity:0}, {transform:"none", opacity:1}],
                              {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
@@ -3028,7 +3271,8 @@ function renderOnb(){
   document.getElementById("onbProgress").textContent = `Step ${onb.step+1} of ${ONB_STEPS.length}`;
   const back = document.getElementById("onbBack");
   back.hidden = onb.step===0 && !onb.sub;
-  back.onclick = ()=> onb.sub ? goStep(onb.step) : goStep(onb.step-1);
+  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single ? closeOnboarding() : goStep(onb.step-1);
+  back.hidden = back.hidden && !onb.single;
   document.getElementById("onbClose").onclick = closeOnboarding;
   const card = document.getElementById("onbCard");
   card.innerHTML = "";
@@ -3044,7 +3288,7 @@ function onbCta(card, label, onNext, opts){
   const wrap = document.createElement("div");
   wrap.className = "onb-cta";
   const b = document.createElement("button");
-  b.type = "button"; b.className = "pill"; b.textContent = label;
+  b.type = "button"; b.className = "pill"; b.textContent = onb.single && label==="Continue" ? "Save" : label;
   b.disabled = !!o.disabled;
   b.addEventListener("click", onNext);
   wrap.appendChild(b);
@@ -3392,15 +3636,11 @@ renderKitchen();
 renderVariety();
 renderCreate();
 renderSummaries();
-const startCard = location.hash.slice(1);
-openCard(CARDS.includes(startCard) ? startCard : state.openCard, {noScroll:true});
-/* home cards open their detail: for now the sections below, sheets next */
-function openDetail(card){ openCard(card); }
-document.getElementById("heroHead").addEventListener("click", ()=>{ currentDay = dayDisplayOrder()[0]; openDetail("meals"); });
-document.getElementById("shopCard").addEventListener("click", ()=>openDetail("food"));
-document.getElementById("weekHead").addEventListener("click", ()=>openDetail("meals"));
-document.getElementById("varietyHome").addEventListener("click", ()=>openDetail("variety"));
-document.getElementById("profileBtn").addEventListener("click", ()=>openOnboarding(0));
+document.getElementById("heroHead").addEventListener("click", ()=>showSheet("week", {day:dayDisplayOrder()[0]}));
+document.getElementById("shopCard").addEventListener("click", ()=>showSheet("shop"));
+document.getElementById("weekHead").addEventListener("click", ()=>showSheet("week"));
+document.getElementById("varietyHome").addEventListener("click", ()=>showSheet("variety"));
+document.getElementById("profileBtn").addEventListener("click", ()=>showSheet("settings"));
 document.getElementById("tipClose").addEventListener("click", ()=>{ state.tipDismissed = todayISO(); save(); renderHome(); });
 if(!state.profile.onboarded) openOnboarding();
 document.querySelectorAll("#windowSeg button").forEach(b=>b.addEventListener("click", ()=>{
