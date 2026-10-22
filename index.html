@@ -124,10 +124,12 @@ try{
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   html{background:var(--bg);}
+  /* the paper's grain: a static tile (img/grain.png, from tools/make-grain.py), never a live filter */
+  html[data-theme="light"]{background-image:url("img/grain.png");background-size:128px 128px;}
   /* a phone column: one full-bleed column, never a horizontal scroll from 320px up;
      every edge pads by the safe area; heights use the dynamic viewport (100dvh) */
   body{
-    min-height:100dvh;overflow-x:clip;
+    min-height:100dvh;overflow-x:hidden;overflow-x:clip;
     background:transparent;color:var(--label);font-family:var(--font);font-size:var(--fs-body);line-height:1.5;
     letter-spacing:-.01em;-webkit-font-smoothing:antialiased;
     padding-bottom:calc(32px + env(safe-area-inset-bottom));
@@ -172,7 +174,6 @@ try{
   input[type=checkbox]:not([role=switch]){
     -webkit-appearance:none;appearance:none;margin:0;flex:0 0 auto;width:24px;height:24px;border-radius:50%;
     border:1.5px solid var(--gray3);background:none;display:grid;place-items:center;cursor:pointer;
-    transition:background-color var(--dur-2) var(--ease-out), border-color var(--dur-2);
   }
   input[type=checkbox]:not([role=switch])::before{
     content:"";width:10px;height:5px;border-left:2px solid var(--on-ink);border-bottom:2px solid var(--on-ink);
@@ -241,7 +242,7 @@ try{
   .onb-back[hidden], .onb-close[hidden]{display:none;}
   .onb-back::before{content:"";width:10px;height:10px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
   .onb-dots{flex:1;display:flex;justify-content:center;gap:8px;}
-  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--ink-20);transition:background-color var(--dur-2);}
+  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--ink-20);}
   .onb-dots i.on{background:var(--ink);}
   .is-welcome .onb-dots{visibility:hidden;}
     .onb-spacer{width:44px;flex:0 0 auto;}
@@ -258,7 +259,7 @@ try{
   .onb-cta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:32px;min-height:48px;}
   /* ---------- welcome: no card. One drawing, one line, one button, straight on the background ---------- */
   .wel-art{width:140px;height:140px;margin:0 0 32px;}
-  .wel-bob{position:relative;width:100%;height:100%;animation:wel-bob 2s ease-in-out infinite alternate;}
+  .wel-bob{position:relative;width:100%;height:100%;}
   @keyframes wel-bob{from{transform:translateY(-4px);}to{transform:translateY(4px);}}
   .wel-layer{position:absolute;inset:0;rotate:-6deg;opacity:0;}
   .wel-layer.is-on{opacity:1;}
@@ -272,7 +273,7 @@ try{
   .btn-ink{
     min-height:48px;min-width:160px;padding:0 28px;border:none;border-radius:var(--r-pill);
     background:var(--ink);color:var(--on-ink);font:inherit;font-size:17px;font-weight:600;letter-spacing:-.01em;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+    transition:transform var(--dur-1) var(--ease-out);
   }
   .btn-ink:active{transform:scale(.97);transition-duration:60ms;}
   .btn-ink:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
@@ -287,7 +288,7 @@ try{
   .btn-text:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
   /* Next waits, invisible and out of the tab order, until the step has a value */
   .btn-ink.wait{opacity:0;transform:translateY(6px);pointer-events:none;}
-  .btn-ink{transition:opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);}
+  .btn-ink{transition:opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--spring);}
 
   /* ---------- onboarding: sentences you complete ---------- */
   .sent{margin:0;font-size:clamp(30px, 9vw, 36px);font-weight:700;letter-spacing:var(--track-hero);line-height:1.22;color:var(--ink);text-wrap:balance;}
@@ -312,7 +313,7 @@ try{
   }
   .blank:focus-within::after{transform:none;opacity:.6;}
   .blank[data-state="ok"]::after, .blank[data-state="hint"]::after{opacity:1;}
-  .blank.idle:focus-within::after{animation:blank-pulse 1.4s ease-in-out infinite alternate;}
+  .blank.idle:focus-within::after{animation:blank-pulse 1.4s ease-in-out 4 alternate;}   /* four breaths, then still */
   @keyframes blank-pulse{from{opacity:.25;}to{opacity:.75;}}
   .blank.time{min-width:0;}
   .blank.time .blank-input{position:static;width:auto;text-align:left;}
@@ -326,7 +327,7 @@ try{
   .pill-o{
     position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:var(--r-pill);
     border:1.5px solid var(--ink);background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color 160ms, color 160ms;
+    transition:transform var(--dur-1) var(--ease-out);
   }
   .pill-o:has(.food-art){padding-left:10px;}
   .pill-o .food-art{--art:24px;}
@@ -365,8 +366,8 @@ try{
   .mt-row input[type=time]::-webkit-calendar-picker-indicator{display:none;}
   /* the reveal: drawings floating up one by one */
   .rv-row{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:28px;min-height:84px;}
-  .rv-item{display:block;rotate:var(--r);animation:rv-rise 520ms var(--spring) both, wel-bob 2s ease-in-out infinite alternate;
-           animation-delay:calc(var(--k) * 70ms), calc(520ms + var(--k) * 70ms);}
+  .rv-item{display:block;rotate:var(--r);animation:rv-rise 520ms var(--spring) both;
+           animation-delay:calc(var(--k) * 70ms);}
   @keyframes rv-rise{from{opacity:0;transform:translateY(24px) scale(.85);}}
   /* the week, before it's yours */
   .wk-prev{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:4px;width:100%;margin-top:28px;}
@@ -375,7 +376,7 @@ try{
   .wk-art{display:block;rotate:var(--r);}
   
   @media (prefers-reduced-motion: reduce){
-    .wel-bob, .blank.idle:focus-within::after{animation:none;}
+    .blank.idle:focus-within::after{animation:none;}
     .rv-item{animation:wel-fade 300ms both;animation-delay:calc(var(--k) * 70ms);}
     .wel-in > *{animation-name:wel-fade;}
     @keyframes wel-fade{from{opacity:0;}}
@@ -407,8 +408,31 @@ try{
   .head{text-align:center;}
   .clock{display:block;font-size:20px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
   .who{margin:4px 0 0;font-size:17px;color:var(--ink-85);}
-  .headline{margin:16px 0 0;font-size:clamp(32px, 9.5vw, 40px);font-weight:700;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
+  .headline{margin:0;font-size:clamp(32px, 9.5vw, 40px);font-weight:700;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
   .headline:focus{outline:none;}
+  /* ---------- the glow (light theme) ----------
+     ~150% of the column, square, centred on the headline. The wrapper spans the
+     screen and clips sideways (never a horizontal scroll) and sits behind
+     everything. Two stacked layers crossfade (1.2s) when the open meal's food
+     group changes; the breath (scale 1→1.05, opacity .94→1, 10s) is the page's
+     only continuous animation, paused when the tab is hidden, off under reduced
+     motion. After 21:30 it drops to 55%. Its gradient comes from theme.js. */
+  .hl{position:relative;margin-top:16px;}
+  .glow-wrap{position:absolute;left:50%;top:50%;width:100vw;height:0;transform:translateX(-50%);overflow-x:clip;overflow-y:visible;
+             pointer-events:none;z-index:-1;transition:opacity 1.2s ease-in-out;
+             --glow-size:calc(1.5 * min(100vw - var(--pad-l) - var(--pad-r), var(--col)));}
+  [data-theme="dark"] .glow-wrap{display:none;}
+  .glow-dim .glow-wrap{opacity:.55;}
+  .glow-pulse{position:absolute;left:50%;top:0;width:var(--glow-size);height:var(--glow-size);translate:-50% -50%;}
+  .glow{position:absolute;inset:0;animation:breathe 10s ease-in-out infinite;will-change:transform, opacity;}
+  @keyframes breathe{0%, 100%{transform:scale(1);opacity:.94;} 50%{transform:scale(1.05);opacity:1;}}
+  .tab-hidden .glow{animation-play-state:paused;}
+  .glow-l{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease-in-out;}
+  .glow-l.is-on{opacity:1;}
+  /* the grain, layered over the colour, fading out with it */
+  .glow-grain{position:absolute;inset:0;background:url("img/grain.png") 0 0 / 128px 128px;
+              -webkit-mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);}
+  @media (prefers-reduced-motion: reduce){ .glow{animation:none;} .glow-l{transition-duration:.3s;} }
   .moment{margin:10px 0 0;min-height:1.4em;font-size:17px;line-height:1.45;color:var(--ink);text-wrap:pretty;}
   .moment.calm-tone{font-weight:500;}
   /* inline text actions keep the line's rhythm; their 44px target is an invisible pad around the words */
@@ -464,10 +488,15 @@ try{
   .undo-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
   /* the ring: on every meal, always; filled once offered */
   .ring-btn{position:relative;flex:none;width:44px;height:44px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;}
-  .ring-btn i{position:absolute;inset:9px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;transition:background-color 160ms, transform var(--dur-1) var(--ease-out);}
-  .ring-btn svg{width:16px;height:16px;fill:none;stroke:var(--on-ink);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
-  .ring-btn[aria-pressed="true"] i{background:var(--ink);}
-  .ring-btn[aria-pressed="true"] svg{stroke-dashoffset:0;}
+  /* 28px, a 1.5px ink line, transparent inside (the glow shows through); offered fills with ink and the
+     check draws in (a wipe moving off it: transform only, ~180ms) in the paper colour */
+  .ring-btn i{position:absolute;inset:8px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;overflow:hidden;transition:transform var(--dur-1) var(--ease-out);}
+  .ring-btn i::before{content:"";position:absolute;inset:-1px;border-radius:50%;background:var(--ink);transform:scale(0);transition:transform 160ms var(--ease-out);}
+  .ring-btn svg{position:relative;width:16px;height:16px;fill:none;stroke:var(--bg);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
+  .ring-btn svg .wipe{fill:var(--ink);stroke:none;transform-box:fill-box;transition:transform 180ms var(--ease-out) 60ms;}
+  .ring-btn[aria-pressed="true"] i::before{transform:scale(1);}
+  .ring-btn[aria-pressed="true"] svg{opacity:1;}
+  .ring-btn[aria-pressed="true"] svg .wipe{transform:translateX(100%);}
   .ring-btn:active i{transform:scale(.9);}
   /* while you're at it */
   .also{margin-top:24px;}
@@ -502,15 +531,15 @@ try{
   .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
   .ring circle{fill:none;stroke-width:3;}
   .r-bg{stroke:var(--ink-20);}
-  .r-fg{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p, 0) * 100);transition:stroke-dashoffset 600ms var(--ease-out);}
+  .r-fg{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p, 0) * 100);}
   .wd-dot{width:5px;height:5px;border-radius:50%;background:transparent;margin-top:2px;}
   .wd.today .wd-dot{background:var(--ink);}
   .var-line{margin:18px 0 6px;font-size:17px;}
   .var-line .mini{display:inline;margin:0 6px 0 0;}
-  .vdots{display:flex;gap:16px;}
-  .vdot{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;}
-  .vdot i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink);}
-  .vdot.on i{background:var(--ink);}
+  .vdots{display:flex;flex-wrap:wrap;gap:8px 16px;}
+  .vdot{display:inline-flex;align-items:center;gap:8px;font-size:15px;}
+  .vdot i{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink);}
+  .vdot.on i{background:var(--dot);}   /* the group's glow colour, filled once offered; the name always sits beside it */
   .shop-line{display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
   .stack{display:inline-flex;}
   .stack .st{display:block;margin-left:-10px;z-index:var(--z);}
@@ -556,7 +585,7 @@ try{
   .snap-updated, .snap-broken{margin-top:28px;font-size:17px;color:var(--ink-85);}
   @media (prefers-reduced-motion: reduce){
     .below{transform:none;transition:opacity 300ms linear;}
-    .r-fg, .chev, .ring-btn i, .ring-btn svg{transition:none;}
+    .chev, .ring-btn i, .ring-btn i::before, .ring-btn svg .wipe{transition:none;}
   }
 
   /* ---------- sheets ----------
@@ -594,7 +623,7 @@ try{
   .ate button{
     border:none;border-radius:var(--r-pill);min-height:50px;padding:10px 6px;font:inherit;font-size:15px;font-weight:700;
     background:var(--olive-50);color:var(--olive-900);box-shadow:inset 0 0 0 1.5px var(--olive-100);cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), color var(--dur-2);
+    transition:transform var(--dur-1) var(--ease-out);
   }
   .ate button:active{transform:scale(.95);}
   .ate button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);box-shadow:none;}
@@ -682,7 +711,11 @@ try{
       <time class="clock" id="clock"></time>
       <p class="who" id="who"></p>
     </header>
-    <h1 class="headline" id="headline" tabindex="-1"></h1>
+    <div class="hl">
+      <!-- the glow: one element at the top of the page, centred on the headline; it scrolls away with it -->
+      <div class="glow-wrap" aria-hidden="true"><div class="glow-pulse" id="glowPulse"><div class="glow"><i class="glow-l is-on"></i><i class="glow-l"></i><i class="glow-grain"></i></div></div></div>
+      <h1 class="headline" id="headline" tabindex="-1"></h1>
+    </div>
     <p class="moment" id="moment"></p>
     <section class="open-meal" id="openMeal"></section>
     <section class="rows" id="nextSec"><h2 class="mini" id="nextLabel"></h2><div id="nextList"></div></section>
@@ -714,6 +747,7 @@ try{
 </dialog>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
 
+<script src="theme.js"></script>
 <script src="foods.js"></script>
 <script src="content.js"></script>
 <script>

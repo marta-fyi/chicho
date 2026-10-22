@@ -11,7 +11,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["index.html", "home.js", "foods.js", "content.js", "sw.js"];
+const SOURCES = ["index.html", "theme.js", "home.js", "foods.js", "content.js", "sw.js"];
 const fails = [];
 
 // 1. hover
@@ -35,6 +35,32 @@ for (const f of SOURCES) {
     if (/===== END TOKENS/.test(line)) { afterTokens = true; return; }
     if (inStyle && afterTokens && /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(line)) fails.push(`lint  index.html:${i + 1}  colour outside the tokens: ${line.trim().slice(0, 90)}`);
   });
+}
+
+// 2c. motion: only transform and opacity move (and translate/scale/rotate, their longhands); the glow's breath is
+//     the only infinite animation. Checks CSS transitions, @keyframes and the keyframes passed to element.animate().
+{
+  const MOVES = new Set(["transform", "opacity", "translate", "scale", "rotate", "all-none"]);
+  const html = readFileSync(join(root, "index.html"), "utf8");
+  const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
+  const lineOf = idx => html.slice(0, html.indexOf("<style>") + idx).split("\n").length;
+  for (const m of css.matchAll(/transition(-property)?\s*:\s*([^;}]+)/g)) {
+    if (m[2].trim() === "none") continue;
+    m[2].split(",").map(p => p.trim().split(/\s+/)[0]).forEach(p => {
+      if (!MOVES.has(p) && !/^var\(/.test(p) && !/^[\d.]+m?s$/.test(p)) fails.push(`lint  index.html:${lineOf(m.index)}  transition on "${p}" (only transform and opacity move)`);
+    });
+  }
+  for (const m of css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^}]*\})*)\s*\}/g)) {
+    for (const d of m[2].matchAll(/([a-z-]+)\s*:/g)) if (!MOVES.has(d[1])) fails.push(`lint  index.html:${lineOf(m.index)}  @keyframes ${m[1]} animates "${d[1]}"`);
+  }
+  html.split("\n").forEach((line, i) => { if (/\binfinite\b/.test(line) && !/animation:breathe/.test(line) && !/^\s*(\/\*|\*)/.test(line)) fails.push(`lint  index.html:${i + 1}  an infinite animation that isn't the glow's breath`); });
+  for (const f of ["index.html", "home.js"]) {
+    readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
+      for (const m of line.matchAll(/\.animate\(\s*\[([^\]]*)\]/g)) for (const k of m[1].matchAll(/([a-zA-Z]+)\s*:/g))
+        if (!["opacity", "transform", "offset", "easing", "translate", "scale"].includes(k[1])) fails.push(`lint  ${f}:${i + 1}  .animate() moves "${k[1]}"`);
+      if (/iterations\s*:\s*Infinity/.test(line)) fails.push(`lint  ${f}:${i + 1}  an infinite animation that isn't the glow's breath`);
+    });
+  }
 }
 
 // 3. the test pages

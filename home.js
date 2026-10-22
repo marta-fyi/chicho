@@ -284,7 +284,9 @@ function renderHome(){
   $("home").classList.toggle("is-empty", empty);
   renderHeadline();
   renderMomentLine();
-  renderMeals();
+  try{ renderMeals(); }catch(e){ setGlow(null); throw e; }
+  if(calmState || empty) setGlow(null);   // no plan, or under 6 months: the default glow
+  document.documentElement.classList.toggle("glow-dim", t.getHours()*60 + t.getMinutes() >= QUIET_FROM_MIN);
   renderWeek();
   renderShopLine();
   updateChrome();
@@ -352,6 +354,26 @@ function renderMeals(){
   setText($("nextLabel"), nextLabel);
   renderAlso(def);
   focusRestore(focus);
+  const open = all.find(x=>x.key===openKey) || def;
+  setGlow(open && open.m.items[0] ? open.m.items[0].cats[0] : null);
+}
+/* ---------- the glow follows the open meal ---------- */
+let glowKey = null;
+function setGlow(cat){
+  const group = glowGroup(cat);
+  if(group===glowKey) return;
+  const layers = [...document.querySelectorAll(".glow-l")];
+  if(!layers.length) return;
+  const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
+  if(glowKey===null) on.style.backgroundImage = glowGradient(GLOW[group].hex);
+  else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
+  glowKey = group;
+  document.documentElement.dataset.glow = group;
+}
+/* one soft pulse when a meal is offered: that's the whole reward */
+function pulseGlow(){
+  const p = $("glowPulse");
+  if(p && !calm() && document.documentElement.dataset.theme==="light") p.animate([{transform:"scale(1)"}, {transform:"scale(1.05)"}, {transform:"scale(1)"}], {duration:700, easing:"ease-in-out"});
 }
 function fillList(list, refs, openKey){ list.innerHTML = ""; refs.forEach(x=>list.appendChild(mealView(x, x.key===openKey, false))); }
 /* keep focus on the same control across a redraw (by its data-f key) */
@@ -362,14 +384,15 @@ function whenLabel(x){
   const tomorrow = isoOf(x.date)!==todayISO();
   return say(tomorrow ? "home.tomorrowWhen" : "home.rowWhen", {meal:x.m.label, time:fmtTime(x.start)});
 }
-/* the offered ring: on every meal, always visible, a 44px target */
+/* the offered ring: on every meal, always visible, a 44px target; the check sits under a wipe that slides off */
+const RING = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/><rect class="wipe" x="4" y="5" width="16" height="14"/></svg></i>`;
 function ringBtn(x, f){
   const on = mealOffered(x.m);
   const b = document.createElement("button");
   b.type = "button"; b.className = "ring-btn"; b.dataset.f = f;
   b.setAttribute("aria-pressed", String(on));
   b.setAttribute("aria-label", on ? say("meal.ringOn", {meal:x.m.label}) : say("meal.ringOff", {meal:x.m.label}));
-  b.innerHTML = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg></i>`;
+  b.innerHTML = RING;
   b.addEventListener("click", e=>{ e.stopPropagation(); toggleOffered(x); });
   return b;
 }
@@ -378,7 +401,7 @@ function toggleOffered(x, fromPill){
   // offered from its own pill, the meal stays open (Undo, then how it went) until the next boundary
   if(on && fromPill) picked = {key:x.key, until:nextBoundary(refsOn(now()))};
   offerMeal(x.m, on); save(); haptic();
-  if(on){ undoUntil[x.key] = Date.now() + 5000; setTimeout(()=>{ homeChanged(); }, 5050); announce(say("home.announce.offered", {meal:x.m.label})); }
+  if(on){ pulseGlow(); undoUntil[x.key] = Date.now() + 5000; setTimeout(()=>{ homeChanged(); }, 5050); announce(say("home.announce.offered", {meal:x.m.label})); }
   else { delete undoUntil[x.key]; announce(say("home.announce.unoffered", {meal:x.m.label})); }
   homeChanged();
 }
@@ -643,7 +666,7 @@ function renderWeek(){
   });
   // variety lives here, with the week: five dots, filled once a group has been offered
   const dots = $("vdots");
-  if(!dots.children.length) GROUPS.forEach(cat=>dots.insertAdjacentHTML("beforeend", `<span class="vdot" data-cat="${cat}"><i aria-hidden="true"></i><span>${esc(say("home.groups." + cat))}</span></span>`));
+  if(!dots.children.length) GROUPS.forEach(cat=>dots.insertAdjacentHTML("beforeend", `<span class="vdot" data-cat="${cat}" style="--dot:${GLOW[cat].hex}"><i aria-hidden="true"></i><span>${esc(say("home.groups." + cat))}</span></span>`));
   let on = 0;
   [...dots.children].forEach(d=>{ const t = offeredFoods(d.dataset.cat).length > 0; if(t) on++; d.classList.toggle("on", t); d.setAttribute("aria-label", say("home.groups." + d.dataset.cat) + (t ? ": offered" : ": not yet")); d.setAttribute("role", "img"); });
   setText($("varText"), (on===GROUPS.length ? say("home.variety.all") : say("home.variety.some")));
@@ -797,7 +820,7 @@ function sheetRing(on, label, fn, f){
   const b = document.createElement("button");
   b.type = "button"; b.className = "ring-btn"; if(f) b.dataset.f = f;
   b.setAttribute("aria-pressed", String(!!on)); b.setAttribute("aria-label", label);
-  b.innerHTML = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg></i>`;
+  b.innerHTML = RING;
   b.addEventListener("click", fn);
   return b;
 }
