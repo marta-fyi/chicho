@@ -108,7 +108,7 @@ try{
   b,strong{font-weight:600;}
   button,input,select,textarea{font-family:inherit;color:inherit;letter-spacing:inherit;}
   .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
-  .container{max-width:640px;margin:0 auto;padding:0 16px;}
+
   :focus{outline:none;}
   :focus-visible{outline:3px solid var(--tint);outline-offset:2px;}
 
@@ -144,7 +144,7 @@ try{
      white: text, dots, drawings, and the pill flips to white with black text.
      Black on the navy measures 2:1; white passes. Surfaces (white cards, peeks)
      keep black ink. Add each frameless screen to this list as it lands. */
-  [data-tod="evening"] :is(.onb){
+  [data-tod="evening"] :is(.onb, .home){
     --ink:#FFFFFF; --ink-70:rgba(255,255,255,.78); --ink-25:rgba(255,255,255,.32);
     --on-ink:#0A0A0A; --art-ink:invert(1); --art-ink-on:none;
   }
@@ -580,114 +580,196 @@ try{
   .locked-why{font-size:var(--fs-caption);color:var(--ink);margin:4px 0 0;line-height:1.45;min-height:1em;}
   .form-note{font-size:var(--fs-caption);color:#7A2E22;margin:8px 0 0;line-height:1.45;}
 
-  /* ---------- the fan ----------
-     A fan of rounded tiles, each slightly rotated and overlapping its
-     neighbour. A tile is a photo when there is one, otherwise a soft pastel
-     of its food group with a big emoji. Hover, focus or a tap straightens
-     it and lifts it to the front; on first paint the tiles fan in one by
-     one (Web Animations, 70 ms apart). */
-  .fan{display:flex;justify-content:center;align-items:flex-end;padding:20px 8px 8px;margin:0 22px;min-height:150px;}
-  .tile{
-    --r:0deg;position:relative;flex:0 0 auto;width:min(30%, 124px);margin:0 -9px;padding:0;border:none;background:none;
-    font:inherit;color:inherit;text-align:left;cursor:pointer;transform:rotate(var(--r));transform-origin:50% 90%;
-    transition:transform var(--dur-3) var(--spring), z-index 0s var(--dur-2);
-  }
-  .tile-art{
-    position:relative;display:grid;place-items:center;aspect-ratio:4 / 5;border-radius:var(--r-tile);background:var(--soft, var(--olive-100));
-    box-shadow:var(--shadow-tile);overflow:hidden;transition:box-shadow var(--dur-3) var(--ease-out);
-  }
-  .tile-art img{width:100%;height:100%;object-fit:cover;}
-  .tile-emoji{font-size:46px;line-height:1;filter:drop-shadow(0 6px 8px rgba(40,46,30,.18));}
-  /* the meal's name rides inside the tile, so overlapping tiles never collide */
-  .tile-slot{position:absolute;left:2px;right:2px;bottom:12px;text-align:center;font-size:12px;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap;}
-  .tile-emoji{margin-bottom:14px;}
-  .tile:hover, .tile:focus-visible, .tile.lift{transform:rotate(0) translateY(-10px) scale(1.04);z-index:2;transition:transform var(--dur-3) var(--spring), z-index 0s;}
-  .tile:hover .tile-art, .tile:focus-visible .tile-art, .tile.lift .tile-art{box-shadow:var(--shadow-lift);}
-  .tile:active{transform:rotate(0) translateY(-6px) scale(.97);transition-duration:var(--dur-1);}
-  .tile:focus-visible{outline:none;}
-  .tile:focus-visible .tile-art{outline:3px solid var(--olive-700);outline-offset:3px;}
-  .fan-empty{font-size:var(--fs-body);color:var(--muted);text-align:center;padding:20px 22px;}
 
-  /* ---------- home ----------
-     One calm column: a greeting with their name and age, the Today card
-     with the fan, then three quiet cards that each show one thing. On wide
-     screens a small rail takes the week, the rainbow and the tip. */
-  .container{max-width:492px;}
-  .hello{display:flex;align-items:center;gap:14px;padding:calc(env(safe-area-inset-top) + 24px) 4px 18px;}
-  .hello-text{flex:1;min-width:0;}
-  .hello-time{margin:0;font-size:17px;font-weight:600;color:var(--olive-900);transition:color 60s linear;}
-  .hello-name{margin:4px 0 0;display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;
-    font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--ink);transition:color 60s linear;}
-  .age-chip{font-size:14px;font-weight:600;letter-spacing:0;padding:6px 12px;border-radius:var(--r-pill);background:rgba(255,255,255,.88);color:var(--olive-900);}
-  [data-tod="evening"] .hello-time, [data-tod="evening"] .hello-name{color:#fff;}
-  .profile-btn{
-    flex:0 0 auto;width:48px;height:48px;border:none;border-radius:50%;background:rgba(255,255,255,.92);box-shadow:var(--shadow-tile);
-    font:inherit;font-weight:800;font-size:19px;color:var(--olive-700);cursor:pointer;transition:transform var(--dur-1) var(--ease-out);
-  }
-  .profile-btn:active{transform:scale(.94);}
-  .home-grid, .home-main, .home-rail{display:flex;flex-direction:column;gap:16px;}
-  .hcard{
-    position:relative;display:block;width:100%;text-align:left;font:inherit;color:inherit;border:none;
-    background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:22px;
-    transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);
-  }
-  button.hcard{cursor:pointer;}
-  button.hcard:active, .hcard.pressable:has(> .hhead:active){transform:scale(.97);box-shadow:var(--shadow-tile);transition-duration:var(--dur-1);}
-  .hhead{
-    display:inline-flex;align-items:baseline;gap:.3em;border:none;background:none;padding:0;margin:0;font:inherit;cursor:pointer;
-    font-size:26px;font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--olive-700);
-  }
-  .hhead::after{content:"→";font-weight:700;transition:transform var(--dur-3) var(--spring);}
-  .hcard:hover .hhead::after, .hhead:hover::after{transform:translateX(4px);}
-  .hhead.static{cursor:default;}
-  .hhead.static::after{content:none;}
-  .hero .hhead{font-size:var(--fs-display);}
-  .hero .fan{margin:6px 0 0;padding:14px 18px 8px;}   /* room for the outer tiles to tilt */
-  .hero-line{margin:14px 2px 0;font-size:17px;line-height:1.45;color:var(--ink);}
-  .hero-line:empty{display:none;}
-  .hero .pill{margin-top:16px;width:100%;}
-  .glance{display:block;margin:10px 0 0;font-size:17px;line-height:1.35;color:var(--ink);}
-  .hint{display:block;margin:4px 0 0;font-size:14px;color:var(--muted);}
-  .hint:empty{display:none;}
-  /* Shop: a little stack of what's needed first */
-  .thumbs{position:absolute;right:22px;top:22px;display:flex;}
-  .thumb{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:var(--soft, var(--olive-100));box-shadow:0 0 0 3px var(--card);margin-left:-10px;}
-  /* This week: seven days, a soft ring each that fills as meals are marked */
-  .strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin:14px -6px 0;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;}
-  .strip::-webkit-scrollbar{display:none;}
-  .wd{
-    scroll-snap-align:start;border:none;background:none;border-radius:18px;padding:8px 0 10px;min-height:44px;
-    display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit;cursor:pointer;transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
-  }
-  .wd:active{transform:scale(.92);}
-  .wd-l{font-size:12px;font-weight:600;color:var(--muted);}
-  .wd.today{background:var(--olive-50);}
-  .wd.today .wd-l{color:var(--olive-700);}
-  .ring{position:relative;width:38px;height:38px;}
+  /* ---------- home: a poster, no boxes ----------
+     One centred column (≤760px), one page scroll, the block sitting a little
+     above centre on tall screens. Type and space make the hierarchy. */
+  .home{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 10px) 20px calc(env(safe-area-inset-bottom) + 40px);
+        min-height:100svh;display:flex;flex-direction:column;color:var(--ink);}
+  .top{display:flex;justify-content:flex-end;min-height:44px;}
+  .me{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--ink);background:none;color:var(--ink);
+      font:inherit;font-size:17px;font-weight:700;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
+  .me:active{transform:scale(.94);}
+  .poster{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2vh 0 9vh;}
+  .greet{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em;}
+  .clock{display:block;margin:2px 0 0;font-size:15px;color:var(--ink-70);font-variant-numeric:tabular-nums;}
+  .headline{margin:16px 0 0;max-width:640px;font-size:var(--fs-hero);font-weight:700;letter-spacing:var(--track-hero);line-height:1.05;text-wrap:balance;}
+  .headline:focus{outline:none;}
+  .support{margin:12px 0 0;max-width:560px;min-height:1.45em;font-size:17px;line-height:1.45;color:var(--ink-70);text-wrap:balance;}
+  .btn-text.inline{min-height:44px;padding:0 6px;font-size:inherit;color:var(--ink);vertical-align:baseline;}
+  .sec{width:100%;margin-top:52px;}
+  .label{margin:0 0 14px;font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em;}
+  .label-btn{position:relative;min-height:44px;padding:0 6px;border:none;background:none;color:inherit;font:inherit;cursor:pointer;}
+  .label-btn .arrow{position:absolute;left:100%;top:50%;translate:-6px -50%;opacity:0;font-style:normal;white-space:nowrap;
+                    transition:opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--spring);}
+  .label-btn:hover .arrow, .label-btn:focus-visible .arrow{opacity:1;translate:0 -50%;}
+  .label-btn:focus-visible, .me:focus-visible, .shop-line:focus-visible, .vdot:focus-visible, .wd:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:12px;}
+  .me:focus-visible{border-radius:50%;}
+  /* the meals: drawings, slightly turned and overlapping, the next one lifted */
+  .meals{--n:3;display:flex;justify-content:center;align-items:flex-end;flex-wrap:nowrap;
+         --s:clamp(72px, calc((min(100vw, 760px) - 40px) / var(--n) * 1.06), 150px);}
+  .meal{position:relative;z-index:var(--z, 1);display:flex;flex-direction:column;align-items:center;width:var(--s);margin:0 calc(var(--s) * -.03);padding-top:26px;}
+  .meal-btn{position:relative;display:block;width:var(--s);height:var(--s);padding:0;border:none;background:none;cursor:pointer;border-radius:30%;}
+  .meal-art{display:block;width:100%;height:100%;rotate:var(--r, 0deg);filter:var(--art-shadow);
+            transition:transform 400ms var(--spring), rotate 250ms var(--ease-out);}
+  .meal-art .food-art{--art:100% !important;width:100%;height:100%;}
+  .meal-art .food-emoji{font-size:calc(var(--s) * .56);}
+  .meal.next .meal-art{transform:translateY(-6px) scale(1.15);}
+  .meal-btn:hover .meal-art, .meal-btn.is-open .meal-art, .meal-btn:focus-visible .meal-art{rotate:0deg;transform:translateY(-6px) scale(var(--lift, 1));}
+  .meal.next .meal-btn:hover .meal-art, .meal.next .meal-btn.is-open .meal-art{--lift:1.15;}
+  .meal-btn:active .meal-art{transform:translateY(-4px) scale(.97);transition-duration:80ms;}
+  .meal-btn:focus-visible{outline:2px solid var(--ink);outline-offset:4px;}
+  .meal-name{display:flex;flex-direction:column;align-items:center;margin-top:12px;font-size:15px;line-height:1.3;}
+  .meal-name b{font-weight:600;white-space:nowrap;}
+  .meal-time{color:var(--ink-70);white-space:nowrap;font-size:14px;}
+  .meal-time .sep{display:none;}
+  @media (min-width:700px){ .meal-name{flex-direction:row;gap:4px;} .meal-time .sep{display:inline;} }
+  @media (max-width:420px){ .meal-name{font-size:14px;} .meal-time{font-size:13px;} }
+  .meal-note{min-height:1.3em;font-size:13px;color:var(--ink-70);}
+  .meal-tag{position:absolute;top:0;left:50%;translate:-50% 0;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;opacity:0;transition:opacity var(--dur-3);}
+  .meal.next .meal-tag{opacity:1;}
+  .meal-tag i{width:7px;height:7px;border-radius:50%;background:var(--ink);animation:soft-dot 3.2s ease-in-out infinite alternate;}
+  @keyframes soft-dot{from{opacity:.35;}to{opacity:1;}}
+  /* the quick tick: on hover (or always, on touch); filled black with a check once eaten */
+  .qtick{position:absolute;top:22px;right:calc(var(--s) * .04);width:30px;height:30px;padding:0;border-radius:50%;
+         border:1.5px solid var(--ink);background:rgba(255,255,255,.55);color:var(--ink);cursor:pointer;opacity:0;
+         transition:opacity var(--dur-2), transform var(--dur-1) var(--ease-out), background-color 160ms;}
+  .qtick::after{content:"";position:absolute;inset:-8px;}
+  .qtick svg{width:18px;height:18px;margin:5px 0 0 5px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;
+             stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
+  .meal:hover .qtick, .meal:focus-within .qtick{opacity:1;}
+  @media (hover:none), (pointer:coarse){ .qtick{opacity:1;} }
+  .qtick[aria-pressed="true"]{opacity:1;background:var(--ink);color:var(--on-ink);border-color:var(--ink);}
+  .qtick[aria-pressed="true"] svg, .meal .qtick:hover svg{stroke-dashoffset:0;}
+  .qtick:active{transform:scale(.9);}
+  .qtick:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .meal.solo{width:150px;--s:150px;padding-top:0;}
+  .is-milk .week-sec, .is-milk .lines, .is-milk .today-sec .label, .is-empty .today-sec, .is-empty .week-sec, .is-empty .lines{display:none;}
+  /* This week: seven days, a thin black ring that fills; today is a dot, not a box */
+  .strip{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));max-width:520px;margin:0 auto;}
+  .wd{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:44px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;}
+  .wd-l{font-size:13px;font-weight:600;}
+  .ring{position:relative;width:40px;height:40px;transition:transform var(--dur-2) var(--spring);}
+  .wd:hover .ring, .wd.is-open .ring{transform:translateY(-3px);}
   .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
-  .ring circle{fill:none;stroke-width:3.5;}
-  .r-bg{stroke:var(--olive-100);}
-  .r-fg{stroke:var(--olive-500);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p) * 100);transition:stroke-dashoffset 700ms var(--spring-soft);}
-  .wd.done .r-fg{stroke:var(--olive-700);}
-  .wd-n{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:600;color:var(--ink);}
-  .wd.done .wd-n{color:var(--olive-700);}
-  /* Variety: one dot per food group, filled once it's been tasted this week */
-  .rainbow{display:flex;gap:14px;margin-top:14px;}
-  .rdot{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--muted);}
-  .rdot i{width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--c);transition:background-color var(--dur-3);}
-  .rdot.on i{background:var(--c);}
-  .rdot.on{color:var(--ink);}
-  /* a small kind tip, dismissible */
-  .tip{display:flex;gap:12px;align-items:flex-start;margin:0;background:rgba(255,255,255,.9);border-radius:22px;padding:14px 12px 14px 18px;font-size:14px;line-height:1.45;color:var(--ink);}
-  .tip p{margin:0;flex:1;}
-  .tip button{flex:0 0 auto;width:32px;height:32px;margin:-4px 0;border:none;border-radius:50%;background:none;color:var(--muted);font-size:15px;cursor:pointer;}
-  .tip[hidden]{display:none;}
-  /* a gentle notice: a stage change, a reminder that came due */
-  .notice{background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-200), var(--shadow-card);}
-  .notice p{margin:0 0 14px;font-size:17px;line-height:1.45;}
-  .notice .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  .notice .pill{min-height:46px;padding:10px 20px;font-size:16px;}
-  #notices:empty{display:none;}
+  .ring circle{fill:none;stroke-width:2;}
+  .r-bg{stroke:var(--ink-25);}
+  .r-fg{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p, 0) * 100);transition:stroke-dashoffset 600ms var(--ease-out);}
+  .wd-n{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .wd-dot{width:5px;height:5px;border-radius:50%;background:transparent;}
+  .wd.today .wd-dot{background:var(--ink);}
+  /* Shop and Variety: two quiet lines, side by side, stacked on a phone */
+  .lines{display:grid;grid-template-columns:1fr 1fr;gap:28px;width:100%;margin-top:52px;}
+  @media (max-width:560px){ .lines{grid-template-columns:1fr;gap:36px;} }
+  .line-sec .label{margin-bottom:8px;}
+  .shop-line{display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:4px 10px;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;cursor:pointer;}
+  .stack{display:inline-flex;}
+  .stack .st{display:block;margin-left:-14px;rotate:var(--r);z-index:var(--z);filter:var(--art-shadow);transition:transform var(--dur-2) var(--spring);}
+  .stack .st:first-child{margin-left:0;}
+  .shop-line:hover .st, .shop-line.is-open .st{transform:translateY(-4px);}
+  .var-line{margin:0 0 12px;font-size:17px;}
+  .vdots{display:flex;justify-content:center;gap:6px;}
+  .vdot{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:52px;min-height:52px;padding:6px 2px;border:none;background:none;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;border-radius:12px;}
+  .vdot i{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink);transition:background-color var(--dur-3), transform var(--dur-2) var(--spring);}
+  .vdot.on i{background:var(--ink);}
+  .vdot:hover i, .vdot.is-open i{transform:translateY(-3px);}
+  .vlegend{margin:8px 0 0;font-size:13px;color:var(--ink-70);}
+
+  /* ---------- peeks: the only surfaces ----------
+     White, radius 24, a soft diffuse shadow; black ink day and night. */
+  .peek{
+    position:fixed;z-index:200;left:0;top:0;width:min(360px, calc(100vw - 16px));overflow:auto;overscroll-behavior:contain;
+    background:#fff;border-radius:var(--r-peek);box-shadow:var(--shadow-peek);text-align:left;
+    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --ink-25:rgba(10,10,10,.25); --on-ink:#FFFFFF; --art-ink:none; --art-ink-on:invert(1);
+    color:var(--ink);transform-origin:top center;
+  }
+  .peek.above{transform-origin:bottom center;}
+  .peek[hidden]{display:none;}
+  .peek:focus{outline:none;}
+  /* a bridge over the gap back to the trigger, so the pointer can cross it */
+  .peek::before{content:"";position:fixed;left:auto;width:var(--bridge-w, 0);height:12px;margin-left:var(--bridge-x, 0);margin-top:-12px;}
+  .peek.above::before{display:none;}
+  .peek-body{padding:18px 16px 10px;}
+  .p-head{padding:0 6px 8px;}
+  .p-head h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;}
+  .p-sub{margin:2px 0 0;font-size:14px;color:var(--ink-70);display:flex;flex-wrap:wrap;align-items:center;gap:0 2px;}
+  .p-sub .btn-text.small{min-height:32px;font-size:14px;padding:0 4px;position:relative;}
+  .p-sub .btn-text.small::after{content:"";position:absolute;inset:-6px 0;}
+  .p-time input{font:inherit;font-size:16px;border:none;border-bottom:2px solid var(--ink);background:none;padding:2px 0;color:var(--ink);}
+  .p-switch{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin:2px 0 6px;padding:0 6px;border:none;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;border-radius:14px;}
+  .p-switch i{position:relative;width:42px;height:26px;border-radius:13px;background:var(--ink-25);transition:background-color 180ms;}
+  .p-switch i::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform 220ms var(--spring);}
+  .p-switch[aria-pressed="true"] i{background:var(--ink);}
+  .p-switch[aria-pressed="true"] i::after{transform:translateX(16px);}
+  .p-rows{display:flex;flex-direction:column;}
+  .p-row{position:relative;display:grid;grid-template-columns:28px 1fr auto auto;align-items:center;gap:10px;min-height:52px;padding:4px 6px;border-radius:14px;}
+  .p-row:hover{background:rgba(10,10,10,.04);}
+  .p-row .food-art{--art:28px;}
+  .p-row .food-emoji{font-size:20px;}
+  .p-name{font-size:16px;font-weight:600;line-height:1.25;min-width:0;}
+  .p-meta{display:block;font-size:13px;font-weight:400;color:var(--ink-70);}
+  .p-amt{font-weight:400;color:var(--ink-70);}
+  .p-new{font-style:normal;font-size:12px;font-weight:600;padding:1px 7px;border:1px solid var(--ink);border-radius:999px;}
+  .p-acts{display:flex;gap:2px;}
+  .p-act{min-height:36px;min-width:36px;padding:0 8px;border:none;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;}
+  .p-act::after{content:"";position:absolute;inset:-4px 0;}
+  .p-act:hover, .p-act[aria-expanded="true"]{background:rgba(10,10,10,.07);}
+  .p-dots{font-size:18px;line-height:1;letter-spacing:1px;}
+  @media (hover:hover) and (pointer:fine){
+    /* the row's actions float over its right edge on hover/focus, so names keep the full width */
+    .peek:not(.as-sheet) .p-row{grid-template-columns:28px 1fr auto;}
+    .peek:not(.as-sheet) .p-row .p-acts{position:absolute;right:44px;top:50%;translate:0 -50%;padding-left:16px;
+      background:linear-gradient(90deg, rgba(255,255,255,0), #fff 16px);}
+    .peek:not(.as-sheet) .p-row:hover .p-acts{background:linear-gradient(90deg, rgba(246,246,246,0), #F6F6F6 16px);}
+    .peek:not(.as-sheet) .p-row:not(:has(.tick)) .p-acts{right:6px;}
+    .p-row .p-acts{opacity:0;transition:opacity 120ms;}
+    .p-row:hover .p-acts, .p-row:focus-within .p-acts, .p-row .p-act[aria-expanded="true"]{opacity:1;}
+    .p-row:has(.p-act[aria-expanded="true"]) .p-acts{opacity:1;}
+  }
+  .tick{position:relative;width:28px;height:28px;padding:0;border-radius:50%;border:1.5px solid var(--ink);background:none;color:var(--ink);cursor:pointer;transition:background-color 160ms, transform var(--dur-1) var(--ease-out);}
+  .tick::after{content:"";position:absolute;inset:-8px;}
+  .tick svg{width:16px;height:16px;display:block;margin:5px 0 0 5px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset 180ms var(--ease-out);}
+  .tick[aria-pressed="true"], .tick[data-on]{background:var(--ink);color:var(--on-ink);}
+  .tick[aria-pressed="true"] svg, .tick[data-on] svg{stroke-dashoffset:0;}
+  .tick:active{transform:scale(.9);}
+  .tick.static{cursor:default;}
+  .tick:focus-visible, .p-act:focus-visible, .p-alt:focus-visible, .p-switch:focus-visible, .p-foot:focus-visible, .p-menu-row:focus-visible, .p-idea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .p-swap{display:flex;flex-wrap:wrap;gap:6px;padding:2px 6px 10px 44px;font-size:14px;color:var(--ink-70);}
+  .p-alt{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 6px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .p-more .p-alt{padding:0 14px;}
+  .p-alt[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
+  .p-alt .food-art{--art:28px;}
+  .p-log{margin:4px 6px 0;font-size:16px;font-weight:600;}
+  .p-logbtn{margin:2px 0 0;font-size:14px;}
+  .p-sec{margin:12px 6px 6px;font-size:13px;font-weight:600;color:var(--ink-70);}
+  .p-art-row{display:flex;flex-wrap:wrap;gap:6px 10px;padding:0 6px 4px;}
+  .p-art{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;font-size:12px;text-align:center;line-height:1.2;}
+  .p-art .food-art{--art:40px;}
+  .p-idea{padding:6px 2px;border:none;border-radius:14px;background:none;color:var(--ink);font:inherit;font-size:12px;cursor:pointer;}
+  .p-idea:hover{background:rgba(10,10,10,.05);}
+  .p-empty{margin:4px 6px 8px;font-size:14px;color:var(--ink-70);}
+  .p-foot{display:block;width:100%;min-height:48px;margin-top:6px;padding:0 6px;border:none;border-top:1px solid rgba(10,10,10,.08);background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:600;text-align:left;cursor:pointer;}
+  .p-menu-row{display:block;width:100%;min-height:48px;padding:0 6px;border:none;border-radius:14px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;text-align:left;cursor:pointer;}
+  .p-menu-row:hover{background:rgba(10,10,10,.05);}
+  .p-menu-row:disabled{opacity:.4;cursor:default;}
+  /* on touch, the same peek is a bottom sheet over a scrim, dragged down to let go */
+  .peek.as-sheet{left:0;right:0;top:auto;bottom:0;width:100%;max-height:82vh !important;border-radius:var(--r-peek) var(--r-peek) 0 0;padding-bottom:env(safe-area-inset-bottom);transform-origin:bottom center;}
+  .peek.as-sheet::before{display:none;}
+  .peek-grab{display:flex;justify-content:center;padding:10px 0 0;touch-action:none;cursor:grab;}
+  .peek-grab i{width:40px;height:5px;border-radius:3px;background:rgba(10,10,10,.2);}
+  .peek.as-sheet .p-acts{opacity:1;}
+  .scrim{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.28);}
+  .scrim[hidden]{display:none;}
+  /* the toast: a line and an Undo */
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);z-index:300;transform:translateX(-50%);
+         display:flex;align-items:center;gap:6px;max-width:calc(100vw - 24px);padding:6px 6px 6px 18px;border-radius:var(--r-peek);
+         background:#fff;box-shadow:var(--shadow-peek);color:#0A0A0A;font-size:15px;font-weight:600;--ink:#0A0A0A;}
+  .toast[hidden]{display:none;}
+  .toast .btn-text{min-height:40px;font-size:15px;}
+  @media (prefers-reduced-motion: reduce){
+    .meal-tag i{animation:none;}
+    .meal-art, .ring, .stack .st, .vdot i, .label-btn .arrow{transition:none;}
+  }
 
   /* ---------- sheets ----------
      One <dialog> for every detail: it springs up from the bottom on a phone
@@ -797,8 +879,8 @@ try{
   .sheet-body.enter > :nth-child(8){animation-delay:210ms;}
 
   /* small controls keep their size on screen but take a 44px tap */
-  .buy-chip, .chip button.x, .tip button, .locked-rule, .suggest button, .have-chip{position:relative;}
-  .buy-chip::after, .chip button.x::after, .tip button::after, .locked-rule::after, .suggest button::after{
+  .buy-chip, .chip button.x, .locked-rule, .suggest button, .have-chip{position:relative;}
+  .buy-chip::after, .chip button.x::after, .locked-rule::after, .suggest button::after{
     content:"";position:absolute;left:50%;top:50%;width:max(100%, 44px);height:max(100%, 44px);translate:-50% -50%;
   }
 
@@ -825,18 +907,10 @@ try{
   .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(6){animation-delay:200ms;}
   .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(7){animation-delay:240ms;}
   .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(8){animation-delay:280ms;}
-  /* a day's ring completing on the home strip */
-  .wd.complete .ring{animation:ring-done 800ms var(--spring);}
-  @keyframes ring-done{0%{transform:scale(1);} 35%{transform:scale(1.22) rotate(-8deg);} 100%{transform:scale(1);}}
   .ate button[aria-pressed="true"]{animation:pop var(--dur-3) var(--spring);}
   /* the bought tick pops and the strike draws */
   .k-row.just input[type=checkbox]:checked::before{animation:tick-pop var(--dur-3) var(--spring);}
 
-  /* ---------- wide screens: the main column and a small rail ---------- */
-  @media (min-width:1024px){
-    .container{max-width:880px;padding:0 24px;}
-    .home-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;}
-  }
 
   /* ---------- motion ---------- */
   @keyframes rise{from{transform:translateY(10px);}}
@@ -854,7 +928,7 @@ try{
     .bg-img,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
     .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal),
-    .wd.complete .ring, .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
+    .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
     .set-row, .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
@@ -896,43 +970,37 @@ function timeOfDay(d){
   <div class="onb-card" id="onbCard"></div>
 </div>
 <div class="scroll-edge" aria-hidden="true"></div>
-<div class="container">
-  <header class="hello">
-    <div class="hello-text">
-      <p class="hello-time" id="helloTime"></p>
-      <h1 class="hello-name"><span id="helloName"></span><span class="age-chip" id="ageChip"></span></h1>
-    </div>
-    <button type="button" class="profile-btn" id="profileBtn" aria-label="Profile and settings"></button>
-  </header>
+<div class="container home" id="home">
+  <div class="top"><button type="button" class="me" id="profileBtn" data-k="me"></button></div>
+  <main class="poster">
+    <p class="greet" id="greet"></p>
+    <time class="clock" id="clock"></time>
+    <h1 class="headline" id="headline"></h1>
+    <p class="support" id="support"></p>
 
-  <div class="home-grid">
-    <div class="home-main">
-      <div id="notices"></div>
-      <section class="hcard hero pressable" id="hero" aria-labelledby="heroHead">
-        <button type="button" class="hhead" id="heroHead">Today</button>
-        <div class="fan" id="todayFan" role="group" aria-label="Today's meals"></div>
-        <p class="hero-line" id="heroLine"></p>
+    <section class="sec today-sec" aria-labelledby="todayLabel">
+      <h2 class="label"><button type="button" class="label-btn" id="todayLabel" data-k="lbl-today"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
+      <div class="meals" id="meals" role="list"></div>
+    </section>
+
+    <section class="sec week-sec" id="weekSec" aria-labelledby="weekLabel">
+      <h2 class="label"><button type="button" class="label-btn" id="weekLabel" data-k="lbl-week"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
+      <div class="strip" id="weekStrip"></div>
+    </section>
+
+    <div class="lines" id="lines">
+      <section class="line-sec" aria-labelledby="shopLabel">
+        <h2 class="label"><button type="button" class="label-btn" id="shopLabel" data-k="lbl-shop"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
+        <button type="button" class="shop-line" id="shopLine" data-k="shop"><span class="stack" id="shopStack" aria-hidden="true"></span><span id="shopText"></span></button>
       </section>
-      <button type="button" class="hcard" id="shopCard">
-        <span class="hhead">Shop</span>
-        <span class="thumbs" id="shopThumbs" aria-hidden="true"></span>
-        <span class="glance" id="shopGlance"></span>
-        <span class="hint" id="shopHint"></span>
-      </button>
+      <section class="line-sec" aria-labelledby="varLabel">
+        <h2 class="label"><button type="button" class="label-btn" id="varLabel" data-k="lbl-var"><span></span><i class="arrow" aria-hidden="true"> →</i></button></h2>
+        <p class="var-line" id="varText"></p>
+        <div class="vdots" id="vdots"></div>
+        <p class="vlegend" id="vlegend" hidden></p>
+      </section>
     </div>
-    <aside class="home-rail" aria-label="This week and variety">
-      <section class="hcard pressable" aria-labelledby="weekHead">
-        <button type="button" class="hhead" id="weekHead">This week</button>
-        <div class="strip" id="weekStrip"></div>
-      </section>
-      <button type="button" class="hcard" id="varietyHome">
-        <span class="hhead">Variety</span>
-        <span class="glance" id="rainbowGlance"></span>
-        <span class="rainbow" id="rainbow"></span>
-      </button>
-      <div class="tip" id="tip" role="note" hidden><p id="tipText"></p><button type="button" id="tipClose" aria-label="Dismiss today's tip">✕</button></div>
-    </aside>
-  </div>
+  </main>
 
   <!-- detail panels that keep their own renderers; they live here, hidden,
        and move into the sheet while it shows them -->
@@ -1004,6 +1072,7 @@ function timeOfDay(d){
   <div class="sheet-body" id="sheetBody"></div>
 </dialog>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <script src="foods.js"></script>
 <script src="content.js"></script>
@@ -1879,52 +1948,6 @@ function emojiFor(item){
   const f = foodOf(item.name);
   return f ? f.emoji : CAT_EMOJI[item.cats[0]] || "🍽️";
 }
-/* breakfast, lunch, dinner, and the first snack if the stage has snacks */
-function fanMeals(day){
-  const main = day.meals.filter(m=>m.label!=="Snack");
-  const snack = day.meals.find(m=>m.label==="Snack");
-  const picked = snack ? [main[0], snack, ...main.slice(1)] : main;
-  return picked.filter(Boolean).slice(0, 4);
-}
-const FAN_TILT = {1:[0], 2:[-5,5], 3:[-7,1,7], 4:[-8,-3,3,8]};
-let fanDrawn = false;
-function renderFan(){
-  const wrap = document.getElementById("todayFan");
-  const dayIdx = dayDisplayOrder()[0], day = state.plan.days[dayIdx];
-  const meals = day ? fanMeals(day).filter(m=>m.items.length) : [];
-  wrap.innerHTML = "";
-  if(!meals.length){ wrap.innerHTML = `<p class="fan-empty">Nothing planned for today yet.</p>`; return; }
-  const tilt = FAN_TILT[meals.length];
-  meals.forEach((m, k)=>{
-    const main = m.items[0];
-    const t = document.createElement("button");
-    t.type = "button";
-    t.className = "tile";
-    t.dataset.k = "tile-" + k;
-    t.style.setProperty("--r", tilt[k] + "deg");
-    t.style.setProperty("--soft", `var(--${main.cats[0]}-soft, var(--olive-100))`);
-    const art = main.photo ? `<img src="${main.photo}" alt="">` : `<span class="tile-emoji" aria-hidden="true">${emojiFor(main)}</span>`;
-    t.innerHTML = `<span class="tile-art">${art}<span class="tile-slot">${m.label}</span></span>`;
-    t.setAttribute("aria-label", `${m.label}: ${m.items.map(i=>i.name).join(", ")}`);
-    t.addEventListener("click", ()=>{
-      t.classList.add("lift"); setTimeout(()=>t.classList.remove("lift"), 260);
-      showSheet("meal", {day:dayIdx, meal:day.meals.indexOf(m)});
-    });
-    wrap.appendChild(t);
-  });
-  if(!fanDrawn){
-    fanDrawn = true;
-    const tiles = [...wrap.children];
-    tiles.forEach((t, k)=>{
-      const end = getComputedStyle(t).transform;
-      const frames = calm()
-        ? [{opacity:0}, {opacity:1}]
-        : [{transform:"translateY(28px) rotate(0deg) scale(.86)", opacity:0}, {transform:end, opacity:1}];
-      t.animate(frames, {duration: calm() ? 200 : 520, delay: k*70, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
-    });
-  }
-}
-
 /* ---------- view switching ---------- */
 let currentDay = 0;
 
@@ -2036,7 +2059,6 @@ function haveChip(c, name){
 /* Every change to the plan ends here: the fan, whatever sheet is open, and
    the home cards follow along. */
 function renderDayContent(){
-  renderFan();
   refreshSheet();
   justChanged = null;
   renderSummaries();
@@ -3314,137 +3336,753 @@ function dayPart(d){
   const h = (d || now()).getHours();
   return h>=5 && h<12 ? "morning" : h>=12 && h<18 ? "afternoon" : "evening";
 }
-const STAGE_NEWS = {
-  first:"First tastes can begin: smooth purées and soft finger foods.",
-  textures:"Lumpier textures and finger foods are on the table.",
-  family:"Whole milk and more family foods are on the table.",
-  nearfamily:"Bite-size family meals now, and a say in what goes on the plate."
-};
 const DAY_FULL = d=>DAY_ORDER[d.getDay()];
 
-/* the one inspiring line under the fan, from today's own menu */
-function heroLine(day){
-  const by = l=>day.meals.find(m=>m.label===l && m.items.length);
-  const bf = by("Breakfast"), lu = by("Lunch"), di = by("Dinner");
-  const lines = [];
-  const main = m=>dishName(m, {afters:false});   // the dish itself, without the fruit after
-  if(di && di.from) lines.push(`${main(di)} again tonight, straight from ${di.from}'s batch.`);
-  if(di && di.items.some(i=>metaOf(i.name).freezes && i.cats[0]!=="fruit")) lines.push(`${main(di)} tonight, and yes, it freezes beautifully.`);
-  if(lu && lu.items.some(i=>(FOOD_POOL.find(f=>f.name===i.name)||{}).iron)) lines.push(`${main(lu)} for lunch: a lovely little iron boost.`);
-  const fresh = day.meals.flatMap(m=>m.items).find(i=>!state.exposures[foodKey(baseName(i))]);
-  if(fresh && Object.keys(state.exposures).length) lines.push(`Something new today: ${lower1(baseName(fresh))}. One curious taste is a win.`);
-  if(bf) lines.push(`${dishName(bf)} to start the day.`);
-  if(lu && !lines.length) lines.push(`${dishName(lu, {afters:false})} for lunch today.`);
-  const items = day.meals.flatMap(m=>m.items);
-  if(items.length && items.every(i=>i.ate)) return pick(CONTENT.dayDone, "done");
-  if(!state.history.length && !Object.keys(state.exposures).length && state.profile.onboarded && lines.length<2) lines.push(pick(CONTENT.firstLaunch, "first"));
-  return lines.length ? pick(lines, "hero") : "";
+/* ====================================================================
+   HOME: a poster, no boxes. The greeting, the clock, the next meal, then
+   Today, This week, Shop and Variety. Everything about a thing opens in
+   a peek (hover, focus or tap); "Open →" goes to the full view (the sheet).
+   ==================================================================== */
+const GROUPS = ["protein","vegetable","fruit","grain","fat"];
+const $ = id=>document.getElementById(id);
+/* only touch the DOM when the words actually change (the clock ticks every minute) */
+function setText(el, text){ if(el && el.textContent!==text) el.textContent = text; }
+function weekStart(){ const d = localDate(state.weekStarted); return isNaN(d) ? now() : d; }
+/* the plan's seven days, from the day it started (not Monday): {pos, date, dayIdx} */
+function weekDays(){
+  const s = weekStart();
+  return Array.from({length:7}, (_, pos)=>{ const date = new Date(s.getFullYear(), s.getMonth(), s.getDate() + pos); return {pos, date, dayIdx:planDayIndex(date)}; });
+}
+function weekDone(){ const s = weekStart(); return now() >= new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7); }
+function milkOnly(){ return ageNow() < 6 && !state.profile.exploreEarly; }
+function hasPlan(){ return !!state.plan && state.plan.days.some(d=>d.meals.some(m=>m.items.length)); }
+/* the foods of a group tried this week: marked eaten (all or some), or logged by hand */
+function triedFoods(cat){
+  const out = new Set();
+  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ if((i.ate==="all" || i.ate==="some") && i.cats[0]===cat) out.add(baseName(i)); })));
+  Object.keys(state.manualCovered || {}).forEach(k=>{ const [c, f] = k.split("::"); if(c===cat && state.manualCovered[k]) out.add(f); });
+  return [...out];
+}
+/* what to pick up for the rest of the week, the soonest-needed first */
+function shopList(){
+  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+  const first = n=>Math.min(...n.days.map(d=>order.indexOf(d)));
+  return Object.values(needOn(windowDays("week")))
+    .filter(n=>{ const a = toBuy(n); return a===null || a>0; })
+    .sort((a, b)=>first(a) - first(b));
+}
+function dayWordFor(name){
+  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+  const k = order.indexOf(name);
+  return k===0 ? "today" : k===1 ? "tomorrow" : shortDay(name);
+}
+function mealEaten(m){ return m.items.length > 0 && m.items.every(i=>i.ate); }
+
+/* ---------- render ---------- */
+let homeKey = null, homeDrawn = false, mealsSig = "", lastISO = null;
+function renderHome(){
+  if(!$("home")) return;
+  const P = state.profile, st = stageNow();
+  if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
+  lastISO = todayISO();
+  setText($("profileBtn"), (P.name || "·").trim().charAt(0).toUpperCase());
+  $("profileBtn").setAttribute("aria-label", say("home.profile.label") + (P.name ? ": " + P.name : ""));
+  const calmState = milkOnly(), empty = !calmState && !hasPlan();
+  $("home").classList.toggle("is-milk", calmState);
+  $("home").classList.toggle("is-empty", empty);
+  renderClock();
+  renderMoment();
+  renderMeals();
+  renderWeek();
+  renderShopLine();
+  renderVarietyLine();
+  if(!homeDrawn){ homeDrawn = true; homeEntrance(); }
+  Peek.refresh();
+}
+function renderClock(){
+  const P = state.profile, t = now();
+  const greet = say("home.greet." + dayPart(t), {name:P.name || ""}).replace(/,\s*$/, "");
+  setText($("greet"), greet + (P.birthDate ? say("home.age", {months:ageNow()}) : ""));
+  setText($("clock"), fmtDateTime(t));
+  $("clock").setAttribute("datetime", t.toISOString());
+}
+/* headline + support (or a prompt in its place) + the tab's title */
+function renderMoment(){
+  const P = state.profile, st = stageNow(), m = homeMoment(), name = P.name || "";
+  document.title = m.title;
+  const h = $("headline"), sup = $("support");
+  const changed = homeKey!==null && homeKey!==m.key;
+  const paint = ()=>{
+    setText(h, m.headline);
+    sup.innerHTML = "";
+    const prompt = (text, acts)=>{
+      sup.append(text + " ");
+      acts.forEach(([label, fn])=>{ const b = document.createElement("button"); b.type = "button"; b.className = "btn-text inline"; b.textContent = label; b.addEventListener("click", fn); sup.append(b); });
+    };
+    if(m.kind==="empty") prompt("", [[m.action, setNextWeek]]);
+    else if(m.kind!=="milk" && st.solids && P.lastStage!==st.id){
+      prompt(say("home.stageChange", {name, months:ageNow()}), [
+        [say("home.stageUpdate"), ()=>setNextWeek()],
+        [say("home.stageLater"), ()=>{ P.lastStage = st.id; save(); renderHome(); }]]);
+    }else if(m.kind!=="milk" && weekDone()) prompt(say("home.weekDone"), [[say("home.weekNext"), setNextWeek]]);
+    else setText(sup, m.support || "");
+  };
+  if(changed && !calm()){
+    [h, sup].forEach(el=>el.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = function(){ this.cancel(); });
+    setTimeout(()=>{ paint(); [h, sup].forEach(el=>el.animate([{opacity:0, transform:"translateY(6px)"}, {opacity:1, transform:"none"}], {duration:300, easing:"cubic-bezier(.32,1.25,.5,1)"})); }, 150);
+  }else paint();
+  if(changed && m.announce) announce(m.announce);
+  homeKey = m.key;
 }
 
-function renderHome(){
-  const P = state.profile, name = P.name || "your little one", months = ageNow(), st = stageNow();
-
-  // greeting
-  document.getElementById("helloTime").textContent = pick(CONTENT.greet[dayPart()], dayPart()) + ",";
-  document.getElementById("helloName").textContent = P.name || "little one";
-  document.getElementById("ageChip").textContent = ageLabel(months);
-  document.getElementById("profileBtn").textContent = (P.name || "·").trim().charAt(0).toUpperCase();
-
-  // notices: a stage change on the birthday-month boundary, a reminder that came due
-  const notes = document.getElementById("notices");
-  notes.innerHTML = "";
-  if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
-  const notice = (text, label, act)=>{
-    const n = document.createElement("section");
-    n.className = "hcard notice";
-    n.innerHTML = `<p>${text}</p><div class="row"><button type="button" class="pill">${label}</button><button type="button" class="link-btn">Not now</button></div>`;
-    n.querySelector(".pill").addEventListener("click", act);
-    return n;
-  };
-  if(P.remindAt && todayISO() >= P.remindAt && months >= 6){
-    notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}: ready for first tastes?`, "Plan a first week",
-      ()=>{ P.remindAt = null; save(); openOnboarding("reveal"); }));
-    notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.remindAt = null; save(); renderHome(); });
-  }else if(P.lastStage!==st.id && st.solids){
-    notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}. ${STAGE_NEWS[st.id] || ""} Update the plan?`, "Update the plan",
-      ()=>{ P.lastStage = st.id; save(); openOnboarding("reveal"); }));
-    notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.lastStage = st.id; save(); renderHome(); });
+/* Today: the day's meals in time order, drawn, the next one lifted. Built once per
+   shape of the day; the clock only moves classes, so the emphasis glides. */
+const TILT = [-5, 4, -3, 6, -6];
+function renderMeals(){
+  const wrap = $("meals"), t = now();
+  const today = milkOnly() ? [] : mealsOn(t);
+  const sig = todayISO() + "|" + today.map(x=>x.slot + x.time + x.m.items.map(i=>i.id + (i.ate || "")).join(",")).join(";");
+  if(sig!==mealsSig){
+    mealsSig = sig;
+    wrap.innerHTML = "";
+    wrap.style.setProperty("--n", Math.max(1, today.length));
+    if(milkOnly()){
+      wrap.innerHTML = `<div class="meal solo" role="listitem"><span class="meal-art">${foodArt("milk", {size:150, alt:say("home.milkArt")})}</span></div>`;
+    }
+    today.forEach((x, k)=>{
+      const main = x.m.items[0];
+      const el = document.createElement("div");
+      el.className = "meal"; el.setAttribute("role", "listitem");
+      el.dataset.day = x.dayIdx; el.dataset.k = x.k;
+      el.style.setProperty("--r", TILT[k % TILT.length] + "deg");
+      el.style.setProperty("--z", 10 - k);
+      el.innerHTML = `<span class="meal-tag" aria-hidden="true"><i></i><span></span></span>
+        <button type="button" class="meal-btn" data-k="meal-${x.slot}"><span class="meal-art">${foodArt(main.name, {size:150, alt:""})}</span></button>
+        <button type="button" class="qtick" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
+        <span class="meal-name"><b>${esc(x.m.label)}</b><span class="meal-time"><span class="sep">· </span>${esc(fmtTime(x.start))}</span></span>
+        <span class="meal-note"></span>`;
+      const btn = el.querySelector(".meal-btn");
+      Peek.bind(btn, {kind:"meal", arg:{day:x.dayIdx, meal:x.k}});
+      el.querySelector(".qtick").addEventListener("click", e=>{ e.stopPropagation(); quickTick(x.dayIdx, x.k, el); });
+      wrap.appendChild(el);
+    });
   }
-
-  // Today: the fan and one line, or a calm word when there's nothing to fan
-  const dayIdx = dayDisplayOrder()[0], day = state.plan.days[dayIdx];
-  const line = document.getElementById("heroLine"), fan = document.getElementById("todayFan");
-  const old = document.querySelector("#hero .pill");
-  if(old) old.remove();
-  if(months < 6 && !P.exploreEarly){
-    fan.innerHTML = sampleFan(["🍼"]).replace(/^<div[^>]*>|<\/div>$/g, "");   // just the tile, no second fan
-    const at = P.remindAt ? localDate(P.remindAt) : null;
-    line.textContent = `Milk is all ${name} needs right now.` + (at ? ` First tastes come around ${MONTHS[at.getMonth()]} ${at.getDate()}.` : "");
-  }else if(!day || !day.meals.some(m=>m.items.length)){
-    fan.innerHTML = "";
-    line.textContent = CONTENT.empty;
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "pill"; b.textContent = "Set the table";
-    b.addEventListener("click", ()=>openOnboarding("reveal"));
-    document.getElementById("hero").appendChild(b);
-  }else{
-    line.textContent = heroLine(day);
-  }
-
-  // Shop: how many things for the chosen window, the first three to need, and urgency in words
-  const win = GROCERY_FILTERS.find(f=>f.key===state.groceryFilter);
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
-  const need = Object.values(needOn(windowDays(win.key)))
-    .filter(n=>{ const a = toBuy(n); return a===null || a>0; })
-    .sort((a,b)=>Math.min(...a.days.map(d=>order.indexOf(d))) - Math.min(...b.days.map(d=>order.indexOf(d))));
-  const extras = state.extras.filter(x=>!x.checked).length;
-  const count = need.length + extras;
-  document.getElementById("shopThumbs").innerHTML = need.slice(0,3).map(n=>
-    `<span class="thumb" style="--soft:var(--${n.cat}-soft, var(--olive-100))">${emojiFor({name:n.name, cats:[n.cat]})}</span>`).join("");
-  document.getElementById("shopGlance").textContent = count ? `${count} thing${count===1 ? "" : "s"} to pick up` : pick(CONTENT.shopDone, "shop");
-  let soon = null;
-  Object.keys(state.stock).forEach(k=>{
-    const sx = state.stock[k];
-    if(sx.plenty || sx.g===null || !(sx.g>0)) return;
-    const {short} = shortfall(k);
-    if(short && (!soon || order.indexOf(short) < order.indexOf(soon.day))) soon = {name:sx.name.split(",")[0], day:short};
+  updateMeals();
+}
+/* statuses only: Next / Now, eaten badges, "Not logged" */
+function updateMeals(){
+  const t = now(), nx = nextMeal(), today = milkOnly() ? [] : mealsOn(t);
+  today.forEach(x=>{
+    const el = $("meals").querySelector(`.meal[data-day="${x.dayIdx}"][data-k="${x.k}"]`);
+    if(!el) return;
+    const isNext = nx && nx.when==="today" && nx.dayIdx===x.dayIdx && nx.k===x.k;
+    el.classList.toggle("next", !!isNext);
+    el.classList.toggle("eaten", x.status==="eaten");
+    const tag = el.querySelector(".meal-tag span");
+    setText(tag, isNext ? (x.status==="now" ? say("home.nowLabel") : say("home.next")) : "");
+    setText(el.querySelector(".meal-note"), x.status==="past" ? say("home.notLogged") : "");
+    const q = el.querySelector(".qtick");
+    q.setAttribute("aria-pressed", String(x.status==="eaten"));
+    q.setAttribute("aria-label", `${x.m.label}: ${x.status==="eaten" ? say("peek.meal.eatenAll") : say("peek.meal.markAll")}`);
+    const btn = el.querySelector(".meal-btn");
+    const foods = listJoin(x.m.items.map(i=>lower1(baseName(i))));
+    btn.setAttribute("aria-label", `${x.m.label}, ${fmtTime(x.start)}${isNext ? ", " + tag.textContent : ""}: ${foods}${x.status==="eaten" ? ". " + say("peek.meal.eatenAll") : x.status==="past" ? ". " + say("home.notLogged") : ""}`);
   });
-  document.getElementById("shopHint").textContent = soon
-    ? `${soon.name} runs out ${soon.day===order[0] ? "today" : soon.day}`
-    : win.meta.replace(/^For/, "for").replace(/^./, c=>c.toUpperCase());
+}
+/* the whole meal, marked or unmarked in one tap, without opening anything */
+function quickTick(dayIdx, k, el){
+  const m = state.plan.days[dayIdx].meals[k], all = mealEaten(m);
+  m.items.forEach(i=>setAte(i, all ? null : "all"));
+  save(); haptic();
+  afterMark(m, el && el.querySelector(".meal-art"), !all);
+}
+/* after any marking: celebrate a meal that's just complete, then let everything follow */
+function afterMark(m, from, completed){
+  if(completed && mealEaten(m)){
+    burst(from); announce(say("peek.meal.doneLine", {meal:m.label}));
+  }
+  justChanged = null;
+  renderHome(); refreshSheet();
+}
 
-  // This week: seven days from today, a ring each
-  const strip = document.getElementById("weekStrip");
-  strip.innerHTML = "";
-  dayDisplayOrder().forEach((idx, pos)=>{
-    const d = dateForDay(idx), items = state.plan.days[idx].meals.flatMap(m=>m.items);
+/* This week: seven days from the plan's first day; a ring fills as meals are marked */
+const ringDone = {};
+function renderWeek(){
+  const strip = $("weekStrip"), iso = todayISO();
+  const narrow = new Intl.DateTimeFormat(undefined, {weekday:"narrow"}), long = new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"});
+  const days = weekDays();
+  if(strip.children.length!==7){
+    strip.innerHTML = "";
+    days.forEach(()=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "wd";
+      b.innerHTML = `<span class="wd-l"></span><span class="ring"><svg viewBox="0 0 40 40" aria-hidden="true"><circle class="r-bg" cx="20" cy="20" r="17" pathLength="100"/><circle class="r-fg" cx="20" cy="20" r="17" pathLength="100"/></svg><span class="wd-n"></span></span><i class="wd-dot" aria-hidden="true"></i>`;
+      strip.appendChild(b);
+    });
+  }
+  days.forEach((x, k)=>{
+    const b = strip.children[k], day = state.plan.days[x.dayIdx];
+    const items = day ? day.meals.flatMap(m=>m.items) : [];
     const marked = items.filter(i=>i.ate).length, p = items.length ? marked/items.length : 0;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "wd" + (pos===0 ? " today" : "") + (items.length && marked===items.length ? " done" : "");
-    b.innerHTML = `<span class="wd-l">${DAY_FULL(d).charAt(0)}</span><span class="ring"><svg viewBox="0 0 38 38" aria-hidden="true">
-      <circle class="r-bg" cx="19" cy="19" r="15.9" pathLength="100"/><circle class="r-fg" cx="19" cy="19" r="15.9" pathLength="100" style="--p:${p.toFixed(3)}"/></svg>
-      <span class="wd-n">${d.getDate()}</span></span>`;
-    b.setAttribute("aria-label", `${formatDate(d)}${pos===0 ? ", today" : ""}: ${items.length ? `${marked} of ${items.length} meals marked` : "nothing planned"}`);
-    b.addEventListener("click", ()=>showSheet("week", {day:idx}));
-    strip.appendChild(b);
+    const isToday = isoOf(x.date)===iso;
+    b.dataset.k = "wd-" + k;
+    b.classList.toggle("today", isToday);
+    b.classList.toggle("past", isoOf(x.date) < iso);
+    setText(b.querySelector(".wd-l"), narrow.format(x.date));
+    setText(b.querySelector(".wd-n"), String(x.date.getDate()));
+    b.querySelector(".r-fg").style.setProperty("--p", p.toFixed(3));
+    const full = items.length > 0 && marked===items.length;
+    if(full && ringDone[k]===false && !calm()) b.querySelector(".ring").animate([{transform:"scale(1)"}, {transform:"scale(1.12)"}, {transform:"scale(1)"}], {duration:520, easing:"cubic-bezier(.32,1.25,.5,1)"});
+    ringDone[k] = full;
+    b.setAttribute("aria-label", `${long.format(x.date)}${isToday ? ", " + say("home.sections.today").toLowerCase() : ""}: ${items.length ? say("home.weekRing", {n:marked, of:items.length}) : say("peek.day.nothing")}`);
+    if(!b._bound){ b._bound = true; Peek.bind(b, {kind:"day", get arg(){ return {pos:k}; }}); }
   });
-
-  // Variety: which food groups have been tasted this week
-  const vnow = varietyNow(), rb = document.getElementById("rainbow");
+}
+function renderShopLine(){
+  const need = shopList(), extras = state.extras.filter(x=>!x.checked).length, n = need.length + extras;
+  setText($("shopText"), say("home.shop", {n}));
+  const stack = need.slice(0, 4);
+  const sig = stack.map(x=>x.key).join();
+  if($("shopStack").dataset.sig!==sig){
+    $("shopStack").dataset.sig = sig;
+    $("shopStack").innerHTML = stack.map((x, k)=>`<span class="st" style="--r:${[-8,5,-4,7][k]}deg;--z:${4-k}">${foodArt(x.name, {size:44, alt:"", lazy:true})}</span>`).join("");
+  }
+}
+function renderVarietyLine(){
+  const dots = $("vdots");
   let on = 0;
-  rb.innerHTML = Object.keys(CATS).map(cat=>{
-    const tasted = (vnow[cat] || []).some(f=>isCovered(cat, f));
-    if(tasted) on++;
-    const short = {protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats"}[cat];
-    return `<span class="rdot${tasted ? " on" : ""}" style="--c:var(--${cat})"><i aria-hidden="true"></i>${short}<span class="sr-only">${tasted ? ": tasted this week" : ": not yet"}</span></span>`;
-  }).join("");
-  document.getElementById("rainbowGlance").textContent = on===0 ? CONTENT.rainbow.none : on===Object.keys(CATS).length ? CONTENT.rainbow.all : CONTENT.rainbow.some;
+  if(!dots.children.length){
+    GROUPS.forEach(cat=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "vdot"; b.dataset.cat = cat; b.dataset.k = "v-" + cat;
+      b.innerHTML = `<i aria-hidden="true"></i><span>${esc(say("home.groups." + cat))}</span>`;
+      Peek.bind(b, {kind:"variety", arg:{cat}});
+      b.addEventListener("pointerenter", showLegend);
+      b.addEventListener("focus", showLegend);
+      b.addEventListener("click", showLegend);   // a tap is the first reach on touch
+      dots.appendChild(b);
+    });
+  }
+  [...dots.children].forEach(b=>{
+    const cat = b.dataset.cat, tried = triedFoods(cat).length > 0;
+    if(tried) on++;
+    b.classList.toggle("on", tried);
+    b.setAttribute("aria-label", `${say("home.groups." + cat)}: ${tried ? say("peek.variety.tried") : say("peek.variety.waiting")}`);
+  });
+  setText($("varText"), on===GROUPS.length ? say("home.variety.all") : say("home.variety.some"));
+}
+/* the dots' meaning, the first time someone reaches for them, then never again */
+function showLegend(){
+  if(state.legendSeen) return;
+  state.legendSeen = true; save();
+  const l = $("vlegend");
+  l.textContent = say("home.varietyLegend"); l.hidden = false;
+  if(!calm()) l.animate([{opacity:0}, {opacity:1}], {duration:250});
+  setTimeout(()=>{ l.hidden = true; }, 6000);
+}
+/* greeting, clock, headline, support, the meals (60-80 ms apart), then the rest */
+function homeEntrance(){
+  const els = [$("greet"), $("clock"), $("headline"), $("support"), ...$("meals").children, $("weekSec"), $("lines")];
+  els.forEach((el, k)=>{
+    if(!el) return;
+    el.animate(calm() ? [{opacity:0}, {opacity:1}] : [{opacity:0, transform:"translateY(12px)"}, {opacity:1, transform:"none"}],
+               {duration:420, delay:k*70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"});
+  });
+}
 
-  // the tip of the day, unless it's been dismissed today
-  const tip = document.getElementById("tip");
-  tip.hidden = state.tipDismissed===todayISO();
-  document.getElementById("tipText").textContent = pick(CONTENT.tips, "tip");
+/* a new week: the reveal, then "Love it" applies it (the old week goes to history) */
+function setNextWeek(){ Peek.close(true); openOnboarding("reveal", {single:true}); }
+
+/* ---------- the clock: every minute on the minute, paused while hidden ---------- */
+let clockTimer = 0;
+function tick(){
+  if(todayISO()!==lastISO){ mealsSig = ""; renderHome(); return; }   // midnight: today is a new day, with its own plan
+  renderClock(); renderMoment(); updateMeals(); renderWeek();
+  Peek.refresh();
+}
+function scheduleTick(){
+  clearTimeout(clockTimer);
+  if(document.hidden) return;
+  clockTimer = setTimeout(()=>{ tick(); scheduleTick(); }, 60000 - (Date.now() % 60000) + 40);
+}
+["visibilitychange", "focus", "pageshow"].forEach(ev=>addEventListener(ev, ()=>{ if(!document.hidden){ tick(); } scheduleTick(); }));
+
+/* ---------- the toast: one line and an Undo, never in the way ---------- */
+let toastTimer = 0;
+function toast(text, undo){
+  const t = $("toast");
+  t.innerHTML = "";
+  t.append(text);
+  if(undo){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn-text"; b.textContent = say("peek.undo");
+    b.addEventListener("click", ()=>{ clearTimeout(toastTimer); t.hidden = true; undo(); announce(say("peek.undone")); });
+    t.append(b);
+  }
+  t.hidden = false;
+  if(!calm()) t.animate([{opacity:0, transform:"translate(-50%, 12px)"}, {opacity:1, transform:"translate(-50%, 0)"}], {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"});
+  announce(text);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.hidden = true; }, 6000);
+}
+
+/* ====================================================================
+   PEEKS: the only surfaces. One element, any trigger.
+   Desktop (fine pointer): opens 90 ms into a hover, closes 160 ms after
+   the pointer leaves trigger and peek (a bridge covers the gap); click
+   pins it. Keyboard: focus opens, ↓/↑ move through its rows, Esc closes
+   and returns focus. Touch: a bottom sheet over a scrim, drag to dismiss.
+   Positioned fixed with flip/shift, so nothing on the page moves.
+   ==================================================================== */
+const Peek = (()=>{
+  const fine = matchMedia("(hover: hover) and (pointer: fine)");
+  let el = null, scrim = null, cur = null, opts = null, pinned = false, sheet = false, openT = 0, closeT = 0, quiet = null;
+  function mount(){
+    if(el) return;
+    el = document.createElement("div");
+    el.id = "peek"; el.className = "peek"; el.hidden = true;
+    el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "false"); el.tabIndex = -1;
+    scrim = document.createElement("div");
+    scrim.className = "scrim"; scrim.hidden = true;
+    scrim.addEventListener("click", ()=>close(true));
+    document.body.append(scrim, el);
+    el.addEventListener("pointerenter", ()=>clearTimeout(closeT));
+    el.addEventListener("pointerleave", e=>{ if(!pinned && !sheet && e.pointerType==="mouse") closeSoon(); });
+    el.addEventListener("keydown", onKey);
+    el.addEventListener("focusout", e=>{ if(!pinned && !sheet && !el.contains(e.relatedTarget) && e.relatedTarget!==cur) closeSoon(); });
+    // touch: drag the sheet down to let it go
+    let y0 = null, dy = 0;
+    el.addEventListener("pointerdown", e=>{ if(sheet && e.target.closest(".peek-grab")){ y0 = e.clientY; dy = 0; el.setPointerCapture(e.pointerId); } });
+    el.addEventListener("pointermove", e=>{ if(y0!==null){ dy = Math.max(0, e.clientY - y0); el.style.transform = `translateY(${dy}px)`; } });
+    el.addEventListener("pointerup", ()=>{ if(y0===null) return; y0 = null; if(dy > 80) close(true); else { el.style.transform = ""; } });
+    document.addEventListener("pointerdown", e=>{ if(cur && pinned && !sheet && !el.contains(e.target) && !cur.contains(e.target)) close(false); }, true);
+    document.addEventListener("keydown", e=>{ if(e.key==="Escape" && cur){ e.preventDefault(); close(true); } });
+    addEventListener("resize", ()=>place());
+    addEventListener("scroll", ()=>place(), {passive:true});
+  }
+  function bind(trigger, o){
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-controls", "peek");
+    trigger._peek = o;
+    trigger.addEventListener("pointerenter", e=>{
+      if(e.pointerType!=="mouse" || !fine.matches) return;
+      mount(); clearTimeout(closeT);
+      if(cur!==trigger){ clearTimeout(openT); openT = setTimeout(()=>open(trigger, false), 90); }
+    });
+    trigger.addEventListener("pointerleave", e=>{ if(e.pointerType!=="mouse") return; clearTimeout(openT); if(cur===trigger && !pinned) closeSoon(); });
+    trigger.addEventListener("click", ()=>{
+      mount();
+      if(!fine.matches){ open(trigger, true, true); return; }
+      if(cur===trigger && pinned){ close(false); return; }
+      open(trigger, true);
+    });
+    trigger.addEventListener("focus", ()=>{
+      if(quiet===trigger){ quiet = null; return; }   // focus coming back after Esc doesn't reopen it
+      if(trigger.matches(":focus-visible")){ mount(); open(trigger, false); }
+    });
+    trigger.addEventListener("blur", e=>{ if(cur===trigger && !pinned && !(el && el.contains(e.relatedTarget))) closeSoon(); });
+    trigger.addEventListener("keydown", e=>{
+      if(e.key==="ArrowDown" && cur===trigger){ e.preventDefault(); const r = rows(); if(r[0]) r[0].focus(); }
+    });
+  }
+  function rows(){ return el ? [...el.querySelectorAll("button:not([disabled]), input, [data-row][tabindex]")].filter(x=>x.offsetParent!==null) : []; }
+  function onKey(e){
+    if(e.key==="ArrowDown" || e.key==="ArrowUp"){
+      if(e.target.tagName==="INPUT" && e.target.type!=="time") return;
+      e.preventDefault();
+      const r = rows(), i = r.indexOf(document.activeElement);
+      const j = e.key==="ArrowDown" ? Math.min(r.length-1, i+1) : i-1;
+      if(j < 0){ cur && cur.focus(); return; }
+      r[j].focus();
+    }else if(e.key==="Tab" && !sheet && !pinned){
+      // tabbing out of a hover peek goes back to the page after its trigger
+      const r = rows();
+      if(!e.shiftKey && document.activeElement===r[r.length-1]){ const t = cur; close(false); requestAnimationFrame(()=>focusAfter(t)); }
+    }
+  }
+  function focusAfter(t){
+    const all = [...document.querySelectorAll("#home button:not([disabled]), #home a[href]")].filter(x=>x.offsetParent!==null);
+    const k = all.indexOf(t); if(all[k+1]) all[k+1].focus();
+  }
+  function open(trigger, pin, asSheet){
+    mount();
+    clearTimeout(closeT); clearTimeout(openT);
+    const same = cur===trigger && !el.hidden;
+    if(cur && cur!==trigger) close(false, true);
+    cur = trigger; opts = trigger._peek; pinned = !!pin; sheet = !!asSheet;
+    trigger.setAttribute("aria-expanded", "true");
+    trigger.classList.add("is-open");
+    if(same){ el.classList.toggle("pinned", pinned); return; }
+    render();
+    el.classList.toggle("as-sheet", sheet);
+    el.classList.toggle("pinned", pinned);
+    el.hidden = false; el.style.transform = "";
+    scrim.hidden = !sheet;
+    place();
+    if(!calm()){
+      el.animate(sheet ? [{transform:"translateY(100%)"}, {transform:"none"}]
+                       : [{opacity:0, transform:"translateY(8px) scale(.98)"}, {opacity:1, transform:"none"}],
+                 {duration: sheet ? 380 : 220, easing: sheet ? "cubic-bezier(.32,1.2,.5,1)" : "cubic-bezier(.2,.8,.2,1)"});
+      if(sheet) scrim.animate([{opacity:0}, {opacity:1}], {duration:220});
+    }
+    if(sheet){ const r = rows(); (r[0] || el).focus({preventScroll:true}); }
+  }
+  function render(){
+    const keep = el.contains(document.activeElement) ? rows().indexOf(document.activeElement) : -1;
+    const scroll = el.scrollTop;
+    el.innerHTML = sheet ? `<div class="peek-grab" aria-hidden="true"><i></i></div>` : "";
+    const body = document.createElement("div");
+    body.className = "peek-body";
+    PEEKS[opts.kind](body, opts.arg || {});
+    el.appendChild(body);
+    const title = body.querySelector("h2");
+    if(title){ title.id = "peekTitle"; el.setAttribute("aria-labelledby", "peekTitle"); }
+    el.scrollTop = scroll;
+    if(keep >= 0){ const r = rows(); (r[Math.min(keep, r.length-1)] || el).focus({preventScroll:true}); }
+  }
+  function place(){
+    if(!el || el.hidden || !cur || sheet){ if(el && sheet){ el.style.left = el.style.top = ""; } return; }
+    if(!document.contains(cur)){ close(false, true); return; }
+    const r = cur.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight, m = 8, gap = 10;
+    const below = innerHeight - r.bottom - gap - m, above = r.top - gap - m;
+    const down = h <= below || below >= above;
+    el.style.maxHeight = Math.max(200, down ? below : above) + "px";
+    const hh = Math.min(h, down ? below : above);
+    el.style.top = (down ? r.bottom + gap : r.top - gap - hh) + "px";
+    el.style.left = Math.max(m, Math.min(r.left + r.width/2 - w/2, innerWidth - w - m)) + "px";
+    el.classList.toggle("above", !down);
+    // the bridge reaches back to the trigger, so the pointer can travel across the gap
+    el.style.setProperty("--bridge-x", (r.left - parseFloat(el.style.left)) + "px");
+    el.style.setProperty("--bridge-w", r.width + "px");
+  }
+  function closeSoon(){ clearTimeout(closeT); closeT = setTimeout(()=>close(false), 160); }
+  function close(returnFocus, instant){
+    clearTimeout(closeT); clearTimeout(openT);
+    if(!el || !cur) return;
+    const t = cur;
+    t.setAttribute("aria-expanded", "false");
+    t.classList.remove("is-open");
+    cur = null; pinned = false;
+    const wasSheet = sheet; sheet = false;
+    const hide = ()=>{ if(cur) return; el.hidden = true; scrim.hidden = true; el.innerHTML = ""; el.style.transform = ""; };
+    if(instant || calm()) hide();
+    else{
+      const a = el.animate(wasSheet ? [{transform:el.style.transform || "none"}, {transform:"translateY(100%)"}] : [{opacity:1}, {opacity:0, transform:"translateY(4px) scale(.99)"}],
+                           {duration: wasSheet ? 220 : 140, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
+      if(wasSheet) scrim.animate([{opacity:1}, {opacity:0}], {duration:200, fill:"forwards"}).onfinish = function(){ this.cancel(); };
+      a.onfinish = ()=>{ a.cancel(); hide(); };
+    }
+    if(returnFocus && document.contains(t) && document.activeElement!==t){ quiet = t; t.focus({preventScroll:true}); if(document.activeElement!==t) quiet = null; }
+  }
+  /* after any change, an open peek redraws in place (focus and scroll kept) */
+  function refresh(){ if(el && cur && !el.hidden){ if(!document.contains(cur)){ const k = cur.dataset.k; const again = k && document.querySelector(`[data-k="${k}"]`); if(again){ again._peek = again._peek || cur._peek; cur = again; again.setAttribute("aria-expanded", "true"); again.classList.add("is-open"); } else { close(false, true); return; } } render(); place(); } }
+  return {bind, open, close, refresh, get el(){ return el; }, get trigger(){ return cur; }};
+})();
+
+/* ---------- what each peek holds ---------- */
+const tickSVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg>`;
+function peekHead(body, title, sub){
+  body.insertAdjacentHTML("beforeend", `<div class="p-head"><h2>${esc(title)}</h2>${sub ? `<p class="p-sub">${sub}</p>` : ""}</div>`);
+}
+function peekFoot(body, label, fn){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "p-foot"; b.textContent = label;
+  b.addEventListener("click", ()=>{ Peek.close(false, true); fn(); });
+  body.appendChild(b);
+}
+function tickBtn(on, label, fn){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "tick"; b.setAttribute("aria-pressed", String(!!on)); b.setAttribute("aria-label", label);
+  b.innerHTML = tickSVG;
+  b.addEventListener("click", e=>{ e.stopPropagation(); fn(); });
+  return b;
+}
+/* three safe alternatives from the same food group for this meal */
+function alternatives(m, k){
+  const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
+  const taken = new Set(m.items.map(i=>i.name));
+  const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile));
+  const withArt = pool.filter(f=>hasArt(foodOf(f.name))), rest = pool.filter(f=>!hasArt(foodOf(f.name)));
+  return shuffled(withArt).concat(shuffled(rest)).slice(0, 3);
+}
+let peekOpen = {swap:null, more:null, time:false, log:false};   // which inline part of the meal peek is open
+const PEEKS = {
+  /* a meal: its foods, each with texture and amount, a tick, swap / skip / how it went */
+  meal(body, {day, meal}){
+    const d = state.plan.days[day], m = d && d.meals[meal];
+    if(!m){ body.textContent = say("peek.day.nothing"); return; }
+    const isToday = day===planDayIndex(now());
+    const at = mealTime(m.slot, now());
+    peekHead(body, m.label, "");
+    const sub = body.querySelector(".p-sub") || body.querySelector(".p-head").appendChild(Object.assign(document.createElement("p"), {className:"p-sub"}));
+    if(peekOpen.time && isToday){
+      sub.innerHTML = `<label class="p-time"><span class="sr-only">${esc(m.label)}</span><input type="time" step="300" value="${at}"></label> <span>${esc(say("peek.meal.todayOnly"))}</span>`;
+      const ti = sub.querySelector("input");
+      ti.addEventListener("change", ()=>{
+        const v = hhmm(ti.value); if(!v) return;
+        const P = state.profile, iso = todayISO();
+        const times = P.timesToday && P.timesToday.date===iso ? Object.assign({}, P.timesToday.times) : {};
+        times[m.slot] = fmtHHMM(v);
+        P.timesToday = {date:iso, times};
+        peekOpen.time = false; save(); mealsSig = ""; renderHome();
+        announce(say("peek.meal.movedTo", {meal:m.label, time:fmtTime(atTime(now(), times[m.slot]))}));
+      });
+      requestAnimationFrame(()=>ti.focus());
+    }else{
+      sub.append(fmtTime(atTime(now(), at)));
+      if(isToday){
+        const ct = document.createElement("button");
+        ct.type = "button"; ct.className = "btn-text small"; ct.textContent = say("peek.meal.changeTime");
+        ct.addEventListener("click", ()=>{ peekOpen.time = true; Peek.refresh(); });
+        sub.append(" · ", ct);
+      }
+    }
+    // the whole meal at once
+    const all = mealEaten(m);
+    const sw = document.createElement("button");
+    sw.type = "button"; sw.className = "p-switch"; sw.setAttribute("aria-pressed", String(all));
+    sw.innerHTML = `<span>${esc(say("peek.meal.allEaten"))}</span><i aria-hidden="true"></i>`;
+    sw.addEventListener("click", ()=>{ m.items.forEach(i=>setAte(i, all ? null : "all")); save(); haptic(); afterMark(m, Peek.trigger, !all); });
+    body.appendChild(sw);
+    const list = document.createElement("div");
+    list.className = "p-rows";
+    m.items.forEach((item, k)=>{
+      const row = document.createElement("div");
+      row.className = "p-row" + (item.ate ? " marked" : "");
+      const bits = [item.tex, item.qty].filter(Boolean).map(esc);
+      const state_ = item.ate==="some" ? say("peek.meal.ateSome") : item.ate==="refused" ? say("peek.meal.refused") : "";
+      row.innerHTML = `${foodArt(item.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(item))}${isNewFood(item) ? ` <em class="p-new">${esc(say("peek.meal.new"))}</em>` : ""}<span class="p-meta">${item.tex ? esc(item.tex) : ""}${item.tex && item.qty ? " · " : ""}<span class="p-amt">${esc(item.qty || "")}</span>${state_ ? ` · ${esc(state_)}` : ""}</span></span><span class="p-acts"></span>`;
+      const acts = row.querySelector(".p-acts");
+      const act = (label, fn, extra)=>{ const b = document.createElement("button"); b.type = "button"; b.className = "p-act"; b.textContent = label; if(extra) Object.entries(extra).forEach(([a, v])=>b.setAttribute(a, v)); b.addEventListener("click", fn); acts.appendChild(b); return b; };
+      act(say("peek.meal.swap"), ()=>{ peekOpen.swap = peekOpen.swap===item.id ? null : item.id; peekOpen.more = null; Peek.refresh(); }, {"aria-expanded":String(peekOpen.swap===item.id), "aria-label":say("peek.meal.swapFood", {food:baseName(item)})});
+      act(say("peek.meal.skip"), ()=>{
+        const at = m.items.indexOf(item);
+        if(item.eaten) setAte(item, null);
+        m.items.splice(at, 1); save(); renderHome(); refreshSheet();
+        toast(say("peek.meal.skipped", {food:baseName(item)}), ()=>{ m.items.splice(at, 0, item); save(); renderHome(); refreshSheet(); });
+      }, {"aria-label":say("peek.meal.skipFood", {food:baseName(item)})});
+      act("⋯", ()=>{ peekOpen.more = peekOpen.more===item.id ? null : item.id; peekOpen.swap = null; Peek.refresh(); }, {"aria-expanded":String(peekOpen.more===item.id), "aria-label":say("peek.meal.more", {food:baseName(item)}), "class":"p-act p-dots"});
+      row.appendChild(tickBtn(item.ate==="all", say("peek.meal.eatenFood", {food:baseName(item)}), ()=>{
+        const was = mealEaten(m);
+        setAte(item, item.ate==="all" ? null : "all"); save(); haptic();
+        afterMark(m, row.querySelector(".tick"), !was);
+      }));
+      list.appendChild(row);
+      if(peekOpen.swap===item.id){
+        const alts = alternatives(m, k), box = document.createElement("div");
+        box.className = "p-swap";
+        if(!alts.length) box.textContent = say("peek.meal.noSwap");
+        alts.forEach(f=>{
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "p-alt";
+          b.innerHTML = `${foodArt(f.name, {size:28, alt:""})}<span>${esc(f.name.split(",")[0])}</span>`;
+          b.addEventListener("click", ()=>{
+            const at = m.items.indexOf(item), old = item;
+            if(old.eaten) setAte(old, null);
+            const fresh = dish(f, stageFor(planMonths()));
+            m.items[at] = fresh;
+            peekOpen.swap = null; save(); haptic(); renderHome(); refreshSheet();
+            toast(say("peek.meal.swapped", {food:lower1(f.name.split(",")[0])}), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = old; save(); renderHome(); refreshSheet(); });
+          });
+          box.appendChild(b);
+        });
+        list.appendChild(box);
+      }
+      if(peekOpen.more===item.id){
+        const box = document.createElement("div");
+        box.className = "p-swap p-more";
+        [["some", say("peek.meal.ateSome")], ["refused", say("peek.meal.refused")]].forEach(([v, label])=>{
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "p-alt"; b.setAttribute("aria-pressed", String(item.ate===v)); b.textContent = label;
+          b.addEventListener("click", ()=>{ const was = mealEaten(m); setAte(item, item.ate===v ? null : v); peekOpen.more = null; save(); haptic(); afterMark(m, Peek.trigger, !was); });
+          box.appendChild(b);
+        });
+        list.appendChild(box);
+      }
+    });
+    body.appendChild(list);
+    // something that wasn't on the plan
+    if(peekOpen.log){
+      const f = document.createElement("p");
+      f.className = "p-log";
+      const b = blank({min:8, maxLength:30, label:say("peek.meal.logOther"), onEnter:()=>{
+        const v = b.input.value.trim(); if(!v){ peekOpen.log = false; Peek.refresh(); return; }
+        const pool = FOOD_POOL.find(x=>foodOf(x.name) && foodOf(x.name)===foodOf(v));
+        const it_ = it(pool ? pool.name : v, "", pool ? pool.cats.slice() : ["other"]);
+        const rule = lockedRule(it_.name, ageNow());
+        if(rule){ toast(keepOutReason(it_.name)); return; }
+        m.items.push(it_); setAte(it_, "all"); peekOpen.log = false; save(); renderHome(); refreshSheet();
+        toast(say("peek.meal.logged", {food:upper1(v)}), ()=>{ setAte(it_, null); m.items.splice(m.items.indexOf(it_), 1); save(); renderHome(); refreshSheet(); });
+      }});
+      b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.stopPropagation(); peekOpen.log = false; Peek.refresh(); } });
+      f.append(b.el);
+      body.appendChild(f);
+      requestAnimationFrame(()=>b.input.focus());
+    }else{
+      const lb = document.createElement("button");
+      lb.type = "button"; lb.className = "btn-text small p-logbtn"; lb.textContent = say("peek.meal.logOther");
+      lb.addEventListener("click", ()=>{ peekOpen.log = true; Peek.refresh(); });
+      body.appendChild(lb);
+    }
+    peekFoot(body, say("peek.meal.open"), ()=>showSheet("meal", {day, meal}));
+  },
+
+  /* a day: its meals, eaten or planned; future meals can swap their main food */
+  day(body, {pos}){
+    const x = weekDays()[pos], d = state.plan.days[x.dayIdx], iso = todayISO(), past = isoOf(x.date) < iso;
+    peekHead(body, new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"long"}).format(x.date), "");
+    const list = document.createElement("div");
+    list.className = "p-rows";
+    const meals = d ? d.meals.map((m, k)=>({m, k})).filter(y=>y.m.items.length) : [];
+    if(!meals.length) list.innerHTML = `<p class="p-empty">${esc(say("peek.day.nothing"))}</p>`;
+    meals.forEach(({m, k})=>{
+      const row = document.createElement("div");
+      row.className = "p-row";
+      const status = mealEaten(m) ? say("peek.meal.eatenAll") : past ? say("home.notLogged") : "";
+      row.innerHTML = `${foodArt(m.items[0].name, {size:28, alt:""})}<span class="p-name">${esc(m.label)} <span class="p-amt">· ${esc(fmtTime(atTime(x.date, mealTime(m.slot, x.date))))}</span><span class="p-meta">${esc(foodsLine(m))}${status ? " · " + esc(status) : ""}</span></span><span class="p-acts"></span>`;
+      if(!past && !mealEaten(m)){
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "p-act"; b.textContent = say("peek.meal.swap");
+        b.setAttribute("aria-label", say("peek.meal.swapFood", {food:baseName(m.items[0])}));
+        b.addEventListener("click", ()=>{
+          const old = m.items[0];
+          if(swapItem(m, 0)){ const fresh = m.items[0]; renderHome(); refreshSheet(); toast(say("peek.meal.swapped", {food:lower1(baseName(fresh))}), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = old; save(); renderHome(); refreshSheet(); }); }
+        });
+        row.querySelector(".p-acts").appendChild(b);
+      }
+      if(mealEaten(m)) row.insertAdjacentHTML("beforeend", `<span class="tick static" aria-hidden="true" data-on="1">${tickSVG}</span>`);
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+    if(x.dayIdx >= 0) peekFoot(body, say("peek.day.open"), ()=>showSheet("week", {day:x.dayIdx}));
+  },
+
+  /* shop: what to pick up, soonest first; a tick means bought, and the row settles into In stock */
+  shop(body){
+    const need = shopList();
+    peekHead(body, say("home.sections.shop"), esc(say("home.shop", {n:need.length + state.extras.filter(x=>!x.checked).length})));
+    const list = document.createElement("div");
+    list.className = "p-rows";
+    need.forEach(n=>{
+      const {short} = shortfall(n.key);
+      const st = state.stock[n.key];
+      const when = st && st.g>0 && short ? say("peek.shop.runsOut", {day:dayWordFor(short)}) : say("peek.shop.forDay", {day:dayWordFor(n.days.slice().sort((a, b)=>dayDisplayOrder().map(i=>state.plan.days[i].name).indexOf(a) - dayDisplayOrder().map(i=>state.plan.days[i].name).indexOf(b))[0])});
+      const row = document.createElement("div");
+      row.className = "p-row";
+      row.innerHTML = `${foodArt(n.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(n))}<span class="p-meta">${esc(when)}</span></span>`;
+      row.appendChild(tickBtn(false, say("peek.shop.bought", {food:baseName(n)}), ()=>{
+        const amt = toBuy(n), g = amt===null ? null : buyPacks(n.name, amt).g;
+        const before = state.stock[n.key] ? Object.assign({}, state.stock[n.key]) : null;
+        const t = row.querySelector(".tick"); t.setAttribute("aria-pressed", "true"); haptic();
+        setTimeout(()=>{ addToStock(n.key, n.name, g); renderHome(); refreshSheet(); toast(say("peek.shop.boughtLine", {food:baseName(n)}), ()=>{ if(before) state.stock[n.key] = before; else delete state.stock[n.key]; save(); renderHome(); refreshSheet(); }); }, calm() ? 0 : 200);
+      }));
+      list.appendChild(row);
+    });
+    state.extras.filter(x=>!x.checked).forEach(x=>{
+      const row = document.createElement("div");
+      row.className = "p-row";
+      row.innerHTML = `${foodArt("plate", {size:28, alt:""})}<span class="p-name">${esc(x.name)}<span class="p-meta">${esc(x.qty || "")}</span></span>`;
+      row.appendChild(tickBtn(false, say("peek.shop.bought", {food:x.name}), ()=>{ x.checked = true; save(); haptic(); renderHome(); refreshSheet(); toast(say("peek.shop.boughtLine", {food:x.name}), ()=>{ x.checked = false; save(); renderHome(); refreshSheet(); }); }));
+      list.appendChild(row);
+    });
+    if(!list.children.length) list.innerHTML = `<p class="p-empty">${esc(say("home.shop", {n:0}))}</p>`;
+    body.appendChild(list);
+    // in stock: this week's foods that are at home
+    const week = Object.values(needOn(windowDays("week"))).filter(n=>toBuy(n)===0);
+    if(week.length){
+      body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.shop.inStock"))}</h3>`);
+      const s = document.createElement("div");
+      s.className = "p-rows";
+      week.forEach(n=>{
+        const row = document.createElement("div");
+        row.className = "p-row marked";
+        row.innerHTML = `${foodArt(n.name, {size:28, alt:""})}<span class="p-name">${esc(baseName(n))}</span>`;
+        row.appendChild(tickBtn(true, say("peek.shop.atHome", {food:baseName(n)}), ()=>{
+          const before = state.stock[n.key];
+          delete state.stock[n.key]; save(); haptic(); renderHome(); refreshSheet();
+          toast(say("peek.shop.notHome", {food:baseName(n)}), ()=>{ state.stock[n.key] = before; save(); renderHome(); refreshSheet(); });
+        }));
+        s.appendChild(row);
+      });
+      body.appendChild(s);
+    }
+    peekFoot(body, say("peek.shop.open"), ()=>showSheet("shop"));
+  },
+
+  /* a food group: what's been tried this week, and three safe ideas that drop into the next open meal */
+  variety(body, {cat}){
+    peekHead(body, say("home.groups." + cat), "");
+    const tried = triedFoods(cat);
+    body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.variety.tried"))}</h3>`);
+    const t = document.createElement("div");
+    t.className = "p-art-row";
+    t.innerHTML = tried.length ? tried.map(f=>`<span class="p-art">${foodArt(f, {size:40, alt:""})}<span>${esc(f)}</span></span>`).join("")
+                               : `<p class="p-empty">${esc(say("peek.variety.none"))}</p>`;
+    body.appendChild(t);
+    body.insertAdjacentHTML("beforeend", `<h3 class="p-sec">${esc(say("peek.variety.next"))}</h3>`);
+    const P = state.profile, months = planMonths(), have = new Set(tried.map(f=>f.toLowerCase()));
+    const planned = new Set(state.plan.days.flatMap(d=>d.meals.flatMap(m=>m.items.map(i=>i.name))));
+    // not tried yet this week: not-yet-planned first, then ones with a drawing
+    const ideas = shuffledFor(eligibleFoods(months, P).filter(f=>f.cats[0]===cat && !have.has(f.name.split(",")[0].toLowerCase()) && !dislikeMatch(f.name, P)), cat + todayISO())
+      .sort((a, b)=>(planned.has(a.name) - planned.has(b.name)) || (hasArt(foodOf(b.name)) - hasArt(foodOf(a.name)))).slice(0, 3);
+    const n = document.createElement("div");
+    n.className = "p-art-row";
+    if(!ideas.length) n.innerHTML = `<p class="p-empty">${esc(say("peek.variety.allPlanned"))}</p>`;
+    ideas.forEach(f=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "p-art p-idea";
+      b.innerHTML = `${foodArt(f.name, {size:40, alt:""})}<span>${esc(f.name.split(",")[0])}</span>`;
+      b.setAttribute("aria-label", say("peek.variety.add", {food:f.name.split(",")[0]}));
+      b.addEventListener("click", ()=>{
+        const slot = nextOpenSlot(f);
+        if(!slot){ toast(say("peek.variety.noSlot")); return; }
+        const item = dish(f, stageFor(months));
+        slot.m.items.push(item); save(); haptic(); mealsSig = ""; renderHome(); refreshSheet();
+        toast(say("peek.variety.added", {food:upper1(f.name.split(",")[0]), meal:slot.label}), ()=>{ slot.m.items.splice(slot.m.items.indexOf(item), 1); save(); mealsSig = ""; renderHome(); refreshSheet(); });
+      });
+      n.appendChild(b);
+    });
+    body.appendChild(n);
+    peekFoot(body, say("peek.variety.open"), ()=>showSheet("variety"));
+  },
+
+  /* the profile menu */
+  profile(body){
+    const P = state.profile;
+    peekHead(body, P.name || say("home.profile.label"), P.birthDate ? esc(ageLabel(ageNow()) + " · " + stageNow().name) : "");
+    const list = document.createElement("div");
+    list.className = "p-rows p-menu-rows";
+    [["profile", ()=>openOnboarding("name", {through:"birthday"})],
+     ["allergens", ()=>openOnboarding("keepout", {through:"priorities"})],
+     ["mealTimes", ()=>openOnboarding("mealtimes", {single:true})],
+     ["nextWeek", setNextWeek],
+     ["replay", ()=>openOnboarding("welcome", {replay:true})]].forEach(([k, fn])=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "p-menu-row"; b.textContent = say("home.profile." + k);
+      if(k==="mealTimes" && !stageNow().solids && !P.exploreEarly) b.disabled = true;
+      b.addEventListener("click", ()=>{ Peek.close(false, true); fn(); });
+      list.appendChild(b);
+    });
+    body.appendChild(list);
+  }
+};
+/* the same order all day for the same key, so suggestions don't jump between peeks */
+function shuffledFor(arr, key){
+  const a = arr.slice();
+  let h = 2166136261; for(let k=0; k<key.length; k++){ h ^= key.charCodeAt(k); h = Math.imul(h, 16777619) >>> 0; }
+  for(let i=a.length-1; i>0; i--){ h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; const j = h % (i+1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+/* the next meal still to come that this food suits (today first, then the rest of the week) */
+function nextOpenSlot(f){
+  for(const x of weekDays()){
+    if(isoOf(x.date) < todayISO() || x.dayIdx < 0) continue;
+    const list = isoOf(x.date)===todayISO() ? mealsOn(now()).filter(y=>y.status==="upcoming" || y.status==="now") : mealsOn(x.date);
+    const hit = list.find(y=>{ const ms = MEAL_SLOTS.find(s=>s.id===y.slot); return ms && f.slots.includes(ms.slot) && !y.m.items.some(i=>i.name===f.name) && !mealEaten(y.m); });
+    if(hit) return {m:hit.m, label:hit.m.label.toLowerCase()};
+  }
+  return null;
 }
 
 /* ---------- onboarding ----------
@@ -3481,8 +4119,13 @@ function nextStep(){ goStep(stepAfter(onb.step)); }
 function openOnboarding(step, opts){
   const P = state.profile;
   if(typeof step==="string") step = S(step);
-  onb.single = !!(opts && opts.single);   // from the profile menu: one step, then back home
+  const o = opts || {};
   onb.step = Math.max(0, Math.min(ONB_STEPS.length-1, step===undefined ? (P.onboardingStep||0) : step));
+  // from the profile menu: one step (single) or a few (through), then back home
+  onb.from = o.single || o.through ? onb.step : null;
+  onb.through = o.through ? S(o.through) : o.single ? onb.step : null;
+  onb.single = onb.through!==null;
+  onb.replay = !!o.replay;
   onb.sub = null; onb.draft = null; onb.revealed = false; onb.adding = false;
   document.body.classList.add("onb-open");
   document.querySelector(".container").inert = true;
@@ -3497,8 +4140,8 @@ function closeOnboarding(){
   document.body.classList.remove("onb-open");
   document.querySelector(".container").inert = false;
   clearInterval(welTimer); clearTimeout(onb.revealTimer);
-  fanDrawn = false;   // the fan arrives again on the page
-  renderDayContent(); renderKitchen(); renderVariety(); renderCreate();
+  mealsSig = "";
+  renderKitchen(); renderCreate(); renderHome();
 }
 function finishOnboarding(){
   state.profile.onboarded = true;
@@ -3526,7 +4169,7 @@ function focusStep(){
 }
 /* the finished sentence slides up and fades; the next one rises in */
 function goStep(n, sub){
-  if(onb.single && n!==onb.step){ save(); closeOnboarding(); return; }
+  if(onb.single && (n < onb.from || n > onb.through)){ save(); closeOnboarding(); return; }
   const card = document.getElementById("onbCard");
   onb.dir = n > onb.step || (n===onb.step && sub) ? 1 : -1;
   const swap = ()=>{
@@ -3555,7 +4198,7 @@ function renderOnb(){
   const back = document.getElementById("onbBack");
   back.hidden = onb.step===0 && !onb.sub && !onb.single;
   back.setAttribute("aria-label", say("onb.back"));
-  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single ? closeOnboarding() : goStep(stepBefore(onb.step));
+  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single && onb.step===onb.from ? closeOnboarding() : goStep(stepBefore(onb.step));
   document.getElementById("onbClose").onclick = closeOnboarding;
   const card = document.getElementById("onbCard");
   card.innerHTML = "";
@@ -3626,7 +4269,7 @@ function onbCta(card, label, onNext, opts){
   wrap.className = "onb-cta";
   const b = document.createElement("button");
   b.type = "button"; b.className = "btn-ink";
-  b.textContent = onb.single && label===say("onb.next") ? say("onb.save") : label;
+  b.textContent = onb.single && onb.step===onb.through && label===say("onb.next") ? say("onb.save") : label;
   b.addEventListener("click", ()=>{ if(b.classList.contains("wait")) return; haptic(); onNext(); });
   wrap.appendChild(b);
   (o.extra || []).forEach(x=>{
@@ -4073,8 +4716,9 @@ function onbReveal(card, P){
   card.append(h, line(say("onb.done.line", {name})));
   card.appendChild(weekPreview(onb.draft));
   const extra = [{label:say("onb.done.shuffle"), on:()=>{ onb.draft = generateWeek(planMonths(), P); renderOnb(); focusStep(); }}];
-  if(P.returning) extra.push({label:say("onb.done.keep"), on:finishOnboarding});
+  if(P.returning || (P.onboarded && hasPlan())) extra.push({label:say("onb.done.keep"), on:finishOnboarding});
   onbCta(card, say("onb.done.apply"), ()=>{
+    if(P.onboarded && hasPlan()) state.history.push({weekOf:state.weekStarted});   // the week it replaces
     state.plan = onb.draft;
     state.weekStarted = todayISO();
     P.lastStage = stageNow().id;
@@ -4109,21 +4753,6 @@ function weekPreview(week){
   });
   return wrap;
 }
-/* a decorative fan (the old home's milk state still uses it until the home is rebuilt) */
-function sampleFan(emojis, cls){
-  const tilt = FAN_TILT[emojis.length];
-  const softs = ["grain","fruit","vegetable","protein"];
-  return `<div class="fan ${cls||""}" aria-hidden="true">` + emojis.map((e,k)=>
-    `<span class="tile" style="--r:${tilt[k]}deg;--k:${k};--soft:var(--${softs[k%4]}-soft)"><span class="tile-art"><span class="tile-emoji" style="margin:0">${e}</span></span></span>`).join("") + `</div>`;
-}
-function fanIn(container){
-  [...container.querySelectorAll(".tile")].forEach((t,k)=>{
-    const end = getComputedStyle(t).transform;
-    t.animate(calm() ? [{opacity:0},{opacity:1}] : [{transform:"translateY(30px) rotate(0deg) scale(.85)", opacity:0}, {transform:end, opacity:1}],
-              {duration: calm() ? 200 : 600, delay:k*75, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
-  });
-}
-
 /* ---------- init ---------- */
 currentDay = dayDisplayOrder()[0];
 
@@ -4132,12 +4761,17 @@ renderKitchen();
 renderVariety();
 renderCreate();
 renderSummaries();
-document.getElementById("heroHead").addEventListener("click", ()=>showSheet("week", {day:dayDisplayOrder()[0]}));
-document.getElementById("shopCard").addEventListener("click", ()=>showSheet("shop"));
-document.getElementById("weekHead").addEventListener("click", ()=>showSheet("week"));
-document.getElementById("varietyHome").addEventListener("click", ()=>showSheet("variety"));
-document.getElementById("profileBtn").addEventListener("click", ()=>showSheet("settings"));
-document.getElementById("tipClose").addEventListener("click", ()=>{ state.tipDismissed = todayISO(); save(); renderHome(); });
+/* the section labels become links to the full views; their words come from content.js */
+[["todayLabel", "today", ()=>showSheet("week", {day:planDayIndex(now())})], ["weekLabel", "week", ()=>showSheet("week")],
+ ["shopLabel", "shop", ()=>showSheet("shop")], ["varLabel", "variety", ()=>showSheet("variety")]].forEach(([id, k, fn])=>{
+  const b = document.getElementById(id);
+  b.querySelector("span").textContent = say("home.sections." + k);
+  b.setAttribute("aria-label", say("home.sections." + k) + ": " + say("home.openFull"));
+  b.addEventListener("click", fn);
+});
+Peek.bind(document.getElementById("shopLine"), {kind:"shop"});
+Peek.bind(document.getElementById("profileBtn"), {kind:"profile"});
+scheduleTick();
 if(!state.profile.onboarded) openOnboarding();
 /* offline: register the service worker once the page has settled (never on
    file://, never during tests) */

@@ -51,6 +51,9 @@ const CONTENT = {
       "Let them touch it. Touching counts."
     ],
     sections:{today:"Today", week:"This week", shop:"Shop", variety:"Variety"},
+    openFull:"open the full view",
+    weekRing:"{n} of {of} marked",
+    milkArt:"Milk",
     open:"Open →",
     shop:{one:"{n} thing to pick up", other:"{n} things to pick up", none:"All stocked up."},
     variety:{some:"A rainbow in progress", all:"A full rainbow."},
@@ -71,12 +74,25 @@ const CONTENT = {
     }
   },
 
+  /* the peeks: what rises when you hover, focus or tap something */
   peek:{
-    meal:{allEaten:"All eaten", changeTime:"Change time", todayOnly:"Just for today", swap:"Swap", skip:"Skip", ateSome:"Ate some", refused:"Refused",
-          swapped:"Swapped for {food}.", undo:"Undo", logOther:"Log something else"},
+    undo:"Undo",
+    undone:"Undone",
+    meal:{
+      allEaten:"All eaten", eatenAll:"all eaten", markAll:"mark all eaten",
+      changeTime:"Change time", todayOnly:"Just for today", movedTo:"{meal} moved to {time}, just for today.",
+      swap:"Swap", skip:"Skip", ateSome:"Ate some", refused:"Refused", new:"new",
+      swapFood:"Swap {food}", skipFood:"Skip {food}", more:"More for {food}", eatenFood:"{food} eaten",
+      swapped:"Swapped in {food}.", skipped:"{food} skipped.", noSwap:"Nothing else safe to swap in here.",
+      logOther:"Log something else", logged:"{food} logged.",
+      doneLine:"{meal}: all eaten", open:"Open meal →"
+    },
     day:{open:"Open day →", nothing:"Nothing planned for this day."},
-    shop:{runsOut:"runs out {day}", inStock:"In stock", open:"Open list →"},
-    variety:{tried:"Tried this week", next:"Try next", added:"{food} added to {meal}.", undo:"Undo"}
+    shop:{runsOut:"runs out {day}", forDay:"for {day}", inStock:"In stock", open:"Open list →",
+          bought:"Bought {food}", boughtLine:"{food}: in stock.", atHome:"{food} at home", notHome:"{food}: not at home."},
+    variety:{tried:"Tried this week", next:"Try next", waiting:"still to come", none:"Still to come this week.",
+             allPlanned:"Everything safe here is already in the week.", add:"Add {food} to the next meal",
+             added:"{food} added to {meal}.", noSlot:"No open meal for it this week.", open:"Open variety →"}
   },
 
   /* Onboarding: every step is a sentence you complete. {blank} marks where its field sits;
