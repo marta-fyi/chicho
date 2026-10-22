@@ -22,6 +22,8 @@ Chicho is designed, built and tested for 360–430px. Everything below supersede
 - **One column.** 20px from each edge (or the safe area, whichever is larger), at most 430px wide; above that the same column is centred on the same background. No desktop layout, dialog, popover or test remains.
 - **Section order.** The open meal is followed directly by **Up next**, then "While you're at it", then "Earlier today", so Up next can peek at the bottom edge as the scroll hint. The "more" chevron is gone.
 - **The week strip vs the 8px rule.** Seven 44px targets in a 350px column leave 7px between them, so the strip is the one place targets sit closer than 8px (the brief asked for both; the 350px fit wins). Below a 350px column the gaps shrink further but the targets stay 44px.
+- **One overlay.** Every detail is a bottom sheet: scrim, handle, a 44px ✕, Esc, a focus trap (the modal `<dialog>` plus Tab wrapping), `overscroll-behavior: contain`. It opens at the **medium** detent (62% of the visible height, or shorter when the content is), drags up to **large** (everything below the status bar) and down to medium, then away; a pull down on content scrolled to the top does the same. The centred dialog and the birthday's month peek (an anchored popover) are gone.
+- **The keyboard.** One `visualViewport` listener keeps `--kb` (the keyboard's height) and `--vvh`; the sheet sits on top of the keyboard and switches to large while it's up, and the focused field scrolls into view. Tests stand in a fake viewport (`window.__vv`).
 - **The sticky pill.** "Mark as offered" is one 48px bar, sticky at the bottom of the open meal. "Offered · Undo" splits the same bar into two buttons (no overlap, no change in size), so nothing shifts.
 
 ## How I read the ambiguous parts

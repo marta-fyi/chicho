@@ -682,30 +682,52 @@ function watchFold(){
 function setNextWeek(){ closeSheet(true); openOnboarding("reveal", {single:true}); }
 
 /* ====================================================================
-   SHEETS: the one overlay. A bottom sheet with a scrim on narrow screens,
-   a centred dialog on wide ones. Opens on tap (or Enter/Space), has a
-   visible ✕, closes on Esc, a tap outside or a swipe down, traps focus
-   (showModal) and gives focus back to what opened it.
+   SHEETS: the one overlay. A bottom sheet with a scrim, a drag handle and
+   two detents (medium, large). Opens on tap (or Enter/Space), has a visible
+   44px ✕, closes on Esc, a tap on the scrim or a swipe down, traps focus
+   and gives focus back to what opened it. It rides on top of the keyboard.
    ==================================================================== */
 const sheetEl = $("sheet"), sheetBody = $("sheetBody");
-let sheetStack = [], sheetOpener = null;
-const wideSheet = ()=>matchMedia("(min-width:768px)").matches;
+let sheetStack = [], sheetOpener = null, detent = "medium";
+/* the safe-area top, read once from a probe (env() isn't readable from JS) */
+const safeTop = (()=>{ let v = null; return ()=>{ if(v===null){ const p = document.createElement("div"); p.style.cssText = "position:fixed;top:0;height:env(safe-area-inset-top);visibility:hidden"; document.body.appendChild(p); v = p.offsetHeight; p.remove(); } return v; }; })();
+/* medium: 62% of what's visible; large: everything below the status bar. With the keyboard up, large. */
+function sheetMax(d, kb){
+  const h = viewportNow().height;
+  return Math.round(d==="large" || kb > 80 ? h - safeTop() - 10 : h * .62);
+}
+function applyDetent(kb){ sheetEl.style.setProperty("--sheet-max", sheetMax(detent, kb===undefined ? parseInt(getComputedStyle(document.documentElement).getPropertyValue("--kb")) || 0 : kb) + "px"); sheetEl.dataset.detent = detent; }
+function setDetent(d){
+  if(d===detent) return;
+  const before = sheetEl.getBoundingClientRect().top;
+  detent = d; applyDetent();
+  const after = sheetEl.getBoundingClientRect().top;
+  if(!calm() && before!==after) sheetEl.animate([{transform:`translateY(${before - after}px)`}, {transform:"none"}], {duration:240, easing:"cubic-bezier(.2,.8,.2,1)"});
+}
+kbListeners.push(kb=>{
+  if(!sheetEl.open) return;
+  applyDetent(kb);
+  // the field being typed in stays in view above the keyboard
+  const a = document.activeElement;
+  if(kb > 80 && a && sheetEl.contains(a) && a.matches("input, textarea")) requestAnimationFrame(()=>a.scrollIntoView({block:"nearest", behavior:calm() ? "auto" : "smooth"}));
+});
 function openSheet(kind, arg){
   if(sheetEl.open){ sheetStack.push({kind, arg}); renderSheetView(); return; }
   sheetOpener = document.activeElement;
   sheetStack = [{kind, arg}];
+  detent = "medium"; applyDetent();
   renderSheetView();
   sheetEl.showModal();
   $("sheetTitle").focus({preventScroll:true});
   sheetEl.style.transform = "";
-  sheetEl.animate(calm() ? [{opacity:0}, {opacity:1}] : [{opacity:0, transform:wideSheet() ? "translateY(12px)" : "translateY(40px)"}, {opacity:1, transform:"none"}],
+  sheetEl.animate(calm() ? [{opacity:0}, {opacity:1}] : [{opacity:0, transform:"translateY(40px)"}, {opacity:1, transform:"none"}],
                   {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"});
 }
 function closeSheet(instant){
   if(!sheetEl.open) return;
   const done = ()=>{ sheetEl.close(); sheetStack = []; sheetEl.style.transform = ""; if(sheetOpener && document.contains(sheetOpener)) sheetOpener.focus({preventScroll:true}); };
   if(instant===true || calm()){ done(); return; }
-  const a = sheetEl.animate([{opacity:1, transform:sheetEl.style.transform || "none"}, {opacity:0, transform:wideSheet() ? "translateY(8px)" : "translateY(30%)"}], {duration:150, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
+  const a = sheetEl.animate([{opacity:1, transform:sheetEl.style.transform || "none"}, {opacity:0, transform:"translateY(30%)"}], {duration:150, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
   a.onfinish = ()=>{ done(); a.cancel(); };
 }
 function backSheet(){ if(sheetStack.length < 2) return closeSheet(); sheetStack.pop(); renderSheetView(); }
@@ -726,15 +748,43 @@ sheetEl.addEventListener("click", e=>{
   const r = sheetEl.getBoundingClientRect();
   if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) closeSheet();
 });
+/* focus stays inside: Tab from the last control comes back to the first, and the other way */
+sheetEl.addEventListener("keydown", e=>{
+  if(e.key!=="Tab") return;
+  const els = [...sheetEl.querySelectorAll("button:not([disabled]):not([hidden]), input:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")].filter(z=>z.offsetParent || z===document.activeElement);
+  if(!els.length) return;
+  const first = els[0], last = els[els.length - 1];
+  if(e.shiftKey && (document.activeElement===first || !sheetEl.contains(document.activeElement) || document.activeElement===$("sheetTitle"))){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
 $("sheetClose").addEventListener("click", ()=>closeSheet());
 $("sheetBack").addEventListener("click", backSheet);
-(()=>{ // swipe down on the grab bar or the header to let the sheet go (touch)
+/* drag: up on the handle or header goes large; down goes back to medium, then away.
+   From the content, a pull down when it's scrolled to the top does the same. */
+function dragEnd(dy){
+  sheetEl.style.transform = "";
+  if(dy < -50) setDetent("large");
+  else if(dy > 90 && detent==="large" && sheetBody.scrollHeight > sheetMax("medium") - 80) setDetent("medium");
+  else if(dy > 90) closeSheet();
+  else if(dy > 0 && !calm()) sheetEl.animate([{transform:`translateY(${dy}px)`}, {transform:"none"}], {duration:180, easing:"cubic-bezier(.2,.8,.2,1)"});
+}
+const dragTo = dy=>{ sheetEl.style.transform = `translateY(${dy > 0 ? dy : dy * .25}px)`; };
+(()=>{
   let y0 = null, dy = 0;
   [$("sheetGrab"), $("sheetHead")].forEach(h=>{
-    h.addEventListener("pointerdown", e=>{ if(wideSheet() || e.target.closest("button")) return; y0 = e.clientY; dy = 0; h.setPointerCapture(e.pointerId); });
-    h.addEventListener("pointermove", e=>{ if(y0===null) return; dy = Math.max(0, e.clientY - y0); sheetEl.style.transform = `translateY(${dy}px)`; });
-    h.addEventListener("pointerup", ()=>{ if(y0===null) return; y0 = null; if(dy > 90) closeSheet(); else sheetEl.style.transform = ""; });
+    h.addEventListener("pointerdown", e=>{ if(e.target.closest("button")) return; y0 = e.clientY; dy = 0; h.setPointerCapture(e.pointerId); });
+    h.addEventListener("pointermove", e=>{ if(y0===null) return; dy = e.clientY - y0; dragTo(dy); });
+    const up = ()=>{ if(y0===null) return; y0 = null; dragEnd(dy); };
+    h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
   });
+  let t0 = null, tdy = 0;
+  sheetBody.addEventListener("touchstart", e=>{ t0 = sheetBody.scrollTop <= 0 ? e.touches[0].clientY : null; tdy = 0; }, {passive:true});
+  sheetBody.addEventListener("touchmove", e=>{
+    if(t0===null) return;
+    tdy = e.touches[0].clientY - t0;
+    if(tdy > 0 && sheetBody.scrollTop <= 0){ e.preventDefault(); dragTo(tdy); } else if(tdy < 0) t0 = null;
+  }, {passive:false});
+  sheetBody.addEventListener("touchend", ()=>{ if(t0===null) return; t0 = null; if(tdy > 0) dragEnd(tdy); });
 })();
 function sheetRow(label, sub, fn, f){
   const b = document.createElement("button");

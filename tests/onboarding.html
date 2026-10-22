@@ -42,7 +42,7 @@ f.onload = async () => {
     ok("the sentence names them", d.getElementById("onbTitle").textContent.startsWith("Lula arrived on"));
     const [dd, mm, yy] = d.querySelectorAll(".blank-input");
     ok("the day blank is labelled 'Lula arrived on'", d.querySelector(`label[for="${dd.id}"]`).textContent === "Lula arrived on");
-    ok("the month field is a combobox with its list", mm.getAttribute("role") === "combobox" && d.getElementById(mm.getAttribute("aria-controls")).getAttribute("role") === "listbox");
+    ok("the month field is a plain field (no popover list)", !mm.getAttribute("role") && !d.querySelector(".month-peek"));
     type(dd, "31"); type(mm, "feb"); type(yy, "2026");
     ok("31 February: a quiet hint, no Next", /February has 28 days/.test(d.querySelector(".onb-hint").textContent) && next().classList.contains("wait"), d.querySelector(".onb-hint").textContent);
     type(dd, "1"); type(mm, "12"); type(yy, "2026");

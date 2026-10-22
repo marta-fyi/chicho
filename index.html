@@ -329,7 +329,6 @@ try{
     font:inherit;letter-spacing:inherit;color:inherit;text-align:center;caret-color:currentColor;outline:none;
   }
   .blank .blank-input:focus{box-shadow:none;outline:none;}
-  .blank-input::-webkit-calendar-picker-indicator{display:none;}   /* the month list opens on tap or typing, no arrow */
   .blank::after{
     content:"";position:absolute;left:0;right:0;bottom:-.06em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;
     opacity:.4;transform:scaleY(.7);transform-origin:bottom;transition:opacity var(--dur-2), transform var(--dur-2) var(--ease-out);pointer-events:none;
@@ -341,16 +340,6 @@ try{
   .blank.time{min-width:0;}
   .blank.time .blank-input{position:static;width:auto;text-align:left;}
   .pill-edit .blank .blank-input{text-align:left;}
-  /* the month list is a peek: white, radius 24, a soft diffuse shadow, black text day and night */
-  .onb-card{position:relative;}
-  .month-peek{
-    position:absolute;z-index:5;transform:translateX(-50%);display:grid;grid-template-columns:repeat(3, 72px);gap:4px;padding:10px;
-    background:#fff;border-radius:var(--r-peek);box-shadow:var(--shadow-peek);
-    --ink:#0A0A0A; --ink-85:rgba(10,10,10,.85); --on-ink:#fff; color:var(--ink);
-  }
-  .month-peek[hidden]{display:none;}
-  .month-peek button{min-height:44px;border:none;border-radius:14px;background:none;font:inherit;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer;}
-  .month-peek button[aria-selected="true"]{background:var(--ink);color:var(--on-ink);}
   /* the stage, following the birthday as it's typed */
   .stage-say{margin-top:28px;min-height:84px;}
   .stage-name{margin:0;font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.15;color:var(--ink);}
@@ -590,13 +579,14 @@ try{
   }
 
   /* ---------- sheets ----------
-     One <dialog> for every detail: it springs up from the bottom on a phone
-     and scales in on wide screens, traps focus, closes on Escape or a tap
-     outside, and can be dragged down by its handle. Views inside slide
-     sideways (meal → back to the week). */
+     The one overlay: a bottom sheet with a scrim. One <dialog> for every
+     detail; it rises from the bottom, opens at the medium detent (or shorter,
+     if its content is), drags up to large and down to dismiss, traps focus,
+     closes on ✕, Escape or a tap on the scrim, and sits on top of the
+     on-screen keyboard (--kb, from visualViewport) so an input is never hidden. */
   .sheet{
-    position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:92dvh;
-    padding:0;border:none;border-radius:var(--r-card) var(--r-card) 0 0;background:var(--card);color:var(--ink);
+    position:fixed;inset:auto 0 var(--kb, 0px) 0;margin:0 auto;width:100%;max-width:calc(var(--col) + 40px);max-height:var(--sheet-max, 62dvh);
+    padding:0;border:none;border-radius:28px 28px 0 0;background:var(--card);color:var(--ink);
     box-shadow:0 -20px 60px -20px rgba(40,46,30,.35);overflow:hidden;
   }
   /* the full views share the peeks' look: white, radius 24, black ink at 100% or 70%, no olive, no red */
@@ -604,14 +594,14 @@ try{
     --olive-900:#0A0A0A; --olive-700:#0A0A0A; --olive-500:rgba(10,10,10,.85); --olive-200:rgba(10,10,10,.14);
     --olive-100:rgba(10,10,10,.06); --olive-50:rgba(10,10,10,.035); --tint:#0A0A0A; --tint-soft:rgba(10,10,10,.06);
     --ink:#0A0A0A; --muted:rgba(10,10,10,.85); --faint:rgba(10,10,10,.35); --label-2:rgba(10,10,10,.85);
-    --green:#0A0A0A; --orange:#0A0A0A; --red:#0A0A0A; --r-card:var(--r-peek); box-shadow:var(--shadow-peek);
+    --green:#0A0A0A; --orange:#0A0A0A; --red:#0A0A0A; box-shadow:var(--shadow-peek);
   }
 
   .sheet .pill{background:#0A0A0A;color:#fff;box-shadow:none;}
   .sheet .pill.quiet{background:rgba(10,10,10,.06);color:#0A0A0A;}
   .sheet[open]{display:flex;flex-direction:column;}
   .sheet::backdrop{background:rgba(28,32,20,.34);}
-  .sheet-grab{flex:0 0 auto;display:grid;place-items:center;height:22px;cursor:grab;touch-action:none;}
+  .sheet-grab{flex:0 0 auto;display:grid;place-items:center;height:24px;cursor:grab;touch-action:none;}
   .sheet-grab i{width:40px;height:5px;border-radius:3px;background:var(--olive-200);}
   .sheet-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:2px 16px 10px;touch-action:none;}
   .sheet-title:focus{outline:none;}
@@ -623,12 +613,10 @@ try{
   .sheet-back:active, .sheet-close:active{transform:scale(.92);}
   .sheet-back[hidden]{display:none;}
   .sheet-back::before{content:"";width:9px;height:9px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
-  .sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 16px calc(24px + env(safe-area-inset-bottom));}
-  @media (min-width:768px){
-    .sheet{inset:0;margin:auto;width:min(560px, 92vw);max-height:86dvh;border-radius:var(--r-card);box-shadow:var(--shadow-lift);}
-    .sheet-grab{height:12px;cursor:default;}
-    .sheet-grab i{display:none;}
-  }
+  .sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+              padding:4px var(--pad-r) calc(24px + env(safe-area-inset-bottom)) var(--pad-l);}
+  .kb-open .sheet-body{padding-bottom:24px;}   /* the keyboard covers the home indicator */
+  .sheet-head{padding-left:var(--pad-l);padding-right:calc(var(--pad-r) - 6px);}
   /* the meal */
 
   .ate{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px;}
@@ -1525,6 +1513,24 @@ let currentDay = 0;
    the re-render waits for it. With reduced motion everything is instant. */
 let justChanged = null;
 function calm(){ return matchMedia("(prefers-reduced-motion: reduce)").matches; }
+/* ---------- the on-screen keyboard ----------
+   The visual viewport shrinks when the keyboard opens (the layout viewport
+   doesn't, on iOS). --kb is the keyboard's height and --vvh what's left, so
+   the sheet and onboarding can sit on top of it. Tests stand in a fake
+   viewport with window.__vv = {height, offsetTop}. */
+function viewportNow(){ const v = window.__vv || window.visualViewport; return v ? {height:v.height, offsetTop:v.offsetTop || 0} : {height:innerHeight, offsetTop:0}; }
+const kbListeners = [];
+function kbSync(){
+  const v = viewportNow(), kb = Math.max(0, Math.round(innerHeight - v.height - v.offsetTop));
+  const root = document.documentElement;
+  root.style.setProperty("--kb", kb + "px");
+  root.style.setProperty("--vvh", Math.round(v.height) + "px");
+  root.classList.toggle("kb-open", kb > 80);
+  kbListeners.forEach(f=>f(kb, v));
+}
+if(window.visualViewport){ visualViewport.addEventListener("resize", kbSync); visualViewport.addEventListener("scroll", kbSync); }
+addEventListener("resize", kbSync);
+kbSync();
 /* ---------- PLAN RENDER ---------- */
 /* Plan days stay in their canonical Mon–Sun order (grocery badges depend on it);
    only the tab strip is rotated so today leads. */
@@ -2296,14 +2302,13 @@ function onbBirthday(card, P){
   const day = blank({value:had ? String(had.getDate()) : "", min:2, maxLength:2, inputmode:"numeric", label:say("onb.birthday.day"),
     onInput:v=>{ check(); if(v.length===2 || +v > 3) month.input.focus(); }, onEnter:go});
   const month = blank({value:had ? MONTH_NAMES[had.getMonth()] : "", min:6, maxLength:16, label:say("onb.birthday.month"),
-    onInput:()=>{ check(); picker.follow(); }, onEnter:()=>{ if(!picker.choose()) go(); }});
+    onInput:()=>check(), onEnter:go});
   const year = blank({value:had ? String(had.getFullYear()) : "", min:4, maxLength:4, inputmode:"numeric", label:say("onb.birthday.year"),
     onInput:()=>check(), onEnter:go});
   month.input.addEventListener("blur", ()=>{ const k = parseMonth(month.input.value); if(k!==null){ month.input.value = MONTH_NAMES[k]; month.sync(); check(); } });
   const s = sentence(say("onb.birthday.sentence", {name}), {day, month, year});
   // the day field is labelled by the words before it ("Lula arrived on"), the others by their own names
   card.append(s, line(say("onb.birthday.line")));
-  const picker = monthPicker(card, month, k=>{ month.input.value = MONTH_NAMES[k]; month.sync(); month.el.classList.remove("idle"); check(); year.input.focus(); });
   const help = hint();
   const stage = document.createElement("div");
   stage.className = "stage-say"; stage.setAttribute("aria-live", "polite");
@@ -2321,54 +2326,6 @@ function onbBirthday(card, P){
   }
   next = onbCta(card, say("onb.birthday.cta"), go, {ready:false});
   check();
-}
-
-/* The month blank's compact list: a small peek under the field that opens on
-   tap or focus, follows what's typed, and takes arrow keys, Enter and Escape
-   (the combobox pattern: focus stays in the field). */
-function monthPicker(card, month, onPick){
-  const inp = month.input, list = document.createElement("div");
-  const short = new Intl.DateTimeFormat(undefined, {month:"short"});
-  list.className = "month-peek"; list.id = "mp" + uid(); list.setAttribute("role", "listbox"); list.setAttribute("aria-label", say("onb.birthday.month"));
-  list.hidden = true;
-  list.innerHTML = MONTH_NAMES.map((m, k)=>`<button type="button" role="option" tabindex="-1" id="${list.id}-${k}" aria-selected="false" aria-label="${m}">${short.format(new Date(2024, k, 1))}</button>`).join("");
-  card.appendChild(list);
-  inp.setAttribute("role", "combobox"); inp.setAttribute("aria-autocomplete", "list");
-  inp.setAttribute("aria-controls", list.id); inp.setAttribute("aria-expanded", "false");
-  let active = -1;
-  const opts = [...list.children];
-  const mark = k=>{
-    active = k;
-    opts.forEach((o, j)=>o.setAttribute("aria-selected", String(j===k)));
-    if(k>=0) inp.setAttribute("aria-activedescendant", opts[k].id); else inp.removeAttribute("aria-activedescendant");
-  };
-  const place = ()=>{
-    const c = card.getBoundingClientRect(), r = month.el.getBoundingClientRect(), half = list.offsetWidth/2 || 120;
-    const x = r.left + r.width/2 - c.left;   // centred under the field, shifted to stay on screen
-    list.style.left = Math.max(half - c.left + 8, Math.min(x, innerWidth - c.left - half - 8)) + "px";
-    list.style.top = (r.bottom - c.top + 10) + "px";
-  };
-  const open = ()=>{ if(!list.hidden) return; list.hidden = false; inp.setAttribute("aria-expanded", "true"); place(); mark(parseMonth(inp.value) ?? -1);
-    if(!calm()) list.animate([{opacity:0, transform:"translate(-50%, 8px) scale(.98)"}, {opacity:1, transform:"translate(-50%, 0)"}], {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"}); };
-  const close = ()=>{ if(list.hidden) return; list.hidden = true; inp.setAttribute("aria-expanded", "false"); mark(-1); };
-  inp.addEventListener("focus", open);
-  inp.addEventListener("click", open);
-  inp.addEventListener("blur", e=>{ if(!list.contains(e.relatedTarget)) close(); });
-  inp.addEventListener("keydown", e=>{
-    if(e.key==="ArrowDown" || e.key==="ArrowUp"){
-      e.preventDefault();
-      if(list.hidden){ open(); if(active < 0) mark(0); return; }   // the first press only opens it, on the current month
-      const d = e.key==="ArrowDown" ? 1 : -1;
-      mark(active < 0 ? (d > 0 ? 0 : 11) : (active + d + 12) % 12);
-    }else if(e.key==="Escape" && !list.hidden){ e.preventDefault(); close(); }
-  });
-  list.addEventListener("pointerdown", e=>e.preventDefault());   // keep focus (and the caret) in the field
-  opts.forEach((o, k)=>o.addEventListener("click", ()=>{ close(); onPick(k); }));
-  addEventListener("resize", place);
-  return {
-    follow(){ open(); mark(parseMonth(inp.value) ?? -1); },
-    choose(){ if(list.hidden || active < 0) return false; const k = active; close(); onPick(k); return true; }
-  };
 }
 
 /* 4. keep out: "Keep these off the plate." Pills cycle neutral → keep out → tried and loved */
