@@ -14,6 +14,18 @@
 <meta name="color-scheme" content="light">
 <link rel="preload" href="bg.jpg" as="image">
 <link rel="manifest" href="manifest.webmanifest">
+<script>
+/* first run only: the welcome's first two drawings (HERO_FOODS[0], [1] in foods.js) start loading with the page */
+try{
+  const saved = JSON.parse(localStorage.getItem("toddlerMealPlanner.v1") || "null");
+  if(!saved || !saved.profile || !saved.profile.onboarded) ["banana","carrot"].forEach(id=>{
+    const l = document.createElement("link");
+    l.rel = "preload"; l.as = "image"; l.type = "image/webp";
+    l.setAttribute("imagesrcset", `img/food/${id}-192.webp 1x, img/food/${id}-384.webp 2x`);
+    document.head.appendChild(l);
+  });
+}catch(e){}
+</script>
 <style>
   :root{
     /* the background: Marta's gradient image (bg.jpg) */
@@ -31,8 +43,10 @@
     --olive-200:#DCE2C6;
     --olive-100:#EEF1E4;
     --olive-50:#F6F8F0;
-    --ink:#1F2328;         /* 15.8:1 on white */
-    --muted:#5C6370;       /* 6.1:1 on white */
+    --ink:#0A0A0A;         /* all text is black */
+    --ink-70:rgba(10,10,10,.7);   /* secondary text: never lighter */
+    --ink-25:rgba(10,10,10,.25);  /* inactive dots, hairlines; never text */
+    --muted:var(--ink-70);
     --faint:#8A919C;       /* decoration only, never text */
     --card:#FFFFFF;
     --hairline:rgba(31,35,40,.10);
@@ -53,6 +67,8 @@
     /* type: the system stack (SF Pro on Apple devices) */
     --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
     --fs-display:36px; --fs-title:22px; --fs-body:16px; --fs-caption:13px;
+    --fs-hero:44px; --track-hero:-.03em;   /* the one big headline per screen */
+    --art-shadow:drop-shadow(0 12px 18px rgba(0,0,0,.18));   /* follows the drawing, never a tile */
     --track-display:-.035em; --track-title:-.02em;
 
     /* motion */
@@ -354,18 +370,23 @@
   .onb[hidden]{display:none;}
   .onb-top{width:min(460px,100%);display:flex;align-items:center;gap:12px;min-height:48px;margin-bottom:12px;}
   .onb-back, .onb-close{
-    width:44px;height:44px;border:none;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:var(--shadow-tile);
-    display:grid;place-items:center;cursor:pointer;color:var(--olive-900);font-size:20px;line-height:1;
+    width:44px;height:44px;border:none;border-radius:50%;background:none;
+    display:grid;place-items:center;cursor:pointer;color:var(--ink);font-size:0;line-height:1;position:relative;
     transition:transform var(--dur-1) var(--ease-out);
   }
+  .onb-close::before, .onb-close::after{content:"";position:absolute;inset:0;margin:auto;width:20px;height:2px;border-radius:2px;background:currentColor;rotate:45deg;}
+  .onb-close::after{rotate:-45deg;}
+  .onb-back:focus-visible, .onb-close:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .onb-back:active, .onb-close:active{transform:scale(.92);}
   .onb-back[hidden], .onb-close[hidden]{display:none;}
   .onb-back::before{content:"";width:10px;height:10px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
   .onb-dots{flex:1;display:flex;justify-content:center;gap:8px;}
-  .onb-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(40,46,30,.12);transition:width var(--dur-3) var(--spring), background-color var(--dur-2);}
-  .onb-dots i.done{background:var(--olive-200);}
-  .onb-dots i.on{width:22px;border-radius:999px;background:var(--olive-700);}
+  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--ink-25);transition:background-color var(--dur-2);}
+  .onb-dots i.on{background:var(--ink);}
+  .is-welcome .onb-dots{visibility:hidden;}
+  .is-welcome .onb-top{width:min(420px,100%);}
   .onb-spacer{width:44px;flex:0 0 auto;}
+  .onb-close:not([hidden]) + .onb-spacer{display:none;}   /* the X sits at the column's right edge */
   .onb-card{
     width:min(460px,100%);background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);
     padding:32px 24px 24px;display:flex;flex-direction:column;gap:18px;margin:auto 0;
@@ -390,6 +411,34 @@
   }
   .onb-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--olive-700);}
   .onb-input::placeholder{color:var(--faint);font-weight:500;}
+  /* ---------- welcome: no card. One drawing, one line, one button, straight on the background ---------- */
+  .onb-card.bare{background:none;box-shadow:none;border-radius:0;width:min(420px,100%);padding:0 8px 7vh;gap:0;align-items:center;text-align:center;}
+  .wel-art{width:140px;height:140px;margin:0 0 32px;}
+  .wel-bob{position:relative;width:100%;height:100%;animation:wel-bob 2s ease-in-out infinite alternate;}
+  @keyframes wel-bob{from{transform:translateY(-4px);}to{transform:translateY(4px);}}
+  .wel-layer{position:absolute;inset:0;rotate:-6deg;opacity:0;filter:var(--art-shadow);}
+  .wel-layer.is-on{opacity:1;}
+  .wel-layer .food-art{width:100%;height:100%;}
+  .wel-h{margin:0 0 14px;font-size:var(--fs-hero);font-weight:700;letter-spacing:var(--track-hero);line-height:1.04;color:var(--ink);text-wrap:balance;}
+  .wel-p{margin:0 0 32px;max-width:340px;font-size:17px;line-height:1.4;color:var(--ink-70);text-wrap:balance;}
+  .keep{display:inline-block;}
+  .wel-in > *{animation:wel-rise 400ms var(--ease-out) both;animation-delay:var(--d, 0ms);}
+  @keyframes wel-rise{from{opacity:0;transform:translateY(12px);}}
+  /* the black pill: every primary action in the new system */
+  .btn-ink{
+    min-height:48px;min-width:160px;padding:0 28px;border:none;border-radius:var(--r-pill);
+    background:var(--ink);color:#fff;font:inherit;font-size:17px;font-weight:600;letter-spacing:-.01em;cursor:pointer;
+    box-shadow:0 10px 24px -12px rgba(0,0,0,.5);
+    transition:transform var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+  }
+  .btn-ink:hover{box-shadow:0 14px 28px -12px rgba(0,0,0,.55);}
+  .btn-ink:active{transform:scale(.97);box-shadow:0 4px 10px -6px rgba(0,0,0,.5);transition-duration:60ms;}
+  .btn-ink:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){
+    .wel-bob{animation:none;}
+    .wel-in > *{animation-name:wel-fade;}
+    @keyframes wel-fade{from{opacity:0;}}
+  }
   /* welcome: the tiles float, gently, each on its own beat */
   .onb .fan{margin:0;min-height:0;padding:12px 0 4px;}
   .onb .tile{cursor:default;}
@@ -3317,6 +3366,9 @@ function renderOnb(){
   document.getElementById("onbClose").onclick = closeOnboarding;
   const card = document.getElementById("onbCard");
   card.innerHTML = "";
+  card.className = "onb-card";
+  clearInterval(welTimer);
+  document.getElementById("onboarding").classList.toggle("is-welcome", key==="welcome");
   ({welcome:onbWelcome, name:onbName, birthday:onbBirthday, keepout:onbKeepout,
     priorities:onbPriorities, athome:onbAtHome, reveal:onbReveal})[key](card, P);
 }
@@ -3358,12 +3410,55 @@ function fanIn(container){
 }
 
 /* 1. welcome */
-function onbWelcome(card, P){
-  card.insertAdjacentHTML("beforeend", sampleFan(["🥣","🍌","🥕","🐟"], "float"));
-  onbHead(card, P.returning ? "Let's make this feel like yours." : "Let's plan something lovely for your little one.",
-          P.returning ? "A few quick questions, and your week stays put unless you'd like a new one." : "A few gentle questions, then a week of meals made for them.");
-  onbCta(card, "Get started", ()=>goStep(1));
-  fanIn(card);
+/* a line breaks between its sentences, not inside one, when each fits */
+function keepSentences(text){ return text.split(/(?<=[.!?])\s+/).map(t=>`<span class="keep">${t}</span>`).join(" "); }
+/* 1. welcome: one drawing at a time, crossfading through the hero foods */
+let welTimer = 0;
+function onbWelcome(card){
+  const heroes = HERO_FOODS.filter(id=>hasArt(foodOf(id)));
+  const art = id=>foodArt(id, {size:140, alt:""});
+  card.classList.add("bare", "wel-in");
+  card.innerHTML = `<div class="wel-art" aria-hidden="true" style="--d:0ms"><div class="wel-bob">
+      <span class="wel-layer is-on">${art(heroes[0])}</span><span class="wel-layer"></span></div></div>
+    <h1 class="onb-h wel-h" id="onbTitle" tabindex="-1" style="--d:120ms">${say("onb.welcome.title")}</h1>
+    <p class="wel-p" style="--d:200ms">${keepSentences(say("onb.welcome.line"))}</p>`;
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn-ink"; b.style.setProperty("--d", "280ms");
+  b.textContent = say("onb.welcome.cta");
+  b.addEventListener("click", ()=>{ haptic(); goStep(1); });
+  card.appendChild(b);
+  welcomeCycle(card, heroes);
+}
+/* every ~3 s the next food rises in with a small turn while the last one lifts away;
+   only the next drawing is fetched ahead, and nothing runs while the tab is hidden */
+function welcomeCycle(card, heroes){
+  clearInterval(welTimer);
+  if(heroes.length < 2) return;
+  const warm = id=>{ const f = foodOf(id); const im = new Image(); im.decoding = "async"; im.src = devicePixelRatio > 1.5 ? f.files.w384 : f.files.w192; };
+  let k = 0;
+  warm(heroes[1]);
+  welTimer = setInterval(()=>{
+    if(!card.isConnected || !card.classList.contains("bare")){ clearInterval(welTimer); return; }
+    if(document.hidden) return;
+    const cur = card.querySelector(".wel-layer.is-on"), next = card.querySelector(".wel-layer:not(.is-on)");
+    if(!cur || !next) return;
+    k = (k + 1) % heroes.length;
+    next.innerHTML = foodArt(heroes[k], {size:140, alt:""});
+    const img = next.querySelector("img");
+    (img && img.decode ? img.decode().catch(()=>{}) : Promise.resolve()).then(()=>{
+      cur.classList.remove("is-on"); next.classList.add("is-on");
+      if(calm()){
+        next.animate([{opacity:0}, {opacity:1}], {duration:400});
+        cur.animate([{opacity:1}, {opacity:0}], {duration:400});
+      }else{
+        next.animate([{opacity:0, transform:"translateY(10px) rotate(-8deg) scale(.92)"}, {opacity:1, transform:"none"}],
+                     {duration:400, easing:"cubic-bezier(.32,1.25,.5,1)"});
+        cur.animate([{opacity:1, transform:"none"}, {opacity:0, transform:"translateY(-12px) rotate(5deg) scale(.96)"}],
+                    {duration:280, easing:"cubic-bezier(.22,.61,.36,1)"});
+      }
+      warm(heroes[(k + 1) % heroes.length]);
+    });
+  }, 3000);
 }
 /* 2. name */
 function onbName(card, P){
