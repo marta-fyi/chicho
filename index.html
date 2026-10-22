@@ -69,6 +69,8 @@ try{
     --fs-display:36px; --fs-title:22px; --fs-body:16px; --fs-caption:13px;
     --fs-hero:44px; --track-hero:-.03em;   /* the one big headline per screen */
     --art-shadow:drop-shadow(0 12px 18px rgba(0,0,0,.18));   /* follows the drawing, never a tile */
+    --on-ink:#FFFFFF;      /* text on an ink-filled button */
+    --art-ink:none;        /* the drawings are black ink; at night they invert to white */
     --track-display:-.035em; --track-title:-.02em;
 
     /* motion */
@@ -135,6 +137,17 @@ try{
   [data-tod="golden"] .tod-golden, [data-tod="golden"] .tod-golden-wash,
   [data-tod="evening"] .tod-evening{opacity:1;}
   .tod-instant .tod{transition:none;}
+  /* At night (the navy evening tint) anything sitting straight on the sky turns
+     white: text, dots, drawings, and the pill flips to white with black text.
+     Black on the navy measures 2:1; white passes. Surfaces (white cards, peeks)
+     keep black ink. Add each frameless screen to this list as it lands. */
+  [data-tod="evening"] :is(.onb){
+    --ink:#FFFFFF; --ink-70:rgba(255,255,255,.78); --ink-25:rgba(255,255,255,.32);
+    --on-ink:#0A0A0A; --art-ink:invert(1);
+  }
+  [data-tod="evening"] .onb-card:not(.bare){
+    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --ink-25:rgba(10,10,10,.25); --on-ink:#FFFFFF; --art-ink:none;
+  }
 
   /* ---------- navigation: large title + the iOS 26 scroll edge ----------
      Content scrolling under the status bar softens into a glass edge
@@ -427,7 +440,7 @@ try{
   /* the black pill: every primary action in the new system */
   .btn-ink{
     min-height:48px;min-width:160px;padding:0 28px;border:none;border-radius:var(--r-pill);
-    background:var(--ink);color:#fff;font:inherit;font-size:17px;font-weight:600;letter-spacing:-.01em;cursor:pointer;
+    background:var(--ink);color:var(--on-ink);font:inherit;font-size:17px;font-weight:600;letter-spacing:-.01em;cursor:pointer;
     box-shadow:0 10px 24px -12px rgba(0,0,0,.5);
     transition:transform var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
   }
@@ -764,7 +777,7 @@ try{
 
   /* ---------- food art (foods.js → foodArt()): a drawing, or its emoji ---------- */
   .food-art{display:inline-block;width:var(--art);height:var(--art);flex:none;line-height:1;}
-  .food-art img{display:block;width:100%;height:100%;transform:scale(var(--scale,1));}
+  .food-art img{display:block;width:100%;height:100%;transform:scale(var(--scale,1));filter:var(--art-ink);}
   .food-emoji{display:inline-grid;place-items:center;font-size:calc(var(--art) * .62);}
 
   /* ---------- micro-interactions ---------- */
