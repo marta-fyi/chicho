@@ -70,7 +70,10 @@ try{
     --fs-hero:44px; --track-hero:-.03em;   /* the one big headline per screen */
     --art-shadow:drop-shadow(0 12px 18px rgba(0,0,0,.18));   /* follows the drawing, never a tile */
     --on-ink:#FFFFFF;      /* text on an ink-filled button */
+    --r-peek:24px;         /* peeks: the only surfaces, white, on demand */
+    --shadow-peek:0 24px 48px -16px rgba(0,0,0,.22), 0 4px 14px rgba(0,0,0,.06);
     --art-ink:none;        /* the drawings are black ink; at night they invert to white */
+    --art-ink-on:invert(1); /* …and on an ink-filled pill they flip the other way */
     --track-display:-.035em; --track-title:-.02em;
 
     /* motion */
@@ -143,7 +146,7 @@ try{
      keep black ink. Add each frameless screen to this list as it lands. */
   [data-tod="evening"] :is(.onb){
     --ink:#FFFFFF; --ink-70:rgba(255,255,255,.78); --ink-25:rgba(255,255,255,.32);
-    --on-ink:#0A0A0A; --art-ink:invert(1);
+    --on-ink:#0A0A0A; --art-ink:invert(1); --art-ink-on:none;
   }
   [data-tod="evening"] .onb-card:not(.bare){
     --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --ink-25:rgba(10,10,10,.25); --on-ink:#FFFFFF; --art-ink:none;
@@ -381,7 +384,8 @@ try{
   .onb{position:fixed;inset:0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
        padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 24px);}
   .onb[hidden]{display:none;}
-  .onb-top{width:min(460px,100%);display:flex;align-items:center;gap:12px;min-height:48px;margin-bottom:12px;}
+  .onb [hidden]{display:none !important;}   /* hidden wins over any display set below */
+  .onb-top{width:min(560px,100%);display:flex;align-items:center;gap:12px;min-height:48px;margin-bottom:12px;}
   .onb-back, .onb-close{
     width:44px;height:44px;border:none;border-radius:50%;background:none;
     display:grid;place-items:center;cursor:pointer;color:var(--ink);font-size:0;line-height:1;position:relative;
@@ -400,14 +404,11 @@ try{
   .is-welcome .onb-top{width:min(420px,100%);}
   .onb-spacer{width:44px;flex:0 0 auto;}
   .onb-close:not([hidden]) + .onb-spacer{display:none;}   /* the X sits at the column's right edge */
-  .onb-card{
-    width:min(460px,100%);background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);
-    padding:32px 24px 24px;display:flex;flex-direction:column;gap:18px;margin:auto 0;
-  }
+  .onb-card{width:min(560px,100%);display:flex;flex-direction:column;align-items:center;text-align:center;margin:auto 0;padding:0 8px 7vh;}
+  .onb-card.narrow{width:min(420px,100%);}
   .onb-h:focus{outline:none;}
   .onb-h{margin:0;font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.08;color:var(--olive-700);}
-  .onb-p{margin:-6px 0 0;font-size:var(--fs-body);color:var(--muted);line-height:1.45;}
-  .onb-cta{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .onb-cta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:32px;min-height:48px;}
   .pill{
     border:none;border-radius:var(--r-pill);min-height:54px;padding:14px 24px;font:inherit;font-size:17px;font-weight:700;
     background:var(--olive-700);color:#fff;cursor:pointer;box-shadow:0 10px 24px -12px rgba(62,70,33,.6);
@@ -418,14 +419,7 @@ try{
   .pill:disabled:active{transform:none;}
   .pill.quiet{background:var(--olive-100);color:var(--olive-900);box-shadow:none;}
   .link-btn{border:none;background:none;font:inherit;font-size:15px;color:var(--olive-700);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:44px;align-self:center;}
-  .onb-input{
-    width:100%;border:none;border-radius:var(--r-field);background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-200);
-    font:inherit;font-size:28px;font-weight:700;letter-spacing:var(--track-title);text-align:center;padding:16px;color:var(--ink);
-  }
-  .onb-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--olive-700);}
-  .onb-input::placeholder{color:var(--faint);font-weight:500;}
   /* ---------- welcome: no card. One drawing, one line, one button, straight on the background ---------- */
-  .onb-card.bare{background:none;box-shadow:none;border-radius:0;width:min(420px,100%);padding:0 8px 7vh;gap:0;align-items:center;text-align:center;}
   .wel-art{width:140px;height:140px;margin:0 0 32px;}
   .wel-bob{position:relative;width:100%;height:100%;animation:wel-bob 2s ease-in-out infinite alternate;}
   @keyframes wel-bob{from{transform:translateY(-4px);}to{transform:translateY(4px);}}
@@ -447,91 +441,124 @@ try{
   .btn-ink:hover{box-shadow:0 14px 28px -12px rgba(0,0,0,.55);}
   .btn-ink:active{transform:scale(.97);box-shadow:0 4px 10px -6px rgba(0,0,0,.5);transition-duration:60ms;}
   .btn-ink:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  /* quiet text buttons: Skip, Shuffle, Use the usual */
+  .btn-text{
+    min-height:44px;min-width:44px;padding:0 14px;border:none;background:none;color:var(--ink);cursor:pointer;
+    font:inherit;font-size:16px;font-weight:600;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;
+    transition:transform var(--dur-1) var(--ease-out);
+  }
+  .btn-text.small{min-height:44px;font-size:inherit;padding:0 6px;}
+  .btn-text:active{transform:scale(.97);}
+  .btn-text:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
+  /* Next waits, invisible and out of the tab order, until the step has a value */
+  .btn-ink.wait{opacity:0;transform:translateY(6px);pointer-events:none;}
+  .btn-ink{transition:opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);}
+
+  /* ---------- onboarding: sentences you complete ---------- */
+  .sent{margin:0;font-size:40px;font-weight:700;letter-spacing:var(--track-hero);line-height:1.22;color:var(--ink);text-wrap:balance;}
+  .sent:focus{outline:none;}
+  .sent label{cursor:text;}
+  .onb-line{margin:16px 0 0;max-width:420px;font-size:17px;line-height:1.4;color:var(--ink-70);text-wrap:balance;}
+  .onb-hint{margin:10px 0 0;min-height:1.4em;font-size:15px;line-height:1.4;color:var(--ink-70);}
+  .onb-hint:empty{visibility:hidden;}
+  .onb-note{margin-top:20px;font-size:13px;}
+  .onb-lean{margin-top:20px;font-size:16px;color:var(--ink-70);min-height:1.4em;}
+  /* the blank: grows with what's typed, on a thick underline that pulses until the first keystroke */
+  .blank{position:relative;display:inline-block;vertical-align:baseline;min-width:var(--min, 3ch);}
+  .blank-mirror{visibility:hidden;white-space:pre;padding:0 3px;}
+  .blank .blank-input{
+    position:absolute;inset:0;width:100%;min-width:0;margin:0;padding:0 3px;border:0;border-radius:0;background:none;
+    font:inherit;letter-spacing:inherit;color:inherit;text-align:center;caret-color:currentColor;outline:none;
+  }
+  .blank .blank-input:focus{box-shadow:none;outline:none;}
+  .blank-input::-webkit-calendar-picker-indicator{display:none;}   /* the month list opens on tap or typing, no arrow */
+  .blank::after{
+    content:"";position:absolute;left:0;right:0;bottom:-.06em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;
+    opacity:.4;transform:scaleY(.7);transform-origin:bottom;transition:opacity var(--dur-2), transform var(--dur-2) var(--ease-out);pointer-events:none;
+  }
+  .blank:focus-within::after{transform:none;opacity:.6;}
+  .blank[data-state="ok"]::after, .blank[data-state="hint"]::after{opacity:1;}
+  .blank.idle:focus-within::after{animation:blank-pulse 1.4s ease-in-out infinite alternate;}
+  @keyframes blank-pulse{from{opacity:.25;}to{opacity:.75;}}
+  .blank.time{min-width:0;}
+  .blank.time .blank-input{position:static;width:auto;text-align:left;}
+  .pill-edit .blank .blank-input{text-align:left;}
+  /* the month list is a peek: white, radius 24, a soft diffuse shadow, black text day and night */
+  .onb-card{position:relative;}
+  .month-peek{
+    position:absolute;z-index:5;transform:translateX(-50%);display:grid;grid-template-columns:repeat(3, 72px);gap:4px;padding:10px;
+    background:#fff;border-radius:var(--r-peek);box-shadow:var(--shadow-peek);
+    --ink:#0A0A0A; --ink-70:rgba(10,10,10,.7); --on-ink:#fff; color:var(--ink);
+  }
+  .month-peek[hidden]{display:none;}
+  .month-peek button{min-height:44px;border:none;border-radius:14px;background:none;font:inherit;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .month-peek button:hover{background:rgba(10,10,10,.06);}
+  .month-peek button[aria-selected="true"]{background:var(--ink);color:var(--on-ink);}
+  /* the stage, following the birthday as it's typed */
+  .stage-say{margin-top:28px;min-height:84px;}
+  .stage-name{margin:0;font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.15;color:var(--ink);}
+  .stage-line{margin:6px 0 0;font-size:16px;color:var(--ink-70);}
+  /* pills: a thin black outline; on = black with white text */
+  .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:28px;}
+  .pill-o{
+    position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:var(--r-pill);
+    border:1.5px solid var(--ink);background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer;
+    transition:transform var(--dur-1) var(--ease-out), background-color 160ms, color 160ms;
+  }
+  .pill-o:has(.food-art){padding-left:10px;}
+  .pill-o .food-art{--art:24px;}
+  .pill-o .food-emoji{font-size:17px;}
+  .pill-o:active{transform:scale(.97);transition-duration:60ms;}
+  .pill-o:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .pill-o:disabled{opacity:.3;cursor:default;}
+  .pill-o:disabled:active{transform:none;}
+  .pill-o[aria-pressed="true"], .pill-o[data-state="out"]{background:var(--ink);color:var(--on-ink);--art-ink:var(--art-ink-on);}
+  .pill-mark{display:none;width:12px;height:12px;flex:none;position:relative;}
+  .pill-o[data-state="out"] .pill-mark, .pill-o[data-state="loved"] .pill-mark{display:inline-block;}
+  .pill-o[data-state="out"] .pill-mark::before, .pill-o[data-state="out"] .pill-mark::after{
+    content:"";position:absolute;inset:0;margin:auto;width:12px;height:2px;border-radius:2px;background:currentColor;rotate:45deg;}
+  .pill-o[data-state="out"] .pill-mark::after{rotate:-45deg;}
+  .pill-o[data-state="loved"] .pill-mark::before{content:"";position:absolute;left:1px;top:1px;width:10px;height:5px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;rotate:-45deg;}
+  .pill-own{cursor:default;padding-right:4px;}
+  .pill-x{width:36px;height:36px;margin:0 -2px 0 2px;border:none;border-radius:50%;background:none;color:inherit;cursor:pointer;position:relative;}
+  .pill-x::before, .pill-x::after{content:"";position:absolute;inset:0;margin:auto;width:12px;height:2px;border-radius:2px;background:currentColor;rotate:45deg;}
+  .pill-x::after{rotate:-45deg;}
+  .pill-x::selection{background:none;}
+  .pill-x:focus-visible{outline:2px solid currentColor;outline-offset:-4px;}
+  .pill-edit{cursor:text;gap:6px;padding-right:6px;}
+  .pill-edit .blank{min-width:5ch;}
+  .kind-toggle{display:inline-flex;margin-left:4px;}
+  .kind-toggle button{min-height:36px;padding:0 10px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;opacity:.6;}
+  .kind-toggle button[aria-pressed="true"]{opacity:1;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+  /* the locked line, and its reasons on tap */
+  .locked-say{margin-top:24px;max-width:460px;font-size:15px;line-height:1.45;color:var(--ink-70);}
+  .locked-say p{margin:0;}
+  .lock-i{width:14px;height:14px;margin-right:6px;vertical-align:-1px;fill:currentColor;stroke:currentColor;stroke-width:1.6;}
+  .lock-i path{fill:none;}
+  .why-list{margin:10px auto 0;padding:0;list-style:none;text-align:left;display:grid;gap:6px;}
+  /* meal times */
+  .mt-rows{margin-top:24px;display:grid;gap:6px;}
+  .mt-row{margin:0;font-size:28px;font-weight:700;letter-spacing:-.025em;line-height:1.5;color:var(--ink);}
+  .mt-row input[type=time]{font-variant-numeric:tabular-nums;}
+  .mt-row input[type=time]::-webkit-calendar-picker-indicator{display:none;}
+  /* the reveal: drawings floating up one by one */
+  .rv-row{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:28px;min-height:84px;}
+  .rv-item{display:block;rotate:var(--r);filter:var(--art-shadow);animation:rv-rise 520ms var(--spring) both, wel-bob 2s ease-in-out infinite alternate;
+           animation-delay:calc(var(--k) * 70ms), calc(520ms + var(--k) * 70ms);}
+  @keyframes rv-rise{from{opacity:0;transform:translateY(24px) scale(.85);}}
+  /* the week, before it's yours */
+  .wk-prev{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:4px;width:100%;margin-top:28px;}
+  .wk-day{display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .wk-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+  .wk-art{display:block;rotate:var(--r);filter:var(--art-shadow);}
+  @media (max-width:420px){ .sent{font-size:34px;} .mt-row{font-size:24px;} .wk-art .food-art{--art:34px !important;} }
   @media (prefers-reduced-motion: reduce){
-    .wel-bob{animation:none;}
+    .wel-bob, .blank.idle:focus-within::after{animation:none;}
+    .rv-item{animation:wel-fade 300ms both;animation-delay:calc(var(--k) * 70ms);}
     .wel-in > *{animation-name:wel-fade;}
     @keyframes wel-fade{from{opacity:0;}}
   }
-  /* welcome: the tiles float, gently, each on its own beat */
-  .onb .fan{margin:0;min-height:0;padding:12px 0 4px;}
-  .onb .tile{cursor:default;}
-  .float .tile-art{animation:bob 4.2s ease-in-out infinite alternate;animation-delay:calc(var(--k) * -1.1s);}
-  @keyframes bob{from{transform:translateY(-4px);}to{transform:translateY(5px);}}
-  /* birthday: three wheels, the middle row is the choice */
-  .wheels{display:grid;grid-template-columns:1fr 1.6fr 1.2fr;gap:8px;position:relative;}
-  .wheels::before{content:"";position:absolute;left:0;right:0;top:50%;height:48px;translate:0 -50%;border-radius:14px;background:var(--olive-100);pointer-events:none;}
-  .wheel-list{
-    position:relative;height:192px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding:72px 0;
-    -webkit-mask-image:linear-gradient(transparent, #000 30%, #000 70%, transparent);mask-image:linear-gradient(transparent, #000 30%, #000 70%, transparent);
-    border-radius:14px;
-  }
-  .wheel-list::-webkit-scrollbar{display:none;}
-  .wheel-list:focus-visible{outline:2px solid var(--olive-700);outline-offset:2px;}
-  .wheel-opt{height:48px;display:grid;place-items:center;scroll-snap-align:center;font-size:20px;color:var(--muted);cursor:pointer;user-select:none;}
-  .wheel-opt[aria-selected="true"]{color:var(--ink);font-weight:700;font-size:22px;}
-  .stage-badge{align-self:center;display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--r-pill);background:var(--olive-100);color:var(--olive-900);font-weight:700;font-size:15px;}
-  .stage-preview{margin:-8px 0 0;text-align:center;font-size:15px;color:var(--muted);}
-  .calm-emoji{font-size:56px;text-align:center;line-height:1;}
-  /* keep out: nine big tiles that cycle neutral → avoid → tried */
-  .al-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-  .al-tile{
-    position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px 10px;min-height:96px;
-    border:none;border-radius:18px;background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), box-shadow var(--dur-2);
-  }
-  .al-tile:active{transform:scale(.95);}
-  .al-emoji{position:relative;font-size:30px;line-height:1.2;}
-  .al-name{font-size:13px;font-weight:600;color:var(--ink);text-align:center;line-height:1.2;}
-  .al-state{font-size:12px;color:var(--muted);min-height:15px;}
-  .al-tile[data-state="avoid"]{background:#F8E6E1;box-shadow:inset 0 0 0 2px #B3473A;}
-  .al-tile[data-state="avoid"] .al-state{color:#7A2E22;font-weight:700;}
-  /* avoid is a strike through the food, not just a colour */
-  .al-tile[data-state="avoid"] .al-emoji::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:3px;border-radius:2px;background:#B3473A;rotate:-35deg;}
-  .al-tile[data-state="ok"]{background:var(--olive-100);box-shadow:inset 0 0 0 2px var(--olive-500);}
-  .al-tile[data-state="ok"] .al-state{color:var(--olive-900);font-weight:700;}
-  .al-tile.bump{animation:pop var(--dur-3) var(--spring);}
-  .kind-seg{display:inline-grid;grid-template-columns:1fr 1fr;background:var(--olive-50);border-radius:999px;padding:3px;box-shadow:inset 0 0 0 1px var(--olive-100);}
-  .kind-seg button{border:none;background:none;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;color:var(--olive-900);cursor:pointer;min-height:36px;}
-  .kind-seg button[aria-pressed="true"]{background:var(--card);box-shadow:var(--shadow-tile);font-weight:700;}
-  .add-line{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-  .add-line input{flex:1 1 100%;min-width:0;}
-  .add-line .pill{margin-left:auto;}
   .note-calm{font-size:13px;color:var(--muted);margin:0;line-height:1.45;}
-  /* priorities: soft cards, up to three */
-  .pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .pr-card{
-    position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;min-height:92px;border:none;border-radius:18px;
-    background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;text-align:left;cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2), box-shadow var(--dur-2);
-  }
-  .pr-card:active{transform:scale(.96);}
-  .pr-card:disabled{opacity:.45;cursor:default;}
-  .pr-card .pr-emoji{font-size:26px;line-height:1;}
-  .pr-card .pr-label{font-size:15px;font-weight:600;line-height:1.25;color:var(--ink);}
-  .pr-card[aria-pressed="true"]{background:var(--olive-100);box-shadow:inset 0 0 0 2px var(--olive-700);}
-  .pr-card[aria-pressed="true"]::after{
-    content:"";position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--olive-700);
-    background-image:linear-gradient(transparent, transparent);
-  }
-  .pr-card[aria-pressed="true"]::before{content:"";position:absolute;top:17px;right:17px;width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;rotate:-45deg;z-index:1;}
-  .lean{font-size:15px;color:var(--olive-900);background:var(--olive-50);border-radius:14px;padding:12px 14px;margin:0;line-height:1.4;}
-  /* at home: staple chips */
-  .st-chips{display:flex;flex-wrap:wrap;gap:8px;}
-  .st-chip{
-    display:inline-flex;align-items:center;gap:6px;border:none;border-radius:999px;padding:10px 14px;min-height:44px;
-    background:var(--olive-50);box-shadow:inset 0 0 0 1.5px var(--olive-100);font:inherit;font-size:15px;color:var(--ink);cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
-  }
-  .st-chip:active{transform:scale(.95);}
-  .st-chip[aria-pressed="true"]{background:var(--olive-700);color:#fff;box-shadow:none;}
-  /* reveal: the table being set, then the week */
-  .rv-stage{display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px 0;}
-  .rv-line{font-size:var(--fs-title);font-weight:700;letter-spacing:var(--track-title);color:var(--olive-900);text-align:center;margin:0;}
-  .rv-days{display:flex;flex-direction:column;gap:2px;margin:0;}
-  .rv-day{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--hairline);font-size:15px;line-height:1.35;}
-  .rv-day:first-child{border-top:none;}
-  .rv-day b{color:var(--olive-700);}
-  .rv-day span{color:var(--ink);}
 
   /* ---------- keep out, priorities ---------- */
   .lean-line{font-size:var(--fs-caption);color:var(--muted);margin:2px 16px 12px 0;line-height:1.4;}
@@ -826,7 +853,7 @@ try{
   @media (prefers-reduced-motion: reduce){
     .bg-img,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
-    .float .tile-art, .al-tile.bump, .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal),
+    .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal),
     .wd.complete .ring, .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
     .set-row, .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
@@ -1399,21 +1426,11 @@ function isAllowed(food, months, profile){
 }
 
 /* ---------- priorities: what matters most right now ---------- */
-const PRIORITIES = [
-  {id:"iron",       label:"Iron-rich foods",            emoji:"🫘", lean:"iron-rich meals"},
-  {id:"colours",    label:"Lots of colours and veggies", emoji:"🌈", lean:"a rainbow of veg"},
-  {id:"quick",      label:"Quick to cook",              emoji:"⏱️", lean:"20-minute recipes"},
-  {id:"batch",      label:"Batch-cook and freeze",      emoji:"🧊", lean:"dishes that freeze well, cooked once and eaten twice"},
-  {id:"finger",     label:"Baby-led finger foods",      emoji:"✋", lean:"finger foods they can hold"},
-  {id:"athome",     label:"Use what's already at home", emoji:"🏠", lean:"what's already in your kitchen"},
-  {id:"affordable", label:"Keep it affordable",         emoji:"🪙", lean:"budget-friendly staples"},
-  {id:"gentle",     label:"Try new foods gently",       emoji:"🌱", lean:"familiar favourites, one new taste a day"}
-];
+const PRIORITIES = ["iron","colours","quick","batch","finger","athome","affordable","gentle"]
+  .map(id=>Object.assign({id}, CONTENT.priorities[id]));
 function priorityLine(ids){
   const leans = ids.map(id=>(PRIORITIES.find(p=>p.id===id)||{}).lean).filter(Boolean);
-  if(!leans.length) return "We'll keep the week balanced and varied.";
-  const list = leans.length===1 ? leans[0] : leans.slice(0,-1).join(", ") + " and " + leans[leans.length-1];
-  return "We'll lean on " + list + ".";
+  return leans.length ? say("priorityLine.some", {list:listJoin(leans)}) : say("priorityLine.none");
 }
 /* per food: colour on the plate, quick (≤20 min), freezes well, cost */
 const FOOD_META = {
@@ -2848,7 +2865,7 @@ function renderCreateControls(){
     b.type = "button";
     b.className = "chip tap" + (on ? " selected" : "");
     b.setAttribute("aria-pressed", String(on));
-    b.innerHTML = `<span aria-hidden="true">${pr.emoji}</span> ${pr.label}`;
+    b.textContent = pr.label;
     b.disabled = !on && chosen.length>=3;
     b.addEventListener("click", ()=>{
       state.profile.priorities = on ? chosen.filter(x=>x!==pr.id) : chosen.concat(pr.id).slice(0,3);
@@ -3261,11 +3278,12 @@ function renderSettingsSheet(body){
   const P = state.profile, b = P.birthDate ? localDate(P.birthDate) : null;
   const avoid = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label), ...P.avoid.map(a=>a.name)];
   const rows = [
-    ["Name", P.name || "Add their name", 1],
-    ["Birthday", b ? `${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()} · ${ageLabel(ageNow())}` : "Add it", 2],
-    ["Keep out", avoid.length ? avoid.join(", ") : "Nothing yet", 3],
-    ["What matters most", P.priorities.length ? P.priorities.map(id=>PRIORITIES.find(p=>p.id===id).label).join(", ") : "Balanced", 4],
-    ["At home", P.staples.length ? P.staples.length + " staples" : "Optional", 5]
+    ["Name", P.name || "Add their name", "name"],
+    ["Birthday", b ? `${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()} · ${ageLabel(ageNow())}` : "Add it", "birthday"],
+    ["Keep out", avoid.length ? avoid.join(", ") : "Nothing yet", "keepout"],
+    ["What matters most", P.priorities.length ? P.priorities.map(id=>PRIORITIES.find(p=>p.id===id).label).join(", ") : "Balanced", "priorities"],
+    ["At home", P.staples.length ? P.staples.length + " staples" : "Optional", "athome"],
+    ["Meal times", say("home.profile.mealTimes"), "mealtimes"]
   ];
   const list = document.createElement("div");
   list.className = "card set-list";
@@ -3345,11 +3363,11 @@ function renderHome(){
   };
   if(P.remindAt && todayISO() >= P.remindAt && months >= 6){
     notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}: ready for first tastes?`, "Plan a first week",
-      ()=>{ P.remindAt = null; save(); openOnboarding(6); }));
+      ()=>{ P.remindAt = null; save(); openOnboarding("reveal"); }));
     notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.remindAt = null; save(); renderHome(); });
   }else if(P.lastStage!==st.id && st.solids){
     notes.appendChild(notice(`${P.name || "Your little one"} is ${ageLabel(months)}. ${STAGE_NEWS[st.id] || ""} Update the plan?`, "Update the plan",
-      ()=>{ P.lastStage = st.id; save(); openOnboarding(6); }));
+      ()=>{ P.lastStage = st.id; save(); openOnboarding("reveal"); }));
     notes.lastChild.querySelector(".link-btn").addEventListener("click", ()=>{ P.lastStage = st.id; save(); renderHome(); });
   }
 
@@ -3367,7 +3385,7 @@ function renderHome(){
     line.textContent = CONTENT.empty;
     const b = document.createElement("button");
     b.type = "button"; b.className = "pill"; b.textContent = "Set the table";
-    b.addEventListener("click", ()=>openOnboarding(6));
+    b.addEventListener("click", ()=>openOnboarding("reveal"));
     document.getElementById("hero").appendChild(b);
   }else{
     line.textContent = heroLine(day);
@@ -3430,18 +3448,22 @@ function renderHome(){
 }
 
 /* ---------- onboarding ----------
-   One question per screen; every answer is saved as it's given, so closing
-   the tab and coming back resumes at the same step. Nothing about the plan
-   changes until "Looks good" on the last screen. */
-const ONB_STEPS = ["welcome","name","birthday","keepout","priorities","athome","reveal"];
+   One sentence per screen, completed by you: the field sits inside the
+   sentence as its missing word. Every answer is saved as it's given, so
+   closing the tab and coming back resumes at the same step, and Back keeps
+   what was entered. Nothing about the plan changes until "Love it". */
+const ONB_STEPS = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
 const STAPLES = [
-  ["Oats","Oatmeal","🥣"],["Rice","Rice, soft-cooked","🍚"],["Pasta","Whole wheat pasta","🍝"],["Bread","Whole wheat toast","🍞"],
-  ["Eggs","Egg, well cooked","🥚"],["Yogurt","Greek yogurt","🥛"],["Cheese","Cheese, grated","🧀"],["Lentils","Lentils","🫘"],
-  ["Chickpeas","Chickpeas","🫘"],["Frozen peas","Peas","🫛"],["Frozen spinach","Spinach, cooked","🥬"],["Potatoes","Potato","🥔"],
-  ["Sweet potatoes","Sweet potato","🍠"],["Carrots","Carrots, soft-cooked","🥕"],["Bananas","Banana","🍌"],["Apples","Apple, cooked","🍎"],
-  ["Avocado","Avocado","🥑"],["Olive oil","Olive oil","🫒"]
+  ["Oats","Oatmeal"],["Rice","Rice, soft-cooked"],["Pasta","Whole wheat pasta"],["Bread","Whole wheat toast"],
+  ["Eggs","Egg, well cooked"],["Yogurt","Greek yogurt"],["Cheese","Cheese, grated"],["Lentils","Lentils"],
+  ["Chickpeas","Chickpeas"],["Frozen peas","Peas"],["Frozen spinach","Spinach, cooked"],["Potatoes","Potato"],
+  ["Sweet potatoes","Sweet potato"],["Carrots","Carrots, soft-cooked"],["Bananas","Banana"],["Apples","Apple, cooked"],
+  ["Avocado","Avocado"],["Olive oil","Olive oil"]
 ];
-let onb = {step:0, sub:null, dir:1, draft:null, revealed:false, kind:"allergy"};
+/* each allergen pill shows the drawing of a food that carries it, when there is one */
+const ALLERGEN_ART = {egg:"egg", milk:"milk", peanut:"peanut-butter", wheat:"toast", soy:"tofu", fish:"white-fish", sesame:"hummus"};
+let onb = {step:0, sub:null, dir:1, draft:null, revealed:false, kind:"allergy", adding:false};
+const S = key=>ONB_STEPS.indexOf(key);
 
 /* months to plan for: a baby under 6 months only gets a menu if the
    family chose to explore anyway, and then it's a first-tastes week */
@@ -3449,24 +3471,32 @@ function planMonths(){
   const m = ageNow();
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
+/* meal times only matter once there are meals */
+function stepApplies(key){ return key!=="mealtimes" || planMonths() >= 6; }
+function stepAfter(n){ let k = n + 1; while(k < ONB_STEPS.length-1 && !stepApplies(ONB_STEPS[k])) k++; return k; }
+function stepBefore(n){ let k = n - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return Math.max(0, k); }
+function nextStep(){ goStep(stepAfter(onb.step)); }
+
+/* step is an index or a name ("reveal") */
 function openOnboarding(step, opts){
   const P = state.profile;
-  onb.single = !!(opts && opts.single);   // from Settings: one step, then back home
+  if(typeof step==="string") step = S(step);
+  onb.single = !!(opts && opts.single);   // from the profile menu: one step, then back home
   onb.step = Math.max(0, Math.min(ONB_STEPS.length-1, step===undefined ? (P.onboardingStep||0) : step));
-  onb.sub = null; onb.draft = null; onb.revealed = false;
+  onb.sub = null; onb.draft = null; onb.revealed = false; onb.adding = false;
   document.body.classList.add("onb-open");
   document.querySelector(".container").inert = true;
   const el = document.getElementById("onboarding");
   el.hidden = false;
   document.getElementById("onbClose").hidden = !P.onboarded;   // a re-run can be left; a first run can't
   renderOnb();
-  const first = document.querySelector("#onbCard input") || document.getElementById("onbTitle");
-  if(first) first.focus({preventScroll:true});
+  focusStep();
 }
 function closeOnboarding(){
   document.getElementById("onboarding").hidden = true;
   document.body.classList.remove("onb-open");
   document.querySelector(".container").inert = false;
+  clearInterval(welTimer); clearTimeout(onb.revealTimer);
   fanDrawn = false;   // the fan arrives again on the page
   renderDayContent(); renderKitchen(); renderVariety(); renderCreate();
 }
@@ -3486,94 +3516,149 @@ function rushSky(){
     setTimeout(()=>{ a.playbackRate = 1; }, 420);
   }));
 }
+/* the first blank waits with its caret; otherwise the sentence itself takes focus */
+function focusStep(){
+  const card = document.getElementById("onbCard");
+  const f = card.querySelector(".blank-input");
+  const title = card.querySelector("#onbTitle");
+  if(f) f.focus({preventScroll:true});
+  else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
+}
+/* the finished sentence slides up and fades; the next one rises in */
 function goStep(n, sub){
   if(onb.single && n!==onb.step){ save(); closeOnboarding(); return; }
   const card = document.getElementById("onbCard");
   onb.dir = n > onb.step || (n===onb.step && sub) ? 1 : -1;
   const swap = ()=>{
-    onb.step = n; onb.sub = sub || null;
+    onb.step = n; onb.sub = sub || null; onb.adding = false;
     if(!onb.single) state.profile.onboardingStep = n;
     save();
     renderOnb();
-    if(!calm()) card.animate([{transform:`translateX(${onb.dir*36}px)`, opacity:0}, {transform:"none", opacity:1}],
+    if(!calm()) card.animate([{transform:`translateY(${onb.dir*28}px)`, opacity:0}, {transform:"none", opacity:1}],
                              {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
     else card.animate([{opacity:0},{opacity:1}], {duration:180});
-    const f = card.querySelector("input");
-    const title = card.querySelector("#onbTitle");
-    if(f) f.focus({preventScroll:true});
-    else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
+    focusStep();
   };
   rushSky();
   if(calm()){ swap(); return; }
-  const out = card.animate([{transform:"none", opacity:1}, {transform:`translateX(${-onb.dir*36}px)`, opacity:0}],
-                           {duration:160, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"});
+  const out = card.animate([{transform:"none", opacity:1}, {transform:`translateY(${-onb.dir*24}px)`, opacity:0}],
+                           {duration:170, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"});
   out.onfinish = ()=>{ out.cancel(); swap(); };
 }
 
 function renderOnb(){
   const P = state.profile, key = ONB_STEPS[onb.step];
   const dots = document.getElementById("onbDots");
-  dots.innerHTML = ONB_STEPS.map((_,k)=>`<i class="${k===onb.step ? "on" : k<onb.step ? "done" : ""}"></i>`).join("");
-  document.getElementById("onbProgress").textContent = `Step ${onb.step+1} of ${ONB_STEPS.length}`;
+  const shown = ONB_STEPS.filter((k, i)=>i > 0 && stepApplies(k));   // the welcome has no dot
+  dots.innerHTML = shown.map(k=>`<i class="${k===key ? "on" : ""}"></i>`).join("");
+  document.getElementById("onbProgress").textContent = onb.step ? `Step ${shown.indexOf(key)+1} of ${shown.length}` : "";
   const back = document.getElementById("onbBack");
-  back.hidden = onb.step===0 && !onb.sub;
-  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single ? closeOnboarding() : goStep(onb.step-1);
-  back.hidden = back.hidden && !onb.single;
+  back.hidden = onb.step===0 && !onb.sub && !onb.single;
+  back.setAttribute("aria-label", say("onb.back"));
+  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single ? closeOnboarding() : goStep(stepBefore(onb.step));
   document.getElementById("onbClose").onclick = closeOnboarding;
   const card = document.getElementById("onbCard");
   card.innerHTML = "";
-  card.className = "onb-card";
-  clearInterval(welTimer);
+  card.className = "onb-card bare";
+  clearInterval(welTimer); clearTimeout(onb.revealTimer);
   document.getElementById("onboarding").classList.toggle("is-welcome", key==="welcome");
-  ({welcome:onbWelcome, name:onbName, birthday:onbBirthday, keepout:onbKeepout,
-    priorities:onbPriorities, athome:onbAtHome, reveal:onbReveal})[key](card, P);
+  ({welcome:onbWelcome, name:onbName, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
+    athome:onbAtHome, mealtimes:onbMealTimes, reveal:onbReveal})[key](card, P);
 }
-/* a headline, an optional line, then the step's own content and buttons */
-function onbHead(card, title, line){
-  card.insertAdjacentHTML("beforeend", `<h1 class="onb-h" id="onbTitle" tabindex="-1">${title}</h1>` + (line ? `<p class="onb-p">${line}</p>` : ""));
+
+/* ---------- the pieces every step is made of ---------- */
+const esc = t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+/* A blank inside a sentence: an input that grows with what you type (a hidden
+   mirror sets its width), on a thick underline that pulses softly until the
+   first keystroke. state: "" (empty) · "ok" (a valid value: the line darkens) · "hint" */
+function blank(o){
+  const wrap = document.createElement("span");
+  wrap.className = "blank" + (o.value ? "" : " idle");
+  wrap.style.setProperty("--min", (o.min || 3) + "ch");
+  const mirror = document.createElement("span");
+  mirror.className = "blank-mirror"; mirror.setAttribute("aria-hidden", "true");
+  const inp = document.createElement("input");
+  inp.className = "blank-input"; inp.type = "text"; inp.id = o.id || "b" + uid();
+  inp.autocomplete = o.autocomplete || "off"; inp.spellcheck = false;
+  if(o.inputmode) inp.inputMode = o.inputmode;
+  if(o.maxLength) inp.maxLength = o.maxLength;
+  if(o.label) inp.setAttribute("aria-label", o.label);
+  if(o.list) inp.setAttribute("list", o.list);
+  if(o.enterkeyhint) inp.enterKeyHint = o.enterkeyhint;
+  inp.value = o.value || "";
+  const sync = ()=>{ mirror.textContent = inp.value || " ".repeat(o.min || 3); };
+  sync();
+  inp.addEventListener("input", ()=>{ wrap.classList.remove("idle"); sync(); o.onInput && o.onInput(inp.value); });
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); o.onEnter && o.onEnter(); } });
+  wrap.append(mirror, inp);
+  return {el:wrap, input:inp, sync, set(state){ wrap.dataset.state = state || ""; }};
 }
+/* a sentence from content with {blank}-style slots filled by elements; the words
+   before the first slot become a <label> for it */
+function sentence(text, slots, cls){
+  const h = document.createElement("h1");
+  h.className = cls || "sent"; h.id = "onbTitle"; h.tabIndex = -1;
+  const parts = text.split(/\{(\w+)\}/);
+  let labelled = false;
+  parts.forEach((part, k)=>{
+    if(k % 2===0){
+      if(!part) return;
+      const next = slots[parts[k+1]];
+      if(!labelled && next && next.input){
+        const l = document.createElement("label");
+        l.htmlFor = next.input.id; l.textContent = part.replace(/\s+$/, "");
+        h.append(l, part.endsWith(" ") ? " " : "");
+        labelled = true;
+      }else h.append(part);
+    }else{
+      const slot = slots[part];
+      h.append(slot ? slot.el : `{${part}}`);
+    }
+  });
+  return h;
+}
+function line(text, cls){ const p = document.createElement("p"); p.className = cls || "onb-line"; p.innerHTML = keepSentences(esc(text)); return p; }
+function hint(){ const p = document.createElement("p"); p.className = "onb-hint"; p.setAttribute("aria-live", "polite"); return p; }
+/* the primary button (fades in once the step has a valid value) and quiet text buttons */
 function onbCta(card, label, onNext, opts){
   const o = opts || {};
   const wrap = document.createElement("div");
   wrap.className = "onb-cta";
   const b = document.createElement("button");
-  b.type = "button"; b.className = "pill"; b.textContent = onb.single && label==="Continue" ? "Save" : label;
-  b.disabled = !!o.disabled;
-  b.addEventListener("click", onNext);
+  b.type = "button"; b.className = "btn-ink";
+  b.textContent = onb.single && label===say("onb.next") ? say("onb.save") : label;
+  b.addEventListener("click", ()=>{ if(b.classList.contains("wait")) return; haptic(); onNext(); });
   wrap.appendChild(b);
   (o.extra || []).forEach(x=>{
     const e = document.createElement("button");
-    e.type = "button"; e.className = x.quiet ? "pill quiet" : "link-btn"; e.textContent = x.label;
+    e.type = "button"; e.className = "btn-text"; e.textContent = x.label;
     e.addEventListener("click", x.on);
     wrap.appendChild(e);
   });
   card.appendChild(wrap);
+  const ready = v=>{ b.classList.toggle("wait", !v); b.tabIndex = v ? 0 : -1; b.setAttribute("aria-hidden", String(!v)); };
+  ready(o.ready===undefined ? true : o.ready);
+  b.ready = ready;
   return b;
 }
-/* a decorative fan (onboarding has no real meals yet) */
-function sampleFan(emojis, cls){
-  const tilt = FAN_TILT[emojis.length];
-  const softs = ["grain","fruit","vegetable","protein"];
-  return `<div class="fan ${cls||""}" aria-hidden="true">` + emojis.map((e,k)=>
-    `<span class="tile" style="--r:${tilt[k]}deg;--k:${k};--soft:var(--${softs[k%4]}-soft)"><span class="tile-art"><span class="tile-emoji" style="margin:0">${e}</span></span></span>`).join("") + `</div>`;
-}
-function fanIn(container){
-  [...container.querySelectorAll(".tile")].forEach((t,k)=>{
-    const end = getComputedStyle(t).transform;
-    t.animate(calm() ? [{opacity:0},{opacity:1}] : [{transform:"translateY(30px) rotate(0deg) scale(.85)", opacity:0}, {transform:end, opacity:1}],
-              {duration: calm() ? 200 : 600, delay:k*75, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
-  });
+/* an outline pill; filled (black, white text) when on */
+function pillBtn(text, artId, opts){
+  const o = opts || {};
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "pill-o" + (o.cls ? " " + o.cls : "");
+  b.innerHTML = (artId!==undefined ? foodArt(artId, {size:24, alt:""}) : "") + `<span>${esc(text)}</span><i class="pill-mark" aria-hidden="true"></i>`;
+  return b;
 }
 
-/* 1. welcome */
 /* a line breaks between its sentences, not inside one, when each fits */
-function keepSentences(text){ return text.split(/(?<=[.!?])\s+/).map(t=>`<span class="keep">${t}</span>`).join(" "); }
+function keepSentences(text){ return text.split(/(?<=[.!?…])\s+/).map(t=>`<span class="keep">${t}</span>`).join(" "); }
+
 /* 1. welcome: one drawing at a time, crossfading through the hero foods */
 let welTimer = 0;
 function onbWelcome(card){
   const heroes = HERO_FOODS.filter(id=>hasArt(foodOf(id)));
   const art = id=>foodArt(id, {size:140, alt:""});
-  card.classList.add("bare", "wel-in");
+  card.classList.add("wel-in", "narrow");
   card.innerHTML = `<div class="wel-art" aria-hidden="true" style="--d:0ms"><div class="wel-bob">
       <span class="wel-layer is-on">${art(heroes[0])}</span><span class="wel-layer"></span></div></div>
     <h1 class="onb-h wel-h" id="onbTitle" tabindex="-1" style="--d:120ms">${say("onb.welcome.title")}</h1>
@@ -3594,7 +3679,7 @@ function welcomeCycle(card, heroes){
   let k = 0;
   warm(heroes[1]);
   welTimer = setInterval(()=>{
-    if(!card.isConnected || !card.classList.contains("bare")){ clearInterval(welTimer); return; }
+    if(!card.isConnected || !card.classList.contains("wel-in")){ clearInterval(welTimer); return; }
     if(document.hidden) return;
     const cur = card.querySelector(".wel-layer.is-on"), next = card.querySelector(".wel-layer:not(.is-on)");
     if(!cur || !next) return;
@@ -3616,188 +3701,242 @@ function welcomeCycle(card, heroes){
     });
   }, 3000);
 }
-/* 2. name */
+
+/* 2. name: "Their name is ____." */
 function onbName(card, P){
-  onbHead(card, "What's their name?");
-  const inp = document.createElement("input");
-  inp.className = "onb-input"; inp.type = "text"; inp.autocomplete = "off"; inp.maxLength = 30;
-  inp.placeholder = "Their name"; inp.value = P.name || ""; inp.setAttribute("aria-label", "Their name");
-  card.appendChild(inp);
-  const next = onbCta(card, "Continue", ()=>{ if(inp.value.trim()) goStep(2); }, {disabled:!inp.value.trim()});
-  inp.addEventListener("input", ()=>{ P.name = inp.value.trim(); save(); next.disabled = !P.name; });
-  inp.addEventListener("keydown", e=>{ if(e.key==="Enter" && P.name) goStep(2); });
+  let next;
+  const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", enterkeyhint:"next",
+    onInput:v=>{ P.name = v.trim(); save(); b.set(P.name ? "ok" : ""); next.ready(!!P.name); },
+    onEnter:()=>{ if(P.name) nextStep(); }});
+  b.set(P.name ? "ok" : "");
+  card.appendChild(sentence(say("onb.name.sentence"), {blank:b}));
+  next = onbCta(card, say("onb.name.cta"), ()=>{ if(P.name) nextStep(); }, {ready:!!P.name});
 }
-/* 3. birthday: three wheels; the stage badge follows along */
+
+/* 3. birthday: "{name} arrived on __ / ____ / ____." The stage follows along below. */
+const MONTH_NAMES = (()=>{ const f = new Intl.DateTimeFormat(undefined, {month:"long"}); return Array.from({length:12}, (_, k)=>f.format(new Date(2024, k, 1))); })();
+const MONTHS_EN = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+/* "10", "oct", "October", "octubre" → 9; null when unclear */
+function parseMonth(v){
+  const t = String(v || "").trim().toLowerCase().replace(/\.$/, "");
+  if(!t) return null;
+  if(/^\d{1,2}$/.test(t)){ const n = +t; return n>=1 && n<=12 ? n-1 : null; }
+  const hits = new Set();
+  [MONTH_NAMES.map(m=>m.toLowerCase()), MONTHS_EN].forEach(list=>list.forEach((m, k)=>{ if(m===t || (t.length>=3 && m.startsWith(t))) hits.add(k); }));
+  return hits.size===1 ? [...hits][0] : null;
+}
 function onbBirthday(card, P){
-  const name = P.name || "they";
+  const name = P.name || "They";
   if(onb.sub==="milk"){
     const m = ageNow(), left = Math.max(1, 6 - m);
-    card.insertAdjacentHTML("beforeend", `<div class="calm-emoji" aria-hidden="true">🍼</div>`);
-    onbHead(card, "No solids yet. Milk is all they need.",
-      `${P.name || "Your little one"} is ${ageLabel(m)}. Solids usually start around 6 months, so come back in ${left===1 ? "about a month" : `about ${left} months`}. We can remind you then.`);
-    onbCta(card, "Remind me", ()=>{
+    const [first, ...rest] = say("onb.birthday.milk", {name, n:left}).split(/(?<=\.)\s+/);
+    const h = document.createElement("h1");
+    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = first;
+    card.append(h, line(rest.join(" ")));
+    onbCta(card, say("onb.birthday.remind"), ()=>{
       const b = localDate(P.birthDate);
       const at = new Date(b.getFullYear(), b.getMonth()+6, b.getDate());
-      P.remindAt = at.getFullYear()+"-"+String(at.getMonth()+1).padStart(2,"0")+"-"+String(at.getDate()).padStart(2,"0");
-      P.exploreEarly = false; save(); goStep(3);
-    }, {extra:[{label:"Explore anyway", on:()=>{ P.exploreEarly = true; save(); goStep(3); }}]});
+      P.remindAt = isoOf(at);
+      P.exploreEarly = false; save(); nextStep();
+    }, {extra:[{label:say("onb.birthday.explore"), on:()=>{ P.exploreEarly = true; save(); nextStep(); }}]});
     return;
   }
-  onbHead(card, `When ${P.name ? "was " + P.name : "were they"} born?`);
   const today = now();
-  let b = P.birthDate ? localDate(P.birthDate) : localDate(birthDateFromMonths(10));
-  if(isNaN(b)) b = localDate(birthDateFromMonths(10));
-  let d = b.getDate(), mo = b.getMonth(), y = b.getFullYear();
-  const wrap = document.createElement("div");
-  wrap.className = "wheels";
-  const badge = document.createElement("div");
-  badge.className = "stage-badge"; badge.setAttribute("aria-live", "polite");
-  const preview = document.createElement("p");
-  preview.className = "stage-preview";
-  let lastStage = null;
-  const daysIn = (yy, mm)=>new Date(yy, mm+1, 0).getDate();
-  const commit = ()=>{
-    d = Math.min(d, daysIn(y, mo));
-    let date = new Date(y, mo, d);
-    if(date > today){ date = new Date(today.getFullYear(), today.getMonth(), today.getDate()); }   // no birthdays in the future
-    P.birthDate = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
-    save();
-    const m = ageNow(), st = stageFor(m);
-    badge.textContent = `${ageLabel(m)} · ${st.name}`;
-    preview.textContent = stageLine(st);
-    if(lastStage && lastStage!==st.id && !calm()) badge.animate([{transform:"scale(.85)"},{transform:"scale(1.06)"},{transform:"none"}], {duration:420, easing:"cubic-bezier(.32,1.25,.5,1)"});
-    lastStage = st.id;
+  const had = P.birthDate ? localDate(P.birthDate) : null;
+  let next;
+  const check = ()=>{
+    const d = +day.input.value, mo = parseMonth(month.input.value), y = +year.input.value;
+    day.set(d>=1 && d<=31 ? "ok" : ""); month.set(mo!==null ? "ok" : ""); year.set(/^\d{4}$/.test(year.input.value) ? "ok" : "");
+    let msg = "", date = null;
+    if(day.input.value && month.input.value && year.input.value){
+      if(mo===null) msg = say("onb.birthday.hint.month", {month:MONTH_NAMES[today.getMonth()]});
+      else if(!/^\d{4}$/.test(year.input.value) || y < today.getFullYear()-10) msg = say("onb.birthday.hint.year", {year:today.getFullYear()-1});
+      else{
+        const max = new Date(y, mo+1, 0).getDate();
+        if(d < 1 || d > max){ msg = say("onb.birthday.hint.days", {month:MONTH_NAMES[mo], n:max}); day.set("hint"); }
+        else{
+          date = new Date(y, mo, d);
+          if(date > today){ msg = say("onb.birthday.hint.future"); date = null; }
+          else if(ageMonths(isoOf(date)) > AGE_MAX) msg = say("onb.birthday.hint.old");
+        }
+      }
+    }
+    help.textContent = msg;
+    if(date){ P.birthDate = isoOf(date); save(); }
+    paintStage(date ? ageMonths(isoOf(date)) : null);
+    next.ready(!!date);
+    return !!date;
   };
-  const years = []; for(let k=today.getFullYear()-4; k<=today.getFullYear(); k++) years.push({value:k, text:String(k)});
-  const dayItems = ()=>Array.from({length:daysIn(y, mo)}, (_,k)=>({value:k+1, text:String(k+1)}));
-  const dayW = wheel("Day", dayItems(), d, v=>{ d = v; commit(); });
-  const monW = wheel("Month", MONTHS.map((t,k)=>({value:k, text:t})), mo, v=>{ mo = v; dayW.setItems(dayItems(), Math.min(d, daysIn(y, mo))); commit(); });
-  const yrW = wheel("Year", years, y, v=>{ y = v; dayW.setItems(dayItems(), Math.min(d, daysIn(y, mo))); commit(); });
-  wrap.append(dayW.el, monW.el, yrW.el);
-  card.append(wrap, badge, preview);
-  commit();
-  onbCta(card, "Continue", ()=>{ ageNow() < 6 ? goStep(2, "milk") : (P.exploreEarly = false, save(), goStep(3)); });
+  const go = ()=>{ if(!check()) return; ageNow() < 6 ? goStep(onb.step, "milk") : (P.exploreEarly = false, save(), nextStep()); };
+  const day = blank({value:had ? String(had.getDate()) : "", min:2, maxLength:2, inputmode:"numeric", label:say("onb.birthday.day"),
+    onInput:v=>{ check(); if(v.length===2 || +v > 3) month.input.focus(); }, onEnter:go});
+  const month = blank({value:had ? MONTH_NAMES[had.getMonth()] : "", min:6, maxLength:16, label:say("onb.birthday.month"),
+    onInput:()=>{ check(); picker.follow(); }, onEnter:()=>{ if(!picker.choose()) go(); }});
+  const year = blank({value:had ? String(had.getFullYear()) : "", min:4, maxLength:4, inputmode:"numeric", label:say("onb.birthday.year"),
+    onInput:()=>check(), onEnter:go});
+  month.input.addEventListener("blur", ()=>{ const k = parseMonth(month.input.value); if(k!==null){ month.input.value = MONTH_NAMES[k]; month.sync(); check(); } });
+  const s = sentence(say("onb.birthday.sentence", {name}), {day, month, year});
+  // the day field is labelled by the words before it ("Lula arrived on"), the others by their own names
+  card.append(s, line(say("onb.birthday.line")));
+  const picker = monthPicker(card, month, k=>{ month.input.value = MONTH_NAMES[k]; month.sync(); month.el.classList.remove("idle"); check(); year.input.focus(); });
+  const help = hint();
+  const stage = document.createElement("div");
+  stage.className = "stage-say"; stage.setAttribute("aria-live", "polite");
+  stage.innerHTML = `<p class="stage-name"></p><p class="stage-line"></p>`;
+  card.append(help, stage);
+  let shownStage = null;
+  function paintStage(m){
+    const st = m===null ? null : stageFor(m);
+    const id = st ? st.id : null;
+    if(id===shownStage) return;
+    shownStage = id;
+    stage.querySelector(".stage-name").textContent = st ? st.name : "";
+    stage.querySelector(".stage-line").textContent = st ? stageLine(st) : "";
+    if(st && !calm()) stage.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}], {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
+  }
+  next = onbCta(card, say("onb.birthday.cta"), go, {ready:false});
+  check();
 }
-/* a scroll-snap wheel with listbox semantics: scroll, tap or arrow keys */
-function wheel(label, items, value, onChange){
-  const ITEM = 48;
-  const el = document.createElement("div");
-  const list = document.createElement("div");
-  list.className = "wheel-list"; list.tabIndex = 0;
-  list.setAttribute("role", "listbox"); list.setAttribute("aria-label", label);
-  el.appendChild(list);
-  let opts = [], idx = 0, timer = null;
-  const mark = ()=>{
-    opts.forEach((o,k)=>o.setAttribute("aria-selected", String(k===idx)));
-    if(opts[idx]) list.setAttribute("aria-activedescendant", opts[idx].id);
+
+/* The month blank's compact list: a small peek under the field that opens on
+   tap or focus, follows what's typed, and takes arrow keys, Enter and Escape
+   (the combobox pattern: focus stays in the field). */
+function monthPicker(card, month, onPick){
+  const inp = month.input, list = document.createElement("div");
+  const short = new Intl.DateTimeFormat(undefined, {month:"short"});
+  list.className = "month-peek"; list.id = "mp" + uid(); list.setAttribute("role", "listbox"); list.setAttribute("aria-label", say("onb.birthday.month"));
+  list.hidden = true;
+  list.innerHTML = MONTH_NAMES.map((m, k)=>`<button type="button" role="option" tabindex="-1" id="${list.id}-${k}" aria-selected="false" aria-label="${m}">${short.format(new Date(2024, k, 1))}</button>`).join("");
+  card.appendChild(list);
+  inp.setAttribute("role", "combobox"); inp.setAttribute("aria-autocomplete", "list");
+  inp.setAttribute("aria-controls", list.id); inp.setAttribute("aria-expanded", "false");
+  let active = -1;
+  const opts = [...list.children];
+  const mark = k=>{
+    active = k;
+    opts.forEach((o, j)=>o.setAttribute("aria-selected", String(j===k)));
+    if(k>=0) inp.setAttribute("aria-activedescendant", opts[k].id); else inp.removeAttribute("aria-activedescendant");
   };
-  const set = (k, scroll)=>{
-    k = Math.max(0, Math.min(items.length-1, k));
-    const changed = k!==idx;
-    idx = k; mark();
-    if(scroll) list.scrollTo({top:k*ITEM, behavior: calm() ? "auto" : "smooth"});
-    if(changed) onChange(items[k].value);
+  const place = ()=>{
+    const c = card.getBoundingClientRect(), r = month.el.getBoundingClientRect(), half = list.offsetWidth/2 || 120;
+    const x = r.left + r.width/2 - c.left;   // centred under the field, shifted to stay on screen
+    list.style.left = Math.max(half - c.left + 8, Math.min(x, innerWidth - c.left - half - 8)) + "px";
+    list.style.top = (r.bottom - c.top + 10) + "px";
   };
-  const build = ()=>{
-    list.innerHTML = "";
-    opts = items.map((it, k)=>{
-      const o = document.createElement("div");
-      o.className = "wheel-opt"; o.id = "w" + uid(); o.setAttribute("role", "option"); o.textContent = it.text;
-      o.addEventListener("click", ()=>set(k, true));
-      list.appendChild(o);
-      return o;
-    });
-  };
-  build();
-  idx = Math.max(0, items.findIndex(i=>i.value===value));
-  mark();
-  requestAnimationFrame(()=>{ list.scrollTop = idx*ITEM; });
-  list.addEventListener("scroll", ()=>{
-    clearTimeout(timer);
-    timer = setTimeout(()=>{ const k = Math.round(list.scrollTop/ITEM); if(k!==idx) set(k, false); }, 90);
+  const open = ()=>{ if(!list.hidden) return; list.hidden = false; inp.setAttribute("aria-expanded", "true"); place(); mark(parseMonth(inp.value) ?? -1);
+    if(!calm()) list.animate([{opacity:0, transform:"translate(-50%, 8px) scale(.98)"}, {opacity:1, transform:"translate(-50%, 0)"}], {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"}); };
+  const close = ()=>{ if(list.hidden) return; list.hidden = true; inp.setAttribute("aria-expanded", "false"); mark(-1); };
+  inp.addEventListener("focus", open);
+  inp.addEventListener("click", open);
+  inp.addEventListener("blur", e=>{ if(!list.contains(e.relatedTarget)) close(); });
+  inp.addEventListener("keydown", e=>{
+    if(e.key==="ArrowDown" || e.key==="ArrowUp"){
+      e.preventDefault();
+      if(list.hidden){ open(); if(active < 0) mark(0); return; }   // the first press only opens it, on the current month
+      const d = e.key==="ArrowDown" ? 1 : -1;
+      mark(active < 0 ? (d > 0 ? 0 : 11) : (active + d + 12) % 12);
+    }else if(e.key==="Escape" && !list.hidden){ e.preventDefault(); close(); }
   });
-  list.addEventListener("keydown", e=>{
-    const step = {ArrowDown:1, ArrowUp:-1, PageDown:5, PageUp:-5}[e.key];
-    if(step){ e.preventDefault(); set(idx+step, true); }
-    else if(e.key==="Home"){ e.preventDefault(); set(0, true); }
-    else if(e.key==="End"){ e.preventDefault(); set(items.length-1, true); }
-  });
-  return {el, set:k=>set(k, true), get:()=>items[idx].value,
-    setItems(next, keep){ items = next; build(); idx = Math.max(0, items.findIndex(i=>i.value===keep)); mark(); list.scrollTop = idx*ITEM; }};
+  list.addEventListener("pointerdown", e=>e.preventDefault());   // keep focus (and the caret) in the field
+  opts.forEach((o, k)=>o.addEventListener("click", ()=>{ close(); onPick(k); }));
+  addEventListener("resize", place);
+  return {
+    follow(){ open(); mark(parseMonth(inp.value) ?? -1); },
+    choose(){ if(list.hidden || active < 0) return false; const k = active; close(); onPick(k); return true; }
+  };
 }
-/* 4. keep out: allergens cycle neutral → avoid → tried; anything else is a chip */
+
+/* 4. keep out: "Keep these off the plate." Pills cycle neutral → keep out → tried and loved */
 function onbKeepout(card, P){
-  onbHead(card, "Anything we should keep out?", "Tap once to avoid, twice for “tried, all good”.");
   const live = document.createElement("p");
   live.className = "sr-only"; live.setAttribute("aria-live", "polite");
-  const grid = document.createElement("div");
-  grid.className = "al-grid";
-  const label = st=>st==="avoid" ? "Avoid" : st==="ok" ? "Tried, all good" : "";
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.keepOut.title");
+  card.append(h, line(say("onb.keepOut.line")));
+  const pills = document.createElement("div");
+  pills.className = "pills";
+  const word = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.loved") : say("onb.keepOut.neutral");
   ALLERGENS.forEach(a=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "al-tile";
+    const b = pillBtn(a.label, ALLERGEN_ART[a.id] || null);
+    if(!ALLERGEN_ART[a.id]) b.querySelector(".food-art").textContent = a.emoji;
     const paint = ()=>{
       const st = P.allergens[a.id] || "";
-      b.dataset.state = st;
-      b.querySelector(".al-state").textContent = label(st);
-      b.setAttribute("aria-label", `${a.label}: ${label(st) || "no preference"}`);
+      b.dataset.state = st==="avoid" ? "out" : st==="ok" ? "loved" : "";
+      b.setAttribute("aria-label", `${a.label}: ${word(st)}`);
     };
-    b.innerHTML = `<span class="al-emoji" aria-hidden="true">${a.emoji}</span><span class="al-name">${a.label}</span><span class="al-state"></span>`;
     b.addEventListener("click", ()=>{
       const st = P.allergens[a.id];
       const next = !st ? "avoid" : st==="avoid" ? "ok" : null;
       if(next) P.allergens[a.id] = next; else delete P.allergens[a.id];
-      save(); paint();
-      b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
-      live.textContent = `${a.label}: ${label(next) || "no preference"}`;
+      save(); paint(); haptic();
+      live.textContent = `${a.label}: ${word(next)}`;
     });
-    grid.appendChild(b);
     paint();
+    pills.appendChild(b);
   });
-  card.append(grid, live);
-
-  // anything else: a chip, allergy or dislike
-  const chips = document.createElement("div");
-  chips.className = "chips";
-  const paintChips = ()=>{
-    chips.innerHTML = "";
+  // their own: "Also not ____" with Allergy / Dislike, then a removable pill
+  const own = ()=>{
+    pills.querySelectorAll(".pill-own, .pill-edit, .pill-add").forEach(x=>x.remove());
     P.avoid.forEach(x=>{
       const c = document.createElement("span");
-      c.className = "chip" + (x.kind==="allergy" ? " allergy" : "");
-      c.innerHTML = `${x.name} <span class="kind">${x.kind==="allergy" ? "Allergy" : "Dislike"}</span><button type="button" class="x" aria-label="Remove ${x.name}">✕</button>`;
-      c.querySelector("button").addEventListener("click", ()=>{ P.avoid = P.avoid.filter(y=>y!==x); save(); paintChips(); });
-      chips.appendChild(c);
+      c.className = "pill-o pill-own"; c.dataset.state = "out";
+      c.innerHTML = `${foodArt(x.name, {size:24, alt:""})}<span>${esc(x.name)} · ${x.kind==="allergy" ? say("onb.keepOut.allergy") : say("onb.keepOut.dislike")}</span>`;
+      const rm = document.createElement("button");
+      rm.type = "button"; rm.className = "pill-x"; rm.setAttribute("aria-label", say("onb.keepOut.remove", {food:x.name}));
+      rm.addEventListener("click", ()=>{ P.avoid = P.avoid.filter(y=>y!==x); save(); own(); live.textContent = `${x.name} removed`; pills.querySelector(".pill-add").focus(); });
+      c.appendChild(rm);
+      pills.appendChild(c);
     });
+    if(onb.adding){
+      const e = document.createElement("span");
+      e.className = "pill-o pill-edit";
+      const b = blank({min:5, maxLength:30, onEnter:()=>commit()});
+      const t = say("onb.keepOut.alsoNot").split("{blank}");
+      const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = t[0].trim();
+      const kind = document.createElement("span");
+      kind.className = "kind-toggle"; kind.setAttribute("role", "group"); kind.setAttribute("aria-label", `${say("onb.keepOut.allergy")} / ${say("onb.keepOut.dislike")}`);
+      ["allergy","dislike"].forEach(k=>{
+        const kb = document.createElement("button");
+        kb.type = "button"; kb.textContent = say("onb.keepOut." + k); kb.setAttribute("aria-pressed", String(onb.kind===k));
+        kb.addEventListener("click", ()=>{ onb.kind = k; kind.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed", String(z===kb))); b.input.focus(); });
+        kind.appendChild(kb);
+      });
+      e.append(l, " ", b.el, kind);
+      const commit = ()=>{
+        const v = b.input.value.trim();
+        onb.adding = false;
+        if(v){
+          const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
+          if(have) have.kind = onb.kind; else P.avoid.push({name:v, kind:onb.kind});
+          save(); live.textContent = `${v}: ${say("onb.keepOut." + onb.kind)}`;
+        }
+        own(); pills.querySelector(".pill-add").focus();
+      };
+      b.input.addEventListener("keydown", ev=>{ if(ev.key==="Escape"){ ev.preventDefault(); b.input.value = ""; commit(); } });
+      e.addEventListener("focusout", ev=>{ if(!e.contains(ev.relatedTarget)) setTimeout(()=>{ if(e.isConnected && !e.contains(document.activeElement)) commit(); }, 0); });
+      pills.appendChild(e);
+      requestAnimationFrame(()=>b.input.focus());
+    }
+    const add = pillBtn(say("onb.keepOut.add"), undefined, {cls:"pill-add"});
+    add.hidden = onb.adding;
+    add.addEventListener("click", ()=>{ onb.adding = true; own(); });
+    pills.appendChild(add);
   };
-  const line = document.createElement("div");
-  line.className = "add-line";
-  line.innerHTML = `<input type="text" placeholder="Add something else" aria-label="Another food to keep out">
-    <div class="kind-seg" role="group" aria-label="Allergy or dislike">
-      <button type="button" data-k="allergy">Allergy</button><button type="button" data-k="dislike">Dislike</button></div>
-    <button type="button" class="pill quiet" style="min-height:44px;padding:10px 18px">Add</button>`;
-  const inp = line.querySelector("input");
-  const segBtns = [...line.querySelectorAll(".kind-seg button")];
-  const paintSeg = ()=>segBtns.forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.k===onb.kind)));
-  segBtns.forEach(x=>x.addEventListener("click", ()=>{ onb.kind = x.dataset.k; paintSeg(); }));
-  const add = ()=>{
-    const v = inp.value.trim(); if(!v) return;
-    const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
-    if(have) have.kind = onb.kind; else P.avoid.push({name:v, kind:onb.kind});
-    inp.value = ""; save(); paintChips();
-  };
-  line.querySelector(".pill").addEventListener("click", add);
-  inp.addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
-  paintSeg(); paintChips();
-  card.append(line, chips);
-
+  own();
+  card.append(pills, live);
+  // what's always off the plate at this age; "Why?" opens one line per rule
   const locked = document.createElement("div");
-  locked.className = "locked";
-  buildLockedRow(locked, ageNow());
-  card.appendChild(locked);
-  card.insertAdjacentHTML("beforeend", `<p class="note-calm">Not medical advice. Check allergen introduction with your paediatrician.</p>`);
-  onbCta(card, "Continue", ()=>goStep(4));
+  locked.className = "locked-say";
+  const rules = LOCKED_RULES.filter(r=>!r.until || ageNow() < r.until);
+  locked.innerHTML = `<p><svg class="lock-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none"/></svg>${esc(lockedLine(ageNow()))}
+    <button type="button" class="btn-text small" aria-expanded="false">${say("onb.keepOut.why")}</button></p>
+    <ul class="why-list" hidden>${rules.map(r=>`<li><b>${esc(r.label)}.</b> ${esc(r.why)}</li>`).join("")}</ul>`;
+  const why = locked.querySelector("button"), wl = locked.querySelector(".why-list");
+  why.addEventListener("click", ()=>{ wl.hidden = !wl.hidden; why.setAttribute("aria-expanded", String(!wl.hidden)); });
+  card.append(locked, line(say("onb.keepOut.note"), "onb-note"));
+  onbCta(card, say("onb.next"), nextStep);
 }
-/* the locked rules, as a quiet row; tap one to hear why (shared with Plan) */
+/* the locked rules, as a quiet row; tap one to hear why (the Plan sheet still uses this) */
 function buildLockedRow(container, months){
   container.innerHTML = `<p class="locked-head">Always kept out at this age</p>`;
   const why = document.createElement("p");
@@ -3812,15 +3951,17 @@ function buildLockedRow(container, months){
   });
   container.appendChild(why);
 }
-/* 5. priorities: up to three, and how they'll steer the week */
+
+/* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */
 function onbPriorities(card, P){
-  onbHead(card, "What matters most right now?", "Pick up to three.");
-  const grid = document.createElement("div");
-  grid.className = "pr-grid";
-  const lean = document.createElement("p");
-  lean.className = "lean"; lean.setAttribute("aria-live", "polite");
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.priorities.title");
+  card.append(h, line(say("onb.priorities.line")));
+  const pills = document.createElement("div");
+  pills.className = "pills";
+  const lean = line("", "onb-lean"); lean.setAttribute("aria-live", "polite");
   const paint = ()=>{
-    grid.querySelectorAll(".pr-card").forEach(b=>{
+    pills.querySelectorAll(".pill-o").forEach(b=>{
       const on = P.priorities.includes(b.dataset.id);
       b.setAttribute("aria-pressed", String(on));
       b.disabled = !on && P.priorities.length>=3;
@@ -3828,37 +3969,37 @@ function onbPriorities(card, P){
     lean.textContent = priorityLine(P.priorities);
   };
   PRIORITIES.forEach(pr=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "pr-card"; b.dataset.id = pr.id;
-    b.innerHTML = `<span class="pr-emoji" aria-hidden="true">${pr.emoji}</span><span class="pr-label">${pr.label}</span>`;
+    const b = pillBtn(pr.label);
+    b.dataset.id = pr.id;
     b.addEventListener("click", ()=>{
       P.priorities = P.priorities.includes(pr.id) ? P.priorities.filter(x=>x!==pr.id) : P.priorities.concat(pr.id).slice(0,3);
-      save(); paint();
+      save(); paint(); haptic();
     });
-    grid.appendChild(b);
+    pills.appendChild(b);
   });
-  card.append(grid, lean);
+  card.append(pills, lean);
   paint();
-  onbCta(card, "Continue", ()=>goStep(5));
+  onbCta(card, say("onb.priorities.cta"), nextStep);
 }
-/* 6. at home: optional; picks land in stock at their usual pack size */
+
+/* 6. at home: "Already in the kitchen…" picks land in stock at their usual pack size */
 function onbAtHome(card, P){
-  onbHead(card, "What's already at home?", "Optional. It helps the first week say “at home” instead of “buy”.");
-  const wrap = document.createElement("div");
-  wrap.className = "st-chips";
-  STAPLES.filter(([,food])=>!allergyMatch(food, P)).forEach(([label, food, emoji])=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "st-chip";
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.atHome.title");
+  card.append(h, line(say("onb.atHome.line")));
+  const pills = document.createElement("div");
+  pills.className = "pills";
+  STAPLES.filter(([,food])=>!allergyMatch(food, P)).forEach(([label, food])=>{
+    const b = pillBtn(label, food);
     const on = ()=>P.staples.includes(food);
-    b.innerHTML = `<span aria-hidden="true">${emoji}</span>${label}`;
     b.setAttribute("aria-pressed", String(on()));
     b.addEventListener("click", ()=>{
       P.staples = on() ? P.staples.filter(x=>x!==food) : P.staples.concat(food);
-      b.setAttribute("aria-pressed", String(on())); save();
+      b.setAttribute("aria-pressed", String(on())); save(); haptic();
     });
-    wrap.appendChild(b);
+    pills.appendChild(b);
   });
-  card.appendChild(wrap);
+  card.appendChild(pills);
   const stock = ()=>{
     P.staples.forEach(food=>{
       const k = foodKey(food);
@@ -3868,56 +4009,119 @@ function onbAtHome(card, P){
     });
     save();
   };
-  onbCta(card, "Continue", ()=>{ stock(); goStep(6); }, {extra:[{label:"Skip for now", on:()=>goStep(6)}]});
+  onbCta(card, say("onb.atHome.cta"), ()=>{ stock(); nextStep(); }, {extra:[{label:say("onb.atHome.skip"), on:nextStep}]});
 }
-/* 7. the reveal: the table being set, then the week, applied only on "Looks good" */
+
+/* 7. meal times: "{name} usually eats at…" one time per meal the stage serves, prefilled */
+function onbMealTimes(card, P){
+  const months = planMonths(), defaults = stageTimes(months);
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.mealTimes.title", {name:P.name || "They"});
+  card.append(h);
+  const rows = document.createElement("div");
+  rows.className = "mt-rows";
+  slotsFor(months).forEach(slot=>{
+    const ms = MEAL_SLOTS.find(x=>x.id===slot);
+    const r = document.createElement("p");
+    r.className = "mt-row";
+    const id = "mt-" + slot;
+    r.innerHTML = `<label for="${id}">${esc(say("onb.mealTimes.at", {meal:ms.label}))}</label> <span class="blank time" data-state="ok"><input class="blank-input" type="time" id="${id}" step="300" value="${(P.mealTimes||{})[slot] || defaults[slot]}"></span>`;
+    r.querySelector("input").addEventListener("change", e=>{
+      const v = hhmm(e.target.value);
+      if(!v) return;
+      const t = fmtHHMM(v);
+      P.mealTimes = Object.assign({}, P.mealTimes);
+      if(t===defaults[slot]) delete P.mealTimes[slot]; else P.mealTimes[slot] = t;   // the stage's defaults keep following the stage
+      save();
+    });
+    rows.appendChild(r);
+  });
+  card.append(rows, line(say("onb.mealTimes.line")));
+  onbCta(card, say("onb.mealTimes.cta"), nextStep, {extra:[{label:say("onb.mealTimes.usual"), on:()=>{ P.mealTimes = {}; save(); nextStep(); }}]});
+}
+
+/* 8. the reveal: the table being set (≤ 2.5 s, skippable), then the week; applied only on "Love it" */
 function onbReveal(card, P){
-  const name = P.name || "your little one";
+  const name = P.name || "";
   if(ageNow() < 6 && !P.exploreEarly){
-    card.insertAdjacentHTML("beforeend", `<div class="calm-emoji" aria-hidden="true">🌙</div>`);
-    onbHead(card, "All set for now.", `We'll have a first week ready for ${name} around 6 months. Until then, milk is everything.`);
-    onbCta(card, "Done", finishOnboarding);
+    const h = document.createElement("h1");
+    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.restful.title");
+    card.append(h, line(say("onb.restful.line")));
+    onbCta(card, say("onb.restful.cta"), finishOnboarding);
     return;
   }
   if(!onb.draft) onb.draft = generateWeek(planMonths(), P);
+  const draw = weekFoods(onb.draft);
   if(!onb.revealed){
-    const stage = document.createElement("div");
-    stage.className = "rv-stage";
-    stage.innerHTML = sampleFan(onb.draft.days[0].meals.slice(0,4).map(m=>m.items[0] ? emojiFor(m.items[0]) : "🍽️")) +
-      `<p class="rv-line" id="onbTitle">Setting the table for the week…</p>`;
-    card.appendChild(stage);
-    const tiles = [...stage.querySelectorAll(".tile")];
-    tiles.forEach((t,k)=>{
-      const end = getComputedStyle(t).transform;
-      if(calm()) t.animate([{opacity:0},{opacity:1}], {duration:250, delay:k*80, fill:"backwards"});
-      else t.animate([
-        {transform:"translateY(40px) rotate(0) scale(.7)", opacity:0},
-        {transform:`translate(${(k-1.5)*-14}px,-18px) rotate(${(k%2?1:-1)*14}deg) scale(1.05)`, opacity:1, offset:.45},
-        {transform:`translate(${(k-1.5)*10}px,6px) rotate(${(k%2?-1:1)*6}deg)`, offset:.75},
-        {transform:end, opacity:1}], {duration:1500, delay:k*90, easing:"cubic-bezier(.32,1.1,.5,1)", fill:"backwards"});
-    });
-    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; if(ONB_STEPS[onb.step]==="reveal") renderOnb(); };
-    onbCta(card, "Skip", done).classList.add("quiet");
-    setTimeout(done, calm() ? 600 : 2300);
+    const h = document.createElement("h1");
+    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.reveal.title");
+    const row = document.createElement("div");
+    row.className = "rv-row"; row.setAttribute("aria-hidden", "true");
+    row.innerHTML = draw.slice(0, 6).map((id, k)=>`<span class="rv-item" style="--k:${k};--r:${[-6,4,-3,6,-5,3][k]}deg">${foodArt(id, {size:72, alt:""})}</span>`).join("");
+    card.append(row, h);
+    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; clearTimeout(onb.revealTimer); if(ONB_STEPS[onb.step]==="reveal"){ renderOnb(); focusStep(); } };
+    const skip = document.createElement("button");
+    skip.type = "button"; skip.className = "btn-text"; skip.textContent = say("onb.reveal.skip");
+    skip.addEventListener("click", done);
+    card.append(skip);
+    card.addEventListener("click", e=>{ if(e.target===card || row.contains(e.target)) done(); });
+    onb.revealTimer = setTimeout(done, calm() ? 700 : 2300);
     return;
   }
-  onbHead(card, `Here's ${name}'s week`, priorityLine(P.priorities));
-  const list = document.createElement("div");
-  list.className = "rv-days";
-  onb.draft.days.forEach(day=>{
-    const mains = day.meals.filter(m=>m.label!=="Snack").map(dishName).filter(Boolean);
-    list.insertAdjacentHTML("beforeend", `<div class="rv-day"><b>${day.name.slice(0,3)}</b><span>${mains.join(" · ")}</span></div>`);
-  });
-  card.appendChild(list);
-  const extra = [{label:"Shuffle", quiet:true, on:()=>{ onb.draft = generateWeek(planMonths(), P); onb.revealed = false; renderOnb(); }}];
-  if(P.returning) extra.push({label:"Keep my current week", on:finishOnboarding});
-  onbCta(card, "Looks good", ()=>{
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.done.title", {name});
+  card.append(h, line(say("onb.done.line", {name})));
+  card.appendChild(weekPreview(onb.draft));
+  const extra = [{label:say("onb.done.shuffle"), on:()=>{ onb.draft = generateWeek(planMonths(), P); renderOnb(); focusStep(); }}];
+  if(P.returning) extra.push({label:say("onb.done.keep"), on:finishOnboarding});
+  onbCta(card, say("onb.done.apply"), ()=>{
     state.plan = onb.draft;
     state.weekStarted = todayISO();
+    P.lastStage = stageNow().id;
     currentDay = dayDisplayOrder()[0];
     onb.draft = null;
     finishOnboarding();
   }, {extra});
+}
+/* the drawn foods of a week, most-used first, one each */
+function weekFoods(week){
+  const count = {};
+  week.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(hasArt(f)) count[f.id] = (count[f.id] || 0) + 1; })));
+  return Object.keys(count).sort((a, b)=>count[b] - count[a]);
+}
+/* seven days from today, each with its meals' main foods as small drawings */
+function weekPreview(week){
+  const wrap = document.createElement("div");
+  wrap.className = "wk-prev";
+  const t = now(), start = Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[t.getDay()]));
+  const narrow = new Intl.DateTimeFormat(undefined, {weekday:"short"});
+  week.days.forEach((_, pos)=>{
+    const day = week.days[(start + pos) % week.days.length];
+    const date = new Date(t.getFullYear(), t.getMonth(), t.getDate() + pos);
+    const mains = day.meals.filter(m=>m.items.length).map(m=>m.items[0]);
+    const col = document.createElement("div");
+    col.className = "wk-day";
+    col.innerHTML = `<span class="wk-name">${narrow.format(date)}</span>` +
+      mains.slice(0, 3).map((i, k)=>`<span class="wk-art" style="--r:${[-6,5,-3][k]}deg">${foodArt(i.name, {size:40, alt:baseName(i)})}</span>`).join("");
+    col.setAttribute("aria-label", `${DAY_FULL(date)}: ${mains.map(baseName).join(", ")}`);
+    col.setAttribute("role", "group");
+    wrap.appendChild(col);
+  });
+  return wrap;
+}
+/* a decorative fan (the old home's milk state still uses it until the home is rebuilt) */
+function sampleFan(emojis, cls){
+  const tilt = FAN_TILT[emojis.length];
+  const softs = ["grain","fruit","vegetable","protein"];
+  return `<div class="fan ${cls||""}" aria-hidden="true">` + emojis.map((e,k)=>
+    `<span class="tile" style="--r:${tilt[k]}deg;--k:${k};--soft:var(--${softs[k%4]}-soft)"><span class="tile-art"><span class="tile-emoji" style="margin:0">${e}</span></span></span>`).join("") + `</div>`;
+}
+function fanIn(container){
+  [...container.querySelectorAll(".tile")].forEach((t,k)=>{
+    const end = getComputedStyle(t).transform;
+    t.animate(calm() ? [{opacity:0},{opacity:1}] : [{transform:"translateY(30px) rotate(0deg) scale(.85)", opacity:0}, {transform:end, opacity:1}],
+              {duration: calm() ? 200 : 600, delay:k*75, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
+  });
 }
 
 /* ---------- init ---------- */

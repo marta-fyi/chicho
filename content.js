@@ -79,41 +79,58 @@ const CONTENT = {
     variety:{tried:"Tried this week", next:"Try next", added:"{food} added to {meal}.", undo:"Undo"}
   },
 
+  /* Onboarding: every step is a sentence you complete. {blank} marks where its field sits;
+     the words before the first blank are that field's label for screen readers. */
   onb:{
     close:"Close",
     back:"Back",
+    next:"Next",
+    save:"Save",
+    skip:"Skip",
     welcome:{
       title:"Every meal is a first.",
       line:"Tell us about them. We'll take care of the week.",
       cta:"Begin"
     },
-    name:{title:"Who are we cooking for?", placeholder:"Their name", cta:"Next"},
+    name:{sentence:"Their name is {blank}.", cta:"Next"},
     birthday:{
-      title:"When did they arrive?",
+      sentence:"{name} arrived on {day} / {month} / {year}.",
       line:"We'll grow the menu with them.",
       cta:"Next",
       day:"Day", month:"Month", year:"Year",
+      hint:{
+        future:"That day hasn't come yet.",
+        days:"{month} has {n} days.",
+        year:"A year like {year}.",
+        month:"A month, like {month}.",
+        old:"We cook for the first three years, so we'll plan for a three-year-old."
+      },
       milk:{one:"Milk is all {name} needs right now. We'll have the table ready in {n} month.",
             other:"Milk is all {name} needs right now. We'll have the table ready in {n} months."},
       remind:"Remind me",
       explore:"Look around anyway"
     },
     keepOut:{
-      title:"What stays off the plate?",
+      title:"Keep these off the plate.",
       line:"Tap to keep it out. We'll never suggest it.",
       out:"Keep out",
       loved:"Tried and loved",
+      neutral:"No preference",
       add:"Add something else",
+      alsoNot:"Also not {blank}",
       allergy:"Allergy",
       dislike:"Dislike",
-      remove:"Remove",
+      remove:"Remove {food}",
       locked:"Always off the plate at this age: {list}.",
+      why:"Why?",
       note:"Not medical advice. Your pediatrician has the final word on allergens."
     },
-    priorities:{title:"What would make this week great?", line:"Pick up to three.", cta:"Next"},
-    atHome:{title:"What's already in your kitchen?", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
-    reveal:{title:"Setting the table…"},
-    done:{title:"{name}'s week.", line:"Seven days, made just for {name}.", apply:"Love it", shuffle:"Shuffle"}
+    priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
+    atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
+    mealTimes:{title:"{name} usually eats at…", line:"We'll tell you what's next.", cta:"Next", usual:"Use the usual", at:"{meal} at"},
+    reveal:{title:"Setting the table…", skip:"Skip"},
+    done:{title:"{name}'s week.", line:"Seven days, made just for {name}.", apply:"Love it", shuffle:"Shuffle", keep:"Keep my current week"},
+    restful:{title:"All set for now.", line:"We'll have the first week ready around six months.", cta:"Done"}
   },
 
   /* Every word about a stage. name = the big tagline under the birthday fields;
@@ -157,10 +174,18 @@ const CONTENT = {
     }
   },
 
+  /* the eight things a week can lean on (ids match PRIORITIES); lean = how it reads in "We'll lean on …" */
   priorities:{
-    iron:"More iron", color:"Colorful plates", quick:"Quick to cook", freeze:"Cook once, freeze",
-    finger:"Finger-food fun", home:"Use what's home", budget:"Easy on the budget", gentle:"Gentle new tastes"
+    iron:      {label:"More iron",          lean:"iron-rich meals"},
+    colours:   {label:"Colorful plates",    lean:"a rainbow of veg"},
+    quick:     {label:"Quick to cook",      lean:"20-minute recipes"},
+    batch:     {label:"Cook once, freeze",  lean:"dishes that freeze well, cooked once and eaten twice"},
+    finger:    {label:"Finger-food fun",    lean:"finger foods they can hold"},
+    athome:    {label:"Use what's home",    lean:"what's already in your kitchen"},
+    affordable:{label:"Easy on the budget", lean:"budget-friendly staples"},
+    gentle:    {label:"Gentle new tastes",  lean:"familiar favourites, one new taste a day"}
   },
+  priorityLine:{none:"We'll keep the week balanced and varied.", some:"We'll lean on {list}."},
 
   /* ---- legacy: still read by today's screens; each goes when its screen is rebuilt (steps 5-7) ---- */
   greet:{

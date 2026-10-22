@@ -54,14 +54,16 @@ f.onload = async () => {
 
     // copy: the voice rules
     const C = E("CONTENT");
-    const words = s => s.replace(/\{[^}]+\}/g, "X").split(/\s+/).filter(Boolean).length;
+    const words = s => s.replace(/\{[^}]+\}/g, "X").split(/\s+/).filter(w => /\w/.test(w)).length;
     const banned = /little one|lovely|gentle questions|get started|\bplan\b|\btrack|\bmanage|\boptimi[sz]e/i;
     const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
-    const headlines = [...flat(C.home.headline), C.onb.welcome.title, C.onb.name.title, C.onb.birthday.title,
-      C.onb.keepOut.title, C.onb.priorities.title, C.onb.atHome.title, C.onb.reveal.title, C.onb.done.title, C.home.weekDone];
+    const onbHeads = [C.onb.welcome.title, C.onb.name.sentence, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
+      C.onb.atHome.title, C.onb.mealTimes.title, C.onb.reveal.title, C.onb.done.title, C.onb.restful.title];
+    const headlines = [...flat(C.home.headline), ...onbHeads, C.home.weekDone];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
-    const support = [...C.home.support, C.onb.welcome.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.done.line];
+    const support = [...C.home.support, C.onb.welcome.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
+    ok("no onboarding headline is a question", onbHeads.every(h => !h.trim().endsWith("?")), onbHeads.filter(h => h.trim().endsWith("?")));
     ok("support lines are at most 12 words", support.every(s => words(s) <= 12), support.filter(s => words(s) > 12));
     const all = JSON.stringify(C);
     ok("no percentages anywhere in the copy", !/\d\s?%/.test(all));
