@@ -242,7 +242,7 @@ try{
      background image drifts faster for a moment, like moving through the sky. */
   .onb-open{overflow:hidden;}
   .onb-open .container, .onb-open .scroll-edge{visibility:hidden;}
-  .onb{position:fixed;inset:0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
+  .onb{position:fixed;inset:0 0 var(--kb, 0px) 0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
        padding:calc(env(safe-area-inset-top) + 14px) var(--pad-r) calc(env(safe-area-inset-bottom) + 24px) var(--pad-l);}
   .onb[hidden]{display:none;}
   .onb [hidden]{display:none !important;}   /* hidden wins over any display set below */
@@ -264,7 +264,13 @@ try{
   .is-welcome .onb-dots{visibility:hidden;}
     .onb-spacer{width:44px;flex:0 0 auto;}
   .onb-close:not([hidden]) + .onb-spacer{display:none;}   /* the X sits at the column's right edge */
-  .onb-card{width:min(var(--col),100%);display:flex;flex-direction:column;align-items:center;text-align:center;margin:auto 0;padding:0 0 56px;}
+  .onb-card{position:relative;width:min(var(--col),100%);display:flex;flex-direction:column;align-items:center;text-align:center;margin:auto 0;padding:0 0 56px;}
+  /* a step you type into starts at a fixed height (small-viewport units don't change with the keyboard), so opening
+     or closing the keyboard never moves the sentence; the scroller ends at the keyboard (--kb) */
+  .onb.has-field .onb-card{margin:6svh 0 auto;}
+  .kb-open .onb{padding-bottom:16px;}
+  input, select, textarea{font-size:max(16px, 1em);}   /* never under 16px: iOS zooms on focus below that */
+  .kb-proxy{position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0;pointer-events:none;}
     .onb-h:focus{outline:none;}
   .onb-h{margin:0;font-size:var(--fs-display);font-weight:800;letter-spacing:var(--track-display);line-height:1.08;color:var(--olive-700);}
   .onb-cta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:32px;min-height:48px;}
@@ -2050,10 +2056,34 @@ function rushSky(){
 /* the first blank waits with its caret; otherwise the sentence itself takes focus */
 function focusStep(){
   const card = document.getElementById("onbCard");
-  const f = card.querySelector(".blank-input");
+  const f = card.querySelector(".blank-input:not([type=time])");
   const title = card.querySelector("#onbTitle");
-  if(f) f.focus({preventScroll:true});
+  document.getElementById("onboarding").classList.toggle("has-field", !!card.querySelector(".blank-input"));
+  if(f){ f.focus({preventScroll:true}); keepInView(); }
   else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
+}
+/* the field being typed in and the Next button stay above the keyboard; one smooth scroll, never a jump */
+function keepInView(){
+  const el = document.getElementById("onboarding");
+  if(el.hidden) return;
+  const a = document.activeElement, cta = el.querySelector(".onb-cta");
+  if(!a || !el.contains(a)) return;
+  const box = el.getBoundingClientRect(), r = a.getBoundingClientRect(), c = cta ? cta.getBoundingClientRect() : r;
+  const bottom = box.bottom - 16;
+  let dy = 0;
+  if(Math.max(r.bottom, c.bottom) > bottom) dy = Math.max(r.bottom, c.bottom) - bottom;
+  if(r.top - dy < box.top + 8) dy = r.top - box.top - 8;
+  if(Math.abs(dy) > 1) el.scrollBy({top:dy, behavior:calm() ? "auto" : "smooth"});
+}
+kbListeners.push(()=>requestAnimationFrame(keepInView));
+/* iOS only opens the keyboard for a focus inside a tap. The next step's field doesn't exist yet when Next is
+   tapped, so a hidden field takes the focus during the tap, and the real one takes it over after the swap. */
+function holdKeyboard(n){
+  if(!["name","birthday"].includes(ONB_STEPS[n])) return;
+  let p = document.getElementById("kbProxy");
+  if(!p){ p = document.createElement("input"); p.id = "kbProxy"; p.className = "kb-proxy"; p.setAttribute("aria-hidden", "true"); p.tabIndex = -1; document.body.appendChild(p); }
+  p.inputMode = ONB_STEPS[n]==="birthday" ? "numeric" : "text";
+  p.focus({preventScroll:true});
 }
 /* the finished sentence slides up and fades; the next one rises in */
 function goStep(n, sub){
@@ -2070,6 +2100,7 @@ function goStep(n, sub){
     else card.animate([{opacity:0},{opacity:1}], {duration:180});
     focusStep();
   };
+  holdKeyboard(n);
   rushSky();
   if(calm()){ swap(); return; }
   const out = card.animate([{transform:"none", opacity:1}, {transform:`translateY(${-onb.dir*24}px)`, opacity:0}],
@@ -2111,11 +2142,13 @@ function blank(o){
   const inp = document.createElement("input");
   inp.className = "blank-input"; inp.type = "text"; inp.id = o.id || "b" + uid();
   inp.autocomplete = o.autocomplete || "off"; inp.spellcheck = false;
+  inp.setAttribute("autocapitalize", o.autocapitalize || (o.inputmode ? "off" : "sentences"));
+  inp.setAttribute("autocorrect", "off");
+  inp.enterKeyHint = o.enterkeyhint || "done";
   if(o.inputmode) inp.inputMode = o.inputmode;
   if(o.maxLength) inp.maxLength = o.maxLength;
   if(o.label) inp.setAttribute("aria-label", o.label);
   if(o.list) inp.setAttribute("list", o.list);
-  if(o.enterkeyhint) inp.enterKeyHint = o.enterkeyhint;
   inp.value = o.value || "";
   const sync = ()=>{ mirror.textContent = inp.value || " ".repeat(o.min || 3); };
   sync();
@@ -2236,7 +2269,7 @@ function welcomeCycle(card, heroes){
 /* 2. name: "Their name is ____." */
 function onbName(card, P){
   let next;
-  const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", enterkeyhint:"next",
+  const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", autocapitalize:"words", enterkeyhint:"next",
     onInput:v=>{ P.name = v.trim(); save(); b.set(P.name ? "ok" : ""); next.ready(!!P.name); },
     onEnter:()=>{ if(P.name) nextStep(); }});
   b.set(P.name ? "ok" : "");
@@ -2299,13 +2332,13 @@ function onbBirthday(card, P){
     return !!date;
   };
   const go = ()=>{ if(!check()) return; ageNow() < 6 ? goStep(onb.step, "milk") : (P.exploreEarly = false, save(), nextStep()); };
-  const day = blank({value:had ? String(had.getDate()) : "", min:2, maxLength:2, inputmode:"numeric", label:say("onb.birthday.day"),
-    onInput:v=>{ check(); if(v.length===2 || +v > 3) month.input.focus(); }, onEnter:go});
-  const month = blank({value:had ? MONTH_NAMES[had.getMonth()] : "", min:6, maxLength:16, label:say("onb.birthday.month"),
+  // full = two digits, or one that can't start a longer number (day 4–9, month 2–9); the month also takes a name
+  const day = blank({value:had ? String(had.getDate()) : "", min:2, maxLength:2, inputmode:"numeric", autocomplete:"bday-day", enterkeyhint:"next", label:say("onb.birthday.day"),
+    onInput:v=>{ check(); if(/^\d{2}$/.test(v) || /^[4-9]$/.test(v)) month.input.focus(); }, onEnter:()=>month.input.focus()});
+  const month = blank({value:had ? String(had.getMonth() + 1) : "", min:2, maxLength:9, inputmode:"numeric", autocomplete:"bday-month", enterkeyhint:"next", label:say("onb.birthday.month"),
+    onInput:v=>{ check(); if(/^\d{2}$/.test(v) || /^[2-9]$/.test(v)) year.input.focus(); }, onEnter:()=>year.input.focus()});
+  const year = blank({value:had ? String(had.getFullYear()) : "", min:4, maxLength:4, inputmode:"numeric", autocomplete:"bday-year", enterkeyhint:"done", label:say("onb.birthday.year"),
     onInput:()=>check(), onEnter:go});
-  const year = blank({value:had ? String(had.getFullYear()) : "", min:4, maxLength:4, inputmode:"numeric", label:say("onb.birthday.year"),
-    onInput:()=>check(), onEnter:go});
-  month.input.addEventListener("blur", ()=>{ const k = parseMonth(month.input.value); if(k!==null){ month.input.value = MONTH_NAMES[k]; month.sync(); check(); } });
   const s = sentence(say("onb.birthday.sentence", {name}), {day, month, year});
   // the day field is labelled by the words before it ("Lula arrived on"), the others by their own names
   card.append(s, line(say("onb.birthday.line")));
