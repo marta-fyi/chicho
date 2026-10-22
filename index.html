@@ -33,9 +33,9 @@
        olive-700 5.8:1 (AA even for body text). */
     --surface:#ffffff;
     --surface-soft:#F2F4EC;   /* light grey-green: rows, quiet buttons */
-    --frost:rgba(255,255,255,.8);
+    --frost:rgba(255,255,255,.84);
     --ink:#1F2328;
-    --muted:#6B7280;
+    --muted:#565C68;          /* 4.5:1+ on frost even over the night sky */
     --line:#E3E6DC;
 
     /* brand */
@@ -44,6 +44,7 @@
     --olive-100:#EEF1E4;
     --accent:var(--olive-700);
     --accent-ink:#ffffff;
+    --band:#DDD6CE;        /* the calendar's rest-of-the-week band */
     --mascot:#e3bc00;      /* Chicho's body yellow, sampled from the artwork.
                               Dark ink on it is 7.24:1; white would be 1.83:1. */
 
@@ -131,48 +132,25 @@
     padding:14px;
     margin-bottom:12px;
   }
-  .daytabs{
-    display:flex;overflow-x:auto;gap:2px;padding:4px 12px 2px;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-    overscroll-behavior-x:contain;   /* scrolling the days never flips the page */
-  }
-  .daytabs::-webkit-scrollbar{display:none;}
-  .daytab{
-    position:relative;flex:0 0 auto;
-    width:88px;height:88px;padding:0;border:none;background:none;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    line-height:1;color:var(--muted);
-  }
-  /* The circle and the burst are both 48-point polygons — same point count, so
-     clip-path can actually interpolate and the shape spikes out on selection. */
-  .daytab::before{
-    content:"";position:absolute;inset:0;
-    background:var(--card);
-    clip-path:polygon(50.0% 12.5%,54.9% 12.8%,59.7% 13.8%,64.4% 15.4%,68.8% 17.5%,72.8% 20.2%,76.5% 23.5%,79.8% 27.2%,82.5% 31.3%,84.6% 35.6%,86.2% 40.3%,87.2% 45.1%,87.5% 50.0%,87.2% 54.9%,86.2% 59.7%,84.6% 64.4%,82.5% 68.8%,79.8% 72.8%,76.5% 76.5%,72.8% 79.8%,68.8% 82.5%,64.4% 84.6%,59.7% 86.2%,54.9% 87.2%,50.0% 87.5%,45.1% 87.2%,40.3% 86.2%,35.6% 84.6%,31.3% 82.5%,27.2% 79.8%,23.5% 76.5%,20.2% 72.8%,17.5% 68.8%,15.4% 64.4%,13.8% 59.7%,12.8% 54.9%,12.5% 50.0%,12.8% 45.1%,13.8% 40.3%,15.4% 35.6%,17.5% 31.2%,20.2% 27.2%,23.5% 23.5%,27.2% 20.2%,31.2% 17.5%,35.6% 15.4%,40.3% 13.8%,45.1% 12.8%);
-    transition:clip-path .3s cubic-bezier(.34,1.4,.5,1), background .2s ease;
-  }
-  .daytab.active::before{
-    background:var(--mascot);
-    clip-path:polygon(50.0% 0.0%,54.9% 12.8%,62.9% 1.7%,64.4% 15.4%,75.0% 6.7%,72.8% 20.2%,85.4% 14.6%,79.8% 27.2%,93.3% 25.0%,84.6% 35.6%,98.3% 37.1%,87.2% 45.1%,100.0% 50.0%,87.2% 54.9%,98.3% 62.9%,84.6% 64.4%,93.3% 75.0%,79.8% 72.8%,85.4% 85.4%,72.8% 79.8%,75.0% 93.3%,64.4% 84.6%,62.9% 98.3%,54.9% 87.2%,50.0% 100.0%,45.1% 87.2%,37.1% 98.3%,35.6% 84.6%,25.0% 93.3%,27.2% 79.8%,14.6% 85.4%,20.2% 72.8%,6.7% 75.0%,15.4% 64.4%,1.7% 62.9%,12.8% 54.9%,0.0% 50.0%,12.8% 45.1%,1.7% 37.1%,15.4% 35.6%,6.7% 25.0%,20.2% 27.2%,14.6% 14.6%,27.2% 20.2%,25.0% 6.7%,35.6% 15.4%,37.1% 1.7%,45.1% 12.8%);
-  }
-  .daytab > span{position:relative;}
-  .daytab .dn{font-size:var(--fs-caption);font-weight:600;text-transform:lowercase;}
-  .daytab .dd{font-size:var(--fs-title);font-weight:700;margin-top:3px;}
-  .daytab.active{color:var(--ink);}
-  /* the burst spins only when the change came from a tap, not on every render */
-  @keyframes daytab-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-  .daytab.active.spin::before{animation:daytab-spin .6s cubic-bezier(.3,.9,.3,1);}
-  @media (prefers-reduced-motion: reduce){
-    .daytab::before{transition:background .2s ease;}
-    .daytab.active.spin::before{animation:none;}
-  }
-
   /* ---------- cards: one open at a time ----------
      The whole header is the tap target; the summary under the title keeps a
      closed card useful. Inside a card, the old sub-cards flatten into plain
      sections so there's never a card inside a card. */
-  .acc{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;}
+  /* Cards and the calendar are frosted glass over the sky: the blur reads
+     the clouds through them, the white keeps text legible. Without
+     backdrop-filter they fall back to plain white. */
+  .acc, .cal{
+    background:var(--frost);
+    -webkit-backdrop-filter:blur(18px) saturate(1.5);
+    backdrop-filter:blur(18px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.6);
+    border-radius:var(--card-radius);
+    box-shadow:var(--shadow-card);
+    margin-bottom:14px;
+  }
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .acc, .cal{background:var(--surface);}
+  }
   .acc-head{
     width:100%;min-height:60px;border:none;background:none;padding:14px 16px;
     display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:center;
@@ -188,13 +166,38 @@
   }
   .acc-head[aria-expanded="true"] .acc-chev{transform:translateY(2px) rotate(225deg);}
   .acc-head:focus{outline:none;}
-  .acc-head:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:var(--radius);}
+  .acc-head:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:var(--card-radius);}
   .acc-body{padding:0 14px 14px;}
+
+  /* ---------- calendar ----------
+     The month, always in view above the cards. What's left of the planned
+     week is one band from today to its last day, both ends dark; a dot marks
+     a day with meals. The band sits on the whole cell so it bridges the gaps,
+     rounded wherever a row or the range ends. */
+  .cal{padding:18px 12px 14px;}
+  .cal-title{margin:0 6px 12px;font-size:var(--fs-title);font-weight:600;letter-spacing:-.01em;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;}
+  .cal-cell{height:52px;padding:0 3px;}
+  .cal-day{
+    width:100%;height:100%;border:none;border-radius:12px;background:var(--surface);
+    color:var(--ink);font:inherit;font-size:16px;font-weight:500;line-height:1;
+    display:flex;flex-direction:column;align-items:center;gap:9px;padding:11px 0 0;
+  }
+  .cal-day:disabled{cursor:default;}
+  .cal-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .cal-cell.band{background:var(--band);}
+  .cal-cell.band:nth-child(7n+1){border-radius:14px 0 0 14px;}
+  .cal-cell.band:nth-child(7n){border-radius:0 14px 14px 0;}
+  .cal-cell.band .cal-day{background:transparent;}
+  .cal-cell.first{background:linear-gradient(90deg, transparent 50%, var(--band) 50%);}
+  .cal-cell.last{background:linear-gradient(90deg, var(--band) 50%, transparent 50%);}
+  .cal-cell.first.last{background:none;}
+  .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--ink);color:#fff;}
+  .cal-cell.sel .cal-day{outline:2px solid var(--ink);outline-offset:2px;}
+  .cal-day:focus{outline:none;}
+  .cal-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .acc-body .card{background:none;box-shadow:none;border-radius:0;padding:12px 0 0;margin:12px 0 0;border-top:1px solid var(--line);}
   .acc-body > .card:first-child{border-top:none;margin-top:0;padding-top:0;}
-  .acc-body .daytabs{margin:0 -14px;}
-  .acc-body .daytab::before{background:var(--bg);}   /* the days need a tone of their own on a white card */
-  .acc-body .daytab.active::before{background:var(--mascot);}
   @media (prefers-reduced-motion: reduce){
     .acc-chev{transition:none;}
   }
@@ -412,12 +415,16 @@
 
 <div class="container">
 
+  <section class="cal" aria-labelledby="calTitle">
+    <h2 class="cal-title" id="calTitle"></h2>
+    <div class="cal-grid" id="calGrid"></div>
+  </section>
+
   <section class="acc" id="card-meals">
     <button class="acc-head" id="head-meals" aria-expanded="false" aria-controls="body-meals">
       <span class="acc-title">Meals</span><span class="acc-sum" id="sum-meals"></span><span class="acc-chev" aria-hidden="true"></span>
     </button>
     <div class="acc-body" id="body-meals" role="region" aria-labelledby="head-meals" hidden>
-    <div class="daytabs" id="dayTabs"></div>
     <h2 class="dayheader" id="dayHeader"></h2>
     <div id="dayContent"></div>
     </div>
@@ -710,6 +717,8 @@ const MEAL_SLOTS = [
    tex is the stage's texture for a generated dish ("mashed", "soft pieces"). */
 function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, eaten:false}; if(tex) i.tex = tex; return i; }
 function uid(){ return Math.random().toString(36).slice(2,10); }
+/* today as YYYY-MM-DD on the local clock (toISOString is UTC: wrong day after midnight in Europe) */
+function todayISO(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
 function meal(label, icon, items){ return {label, icon, items}; }
 
@@ -788,7 +797,7 @@ function freshState(){
     createAge: 10,       // months, 0..AGE_MAX
     openCard: "meals",   // the one card that's open, or null
     excludedFoods: ["Broccoli"],
-    weekStarted: new Date().toISOString().slice(0,10)
+    weekStarted: todayISO()
   };
 }
 
@@ -962,27 +971,72 @@ function dayDisplayOrder(){
   return days.map((_,k)=>(start+k)%days.length);
 }
 
-let spinNextRender = false;   // set by a tap so only that render animates
-
-function renderDayTabs(){
-  const wrap = document.getElementById("dayTabs");
-  wrap.innerHTML = "";
-  dayDisplayOrder().forEach(i=>{
-    const b = document.createElement("button");
-    b.className = "daytab" + (i===currentDay ? " active" + (spinNextRender?" spin":"") : "");
-    const d = dateForDay(i);
-    b.innerHTML = `<span class="dn">${state.plan.days[i].name.slice(0,3)}</span>`
-                + `<span class="dd">${d.getDate()}</span>`;
-    b.setAttribute("aria-label", formatDate(d));   // "sun 2" is no use to a screen reader
-    if(i===currentDay) b.setAttribute("aria-current","date");
-    b.onclick = ()=>{ spinNextRender = true; currentDay=i; renderDayTabs(); renderDayContent(); };
-    wrap.appendChild(b);
-  });
-  spinNextRender = false;
-  wrap.scrollLeft = 0;
+/* ---------- calendar ----------
+   The plan is a week that starts again on the weekday it was started (the day
+   it was applied, or "Start new week"), so what's left of it runs from today
+   up to the day before that weekday comes round again. */
+function localDate(iso){
+  const [y,m,d] = String(iso).split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function daysLeftInWeek(){
+  const start = localDate(state.weekStarted);
+  const anchor = isNaN(start) ? new Date().getDay() : start.getDay();
+  return ((anchor - new Date().getDay() + 7) % 7) || 7;
 }
 
-/* The strip leads with today, so the pill at position k is k days from now. */
+function renderCalendar(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const order = dayDisplayOrder();
+  const left = Math.min(daysLeftInWeek(), order.length);
+  const end = new Date(today); end.setDate(end.getDate() + left - 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth()+1, 0);
+  const last = end > monthEnd ? end : monthEnd;   // the band may run into next month
+
+  const title = MONTHS[today.getMonth()] + (last.getMonth()!==today.getMonth() ? " · " + MONTHS[last.getMonth()] : "");
+  document.getElementById("calTitle").textContent = title + " " + last.getFullYear();
+
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  // whole weeks, Monday first, from the week of the 1st to the week of the last day shown
+  const d = new Date(today.getFullYear(), today.getMonth(), 1);
+  d.setDate(d.getDate() - (d.getDay()+6)%7);
+  while(d <= last || (d.getDay()+6)%7 !== 0){
+    const pos = Math.round((d - today) / 864e5);
+    const idx = pos>=0 && pos<left ? order[pos] : null;
+    const cell = document.createElement("div");
+    cell.className = "cal-cell";
+    if(idx!==null){
+      cell.classList.add("band");
+      if(pos===0) cell.classList.add("first");
+      if(pos===left-1) cell.classList.add("last");
+      if(idx===currentDay) cell.classList.add("sel");
+    }
+    const shown = idx!==null || (d.getMonth()===today.getMonth() && d.getFullYear()===today.getFullYear());
+    if(shown){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cal-day";
+      const planned = idx!==null && state.plan.days[idx].meals.some(m=>m.items.length);
+      b.innerHTML = `<span>${d.getDate()}</span>${planned ? `<span class="cal-dot"></span>` : ""}`;
+      b.setAttribute("aria-label", formatDate(d) + (planned ? ", meals planned" : ""));
+      if(pos===0) b.setAttribute("aria-current", "date");
+      if(idx===null) b.disabled = true;
+      else{
+        b.setAttribute("aria-pressed", String(idx===currentDay));
+        b.addEventListener("click", ()=>{
+          currentDay = idx;
+          if(state.openCard==="meals") renderDayContent(); else openCard("meals");
+        });
+      }
+      cell.appendChild(b);
+    }
+    grid.appendChild(cell);
+    d.setDate(d.getDate() + 1);
+  }
+}
+
+/* The plan's days in display order lead with today, so position k is k days from now. */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function dateForDay(idx){
   const pos = dayDisplayOrder().indexOf(idx);
@@ -1000,13 +1054,15 @@ function renderDayHeader(){
 function haveChip(c, name){
   if(!c) return "";   // eaten: nothing left to check
   if(c.have) return `<span class="have-chip">have</span>`;
-  return `<button type="button" class="buy-chip" data-buy aria-label="Mark ${name} bought">${c.buy===null ? "buy" : "buy " + fmtG(c.buy)}</button>`;
+  const pack = c.buy===null ? null : buyPacks(name, c.buy);
+  return `<button type="button" class="buy-chip" data-buy aria-label="Mark ${name} bought${pack ? ", " + pack.label : ""}">${pack ? "buy " + pack.short : "buy"}</button>`;
 }
 
 function renderDayContent(){
   const day = state.plan.days[currentDay];
   const wrap = document.getElementById("dayContent");
   renderDayHeader();
+  renderCalendar();   // the selected day, and its dot if the last food went
   wrap.innerHTML = "";
 
   const cover = coverOnPlan();
@@ -1031,7 +1087,8 @@ function renderDayContent(){
         <button class="icon-btn" data-del="${item.id}" aria-label="Remove ${item.name}">✕</button>`;
       const buyBtn = row.querySelector("[data-buy]");
       if(buyBtn) buyBtn.addEventListener("click", ()=>{
-        addToStock(foodKey(item.name), item.name, cover[item.id].buy);   // as if just bought
+        const short = cover[item.id].buy;   // as if just bought: whole packs
+        addToStock(foodKey(item.name), item.name, short===null ? null : buyPacks(item.name, short).g);
         renderDayContent();
       });
       row.querySelector("input").addEventListener("change", e=>{
@@ -1084,7 +1141,87 @@ function gramsOf(qty){
   const m = String(qty||"").match(/^\s*(\d+(?:[.,]\d+)?)\s*g\b/i);
   return m ? parseFloat(m[1].replace(",", ".")) : null;
 }
-function fmtG(g){ return Math.round(g) + " g"; }
+function fmtG(g){
+  if(g < 1000) return Math.round(g) + " g";
+  return (Math.round(g/100)/10).toString().replace(/\.0$/, "") + " kg";
+}
+
+/* ---------- packs ----------
+   Nobody buys 40 g of oats: food comes in the sizes shops sell, so a
+   shortfall is rounded up to whole packs and a restock lasts a while.
+   g is what the pack gives in the plan's own grams (an egg counts 50 g, as
+   in the plan); label is how it reads on the list, short how it reads on a
+   meal. Typical Spanish supermarket sizes; dry pasta, rice and oats are
+   counted as weighed, the way the plan's portions are. */
+const PACKS = {
+  "egg":            {g:600,  label:"box of 12",         short:"12 eggs"},
+  "chicken":        {g:500,  label:"500 g tray",        short:"500 g tray"},
+  "turkey":         {g:400,  label:"400 g tray",        short:"400 g tray"},
+  "beef":           {g:500,  label:"500 g tray",        short:"500 g tray"},
+  "beef meatballs": {g:400,  label:"400 g pack",        short:"400 g pack"},
+  "salmon":         {g:250,  label:"2 fillets, 250 g",  short:"2 fillets"},
+  "white fish":     {g:400,  label:"400 g frozen bag",  short:"400 g bag"},
+  "lentils":        {g:400,  label:"400 g jar, cooked", short:"1 jar"},
+  "chickpeas":      {g:400,  label:"400 g jar, cooked", short:"1 jar"},
+  "tofu":           {g:400,  label:"400 g block",       short:"1 block"},
+  "greek yogurt":   {g:500,  label:"4-pot pack, 500 g",  short:"4 pots"},
+  "cottage cheese": {g:250,  label:"250 g tub",         short:"1 tub"},
+  "ricotta":        {g:250,  label:"250 g tub",         short:"1 tub"},
+  "cheese":         {g:200,  label:"200 g bag",         short:"200 g bag"},
+  "carrots":        {g:1000, label:"1 kg bag",          short:"1 kg"},
+  "sweet potato":   {g:1000, label:"1 kg",              short:"1 kg"},
+  "pumpkin":        {g:1000, label:"1 kg piece",        short:"1 kg"},
+  "butternut squash":{g:1000,label:"1 squash, ~1 kg",   short:"1 squash"},
+  "zucchini":       {g:600,  label:"2 courgettes",      short:"2 pieces"},
+  "green beans":    {g:1000, label:"1 kg frozen bag",   short:"1 kg"},
+  "peas":           {g:1000, label:"1 kg frozen bag",   short:"1 kg"},
+  "cauliflower":    {g:800,  label:"1 head",            short:"1 head"},
+  "potato":         {g:2000, label:"2 kg bag",          short:"2 kg"},
+  "spinach":        {g:750,  label:"750 g frozen bag",  short:"750 g bag"},
+  "beetroot":       {g:500,  label:"500 g cooked pack", short:"500 g pack"},
+  "cucumber":       {g:300,  label:"1 cucumber",        short:"1 piece"},
+  "tomato":         {g:1000, label:"1 kg",              short:"1 kg"},
+  "banana":         {g:1000, label:"bunch, ~1 kg",      short:"1 bunch"},
+  "pear":           {g:1000, label:"1 kg",              short:"1 kg"},
+  "apple":          {g:1000, label:"1 kg bag",          short:"1 kg"},
+  "apple purée":    {g:400,  label:"4-pouch pack, 400 g", short:"4 pouches"},
+  "peach":          {g:1000, label:"1 kg",              short:"1 kg"},
+  "plum":           {g:500,  label:"500 g",             short:"500 g"},
+  "mango":          {g:400,  label:"1 mango",           short:"1 mango"},
+  "melon":          {g:1500, label:"1 melon",           short:"1 melon"},
+  "kiwi":           {g:500,  label:"500 g, ~6 kiwis",   short:"500 g"},
+  "blueberries":    {g:125,  label:"125 g punnet",      short:"1 punnet"},
+  "strawberries":   {g:500,  label:"500 g punnet",      short:"1 punnet"},
+  "raspberries":    {g:125,  label:"125 g punnet",      short:"1 punnet"},
+  "grapes":         {g:500,  label:"500 g",             short:"500 g"},
+  "oatmeal":        {g:1000, label:"1 kg bag of oats",  short:"1 kg"},
+  "baby rice cereal":{g:300, label:"300 g box",         short:"1 box"},
+  "whole wheat toast":{g:450,label:"sliced loaf, 450 g",short:"1 loaf"},
+  "whole wheat pasta":{g:500,label:"500 g pack",        short:"500 g"},
+  "rice":           {g:1000, label:"1 kg bag",          short:"1 kg"},
+  "quinoa":         {g:500,  label:"500 g bag",         short:"500 g"},
+  "couscous":       {g:500,  label:"500 g bag",         short:"500 g"},
+  "avocado":        {g:300,  label:"2 avocados",        short:"2 pieces"},
+  "olive oil":      {g:900,  label:"1 l bottle",        short:"1 l"},
+  "chia seeds":     {g:250,  label:"250 g bag",         short:"250 g"},
+  "peanut butter":  {g:350,  label:"350 g jar",         short:"1 jar"},
+  "hummus":         {g:240,  label:"240 g tub",         short:"1 tub"}
+};
+const PACK_ALIAS = {"oats":"oatmeal", "pasta":"whole wheat pasta", "cucumber sticks":"cucumber",
+  "smooth peanut butter":"peanut butter"};
+/* "Carrots, soft-cooked" shops as carrots: the preparation after the comma doesn't change the pack */
+function packFor(name){
+  const base = foodKey(name).split(",")[0].trim();
+  return PACKS[PACK_ALIAS[base] || base] || null;
+}
+/* whole packs covering a shortfall in grams; a food with no known pack
+   rounds up to the next 100 g */
+function buyPacks(name, grams){
+  const p = packFor(name);
+  if(!p){ const g = Math.max(100, Math.ceil(grams/100)*100); return {g, label:fmtG(g), short:fmtG(g)}; }
+  const n = Math.max(1, Math.ceil((grams - 0.5) / p.g));
+  return {g:n*p.g, label:(n>1 ? n+" × " : "") + p.label, short:(n>1 ? n+" × " : "") + p.short};
+}
 function shortDay(name){ return name.slice(0,3); }
 const CAT_ORDER = ["protein","vegetable","fruit","grain","fat","other"];
 
@@ -1135,9 +1272,21 @@ function homeStatus(key){
   const {short, last} = shortfall(key);
   if(!last) return {text:"not in this week's plan"};
   if(st.g===null) return {text:"needed this week"};
-  if(!short) return {text:"enough for the week"};
+  if(!short) return {text:lastsFor(key, st.g)};
   const today = short===DAY_ORDER[new Date().getDay()];
   return {text: today ? "runs out today" : "runs out " + shortDay(short), low:true};
+}
+
+/* A pack outlives the week, so say roughly how long: grams at home over
+   what a whole week of the plan uses. */
+function lastsFor(key, g){
+  let perWeek = 0;
+  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(i=>{ if(foodKey(i.name)===key) perWeek += gramsOf(i.qty) || 0; })));
+  const weeks = perWeek ? g / perWeek : Infinity;
+  if(weeks < 2) return "enough for the week";
+  if(weeks < 4) return "lasts about " + Math.floor(weeks) + " weeks";
+  if(weeks < 6) return "lasts about a month";
+  return "lasts over a month";
 }
 
 /* the earliest day anything in the week runs short */
@@ -1236,9 +1385,9 @@ function renderKitchen(){
     row.innerHTML = `<label><input type="checkbox">
         <span class="k-main"><span class="k-name"><span class="tag-dot" style="background:${color}"></span>${n.name}</span>
         <span class="k-sub">${sub}</span></span></label>
-      <span class="k-amt">${amt===null ? "buy" : "buy " + fmtG(amt)}</span>`;
+      <span class="k-amt">${amt===null ? "" : buyPacks(n.name, amt).label}</span>`;
     row.querySelector("input").setAttribute("aria-label", "Bought " + n.name);
-    row.querySelector("input").addEventListener("change", ()=>{ addToStock(n.key, n.name, amt); renderKitchen(); });
+    row.querySelector("input").addEventListener("change", ()=>{ addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g); renderKitchen(); });
     list.appendChild(row);
   });
 
@@ -1488,7 +1637,8 @@ function startNewWeek(){
   state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>{ item.eaten=false; delete item.took; })));
   state.manualCovered = {};
   state.extras.forEach(x=>x.checked=false);
-  state.weekStarted = new Date().toISOString().slice(0,10);
+  state.weekStarted = todayISO();
+  currentDay = dayDisplayOrder()[0];   // the new week starts today
 
   save();
   renderDayContent();
@@ -1798,12 +1948,11 @@ function applyDraft(){
   if(!confirm("Replace your current meal plan with this generated week? Eaten checkmarks will be cleared.")) return;
 
   state.plan = draft;   // stock and extras stay: the food at home doesn't change
-  state.weekStarted = new Date().toISOString().slice(0,10);
+  state.weekStarted = todayISO();
   save();
 
   draft = null;
   currentDay = dayDisplayOrder()[0];
-  renderDayTabs();
   renderDayContent();
   renderKitchen();
   renderVariety();
@@ -1817,7 +1966,7 @@ function applyDraft(){
 const CARDS = ["meals","food","variety","plan"];
 
 function renderCard(name){
-  if(name==="meals"){ renderDayTabs(); renderDayContent(); }
+  if(name==="meals")   renderDayContent();
   if(name==="food")    renderKitchen();
   if(name==="variety") renderVariety();
   if(name==="plan")    renderCreate();
@@ -1978,7 +2127,6 @@ function initMascot(){
 /* ---------- init ---------- */
 currentDay = dayDisplayOrder()[0];
 
-renderDayTabs();
 renderDayContent();
 renderKitchen();
 renderVariety();
