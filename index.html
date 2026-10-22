@@ -12,11 +12,11 @@
 <meta name="apple-mobile-web-app-title" content="Chicho">
 <meta name="theme-color" content="#DCD5C4">
 <meta name="color-scheme" content="light">
+<link rel="preload" href="bg.jpg" as="image">
 <style>
   :root{
-    /* the background's palette, sampled from Marta's grain gradient */
-    --cream:#DCD5C4; --mauve:#D0B7CD; --cyanbg:#14B9E5; --bluebg:#5E9FEB; --lilac:#AFA4D9;
-    --pinkbg:#E5AEBD; --orangebg:#EE9217; --yellowbg:#EFB10C; --mintbg:#51E7C4; --tealbg:#64D8D3; --lime:#E5F486;
+    /* the background: Marta's gradient image (bg.jpg) */
+    --cream:#DBD3C6;   /* the image's top edge, shown until bg.jpg arrives */
 
     /* time of day: tints laid over the gradient (see .tod below) */
     --tod-dawn:rgba(255,196,164,.55);     /* soft peach */
@@ -90,20 +90,24 @@
   :focus{outline:none;}
   :focus-visible{outline:3px solid var(--tint);outline-offset:2px;}
 
-  /* ---------- background (kept) ---------- */
+  /* ---------- background: Marta's gradient image ----------
+     The image itself (bg.jpg, her file untouched, grain and all), covering
+     the screen, drifting very slowly: a 3-4 minute push-and-settle on
+     transform only, paused when the tab is hidden, still under reduced
+     motion. Until it arrives the page is the image's own top colour. */
   .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--cream);}
-  .blob{
-    position:absolute;border-radius:50%;translate:-50% -50%;
-    background:radial-gradient(closest-side, var(--c) 0%, color-mix(in srgb, var(--c) 60%, transparent) 45%, transparent 100%);
-    animation:drift var(--t) ease-in-out infinite alternate;
-    will-change:transform;
-    transition:opacity 60s linear;
+  .bg-img{
+    position:absolute;inset:-6%;background:url("bg.jpg") center / cover no-repeat;
+    animation:drift 220s ease-in-out infinite alternate;will-change:transform;
   }
-  /* the tab is hidden: nothing moves */
-  .tab-hidden .blob{animation-play-state:paused;}
-  /* Time of day: one tint per moment over the gradient, crossfading slowly
-     (60 s) when the hour turns. Midday is the gradient as it is; evening
-     dims the blobs as well, like the light going. */
+  @keyframes drift{
+    from{transform:translate(0,0) scale(1);}
+    to{transform:translate(-2.5%,1.5%) scale(1.06);}
+  }
+  .tab-hidden .bg-img{animation-play-state:paused;}
+  /* Time of day: one tint per moment over the image, crossfading slowly
+     (60 s) when the hour turns. Midday is the image as it is; evening is a
+     deep calm blue that lets the colour glow through, dimmed. */
   .tod{position:absolute;inset:0;opacity:0;transition:opacity 60s linear;}
   .tod-dawn{background:linear-gradient(180deg, var(--tod-dawn), rgba(255,214,190,.25) 60%, rgba(255,230,210,.1));mix-blend-mode:soft-light;}
   .tod-dawn-wash{background:linear-gradient(180deg, rgba(255,205,180,.38), rgba(255,225,205,.12) 70%);}
@@ -113,31 +117,7 @@
   [data-tod="dawn"] .tod-dawn, [data-tod="dawn"] .tod-dawn-wash,
   [data-tod="golden"] .tod-golden, [data-tod="golden"] .tod-golden-wash,
   [data-tod="evening"] .tod-evening{opacity:1;}
-  [data-tod="evening"] .blob{opacity:.55;}
-  .tod-instant .tod, .tod-instant .blob{transition:none;}
-  .b-mauve {--c:var(--mauve);   left:100%; top:2%;  width:80vmax; height:60vmax; --t:170s;  --dx:-4vw; --dy:3vh;}
-  .b-cyan  {--c:var(--cyanbg);  left:0%;   top:36%; width:85vmax; height:60vmax; --t:220s;  --dx:6vw;  --dy:-3vh;}
-  .b-blue  {--c:var(--bluebg);  left:100%; top:42%; width:80vmax; height:55vmax; --t:200s;  --dx:-6vw; --dy:2vh;}
-  .b-lilac {--c:var(--lilac);   left:78%;  top:47%; width:45vmax; height:40vmax; --t:150s;  --dx:-3vw; --dy:-2vh;}
-  .b-mint  {--c:var(--mintbg);  left:0%;   top:74%; width:80vmax; height:50vmax; --t:210s;  --dx:5vw;  --dy:2vh;}
-  .b-teal  {--c:var(--tealbg);  left:100%; top:80%; width:70vmax; height:45vmax; --t:180s;  --dx:-5vw; --dy:-2vh;}
-  .b-lime  {--c:var(--lime);    left:45%;  top:104%;width:190vw;  height:46vh;   --t:240s; --dx:4vw;  --dy:-1vh;}
-  .b-pink  {--c:var(--pinkbg);  left:50%;  top:52%; width:95vw;   height:48vh;   --t:140s;  --dx:-3vw; --dy:2vh;}
-  .b-orange{--c:var(--orangebg);left:50%;  top:47%; width:58vw;   height:24vh;   --t:130s;  --dx:3vw;  --dy:1vh;}
-  .b-yellow{--c:var(--yellowbg);left:50%;  top:55%; width:56vw;   height:22vh;   --t:120s;  --dx:-2vw; --dy:-1vh;}
-  @keyframes drift{
-    from{transform:translate(0,0) scale(1);}
-    to{transform:translate(var(--dx),var(--dy)) scale(1.08);}
-  }
-  .bg::before, .bg::after{content:"";position:absolute;inset:0;mix-blend-mode:overlay;}
-  .bg::before{
-    opacity:.9;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 2.4 -.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-  .bg::after{
-    opacity:.55;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
+  .tod-instant .tod{transition:none;}
 
   /* ---------- navigation: large title + the iOS 26 scroll edge ----------
      Content scrolling under the status bar softens into a glass edge
@@ -365,7 +345,7 @@
      Full screen over the gradient, one question per screen on one big white
      card (so no text ever sits on the colour). Back and the progress dots
      float above the card; the step slides and fades as you move, and the
-     gradient's blobs speed up for a moment, like moving through the sky. */
+     background image drifts faster for a moment, like moving through the sky. */
   .onb-open{overflow:hidden;}
   .onb-open .container, .onb-open .scroll-edge{visibility:hidden;}
   .onb{position:fixed;inset:0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
@@ -571,7 +551,7 @@
   .hhead.static{cursor:default;}
   .hhead.static::after{content:none;}
   .hero .hhead{font-size:var(--fs-display);}
-  .hero .fan{margin:6px 0 0;padding-top:14px;}
+  .hero .fan{margin:6px 0 0;padding:14px 18px 8px;}   /* room for the outer tiles to tilt */
   .hero-line{margin:14px 2px 0;font-size:17px;line-height:1.45;color:var(--ink);}
   .hero-line:empty{display:none;}
   .hero .pill{margin-top:16px;width:100%;}
@@ -744,7 +724,7 @@
   @keyframes pop{from{transform:scale(.6);}}
   @keyframes band-in{from{transform:scaleX(0);}}
   @media (prefers-reduced-motion: reduce){
-    .blob,
+    .bg-img,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
     .float .tile-art, .al-tile.bump, .sheet-body.enter > *{animation:none;}
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
@@ -753,11 +733,9 @@
 </style>
 </head>
 <body>
-<!-- the background: Marta's gradient rebuilt as drifting blobs, grain on top -->
+<!-- the background: Marta's gradient image, drifting slowly, with a tint for the time of day -->
 <div class="bg" aria-hidden="true">
-  <i class="blob b-mauve"></i><i class="blob b-cyan"></i><i class="blob b-blue"></i><i class="blob b-lilac"></i>
-  <i class="blob b-mint"></i><i class="blob b-teal"></i><i class="blob b-lime"></i>
-  <i class="blob b-pink"></i><i class="blob b-orange"></i><i class="blob b-yellow"></i>
+  <i class="bg-img"></i>
   <i class="tod tod-dawn"></i><i class="tod tod-dawn-wash"></i><i class="tod tod-golden"></i><i class="tod tod-golden-wash"></i><i class="tod tod-evening"></i>
 </div>
 <script>
@@ -3236,7 +3214,7 @@ function finishOnboarding(){
 /* the gradient hurries for a moment, as if we were moving through it */
 function rushSky(){
   if(calm()) return;
-  document.querySelectorAll(".blob").forEach(b=>b.getAnimations().forEach(a=>{
+  document.querySelectorAll(".bg-img").forEach(b=>b.getAnimations().forEach(a=>{
     a.playbackRate = 14;
     setTimeout(()=>{ a.playbackRate = 6; }, 160);
     setTimeout(()=>{ a.playbackRate = 1; }, 420);
