@@ -148,6 +148,8 @@
   .acc-body .card{background:none;box-shadow:none;border-radius:0;padding:12px 0 0;margin:12px 0 0;border-top:1px solid var(--line);}
   .acc-body > .card:first-child{border-top:none;margin-top:0;padding-top:0;}
   .acc-body .daytabs{margin:0 -14px;}
+  .acc-body .daytab::before{background:var(--bg);}   /* the days need a tone of their own on a white card */
+  .acc-body .daytab.active::before{background:var(--mascot);}
   @media (prefers-reduced-motion: reduce){
     .acc-chev{transition:none;}
   }
@@ -162,6 +164,12 @@
   .item-row input[type=checkbox]{width:19px;height:19px;flex:0 0 auto;accent-color:var(--good);}
   .tag-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
   .qty{font-size:12px;color:var(--muted);white-space:nowrap;}
+  /* at home or to buy, right on the meal */
+  .have-chip{font-size:12px;font-weight:600;color:#5b7458;white-space:nowrap;padding:0 2px;}
+  .buy-chip{
+    border:none;border-radius:999px;background:var(--warn-bg);color:#8a5a1f;
+    font-size:12px;font-weight:700;white-space:nowrap;min-height:32px;padding:6px 10px;
+  }
   .icon-btn{
     border:none;background:none;color:var(--muted);font-size:15px;padding:4px 6px;
   }
@@ -205,7 +213,6 @@
   .ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;}
 
   /* ---------- kitchen ---------- */
-  .kitchen-sum{font-size:13px;color:var(--ink);margin:10px 0 0;}
   .k-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line);min-height:52px;}
   .k-row:first-child, .k-group + .k-row{border-top:none;}
   #toBuyList > .k-group:first-child{margin-top:2px;}
@@ -313,7 +320,6 @@
     <div class="acc-body" id="body-food" role="region" aria-labelledby="head-food" hidden>
     <div class="card">
       <div class="chips" id="windowChips" role="group" aria-label="Shop for"></div>
-      <p class="kitchen-sum" id="kitchenSummary"></p>
     </div>
     <div class="card">
       <div class="section-title" id="toBuyTitle">To buy</div>
@@ -881,12 +887,19 @@ function renderDayHeader(){
   document.getElementById("dayHeader").textContent = formatDate(dateForDay(currentDay));
 }
 
+function haveChip(c, name){
+  if(!c) return "";   // eaten: nothing left to check
+  if(c.have) return `<span class="have-chip">have</span>`;
+  return `<button type="button" class="buy-chip" data-buy aria-label="Mark ${name} bought">${c.buy===null ? "buy" : "buy " + fmtG(c.buy)}</button>`;
+}
+
 function renderDayContent(){
   const day = state.plan.days[currentDay];
   const wrap = document.getElementById("dayContent");
   renderDayHeader();
   wrap.innerHTML = "";
 
+  const cover = coverOnPlan();
   day.meals.forEach((m, mi)=>{
     const block = document.createElement("div");
     block.className = "meal-block";
@@ -904,7 +917,13 @@ function renderDayContent(){
         <input type="checkbox" ${item.eaten?"checked":""} data-id="${item.id}">
         <label><span class="tag-dot" style="background:${dotColor}"></span><span>${item.name}${item.tex ? ` <span class="tex">${item.tex}</span>` : ""}</span></label>
         <span class="qty">${item.qty||""}</span>
-        <button class="icon-btn" data-del="${item.id}">✕</button>`;
+        ${haveChip(cover[item.id], item.name)}
+        <button class="icon-btn" data-del="${item.id}" aria-label="Remove ${item.name}">✕</button>`;
+      const buyBtn = row.querySelector("[data-buy]");
+      if(buyBtn) buyBtn.addEventListener("click", ()=>{
+        addToStock(foodKey(item.name), item.name, cover[item.id].buy);   // as if just bought
+        renderDayContent();
+      });
       row.querySelector("input").addEventListener("change", e=>{
         item.eaten = e.target.checked;
         useStock(item);
@@ -1022,6 +1041,27 @@ function coverage(){
   if(first===Infinity) return "everything's covered this week";
   if(first===0) return "you need to shop today";
   return "covered until " + shortDay(order[first-1]);
+}
+
+/* For every dish not yet eaten, from today on: covered by what's at home,
+   or how much is missing for this portion. Stock is spent in plan order, so
+   100 g of oatmeal at 40 g a day covers two days and leaves 20 g of the third
+   to buy. Plenty, or a "have" with no amount, always covers. */
+function coverOnPlan(){
+  const left = {}, out = {};
+  for(const idx of dayDisplayOrder()){
+    state.plan.days[idx].meals.forEach(m=>m.items.forEach(item=>{
+      if(item.eaten) return;
+      const k = foodKey(item.name), st = state.stock[k];
+      if(st && (st.plenty || st.g===null)){ out[item.id] = {have:true}; return; }
+      const g = gramsOf(item.qty);
+      if(g===null){ out[item.id] = st && st.g>0 ? {have:true} : {buy:null}; return; }
+      if(!(k in left)) left[k] = st ? st.g : 0;
+      if(left[k] >= g - 0.5){ left[k] -= g; out[item.id] = {have:true}; }
+      else{ out[item.id] = {buy: Math.ceil(g - Math.max(0, left[k]))}; left[k] = 0; }
+    }));
+  }
+  return out;
 }
 
 /* Eating takes the portion out of what's at home; un-ticking puts back
@@ -1186,8 +1226,6 @@ function renderKitchen(){
     }
   }));
 
-  document.getElementById("kitchenSummary").textContent =
-    `${buyCount} to buy · ${home.length} at home · ${coverage()}`;
   renderSummaries();
 }
 
@@ -1721,7 +1759,13 @@ function renderSummaries(){
   document.getElementById("sum-variety").textContent = `${covered} of ${total} foods this week`;
   document.getElementById("sum-plan").textContent = `${ageLabel(state.createAge)} · ${stageNow().name}`;
 }
-function mealsBuyNote(){ return ""; }   // filled in by the have/buy chips
+function mealsBuyNote(){
+  const cover = coverOnPlan();
+  const open = state.plan.days[currentDay].meals.flatMap(m=>m.items).filter(i=>!i.eaten);
+  if(!open.length) return "";
+  const n = open.filter(i=>cover[i.id] && !cover[i.id].have).length;
+  return n ? ` · ${n} to buy` : " · all at home";
+}
 
 /* ---------- floating mascot ---------- */
 const mascot = document.getElementById("mascot");
