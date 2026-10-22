@@ -418,6 +418,65 @@
   .preview-line .lbl{flex:0 0 92px;color:var(--label-2);}
   .preview-line .foods{flex:1;}
 
+  /* ---------- card system ----------
+     White cards, 28px corners, a soft diffuse shadow. The headline is big,
+     bold, olive and tightly tracked, and ends in an arrow; the whole card
+     answers a press (scale .985 here, .97 on smaller controls) and springs
+     back. Inside, groups are a whisper of olive rather than more white. */
+  .cal, .acc{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card);}
+  .acc{overflow:visible;transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out);}
+  .acc:has(> .acc-head:active){transform:scale(.985);box-shadow:var(--shadow-tile);transition-duration:var(--dur-1);}
+  .acc-head{padding:22px 22px 4px;}
+  .acc-title{
+    font-size:30px;font-weight:800;letter-spacing:var(--track-display);line-height:1.05;color:var(--olive-700);
+    display:inline-flex;align-items:baseline;gap:.3em;
+  }
+  /* the arrow: points on, and turns down while the card is open */
+  .acc-title::after{
+    content:"→";font-weight:700;display:inline-block;transition:transform var(--dur-3) var(--spring);
+  }
+  .acc.open .acc-title::after{transform:rotate(90deg);}
+  .acc-head:hover .acc-title::after{transform:translateX(3px);}
+  .acc.open .acc-head:hover .acc-title::after{transform:rotate(90deg) translateX(3px);}
+  .acc-x{display:none;}
+  .acc-sum{margin-top:6px;}
+  .acc-meter{margin:12px 22px 18px;background:var(--olive-100);}
+  .acc-meter i, #card-meals .acc-meter i, #card-variety .acc-meter i{background:var(--olive-500);}
+  .acc-pad{padding:0 18px 8px;}
+  .card, .meal-block{background:var(--olive-50);}
+  .row-fg{background:var(--olive-50);}
+  .cal-cell.band, .cal-cell.first, .cal-cell.last{--tint-soft:var(--olive-100);}
+  .cal-cell.first .cal-day, .cal-cell.last .cal-day{background:var(--olive-700);}
+  .cal-dot{background:var(--olive-500);}
+
+  /* ---------- the fan ----------
+     A fan of rounded tiles, each slightly rotated and overlapping its
+     neighbour. A tile is a photo when there is one, otherwise a soft pastel
+     of its food group with a big emoji. Hover, focus or a tap straightens
+     it and lifts it to the front; on first paint the tiles fan in one by
+     one (Web Animations, 70 ms apart). */
+  .fan{display:flex;justify-content:center;align-items:flex-end;padding:20px 8px 8px;margin:0 22px;min-height:150px;}
+  .tile{
+    --r:0deg;position:relative;flex:0 0 auto;width:min(30%, 124px);margin:0 -9px;padding:0;border:none;background:none;
+    font:inherit;color:inherit;text-align:left;cursor:pointer;transform:rotate(var(--r));transform-origin:50% 90%;
+    transition:transform var(--dur-3) var(--spring), z-index 0s var(--dur-2);
+  }
+  .tile-art{
+    position:relative;display:grid;place-items:center;aspect-ratio:4 / 5;border-radius:var(--r-tile);background:var(--soft, var(--olive-100));
+    box-shadow:var(--shadow-tile);overflow:hidden;transition:box-shadow var(--dur-3) var(--ease-out);
+  }
+  .tile-art img{width:100%;height:100%;object-fit:cover;}
+  .tile-emoji{font-size:46px;line-height:1;filter:drop-shadow(0 6px 8px rgba(40,46,30,.18));}
+  /* the meal's name rides inside the tile, so overlapping tiles never collide */
+  .tile-slot{position:absolute;left:2px;right:2px;bottom:12px;text-align:center;font-size:12px;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap;}
+  .tile-emoji{margin-bottom:14px;}
+  .tile:hover, .tile:focus-visible, .tile.lift{transform:rotate(0) translateY(-10px) scale(1.04);z-index:2;transition:transform var(--dur-3) var(--spring), z-index 0s;}
+  .tile:hover .tile-art, .tile:focus-visible .tile-art, .tile.lift .tile-art{box-shadow:var(--shadow-lift);}
+  .tile:active{transform:rotate(0) translateY(-6px) scale(.97);transition-duration:var(--dur-1);}
+  .tile:focus-visible{outline:none;}
+  .tile:focus-visible .tile-art{outline:3px solid var(--olive-700);outline-offset:3px;}
+  .fan-empty{font-size:var(--fs-body);color:var(--muted);text-align:center;padding:20px 22px;}
+
   /* ---------- desktop: all four sections in one view ---------- */
   @media (min-width:1200px){
     body{padding-bottom:0;}
@@ -496,6 +555,7 @@ function timeOfDay(d){
     <button class="acc-head" id="head-meals" aria-expanded="false" aria-controls="body-meals">
       <span class="acc-title">Meals</span><span class="acc-sum" id="sum-meals"></span><span class="acc-x" aria-hidden="true"></span>
     </button>
+    <div class="fan" id="todayFan" role="group" aria-label="Today's meals"></div>
     <div class="acc-meter" aria-hidden="true"><i id="meter-meals"></i></div>
     <div class="acc-body" id="body-meals" role="region" aria-labelledby="head-meals" inert><div class="acc-inner"><div class="acc-pad">
     <div id="dayContent"></div>
@@ -1019,6 +1079,72 @@ function addForm(key, opts){
 
 const CAT_OPTIONS = Object.entries(CATS).map(([k,v])=>[k, v.label]);
 
+/* ---------- the fan: today's meals as tilted tiles ----------
+   Each tile shows the meal's main food: a photo if the item carries one
+   (item.photo), otherwise a big emoji on its food group's pastel. */
+const FOOD_EMOJI = {
+  "egg":"🥚","chicken":"🍗","turkey":"🦃","beef":"🥩","beef meatballs":"🧆","salmon":"🐟","white fish":"🐟",
+  "lentils":"🫘","chickpeas":"🫘","tofu":"🍢","greek yogurt":"🥛","cottage cheese":"🥛","ricotta":"🥛","cheese":"🧀",
+  "carrots":"🥕","sweet potato":"🍠","pumpkin":"🎃","butternut squash":"🎃","zucchini":"🥒","green beans":"🫛","peas":"🫛",
+  "cauliflower":"🥦","potato":"🥔","spinach":"🥬","beetroot":"🟣","cucumber":"🥒","tomato":"🍅",
+  "banana":"🍌","pear":"🍐","apple":"🍎","apple purée":"🍎","peach":"🍑","plum":"🟣","mango":"🥭","melon":"🍈","kiwi":"🥝",
+  "blueberries":"🫐","strawberries":"🍓","raspberries":"🍓","grapes":"🍇",
+  "oatmeal":"🥣","oats":"🥣","baby rice cereal":"🥣","whole wheat toast":"🍞","whole wheat pasta":"🍝","pasta":"🍝",
+  "rice":"🍚","quinoa":"🍚","couscous":"🍚",
+  "avocado":"🥑","olive oil":"🫒","chia seeds":"🌱","peanut butter":"🥜","smooth peanut butter":"🥜","hummus":"🫘"
+};
+const CAT_EMOJI = {protein:"🍽️", vegetable:"🥕", fruit:"🍓", grain:"🥣", fat:"🥑"};
+function emojiFor(item){
+  const base = foodKey(item.name).split(",")[0].trim();
+  return FOOD_EMOJI[base] || CAT_EMOJI[item.cats[0]] || "🍽️";
+}
+/* breakfast, lunch, dinner, and the first snack if the stage has snacks */
+function fanMeals(day){
+  const main = day.meals.filter(m=>m.label!=="Snack");
+  const snack = day.meals.find(m=>m.label==="Snack");
+  const picked = snack ? [main[0], snack, ...main.slice(1)] : main;
+  return picked.filter(Boolean).slice(0, 4);
+}
+const FAN_TILT = {1:[0], 2:[-5,5], 3:[-7,1,7], 4:[-8,-3,3,8]};
+let fanDrawn = false;
+function renderFan(){
+  const wrap = document.getElementById("todayFan");
+  const dayIdx = dayDisplayOrder()[0], day = state.plan.days[dayIdx];
+  const meals = day ? fanMeals(day).filter(m=>m.items.length) : [];
+  wrap.innerHTML = "";
+  if(!meals.length){ wrap.innerHTML = `<p class="fan-empty">Nothing planned for today yet.</p>`; return; }
+  const tilt = FAN_TILT[meals.length];
+  meals.forEach((m, k)=>{
+    const main = m.items[0];
+    const t = document.createElement("button");
+    t.type = "button";
+    t.className = "tile";
+    t.style.setProperty("--r", tilt[k] + "deg");
+    t.style.setProperty("--soft", `var(--${main.cats[0]}-soft, var(--olive-100))`);
+    const art = main.photo ? `<img src="${main.photo}" alt="">` : `<span class="tile-emoji" aria-hidden="true">${emojiFor(main)}</span>`;
+    t.innerHTML = `<span class="tile-art">${art}<span class="tile-slot">${m.label}</span></span>`;
+    t.setAttribute("aria-label", `${m.label}: ${m.items.map(i=>i.name).join(", ")}`);
+    // until meal sheets exist (commit 6), a tile opens today in Meals
+    t.addEventListener("click", ()=>{
+      t.classList.add("lift"); setTimeout(()=>t.classList.remove("lift"), 260);
+      currentDay = dayIdx;
+      if(state.openCard!=="meals" && !desk.matches) openCard("meals"); else renderDayContent();
+    });
+    wrap.appendChild(t);
+  });
+  if(!fanDrawn){
+    fanDrawn = true;
+    const tiles = [...wrap.children];
+    tiles.forEach((t, k)=>{
+      const end = getComputedStyle(t).transform;
+      const frames = calm()
+        ? [{opacity:0}, {opacity:1}]
+        : [{transform:"translateY(28px) rotate(0deg) scale(.86)", opacity:0}, {transform:end, opacity:1}];
+      t.animate(frames, {duration: calm() ? 200 : 520, delay: k*70, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"backwards"});
+    });
+  }
+}
+
 /* ---------- view switching ---------- */
 let currentDay = 0;
 
@@ -1263,6 +1389,7 @@ function renderDayContent(){
     wrap.appendChild(block);
   });
   justChanged = null;
+  renderFan();
   renderSummaries();
 }
 
