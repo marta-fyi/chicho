@@ -265,7 +265,7 @@
     transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-2);
   }
   .chip.tap:active{transform:scale(.94);}
-  .chip.covered{background:var(--green-soft);color:#248A3D;}
+  .chip.covered{background:var(--olive-100);color:var(--olive-900);}   /* tasted: 9.4:1 */
   .chip.selected{background:var(--tint);color:#fff;}
   .chip .x{color:var(--muted);font-size:var(--fs-foot);}
   .suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px;font-size:var(--fs-foot);color:var(--label-2);}
@@ -705,6 +705,31 @@
   .sheet-body.enter > :nth-child(7){animation-delay:180ms;}
   .sheet-body.enter > :nth-child(8){animation-delay:210ms;}
 
+  /* ---------- micro-interactions ---------- */
+  .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}
+  .bp{position:absolute;left:0;top:0;display:block;opacity:0;}
+  .bp.leaf{width:12px;height:7px;border-radius:12px 0 12px 0;background:var(--olive-500);}
+  .bp.dot{width:6px;height:6px;border-radius:50%;background:var(--grain);}
+  .bp.star{width:9px;height:9px;background:var(--fruit);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);}
+  /* every row answers a press at once, then springs back */
+  .set-row, .vg-row, .dc-meal, .k-stock, .history-row{transition:transform var(--dur-1) var(--ease-out), background-color var(--dur-1);}
+  .set-row:active, .vg-row:active, .dc-meal:active, .k-stock:active{transform:scale(.985);background-color:var(--olive-50);}
+  /* a sheet's rows and chips arrive in a short stagger (at most eight) */
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal):nth-child(-n+8){animation:rise var(--dur-3) var(--spring) both;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(2){animation-delay:40ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(3){animation-delay:80ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(4){animation-delay:120ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(5){animation-delay:160ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(6){animation-delay:200ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(7){animation-delay:240ms;}
+  .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip):nth-child(8){animation-delay:280ms;}
+  /* a day's ring completing on the home strip */
+  .wd.complete .ring{animation:ring-done 800ms var(--spring);}
+  @keyframes ring-done{0%{transform:scale(1);} 35%{transform:scale(1.22) rotate(-8deg);} 100%{transform:scale(1);}}
+  .ate button[aria-pressed="true"]{animation:pop var(--dur-3) var(--spring);}
+  /* the bought tick pops and the strike draws */
+  .k-row.just input[type=checkbox]:checked::before{animation:tick-pop var(--dur-3) var(--spring);}
+
   /* ---------- wide screens: the main column and a small rail ---------- */
   @media (min-width:1024px){
     .container{max-width:880px;padding:0 24px;}
@@ -726,7 +751,9 @@
   @media (prefers-reduced-motion: reduce){
     .bg-img,
     .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
-    .float .tile-art, .al-tile.bump, .sheet-body.enter > *{animation:none;}
+    .float .tile-art, .al-tile.bump, .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .set-row, .chip, .dc-meal),
+    .wd.complete .ring, .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
+    .set-row, .vg-row, .dc-meal, .k-stock, .history-row, .k-name{transition:none;}
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
@@ -1777,6 +1804,33 @@ function renderDayContent(){
   renderSummaries();
 }
 
+/* A tiny celebration: six leaves and sparkles burst from a point and
+   settle (transform and opacity only, 600 ms, never in the way of a tap).
+   With reduced motion, nothing moves; the words carry the moment. */
+function burst(from){
+  if(calm() || !from || !from.getBoundingClientRect) return;
+  const r = from.getBoundingClientRect(), x = r.left + r.width/2, y = r.top + r.height/2;
+  const layer = document.createElement("div");
+  layer.className = "burst"; layer.setAttribute("aria-hidden", "true");
+  layer.style.left = x + "px"; layer.style.top = y + "px";
+  const shapes = ["leaf","dot","leaf","star","leaf","dot"];
+  shapes.forEach((sh, k)=>{
+    const p = document.createElement("i");
+    p.className = "bp " + sh;
+    layer.appendChild(p);
+    const a = (k/shapes.length)*Math.PI*2 - Math.PI/2 + (Math.random()-.5)*.5, d = 26 + Math.random()*18;
+    p.animate([
+      {transform:"translate(-50%,-50%) scale(.3) rotate(0deg)", opacity:0},
+      {transform:`translate(calc(-50% + ${Math.cos(a)*d*.6}px), calc(-50% + ${Math.sin(a)*d*.6}px)) scale(1) rotate(${k*40}deg)`, opacity:1, offset:.35},
+      {transform:`translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d + 8}px)) scale(.6) rotate(${k*70}deg)`, opacity:0}
+    ], {duration:620, easing:"cubic-bezier(.2,.8,.3,1)", fill:"forwards"});
+  });
+  document.body.appendChild(layer);
+  setTimeout(()=>layer.remove(), 700);
+}
+/* a light tap of the phone where it's supported (never on its own) */
+function haptic(){ try{ if(navigator.vibrate) navigator.vibrate(8); }catch(e){} }
+
 /* a quiet line for screen readers after a mark ("Lunch: ate it") */
 function announce(text){
   const el = document.getElementById("liveStatus");
@@ -1825,8 +1879,15 @@ function renderMealSheet(body, arg){
         m.items.forEach(i=>setAte(i, next));
         m.items.forEach(i=>{ justChanged = i.id; });
         save();
-        announce(`${m.label}: ${next ? ATE_WORDS[next].toLowerCase() : "unmarked"}`);
+        const dayDone = day.meals.flatMap(x=>x.items).every(i=>i.ate);
+        announce(`${m.label}: ${next ? ATE_WORDS[next].toLowerCase() : "unmarked"}` + (next && dayDone ? `. ${pick(CONTENT.dayDone, "done")}` : ""));
+        if(next==="all" || next==="some"){ burst(b); haptic(); }
         renderDayContent();
+        if(next && dayDone){   // the day's ring completes on the home strip
+          const pos = dayDisplayOrder().indexOf(arg.day);
+          const wd = document.querySelectorAll("#weekStrip .wd")[pos];
+          if(wd){ wd.classList.add("complete"); setTimeout(()=>wd.classList.remove("complete"), 900); }
+        }
       });
       ate.appendChild(b);
     });
@@ -2156,6 +2217,7 @@ function renderKitchen(){
     row.querySelector("input").addEventListener("change", ()=>{
       row.classList.add("just", "bought");   // the tick pops, a short strike, then it slides off
       announce(`${n.name}: bought`);
+      burst(row.querySelector("input")); haptic();
       const go = ()=>leave(row, "right", ()=>{
         addToStock(n.key, n.name, amt===null ? null : buyPacks(n.name, amt).g);
         justChanged = n.key;   // it slides into Stock
@@ -2320,7 +2382,7 @@ function renderVariety(){ refreshSheet(); renderSummaries(); }
    percentages on show, nothing that reads like a grade) */
 function renderHistory(wrap){
   if(!state.history || state.history.length===0){
-    wrap.innerHTML = `<p class="empty">Past weeks will gather here.</p>`;
+    wrap.innerHTML = `<p class="empty">${CONTENT.pastWeeks}</p>`;
     return;
   }
   wrap.innerHTML = "";
@@ -2843,6 +2905,8 @@ function openCard(name){
 /* ---------- the week sheet: seven days to swipe through, and past weeks ---------- */
 function renderWeekSheet(body, arg){
   setSheetTitle("This week");
+  const all = dayDisplayOrder().flatMap(i=>state.plan.days[i].meals.flatMap(m=>m.items));
+  if(all.length && all.every(i=>i.ate)) body.insertAdjacentHTML("beforeend", `<p class="celebrate">${pick(CONTENT.weekDone, "week")}</p>`);
   const rail = document.createElement("div");
   rail.className = "days-rail";
   rail.setAttribute("role", "list");
@@ -2864,7 +2928,7 @@ function renderWeekSheet(body, arg){
       li.querySelector("button").addEventListener("click", ()=>showSheet("meal", {day:idx, meal:mi}));
       ul.appendChild(li);
     });
-    if(!ul.children.length) ul.innerHTML = `<li class="empty">Nothing planned.</li>`;
+    if(!ul.children.length) ul.innerHTML = `<li class="empty">${CONTENT.emptyDay}</li>`;
     rail.appendChild(card);
   });
   body.appendChild(rail);
@@ -3010,11 +3074,20 @@ function renderSummaries(){ renderHome(); }
    pick() chooses one per day, the same all day long, so nothing flickers
    between visits. More variants arrive with the content pass. */
 const CONTENT = {
-  greet:{morning:["Good morning"], afternoon:["Good afternoon"], evening:["Good evening"]},
+  greet:{
+    morning:["Good morning", "Morning", "Hello, early bird"],
+    afternoon:["Good afternoon", "Hello again", "Afternoon"],
+    evening:["Good evening", "Evening", "Hello, tonight"]
+  },
+  dayDone:["Every plate today is done. Lovely work.", "That's today, all marked. Rest easy.", "Today's table is cleared. Well done, you two."],
+  weekDone:["A whole week, every meal marked. That's something.", "Seven days, all done. Time for a fresh week?"],
+  firstLaunch:["Here's today. Tap a tile to see what's in it.", "Your first day. Tap any tile for the details."],
   rainbow:{none:"A rainbow waiting to begin", some:"A rainbow in progress", all:"A whole rainbow this week"},
-  shopDone:["All stocked up", "Nothing to pick up"],
+  shopDone:["All stocked up", "Nothing to pick up", "Kitchen's ready"],
   shopCelebrate:["All set. Nice shopping.", "Everything's in. Lovely.", "That's the lot. Enjoy the cooking."],
   empty:"Nothing planned yet. Want to set the table for the week?",
+  emptyDay:"Nothing planned for this day.",
+  pastWeeks:"Past weeks will gather here.",
   tips:[
     "Offer new foods 10–15 times. Refusal is normal.",
     "Eating together is the best lesson: they copy what you enjoy.",
@@ -3023,7 +3096,11 @@ const CONTENT = {
     "Let them decide how much. Your job is what and when.",
     "A familiar food on the plate makes a new one feel safer.",
     "Water in an open cup from 6 months, little sips at a time.",
-    "Iron loves vitamin C: pair lentils or spinach with fruit."
+    "Iron loves vitamin C: pair lentils or spinach with fruit.",
+    "Soft enough to squash between finger and thumb is soft enough for them.",
+    "Sit them upright and stay close while they eat.",
+    "Hunger comes and goes in waves. A small day is normal.",
+    "Serve the new food first, while they're curious."
   ]
 };
 function pick(list, key){
@@ -3056,6 +3133,10 @@ function heroLine(day){
   const fresh = day.meals.flatMap(m=>m.items).find(i=>!state.exposures[foodKey(baseName(i))]);
   if(fresh && Object.keys(state.exposures).length) lines.push(`Something new today: ${lower1(baseName(fresh))}. One curious taste is a win.`);
   if(bf) lines.push(`${dishName(bf)} to start the day.`);
+  if(lu && !lines.length) lines.push(`${dishName(lu, {afters:false})} for lunch today.`);
+  const items = day.meals.flatMap(m=>m.items);
+  if(items.length && items.every(i=>i.ate)) return pick(CONTENT.dayDone, "done");
+  if(!state.history.length && !Object.keys(state.exposures).length && state.profile.onboarded && lines.length<2) lines.push(pick(CONTENT.firstLaunch, "first"));
   return lines.length ? pick(lines, "hero") : "";
 }
 
