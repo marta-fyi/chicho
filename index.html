@@ -924,6 +924,7 @@ function renderDayContent(){
         <button class="icon-btn" data-del="${item.id}">✕</button>`;
       row.querySelector("input").addEventListener("change", e=>{
         item.eaten = e.target.checked;
+        useStock(item);
         save();
         renderDayContent();
       });
@@ -1037,6 +1038,22 @@ function coverage(){
   if(first===Infinity) return "everything's covered this week";
   if(first===0) return "you need to shop today";
   return "covered until " + shortDay(order[first-1]);
+}
+
+/* Eating takes the portion out of what's at home; un-ticking puts back
+   exactly what was taken (item.took), even if stock had hit zero. Plenty,
+   unmeasured stock and quantities not in grams are left alone. */
+function useStock(item){
+  const st = state.stock[foodKey(item.name)];
+  if(item.eaten){
+    const g = gramsOf(item.qty);
+    if(!st || st.plenty || st.g===null || g===null){ delete item.took; return; }
+    item.took = Math.min(st.g, g);
+    st.g -= item.took;
+  }else{
+    if(st && st.g!==null && item.took) st.g += item.took;
+    delete item.took;
+  }
 }
 
 function addToStock(key, name, grams){
@@ -1334,7 +1351,7 @@ function startNewWeek(){
   state.history.push({ weekOf: state.weekStarted, overallPct });
 
   // reset eaten flags + manual covers + ticked extras (stock stays: the food is still at home)
-  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>item.eaten=false)));
+  state.plan.days.forEach(day=>day.meals.forEach(m=>m.items.forEach(item=>{ item.eaten=false; delete item.took; })));
   state.manualCovered = {};
   state.extras.forEach(x=>x.checked=false);
   state.weekStarted = new Date().toISOString().slice(0,10);
