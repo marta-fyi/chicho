@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · touch tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Touch tests</h1>
+<p>One thumb, messy hands, no hover: manipulation and no tap highlight, a 100ms press state on every tappable, 44×44 targets everywhere (home and sheets), no two hit areas overlapping, 8px between side-by-side targets, the ring's tap target separate from its row. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`);
+    await wait(300);
+    d.querySelectorAll(".below").forEach(s => s.classList.add("in"));
+    const cs = el => w.getComputedStyle(el);
+    ok("touch-action: manipulation on the page and every button", cs(d.documentElement).touchAction === "manipulation" && $$("#home button").every(b => cs(b).touchAction === "manipulation"));
+    ok("no tap highlight", cs(d.documentElement).webkitTapHighlightColor === "rgba(0, 0, 0, 0)");
+    const rules = [...d.styleSheets[0].cssRules].map(r => r.cssText);
+    ok("every tappable has a press state: scale(.97) over 100ms", rules.some(t => /^:is\(button, a\[href\], \[role="button"\]\):not\(:disabled\):active \{ transform: scale\(0\.97\); transition: transform 100ms/.test(t)));
+    ok("…text actions inside a sentence can scale too (inline-block)", $$("#moment .btn-text").every(b => cs(b).display === "inline-block"));
+    ok("iOS :active switch: an empty touchstart listener on the document", /addEventListener\("touchstart", \(\)=>\{\}, \{passive:true\}\)/.test(await (await w.fetch("home.js")).text()));
+    ok("haptics are optional: no navigator.vibrate, nothing breaks", (() => { Object.defineProperty(w.navigator, "vibrate", {value: undefined, configurable: true}); try { E("haptic()"); return true; } catch (e) { return false; } })());
+    // hit areas: the box, or the 44px pad of a text action inside a sentence
+    const hit = b => { const r = b.getBoundingClientRect(); if (b.classList.contains("inline")) { const cy = r.top + r.height / 2; return {l: r.left - 4, r: r.right + 4, t: cy - 22, b: cy + 22, el: b}; } return {l: r.left, r: r.right, t: r.top, b: r.bottom, el: b}; };
+    const targets = scope => [...scope.querySelectorAll("button, a[href], input")].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0 && !b.closest("[hidden]") && b.id !== "kbProxy");
+    const overlaps = list => { const bad = []; for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) { const a = list[i], b = list[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue; if (a.l < b.r - .5 && b.l < a.r - .5 && a.t < b.b - .5 && b.t < a.b - .5) bad.push([a.el.className || a.el.tagName, b.el.className || b.el.tagName, a.el.textContent.slice(0, 14), b.el.textContent.slice(0, 14)]); } return bad; };
+    const home = targets($("#home")).filter(b => !b.matches(".blank-input")).map(hit);
+    ok("home: no two hit areas overlap (rings, rows, links)", overlaps(home).length === 0, overlaps(home).slice(0, 4));
+    const small = home.filter(h => !h.el.classList.contains("inline") && (h.b - h.t < 44 || h.r - h.l < 44));
+    ok("home: every target is at least 44×44, above and below the fold", small.length === 0, small.map(h => h.el.className + " " + Math.round(h.r - h.l) + "×" + Math.round(h.b - h.t)));
+    // side by side: at least 8px apart (the week strip is the logged exception: 7 × 44px in 350px)
+    const sideBySide = []; home.forEach(a => home.forEach(b => { if (a === b || a.el.closest("#weekStrip") || b.el.closest("#weekStrip")) return;
+      const sameRow = a.t < b.b - 4 && b.t < a.b - 4, gap = b.l - a.r; if (sameRow && gap >= 0 && gap < 8) sideBySide.push([a.el.className, b.el.className, Math.round(gap)]); }));
+    ok("home: side-by-side targets are at least 8px apart", sideBySide.length === 0, sideBySide.slice(0, 4));
+    // the ring sits on the right of its row, and the row's target stops before it
+    const rows = $$("#nextList .mrow, #earlierList .mrow");
+    ok("each row: its ring is on the right, outside the row's own target", rows.length > 0 && rows.every(r => { const b = r.querySelector(".mrow-btn").getBoundingClientRect(), g = r.querySelector(".ring-btn").getBoundingClientRect(); return g.left >= b.right + 8 && Math.round(g.right) === Math.round(r.getBoundingClientRect().right); }));
+    ok("…a 44px ring around a 28px circle", rows.every(r => { const g = r.querySelector(".ring-btn"); return g.getBoundingClientRect().width >= 44 && Math.round(g.querySelector("i").getBoundingClientRect().width) === 28; }));
+    // sheets
+    for (const kind of ["profile", "shop", "send", "people", "day"]) {
+      E(`openSheet('${kind}', {pos: 2})`); await wait(250);
+      const list = targets($("#sheet")).map(hit);
+      const s = list.filter(h => !h.el.classList.contains("inline") && !h.el.matches(".blank-input") && (h.b - h.t < 44 || h.r - h.l < 44));
+      ok(`${kind} sheet: every target 44×44, none overlapping`, s.length === 0 && overlaps(list.filter(h => !h.el.matches(".blank-input"))).length === 0, [s.map(h => h.el.className + " " + Math.round(h.r - h.l) + "×" + Math.round(h.b - h.t)), overlaps(list).slice(0, 3)]);
+      E("closeSheet(true)"); await wait(50);
+    }
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · touch";
+};
+</script>
+</body></html>

@@ -1361,6 +1361,8 @@ function scheduleTick(){
   clockTimer = setTimeout(()=>{ tick(); scheduleTick(); }, 60000 - (Date.now() % 60000) + 40);
 }
 
+/* iOS Safari applies :active only when the document listens for touches; this empty listener is the switch */
+document.addEventListener("touchstart", ()=>{}, {passive:true});
 /* ---------- init ---------- */
 (function init(){
   if(SNAPSHOT){

@@ -139,7 +139,7 @@ try{
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  html{background:var(--bg);}
+  html{background:var(--bg);touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;}
   /* the paper's grain: a static tile (img/grain.png, from tools/make-grain.py), never a live filter */
   html[data-theme="light"]{background-image:url("img/grain.png");background-size:128px 128px;}
   /* a phone column: one full-bleed column, never a horizontal scroll from 320px up;
@@ -525,7 +525,7 @@ try{
   .ring-btn[aria-pressed="true"] i::before{transform:scale(1);}
   .ring-btn[aria-pressed="true"] svg{opacity:1;}
   .ring-btn[aria-pressed="true"] svg .wipe{transform:translateX(100%);}
-  .ring-btn:active i{transform:scale(.9);}
+  
   /* while you're at it */
   .also{margin-top:24px;}
   .also-row{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:12px;padding:6px 0;}
@@ -717,6 +717,15 @@ try{
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
   }
+  /* touch: every tappable answers a press within 100ms (scale .97, transform only); iOS needs a touchstart
+     listener on the document for :active to apply (home.js adds one). Text actions inside a sentence become
+     inline-blocks so they can scale too. Nothing responds to hover (tools/check.mjs). */
+  :is(button, a[href], [role="button"], summary){touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  .btn-text.inline{display:inline-block;}
+  .btn-text.inline + .btn-text.inline{margin-left:8px;}   /* two text actions in one line: 8px between their 44px pads */
+  :is(button, a[href], [role="button"]):not(:disabled):active{transform:scale(.97);transition:transform 100ms var(--ease-out);}
+  .ring-btn:active{transform:none;}   /* the ring scales its circle instead (below), so its 44px pad doesn't move */
+  .ring-btn:not(:disabled):active i{transform:scale(.97);}
   /* last, so nothing above overrides it: a field is never under 16px (iOS zooms on focus below that) */
   .blank .blank-input{font-size:max(16px, 1em);}
   .pill-o.pill-edit{text-transform:none;letter-spacing:0;font-size:16px;}
