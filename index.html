@@ -259,6 +259,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
              max-height:calc(100% - 64px);overflow-y:auto;overscroll-behavior:contain;padding:18px var(--pad-r) calc(env(safe-area-inset-bottom) + 14px) var(--pad-l);}
   .onb-sheet.pad-sheet{z-index:3;}
   .sh-in{width:min(var(--col),100%);margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .sh-foot{display:flex;justify-content:center;margin-top:6px;}
   .sh-title{margin:0;font-size:20px;font-weight:500;letter-spacing:-.01em;}
   .sh-hint{margin:4px 0 0;font-size:15px;color:var(--ink-muted);}
   /* the black pill: every primary action in the new system */
@@ -368,6 +369,46 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .bd-field{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
   .bd-input{width:100%;min-height:52px;font-size:16px;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink);}
   @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.31));} .bd-sent{font-size:30px;} .bd-stage{min-height:132px;} }
+  /* Allergens: the sentence, the locked line, then the pile fills what's left (at least 280px) */
+  .al-sent{flex:none;margin-top:8px;}
+  .al-blank{display:inline-block;width:3.2ch;height:.1em;min-height:3px;margin:0 .1em;border-radius:2px;background:currentColor;vertical-align:-.06em;}
+  .al-line{flex:none;margin-top:8px;position:relative;z-index:2;}
+  .al-sent, .al-locked, .al-why, .al-note, .al-locked-open{position:relative;z-index:2;}
+  .al-locked{flex:none;margin:12px 0 0;font-size:14px;line-height:1.9;color:var(--ink-muted);text-wrap:balance;}
+  .lk{position:relative;display:inline-block;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer;
+      text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+  .lk::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:44px;translate:0 -50%;}
+  .lk[aria-expanded="true"]{color:var(--ink);}
+  .lk:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
+  .al-why{flex:none;margin:4px 0 0;min-height:1.5em;font-size:14px;line-height:1.5;color:var(--ink);}
+  .al-why:empty{min-height:0;}
+  .al-note{flex:none;margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted);}
+  .pile{position:relative;z-index:1;flex:1;min-height:280px;width:100%;margin-top:8px;}
+  .ab{position:absolute;left:0;top:0;width:92px;height:92px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;will-change:transform;}
+  .ab-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;border-radius:50%;border:1.5px solid var(--ink);}
+  .ab-l{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1.15;text-wrap:balance;max-width:100%;
+        display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+  .ab-s{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;}
+  .ab-s:empty{display:none;}
+  .ab[data-state="out"] .ab-in{background:var(--ink);color:var(--on-ink);}
+  .ab[data-state="out"] .ab-l{text-decoration:line-through;text-decoration-thickness:1.5px;}
+  .ab[data-state="ok"] .ab-in{border-width:2px;}
+  .ab[data-state="ok"] .ab-l{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+  .ab.add .ab-in{border-style:dashed;}
+  .ab:focus-visible{outline:none;}
+  .ab:focus-visible .ab-in{outline:2px solid var(--ink);outline-offset:3px;}
+  .ab:active .ab-in{transform:scale(.97);}
+  /* reduced motion: the same buttons, wrapped and still */
+  .pile.still{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:12px;}
+  .pile.still .ab{position:relative;flex:none;}
+  .else-sheet .sh-sent{margin:4px 0 0;font-size:20px;font-weight:500;line-height:1.5;}
+  .lk-w{white-space:nowrap;}
+  .else-sheet .sh-input{width:9ch;min-height:44px;padding:0 4px;border:0;border-bottom:2px solid currentColor;border-radius:0;background:none;font-size:16px;text-align:center;}
+  .else-sheet .sh-input:focus{box-shadow:none;}
+  .else-sheet .kind-toggle{margin-top:14px;}
+  .else-sheet .btn-ink{width:100%;min-height:52px;margin-top:16px;}
+  .lk-list{margin:12px 0 0;padding:0;list-style:none;text-align:left;font-size:15px;line-height:1.5;}
+  .lk-list li + li{margin-top:8px;}
   /* pills: a thin black outline; on = black with white text */
   .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:28px;}
   .pill-o{
@@ -1332,6 +1373,7 @@ function freshProfile(){
   return {name:"", birthDate:null, onboarded:false, onboardingStep:0,
           allergens:{},      // {egg:"avoid"|"ok"}
           avoid:[],          // [{name, kind:"allergy"|"dislike"}]
+          fine:[],           // [{name}]: the family's own items marked "Tried, all fine" (not kept out)
           priorities:[],     // up to 3 PRIORITIES ids
           staples:[], remindAt:null, lastStage:null,
           mealTimes:{},      // the family's own times, {lunch:"12:00"}; the stage's defaults fill the rest
@@ -1442,6 +1484,7 @@ function migrate(saved){
   prof.avoid = (Array.isArray(prof.avoid) ? prof.avoid : [])
     .filter(a=>a && typeof a.name==="string" && a.name.trim())
     .map(a=>({name:a.name.trim(), kind:a.kind==="allergy" ? "allergy" : "dislike"}));
+  prof.fine = (Array.isArray(prof.fine) ? prof.fine : []).filter(a=>a && typeof a.name==="string" && a.name.trim()).map(a=>({name:a.name.trim()}));
   const al = {};
   Object.entries(prof.allergens || {}).forEach(([k,v])=>{ if(ALLERGENS.some(a=>a.id===k) && (v==="avoid" || v==="ok")) al[k] = v; });
   prof.allergens = al;

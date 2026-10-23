@@ -18,8 +18,6 @@ const STAPLES = [
   ["Sweet potatoes","Sweet potato"],["Carrots","Carrots, soft-cooked"],["Bananas","Banana"],["Apples","Apple, cooked"],
   ["Avocado","Avocado"],["Olive oil","Olive oil"]
 ];
-/* each allergen pill shows the drawing of a food that carries it, when there is one */
-const ALLERGEN_ART = {egg:"egg", milk:"milk", peanut:"peanut-butter", wheat:"toast", soy:"tofu", fish:"white-fish", sesame:"hummus"};
 let onb = {step:"draw", sub:null, dir:1, draft:null, revealed:false, kind:"allergy", adding:false, snapshot:null, welcomeBack:false};
 const S = key=>ONB_STEPS.indexOf(key);
 
@@ -82,6 +80,7 @@ function closeOnboarding(){
   document.body.classList.remove("onb-open");
   document.getElementById("app").inert = false; document.body.classList.remove("is-onb");
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  if(pile){ pile.stop(); pile = null; }
   onb.snapshot = null;
   homeChanged();
 }
@@ -136,7 +135,7 @@ function holdKeyboard(key, sub){
   p.focus({preventScroll:true});
 }
 /* the finished sentence slides up and fades; the next one rises in */
-function goStep(key, sub){
+function goStep(key, sub, opts){
   if(onb.single && (key==="end" || S(key) < S(onb.from) || S(key) > S(onb.through))){ save(); onb.snapshot = null; closeOnboarding(); return; }
   const card = document.getElementById("onbCard");
   onb.dir = S(key) > S(onb.step) || (key===onb.step && sub) ? 1 : -1;
@@ -151,7 +150,7 @@ function goStep(key, sub){
     focusStep();
   };
   holdKeyboard(key, sub);
-  if(calm()){ swap(); return; }
+  if(calm() || (opts && opts.instant)){ swap(); return; }
   const out = card.animate([{transform:"none", opacity:1}, {transform:`translateY(${-onb.dir*24}px)`, opacity:0}],
                            {duration:170, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"});
   out.onfinish = ()=>{ out.cancel(); swap(); };
@@ -195,6 +194,7 @@ function renderOnb(){
   el.classList.remove("has-field");
   card.scrollTop = 0;
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  if(pile){ pile.stop(); pile = null; }
   onbGlow(ONB_GLOW[key] || "grain");
   el.dataset.step = key;
   ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
@@ -334,6 +334,13 @@ function onbSheet(o){
     document.addEventListener("keydown", esc_);
   }
   host.appendChild(s);
+  if(o.modal){
+    // a visible way out, after the content (Esc and a tap outside close it too)
+    const foot = document.createElement("div");
+    foot.className = "sh-foot";
+    foot.appendChild(textButton(say("onb.close"), close, "small sh-close"));
+    s.appendChild(foot);
+  }
   const rise = ()=>{
     s.hidden = false;
     if(!calm()) s.animate([{transform:"translateY(105%)"}, {transform:"none"}], {duration:420, easing:"cubic-bezier(.25,1.1,.4,1)"});
@@ -756,94 +763,298 @@ function onbBirthday(card, P){
   check();
 }
 
-/* 4. keep out: "Keep these off the plate." Pills cycle neutral → keep out → tried and loved */
+/* 4. Allergens: "Hold the ____." The blank is the pile: ten circles that fall in, settle and can be tapped.
+   Each cycles Not yet → Keep out → Tried, all fine → Not yet (in words and type, never colour alone). A family's
+   own item ("Something else") starts at Keep out, then Tried, all fine, then goes. The DOM order is a fixed list,
+   so focus and screen readers never follow the physics. Reduced motion: the same buttons, wrapped, still. */
+const PILE_D = 92;   // a circle's diameter (never below 88)
+const PILE = {g:2400, e:.25, damp:.6, slop:.5, maxPush:6, passes:6, dt:1 / 120, sleepV:2, sleepMs:500, bounceV:80, friction:.8, restV:25, restK:.85, nudge:40};
+function mulberry32(a){ return ()=>{ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* the physics, DOM-free: circles under gravity between two walls and a floor. Positions are integrated, then pushed
+   apart (6 passes, bottom first, so the pile's weight reaches the floor); velocity is what moved. Only a real impact
+   bounces; a slow creep in a resting pile dies away (static friction), so the pile goes to sleep. */
+function pileStep(w){
+  const P = PILE, dt = P.dt, B = w.bodies.filter(b=>b.live);
+  B.forEach(b=>{
+    b.px = b.x; b.py = b.y;
+    b.vy += P.g * dt;
+    const k = Math.max(0, 1 - P.damp * dt); b.vx *= k; b.vy *= k;
+    b.pvx = b.vx; b.pvy = b.vy;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.hitF = b.hitW = b.touch = false;
+  });
+  B.sort((a, b)=>b.y - a.y);
+  for(let pass = 0; pass < P.passes; pass++){
+    for(let i = 0; i < B.length; i++){
+      const a = B[i];
+      for(let j = i + 1; j < B.length; j++){
+        const b = B[j], dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r, d2 = dx * dx + dy * dy;
+        if(d2 >= min * min || d2===0) continue;
+        const d = Math.sqrt(d2), o = min - d - P.slop;
+        if(o <= 0) continue;
+        const nx = dx / d, ny = dy / d, o2 = Math.min(o, P.maxPush);
+        a.touch = b.touch = true;
+        const wa = a.hitF ? .15 : .5, wb = b.hitF ? .15 : .5, s = wa + wb;
+        a.x -= nx * o2 * wa / s; a.y -= ny * o2 * wa / s;
+        b.x += nx * o2 * wb / s; b.y += ny * o2 * wb / s;
+      }
+      if(a.x - a.r < 0){ a.x = a.r; a.hitW = true; }
+      if(a.x + a.r > w.W){ a.x = w.W - a.r; a.hitW = true; }
+      if(w.floor && !a.free && a.y + a.r > w.H){ a.y = w.H - a.r; a.hitF = true; }
+    }
+  }
+  B.forEach(b=>{
+    b.vx = (b.x - b.px) / dt; b.vy = (b.y - b.py) / dt;
+    if(b.hitF){ b.vx *= P.friction; if(b.pvy > P.bounceV) b.vy = -b.pvy * P.e; }
+    if(b.hitW && Math.abs(b.pvx) > P.bounceV) b.vx = -b.pvx * P.e;
+    if((b.hitF || b.touch) && Math.hypot(b.vx, b.vy) < P.restV){ b.vx *= P.restK; b.vy *= P.restK; }
+  });
+  const fast = B.some(b=>Math.hypot(b.vx, b.vy) > P.sleepV) || w.bodies.some(b=>!b.live);
+  w.still = fast ? 0 : w.still + dt * 1000;
+  w.asleep = w.still >= P.sleepMs;
+  if(w.asleep) B.forEach(b=>{ b.vx = b.vy = 0; });
+  return w.asleep;
+}
+/* a body joins at (x, y), or just above anything already there, so nothing is born overlapping */
+function pileSpawn(w, b){
+  let y = b.y;
+  w.bodies.forEach(o=>{ if(o!==b && o.live && Math.abs(o.x - b.x) < o.r + b.r && y > o.y - o.r - b.r - 2) y = o.y - o.r - b.r - 2; });
+  b.y = y; b.vx = 0; b.vy = 0; b.live = true;
+}
+/* the pile in the page: a fixed 1/120 s step with an accumulator, translate3d per button, and no rAF at all while
+   it sleeps or the tab is hidden. pile.frames counts rAF callbacks (the tests check it stops). */
+let pile = null;
+function makePile(zone, els, seed){
+  const w = {W:0, H:0, floor:true, bodies:[], still:0, asleep:false};
+  const rnd = mulberry32(seed);
+  const p = {world:w, frames:0, running:false, raf:0, acc:0, last:0, t:0, onExit:null};
+  const size = ()=>{ const r = zone.getBoundingClientRect(); w.W = r.width; w.H = r.height; return r; };
+  const r0 = size();
+  const spawnY = -r0.top - 100 - PILE_D / 2;   // 100px above the top of the screen
+  const add = (el, at)=>{
+    const b = {el, r:PILE_D / 2, x:PILE_D / 2 + rnd() * Math.max(0, w.W - PILE_D), y:spawnY, vx:0, vy:0, live:false, at};
+    w.bodies.push(b);
+    el.style.transform = `translate3d(${(b.x - b.r).toFixed(1)}px, ${(b.y - b.r).toFixed(1)}px, 0)`;
+    return b;
+  };
+  els.forEach((el, k)=>add(el, k * 110));
+  const render = ()=>w.bodies.forEach(b=>{ b.el.style.transform = `translate3d(${(b.x - b.r).toFixed(1)}px, ${(b.y - b.r).toFixed(1)}px, 0)`; });
+  const step = ()=>{
+    w.bodies.forEach(b=>{ if(!b.live && p.t >= b.at) pileSpawn(w, b); });
+    p.t += PILE.dt * 1000;
+    return pileStep(w);
+  };
+  const frame = now_=>{
+    p.raf = 0; p.frames++;
+    if(document.hidden){ p.running = false; return; }
+    const dt = Math.min(.1, (now_ - (p.last || now_)) / 1000); p.last = now_;
+    p.acc += dt;
+    let asleep = false;
+    while(p.acc >= PILE.dt){ p.acc -= PILE.dt; asleep = step(); if(asleep) break; }
+    render();
+    if(p.exitAt && p.t >= p.exitAt){ p.running = false; const f = p.onExit; p.onExit = null; f && f(); return; }
+    if(asleep && !p.exitAt){ p.running = false; return; }
+    p.raf = requestAnimationFrame(frame);
+  };
+  p.wake = ()=>{ w.still = 0; w.asleep = false; if(p.running || !zone.isConnected) return; p.running = true; p.last = 0; p.acc = 0; p.raf = requestAnimationFrame(frame); };
+  p.stop = ()=>{ if(p.raf) cancelAnimationFrame(p.raf); p.raf = 0; p.running = false; };
+  /* the tests: run n steps (or until asleep) synchronously */
+  p.step = n=>{ for(let k = 0; k < n; k++) if(step()) break; render(); return w.asleep; };
+  p.settle = ()=>{ for(let k = 0; k < 120 * 30 && !w.asleep; k++) step(); render(); return w.asleep; };
+  p.add = el=>{ const b = add(el, p.t); b.y = spawnY; p.wake(); return b; };
+  p.remove = el=>{ w.bodies = w.bodies.filter(b=>b.el!==el); p.wake(); };
+  /* a tap: everything within reach is pushed gently outward */
+  p.nudge = el=>{
+    const a = w.bodies.find(b=>b.el===el);
+    if(!a) return;
+    w.bodies.forEach(b=>{ if(b===a || !b.live) return; const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+      if(d < a.r + b.r + 40){ b.vx += dx / d * PILE.nudge; b.vy += dy / d * PILE.nudge; b.px = b.x - b.vx * PILE.dt; b.py = b.y - b.vy * PILE.dt; } });
+    p.wake();
+  };
+  /* "Show the week": the floor opens, bottom first, a little apart, and everything falls out */
+  p.open = done=>{
+    const order = w.bodies.filter(b=>b.live).sort((a, b)=>b.y - a.y);
+    order.forEach((b, k)=>{ setTimeout(()=>{ b.free = true; b.vy = Math.max(b.vy, 200); p.wake(); }, k * 25); });
+    p.exitAt = p.t + 500; p.onExit = done;
+    p.wake();
+  };
+  new ResizeObserver(()=>{ const W0 = w.W; size(); if(w.W!==W0) w.bodies.forEach(b=>{ b.x = Math.min(b.x, w.W - b.r); }); p.wake(); }).observe(zone);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && zone.isConnected && !w.asleep) p.wake(); });
+  addEventListener("orientationchange", ()=>p.wake());
+  return p;
+}
+/* the locked line: the stage's list, each item a text button whose reason opens under the line, one at a time */
+const LOCKED_WORDS = {"honey":["honey"], "whole nuts":["nuts"], "whole grapes":["grapes"], "added salt and sugar":["salt","sugar"], "cow's milk as a drink":["cowsmilk"]};
+function lockedItems(months){
+  return stageFor(months).locked.split(", ").map(label=>({label, why:(LOCKED_WORDS[label] || []).map(id=>(LOCKED_RULES.find(r=>r.id===id) || {}).why).filter(Boolean).join(" ")}));
+}
 function onbKeepout(card, P){
+  const months = ageNow();
+  card.classList.add("fill", "al-step");
+  if(!Array.isArray(P.fine)) P.fine = [];
   const live = document.createElement("p");
   live.className = "sr-only"; live.setAttribute("aria-live", "polite");
+  // "Hold the ____." (the blank is the pile below it)
+  const [pre, post] = say("onb.keepOut.sentence").split("{blank}");
   const h = document.createElement("h1");
-  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.keepOut.title");
-  card.append(h, line(say("onb.keepOut.line")));
-  const pills = document.createElement("div");
-  pills.className = "pills";
-  const word = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.loved") : say("onb.keepOut.neutral");
+  h.className = "sent al-sent"; h.id = "onbTitle"; h.tabIndex = -1;
+  h.innerHTML = `${esc(pre)}<span class="al-blank" aria-hidden="true"></span>${esc(post)}`;
+  card.append(h, line(say("onb.keepOut.line"), "onb-line al-line"));
+  const items = lockedItems(months), short = innerHeight < 700;
+  const notes = [months >= 6 && months <= 11 ? say("onb.keepOut.spacing") : null, say("onb.keepOut.note")].filter(Boolean);
+  if(short){
+    const b = textButton(say("onb.keepOut.lockedOpen"), ()=>{
+      const sh = onbSheet({modal:true, title:say("onb.keepOut.lockedTitle"), cls:"locked-sheet", onClose:()=>b.focus()});
+      const ul = document.createElement("ul"); ul.className = "lk-list";
+      items.forEach(it=>{ const li = document.createElement("li"); li.innerHTML = `<b>${esc(upper1(it.label))}.</b> ${esc(it.why)}`; ul.appendChild(li); });
+      sh.body.append(ul, ...notes.map(t=>line(t, "al-note")));
+      requestAnimationFrame(()=>{ const t = sh.el.querySelector(".sh-title"); if(t){ t.tabIndex = -1; t.focus(); } });
+    }, "small al-locked-open");
+    card.appendChild(b);
+  }else{
+    const p = document.createElement("p");
+    p.className = "al-locked";
+    const why = document.createElement("p");
+    why.className = "al-why"; why.setAttribute("aria-live", "polite");
+    p.append(say("onb.keepOut.lockedPre") + " ");
+    items.forEach((it, k)=>{
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "lk inline"; b.textContent = it.label; b.setAttribute("aria-expanded", "false");
+      b.addEventListener("click", ()=>{
+        const open = b.getAttribute("aria-expanded")!=="true";
+        p.querySelectorAll(".lk").forEach(x=>x.setAttribute("aria-expanded", "false"));
+        b.setAttribute("aria-expanded", String(open));
+        why.textContent = open ? it.why : "";
+      });
+      const nb = document.createElement("span");   // an item keeps its comma: no line starts with one
+      nb.className = "lk-w"; nb.append(b, k < items.length - 1 ? "," : ".");
+      p.append(nb, k < items.length - 1 ? " " : "");
+    });
+    card.append(p, why);
+  }
+  // the pile
+  const zone = document.createElement("div");
+  zone.className = "pile" + (calm() ? " still" : "");
+  const word = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.fine") : "";
+  const label = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.fine") : say("onb.keepOut.notYet");
+  const circle = (text, full, cls)=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ab" + (cls ? " " + cls : "");
+    b.innerHTML = `<span class="ab-in"><span class="ab-l">${esc(text)}</span><span class="ab-s"></span></span>`;
+    b.dataset.name = full;
+    return b;
+  };
+  const pulse = b=>{ if(!calm()){ b.firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.08)"}, {transform:"scale(1)"}], {duration:220, easing:"cubic-bezier(.32,1.25,.5,1)"}); if(pile) pile.nudge(b); } };
+  const paintA = (b, st)=>{
+    b.dataset.state = st==="avoid" ? "out" : st==="ok" ? "ok" : "";
+    b.querySelector(".ab-s").textContent = word(st);
+    b.setAttribute("aria-label", say("onb.keepOut.aria", {food:b.dataset.name, state:label(st)}));
+  };
+  const els = [];
   ALLERGENS.forEach(a=>{
-    const b = pillBtn(a.label, ALLERGEN_ART[a.id] || null);
-    const paint = ()=>{
-      const st = P.allergens[a.id] || "";
-      b.dataset.state = st==="avoid" ? "out" : st==="ok" ? "loved" : "";
-      b.setAttribute("aria-label", `${a.label}: ${word(st)}`);
-    };
+    const name = say("onb.keepOut.labels." + a.id) || a.label;
+    const b = circle(name, name);
+    b.dataset.id = a.id;
+    paintA(b, P.allergens[a.id]);
     b.addEventListener("click", ()=>{
       const st = P.allergens[a.id];
       const next = !st ? "avoid" : st==="avoid" ? "ok" : null;
       if(next) P.allergens[a.id] = next; else delete P.allergens[a.id];
-      save(); paint(); haptic();
-      live.textContent = `${a.label}: ${word(next)}`;
+      save(); paintA(b, next); haptic(); pulse(b);
+      live.textContent = say("onb.keepOut.said", {food:name, state:label(next)});
     });
-    paint();
-    pills.appendChild(b);
+    zone.appendChild(b); els.push(b);
   });
-  // their own: "Also not ____" with Allergy / Dislike, then a removable pill
-  const own = ()=>{
-    pills.querySelectorAll(".pill-own, .pill-edit, .pill-add").forEach(x=>x.remove());
-    P.avoid.forEach(x=>{
-      const c = document.createElement("span");
-      c.className = "pill-o pill-own"; c.dataset.state = "out";
-      c.innerHTML = `${foodArt(x.name, {size:24, alt:""})}<span>${esc(x.name)} · ${x.kind==="allergy" ? say("onb.keepOut.allergy") : say("onb.keepOut.dislike")}</span>`;
-      const rm = document.createElement("button");
-      rm.type = "button"; rm.className = "pill-x"; rm.setAttribute("aria-label", say("onb.keepOut.remove", {food:x.name}));
-      rm.addEventListener("click", ()=>{ P.avoid = P.avoid.filter(y=>y!==x); save(); own(); live.textContent = `${x.name} removed`; pills.querySelector(".pill-add").focus(); });
-      c.appendChild(rm);
-      pills.appendChild(c);
+  // the family's own: Keep out (P.avoid) → Tried, all fine (P.fine) → gone
+  const ownCircle = (item, st)=>{
+    const short_ = item.name.length > 14 ? item.name.slice(0, 13).trimEnd() + "…" : item.name;
+    const b = circle(short_, item.name, "own");
+    paintA(b, st);
+    b.addEventListener("click", ()=>{
+      const was = b.dataset.state;
+      if(was==="out"){
+        P.avoid = P.avoid.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase());
+        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase()).concat({name:item.name});
+        paintA(b, "ok"); pulse(b);
+        live.textContent = say("onb.keepOut.said", {food:item.name, state:label("ok")});
+      }else{
+        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase());
+        live.textContent = say("onb.keepOut.removed", {food:item.name});
+        const gone = ()=>{ if(pile) pile.remove(b); b.remove(); addBtn.focus(); };
+        if(calm()) gone(); else b.firstChild.animate([{transform:"scale(1)", opacity:1}, {transform:"scale(0)", opacity:0}], {duration:200, fill:"forwards"}).onfinish = gone;
+      }
+      save(); haptic();
     });
-    if(onb.adding){
-      const e = document.createElement("span");
-      e.className = "pill-o pill-edit";
-      const b = blank({min:5, maxLength:30, onEnter:()=>commit()});
-      const t = say("onb.keepOut.alsoNot").split("{blank}");
-      const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = t[0].trim();
-      const kind = document.createElement("span");
-      kind.className = "kind-toggle"; kind.setAttribute("role", "group"); kind.setAttribute("aria-label", `${say("onb.keepOut.allergy")} / ${say("onb.keepOut.dislike")}`);
-      ["allergy","dislike"].forEach(k=>{
-        const kb = document.createElement("button");
-        kb.type = "button"; kb.textContent = say("onb.keepOut." + k); kb.setAttribute("aria-pressed", String(onb.kind===k));
-        kb.addEventListener("click", ()=>{ onb.kind = k; kind.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed", String(z===kb))); b.input.focus(); });
-        kind.appendChild(kb);
-      });
-      e.append(l, " ", b.el, kind);
-      const commit = ()=>{
-        const v = b.input.value.trim();
-        onb.adding = false;
-        if(v){
-          const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
-          if(have) have.kind = onb.kind; else P.avoid.push({name:v, kind:onb.kind});
-          save(); live.textContent = `${v}: ${say("onb.keepOut." + onb.kind)}`;
-        }
-        own(); pills.querySelector(".pill-add").focus();
-      };
-      b.input.addEventListener("keydown", ev=>{ if(ev.key==="Escape"){ ev.preventDefault(); b.input.value = ""; commit(); } });
-      e.addEventListener("focusout", ev=>{ if(!e.contains(ev.relatedTarget)) setTimeout(()=>{ if(e.isConnected && !e.contains(document.activeElement)) commit(); }, 0); });
-      pills.appendChild(e);
-      requestAnimationFrame(()=>b.input.focus());
-    }
-    const add = pillBtn(say("onb.keepOut.add"), undefined, {cls:"pill-add"});
-    add.hidden = onb.adding;
-    add.addEventListener("click", ()=>{ onb.adding = true; own(); });
-    pills.appendChild(add);
+    zone.insertBefore(b, addBtn);
+    return b;
   };
-  own();
-  card.append(pills, live);
-  // what's always off the plate at this age; "Why?" opens one line per rule
-  const locked = document.createElement("div");
-  locked.className = "locked-say";
-  const rules = LOCKED_RULES.filter(r=>!r.until || ageNow() < r.until);
-  locked.innerHTML = `<p><svg class="lock-i" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none"/></svg>${esc(lockedLine(ageNow()))}
-    <button type="button" class="btn-text small" aria-expanded="false">${say("onb.keepOut.why")}</button></p>
-    <ul class="why-list" hidden>${rules.map(r=>`<li><b>${esc(r.label)}.</b> ${esc(r.why)}</li>`).join("")}</ul>`;
-  const why = locked.querySelector("button"), wl = locked.querySelector(".why-list");
-  why.addEventListener("click", ()=>{ wl.hidden = !wl.hidden; why.setAttribute("aria-expanded", String(!wl.hidden)); });
-  card.append(locked, line(say("onb.keepOut.note"), "onb-note"));
-  onbCta(card, say("onb.next"), nextStep);
+  const addBtn = circle(say("onb.keepOut.add"), say("onb.keepOut.add"), "add");
+  addBtn.setAttribute("aria-label", say("onb.keepOut.add"));
+  addBtn.setAttribute("aria-haspopup", "dialog");
+  zone.appendChild(addBtn); els.push(addBtn);
+  P.avoid.forEach(x=>els.splice(els.length - 1, 0, ownCircle(x, "avoid")));
+  P.fine.forEach(x=>els.splice(els.length - 1, 0, ownCircle(x, "ok")));
+  addBtn.addEventListener("click", ()=>{ pulse(addBtn); somethingElse(); });
+  function somethingElse(){
+    const sh = onbSheet({modal:true, cls:"else-sheet", onClose:()=>{ if(!added) addBtn.focus(); }});
+    let kind = "allergy", added = null;
+    const p = document.createElement("p");
+    p.className = "sh-sent";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.className = "sh-input"; inp.maxLength = 30; inp.id = "else" + uid(); inp.autocomplete = "off"; inp.enterKeyHint = "done";
+    inp.setAttribute("autocapitalize", "sentences");
+    const [a, b] = say("onb.keepOut.alsoNot").split("{blank}");
+    const lab = document.createElement("label"); lab.htmlFor = inp.id; lab.textContent = a.trim();
+    p.append(lab, " ", inp, b);
+    const kinds = document.createElement("div");
+    kinds.className = "kind-toggle"; kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", `${say("onb.keepOut.allergy")} / ${say("onb.keepOut.dislike")}`);
+    ["allergy","dislike"].forEach(k=>{
+      const kb = document.createElement("button");
+      kb.type = "button"; kb.textContent = say("onb.keepOut." + k); kb.setAttribute("aria-pressed", String(kind===k));
+      kb.addEventListener("click", ()=>{ kind = k; kinds.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed", String(z===kb))); inp.focus(); });
+      kinds.appendChild(kb);
+    });
+    const add = document.createElement("button");
+    add.type = "button"; add.className = "btn-ink"; add.textContent = say("onb.keepOut.addIt");
+    const commit = ()=>{
+      const v = inp.value.trim();
+      if(!v){ inp.focus(); return; }
+      const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
+      if(have) have.kind = kind;
+      else{
+        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==v.toLowerCase());
+        zone.querySelectorAll(".ab.own").forEach(x=>{ if(x.dataset.name.toLowerCase()===v.toLowerCase()){ if(pile) pile.remove(x); x.remove(); } });
+        P.avoid.push({name:v, kind});
+        added = ownCircle({name:v}, "avoid");
+        if(pile) pile.add(added); 
+      }
+      save();
+      live.textContent = say("onb.keepOut.said", {food:v, state:label("avoid")});
+      sh.close();
+      if(added) requestAnimationFrame(()=>added.focus({preventScroll:true}));
+    };
+    add.addEventListener("click", commit);
+    inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
+    sh.body.append(p, kinds, add);
+    requestAnimationFrame(()=>inp.focus());
+  }
+  card.append(zone, live);
+  if(!short) notes.forEach(t=>card.appendChild(line(t, "al-note")));
+  if(pile) pile.stop();
+  pile = null;
+  if(!calm()){
+    // seeded, so the tests can count on where things land: ?seed=, or a fresh one each time
+    const q = new URLSearchParams(location.search).get("seed");
+    requestAnimationFrame(()=>{ if(!zone.isConnected) return; pile = makePile(zone, els, q ? +q : (Date.now() & 0xffff)); pile.wake(); });
+  }
+  const go = ()=>{
+    save();
+    const to = stepAfter("keepout");
+    if(onb.single){ nextStep(); return; }
+    if(calm() || !pile){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
+    pile.open(()=>goStep(to, null, {instant:true}));
+  };
+  onbCta(card, onb.single ? say("onb.save") : say("onb.keepOut.cta"), go);
 }
 
 /* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */

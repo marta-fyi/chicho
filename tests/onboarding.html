@@ -102,24 +102,29 @@ f.onload = async () => {
     ok("Back keeps what was chosen, touched", step() === "birthday" && col("month").getAttribute("aria-valuetext") === "December" && !col("year").classList.contains("untouched"));
     next().click(); await settle();
 
-    // keep out
-    ok("keep out is a statement", step() === "keepout" && d.getElementById("onbTitle").textContent === "Keep these off the plate.");
-    const egg = [...d.querySelectorAll(".pill-o")].find(b => b.textContent.includes("Egg"));
-    egg.click(); ok("tap once: keep out", E("state.profile.allergens.egg") === "avoid" && egg.dataset.state === "out");
-    egg.click(); ok("tap twice: tried and loved", E("state.profile.allergens.egg") === "ok" && egg.dataset.state === "loved");
-    egg.click(); ok("tap three times: back to neutral", !("egg" in E("state.profile.allergens")));
-    d.querySelector(".pill-add").click(); await wait(50);
-    const also = d.querySelector(".pill-edit .blank-input");
-    ok("'Add something else' opens 'Also not ____' in a pill", !!also && d.querySelector(`label[for="${also.id}"]`).textContent === "Also not");
-    d.querySelectorAll(".kind-toggle button")[1].click();
-    type(also, "Kiwi"); enter(also); await wait(50);
-    ok("…and saves it as a dislike", JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Kiwi", kind: "dislike"}]));
-    ok("the locked line names this stage's rules", /^Always off the plate at this age: honey/.test(d.querySelector(".locked-say p").textContent.trim()));
-    next().click(); await settle();
+    // allergens: the pile
+    ok("'Hold the ____.' with its support line", step() === "keepout" && d.getElementById("onbTitle").textContent === "Hold the ." && d.querySelector(".al-line").textContent === "Tap to keep it out. We'll never suggest it.", d.getElementById("onbTitle").textContent);
+    const circles = [...d.querySelectorAll(".pile .ab")];
+    ok("ten circles in a fixed order, the last 'Something else'", circles.length === 10 && JSON.stringify(circles.map(b => b.dataset.name)) === JSON.stringify(["Egg", "Milk", "Peanut", "Tree nuts", "Wheat", "Soy", "Fish", "Shellfish", "Sesame", "Something else"]), circles.map(b => b.dataset.name));
+    const egg = d.querySelector('.ab[data-id="egg"]');
+    ok("each is a button saying its state: 'Egg: Not yet. Tap to change.'", egg.tagName === "BUTTON" && egg.getAttribute("aria-label") === "Egg: Not yet. Tap to change.");
+    egg.click(); ok("tap once: Keep out (filled, struck through, the word)", E("state.profile.allergens.egg") === "avoid" && egg.dataset.state === "out" && egg.querySelector(".ab-s").textContent === "Keep out" && getComputedStyle(egg.querySelector(".ab-l")).textDecorationLine === "line-through");
+    ok("…and says so: 'Egg: Keep out'", d.querySelector(".al-step .sr-only[aria-live]").textContent === "Egg: Keep out");
+    egg.click(); ok("tap twice: Tried, all fine (underlined)", E("state.profile.allergens.egg") === "ok" && egg.querySelector(".ab-s").textContent === "Tried, all fine" && getComputedStyle(egg.querySelector(".ab-l")).textDecorationLine === "underline");
+    egg.click(); ok("tap three times: Not yet", !("egg" in E("state.profile.allergens")) && egg.dataset.state === "");
+    d.querySelector(".ab.add").click(); await wait(400);
+    const also = d.querySelector(".else-sheet input");
+    ok("'Something else' opens a sheet: 'Also keep out ____.', Allergy / Not a fan, Add", !!also && d.querySelector(`label[for="${also.id}"]`).textContent === "Also keep out" && [...d.querySelectorAll(".else-sheet .kind-toggle button")].map(b => b.textContent).join() === "Allergy,Not a fan" && d.querySelector(".else-sheet .btn-ink").textContent === "Add");
+    d.querySelectorAll(".else-sheet .kind-toggle button")[1].click();
+    type(also, "Kiwi"); enter(also); await wait(400);
+    ok("…Enter adds it as a not-a-fan, a new circle at Keep out", JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Kiwi", kind: "dislike"}]) && d.querySelector('.ab.own[data-name="Kiwi"]').dataset.state === "out" && !d.querySelector(".else-sheet"));
+    ok("…placed before 'Something else' in the list", d.querySelector('.ab.own[data-name="Kiwi"]').nextElementSibling === d.querySelector(".ab.add"));
+    ok("the locked line names this stage's rules, each a button", /^Always off the plate: honey, whole nuts, whole grapes, added salt and sugar\.$/.test(d.querySelector(".al-locked").textContent.trim()) && d.querySelectorAll(".al-locked .lk").length === 4, d.querySelector(".al-locked").textContent);
+    next().click(); await wait(1000);
 
     // ask late: a first run goes from the allergens straight to the week
     ok("a first run skips priorities, the kitchen and meal times (asked later)", step() === "reveal", step());
-    ok("…and only shows dots for the steps it asks", d.querySelectorAll("#onbDots i").length === 4, d.querySelectorAll("#onbDots i").length);
+    ok("…four segments, the last on", d.querySelectorAll("#onbDots i").length === 4 && d.querySelectorAll("#onbDots i")[3].classList.contains("on"));
 
     // reveal, then the week, applied only on Love it
     ok("the reveal: 'Setting the table…'", step() === "reveal" && d.getElementById("onbTitle").textContent === "Setting the table…");

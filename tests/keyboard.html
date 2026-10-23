@@ -50,7 +50,7 @@ f.onload = async () => {
     const sizes = [];
     for (const step of ["spell", "birthday", "keepout", "mealtimes"]) {
       E(`openOnboarding('${step}', {single: true})`); await wait(300);
-      if (step === "keepout") { d.querySelector(".pill-add").click(); await wait(100); }
+      if (step === "keepout") { d.querySelector(".ab.add").click(); await wait(300); }
       d.querySelectorAll("#onboarding input").forEach(i => sizes.push([step, parseFloat(w.getComputedStyle(i).fontSize)]));
     }
     E("closeOnboarding(); state.profile.onboarded = true; state.profile.birthDate = birthDateFromMonths(18); state.plan = generateWeek(18, state.profile); save(); changed(); go('profile')"); await wait(600);
