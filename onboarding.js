@@ -67,7 +67,7 @@ function openOnboarding(step, opts){
   onb.replay = !!o.replay;
   onb.snapshot = P.onboarded ? JSON.parse(JSON.stringify(P)) : null;   // Close puts this back
   onb.sub = step==="draw" && P.name && !P.ink && (!onb.single || o.sub==="typed") ? "typed" : null;
-  onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null; onb.early = false; onb.bdTyped = false;
+  onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null; onb.early = false;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
@@ -128,10 +128,10 @@ kbListeners.push(()=>requestAnimationFrame(keepInView));
 /* iOS only opens the keyboard for a focus inside a tap. The next step's field doesn't exist yet when Next is
    tapped, so a hidden field takes the focus during the tap, and the real one takes it over after the swap. */
 function holdKeyboard(key, sub){
-  if(!(key==="spell" || key==="birthday" || (key==="draw" && sub==="typed"))) return;
+  if(!(key==="spell" || (key==="draw" && sub==="typed"))) return;
   let p = document.getElementById("kbProxy");
   if(!p){ p = document.createElement("input"); p.id = "kbProxy"; p.className = "kb-proxy"; p.setAttribute("aria-hidden", "true"); p.tabIndex = -1; document.body.appendChild(p); }
-  p.inputMode = key==="birthday" ? "numeric" : "text";
+  p.inputMode = "text";
   p.focus({preventScroll:true});
 }
 /* the finished sentence slides up and fades; the next one rises in */
@@ -373,7 +373,9 @@ function onbDraw(card, P){
   const said = document.createElement("span");
   said.className = "sr-only";
   mirror.append(live, said);
-  h.append(before, mirror, after);
+  const lead = document.createElement("span");
+  lead.className = "draw-lead"; lead.textContent = before.trimEnd();   // "Pull up a chair for" stays on one line
+  h.append(lead, " ", mirror, after);
   card.appendChild(h);
   document.getElementById("onboarding").classList.add("has-sheet");
   const sheet = onbSheet({cls:"pad-sheet", title:say("onb.draw.title"), delay:calm() ? 0 : 400});
@@ -493,7 +495,7 @@ function inkPad(P, o){
   return wrap;
 }
 /* one stroke as smooth curves through the midpoints of its points; a single point is a dot */
-const INK_WIDTH = 4;
+const INK_WIDTH = 8;   // a fat marker (Marta)
 function inkPath(s, op){
   if(s.length < 4){ op("moveTo", s[0], s[1]); op("lineTo", s[0] + .01, s[1]); return; }
   op("moveTo", s[0], s[1]);
@@ -652,7 +654,6 @@ function onbBirthday(card, P){
       bd.day = max;
       wheels.day && wheels.day.set(max, true);
       live.textContent = say("onb.birthday.dayClamped", {n:max});
-      if(typed) typed.day.value = String(max);
     }
   };
   let shownStage = "";
@@ -664,15 +665,38 @@ function onbBirthday(card, P){
       if(date > today){ text = say("onb.birthday.future"); date = null; }
       else if(ageMonths(isoOf(date)) > AGE_MAX){ text = say("onb.birthday.old"); date = null; }
     }
-    msg.textContent = typed && !allTouched() ? "" : text;
+    msg.textContent = text;
     if(date){ P.birthDate = isoOf(date); save(); }
     paintStage(date);
     next.ready(!!date);
   };
+  // "Born early?" sits small at the top, under the sentence; the stage block says the age and the stage
+  const top = document.createElement("div");
+  top.className = "bd-top";
+  let topSig = null;
+  function paintTop(m){
+    const sig = (onb.early || P.bornEarlyWeeks ? "open" : "link") + ":" + (P.bornEarlyWeeks || 0) + ":" + m;
+    if(sig===topSig) return;
+    topSig = sig;
+    const had = top.querySelector(".blank-input")===document.activeElement;
+    top.innerHTML = "";
+    if(onb.early || P.bornEarlyWeeks){
+      const b = blank({value:P.bornEarlyWeeks ? String(P.bornEarlyWeeks) : "", min:2, maxLength:2, inputmode:"numeric", enterkeyhint:"done", label:say("onb.birthday.weeksLabel"),
+        onInput:v=>{ const n = +v; P.bornEarlyWeeks = /^\d{1,2}$/.test(v) && n >= 1 && n <= 20 ? n : 0; b.set(P.bornEarlyWeeks ? "ok" : ""); save(); onb.early = true; shownStage = ""; check(); }});
+      b.set(P.bornEarlyWeeks ? "ok" : "");
+      const s = sentence(say("onb.birthday.early"), {blank:b}, "bd-early");
+      s.removeAttribute("id"); s.removeAttribute("tabindex");
+      const p = document.createElement("p"); p.className = "bd-early"; while(s.firstChild) p.appendChild(s.firstChild);
+      top.appendChild(p);
+      if(P.bornEarlyWeeks && m!==null) top.appendChild(line(say("onb.birthday.using", {months:m}), "bd-using"));
+      if(had){ const g = top.querySelector(".blank-input"); g.focus(); const n = g.value.length; g.setSelectionRange(n, n); }
+    }else top.appendChild(textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; topSig = null; check(); const f = top.querySelector(".blank-input"); if(f) f.focus(); }, "small bd-early-link"));
+  }
   function paintStage(date){
     const m = date ? correctedMonths(isoOf(date), P.bornEarlyWeeks) : null;
+    paintTop(m);
     const st = m===null ? null : stageFor(m);
-    const sig = m===null ? "" : (st.solids ? st.id : "milk:" + m) + ":" + (P.bornEarlyWeeks || 0) + ":" + !!onb.early;
+    const sig = m===null ? "" : (st.solids ? st.id : "milk") + ":" + m;
     if(sig===shownStage) return;
     shownStage = sig;
     stage.innerHTML = "";
@@ -680,27 +704,10 @@ function onbBirthday(card, P){
     if(!st.solids){
       const left = Math.max(1, 6 - m);
       stage.append(line(say("onb.birthday.milk", {name, n:left}), "bd-tag milk"), line(say("onb.birthday.nothingYet"), "bd-line"));
-    }else stage.append(line(st.name, "bd-tag"), line(stageLine(st), "bd-line"));
-    // born early: "Born ____ weeks early." and the age it uses
-    if(onb.early || P.bornEarlyWeeks){
-      const b = blank({value:P.bornEarlyWeeks ? String(P.bornEarlyWeeks) : "", min:2, maxLength:2, inputmode:"numeric", enterkeyhint:"done", label:say("onb.birthday.weeksLabel"),
-        onInput:v=>{ const n = +v; P.bornEarlyWeeks = /^\d{1,2}$/.test(v) && n >= 1 && n <= 20 ? n : 0; b.set(P.bornEarlyWeeks ? "ok" : ""); save(); onb.early = true; shownStage = ""; const f = document.activeElement; check(); refocus(f); }});
-      b.set(P.bornEarlyWeeks ? "ok" : "");
-      const s = sentence(say("onb.birthday.early"), {blank:b}, "bd-early");
-      s.removeAttribute("id"); s.tabIndex = -1;
-      const p = document.createElement("p"); p.className = "bd-early"; while(s.firstChild) p.appendChild(s.firstChild);
-      stage.appendChild(p);
-      if(P.bornEarlyWeeks) stage.appendChild(line(say("onb.birthday.using", {months:m}), "bd-line"));
-    }else{
-      const e = textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; shownStage = ""; check(); const f = stage.querySelector(".blank-input"); if(f) f.focus(); }, "small bd-early-link");
-      stage.appendChild(e);
-    }
+    }else stage.append(line(say("onb.birthday.stageAt", {months:m, tagline:lower1(st.name)}), "bd-tag"), line(stageLine(st), "bd-line"));
     if(!calm()) stage.animate([{opacity:0}, {opacity:1}], {duration:250, easing:"ease-out"});
   }
-  // after re-painting the stage, the weeks field keeps the caret
-  const refocus = f=>{ if(f && f.classList.contains("blank-input") && !f.isConnected){ const g = stage.querySelector(".blank-input"); if(g){ g.focus(); const n = g.value.length; g.setSelectionRange(n, n); } } };
   const wheels = {};
-  let typed = null;
   const order = bdOrder();
   const pick = key=>(v, w)=>{
     bd[key] = v;
@@ -729,44 +736,10 @@ function onbBirthday(card, P){
     });
     box.append(cols, labels);
   };
-  // "Type the date": three numeric fields in the same order, the same rules
-  const typeIt = ()=>{
-    onb.bdTyped = true;
-    box.innerHTML = ""; box.classList.add("typed");
-    typed = {};
-    const row = document.createElement("div");
-    row.className = "bd-typed";
-    order.forEach(key=>{
-      const lab = document.createElement("label");
-      lab.className = "bd-field";
-      const inp = document.createElement("input");
-      inp.type = "text"; inp.inputMode = "numeric"; inp.autocomplete = "bday-" + key; inp.maxLength = key==="year" ? 4 : 2;
-      inp.className = "bd-input";
-      if(bd.touched[key]) inp.value = String(key==="month" ? bd.month + 1 : bd[key]);
-      inp.addEventListener("input", ()=>{
-        const t = inp.value.trim(), n = +t;
-        const ok = key==="day" ? /^\d{1,2}$/.test(t) && n >= 1 && n <= 31 : key==="month" ? parseMonth(t)!==null : /^\d{4}$/.test(t);
-        bd.touched[key] = ok;
-        if(ok){ if(key==="month") bd.month = parseMonth(t); else bd[key] = n; }
-        if(ok && bd.touched.day && bd.touched.month && bd.touched.year && bd.day > daysIn(bd.year, bd.month)) clampDay();
-        check();
-      });
-      lab.append(inp, Object.assign(document.createElement("span"), {textContent:say("onb.birthday." + key + "Label")}));
-      typed[key] = inp;
-      row.appendChild(lab);
-    });
-    box.appendChild(row);
-    msg.textContent = "";
-    typed[order[0]].focus();
-    check();
-  };
-  if(onb.bdTyped) setTimeout(typeIt); else columns();
-  const typeLink = textButton(say("onb.birthday.typeDate"), ()=>{ typeLink.remove(); typeIt(); }, "small bd-type");
-  if(onb.bdTyped) typeLink.hidden = true;
-  card.append(box, msg, stage, live);
+  columns();
+  card.append(top, box, msg, stage, live);
   next = onbCta(card, say("onb.next"), ()=>{ if(next.getAttribute("aria-disabled")==="true") return; P.exploreEarly = false; save(); nextStep(); },
                 {ready:false, extra:[]});
-  card.insertBefore(typeLink, msg.nextSibling);
   check();
 }
 
@@ -774,7 +747,7 @@ function onbBirthday(card, P){
    Each cycles Not yet → Keep out → Tried, all fine → Not yet (in words and type, never colour alone). A family's
    own item ("Something else") starts at Keep out, then Tried, all fine, then goes. The DOM order is a fixed list,
    so focus and screen readers never follow the physics. Reduced motion: the same buttons, wrapped, still. */
-const PILE_D = 92;   // a circle's diameter (never below 88)
+const PILE_D = 92;   // a circle's diameter (88 below 700px of height, never less)
 const PILE = {g:2400, e:.25, damp:.6, slop:.5, maxPush:6, passes:6, dt:1 / 120, sleepV:2, sleepMs:500, bounceV:80, friction:.8, restV:25, restK:.85, nudge:40};
 function mulberry32(a){ return ()=>{ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 /* the physics, DOM-free: circles under gravity between two walls and a floor. Positions are integrated, then pushed
@@ -839,7 +812,8 @@ function makePile(zone, els, seed){
   const r0 = size();
   const spawnY = -r0.top - 100 - PILE_D / 2;   // 100px above the top of the screen
   const add = (el, at)=>{
-    const b = {el, r:PILE_D / 2, x:PILE_D / 2 + rnd() * Math.max(0, w.W - PILE_D), y:spawnY, vx:0, vy:0, live:false, at};
+    const d = el.offsetWidth || PILE_D;   // 92px, or 88 on a short screen
+    const b = {el, r:d / 2, x:d / 2 + rnd() * Math.max(0, w.W - d), y:spawnY, vx:0, vy:0, live:false, at};
     w.bodies.push(b);
     el.style.transform = `translate3d(${(b.x - b.r).toFixed(1)}px, ${(b.y - b.r).toFixed(1)}px, 0)`;
     return b;
@@ -967,6 +941,21 @@ function onbKeepout(card, P){
       const st = P.allergens[a.id];
       const next = !st ? "avoid" : st==="avoid" ? "ok" : null;
       if(next) P.allergens[a.id] = next; else delete P.allergens[a.id];
+      save(); paintA(b, next); haptic(); pulse(b);
+      live.textContent = say("onb.keepOut.said", {food:name, state:label(next)});
+    });
+    zone.appendChild(b); els.push(b);
+  });
+  // Meat and Gluten: kept out by choice (or for a condition), so just Not yet ↔ Keep out
+  if(!P.diet || typeof P.diet!=="object") P.diet = {};
+  DIETS.forEach(g=>{
+    const name = say("onb.keepOut.labels." + g.id) || g.label;
+    const b = circle(name, name, "diet");
+    b.dataset.id = g.id;
+    paintA(b, P.diet[g.id]);
+    b.addEventListener("click", ()=>{
+      const next = P.diet[g.id]==="avoid" ? null : "avoid";
+      if(next) P.diet[g.id] = next; else delete P.diet[g.id];
       save(); paintA(b, next); haptic(); pulse(b);
       live.textContent = say("onb.keepOut.said", {food:name, state:label(next)});
     });
@@ -1191,7 +1180,8 @@ const weekSig = w=>w.days.map(d=>d.meals.map(m=>m.items.map(i=>i.name).join("+")
 /* the statements: the stage's tagline; what's kept out (up to three, then "and {n} more"); "Seven days." */
 function revealLines(P){
   const st = stageFor(planMonths());
-  const out = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(say("onb.keepOut.labels." + a.id) || a.label)), ...P.avoid.map(a=>lower1(a.name))];
+  const out = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(say("onb.keepOut.labels." + a.id) || a.label)),
+               ...dietOut(P).map(g=>lower1(say("onb.keepOut.labels." + g.id) || g.label)), ...P.avoid.map(a=>lower1(a.name))];
   const without = !out.length ? say("onb.reveal.none")
     : out.length <= 3 ? say("onb.reveal.without", {list:listJoin(out)})
     : say("onb.reveal.without", {list:out.slice(0, 3).join(", ") + " " + say("onb.reveal.more", {n:out.length - 3})});

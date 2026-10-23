@@ -46,6 +46,14 @@ Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welco
 - **Day headers are 500, not 600:** Chicho ships two weights of its one face.
 - **"around 8:00", not "around 8:00 AM".** In a 12-hour locale the day period doesn't fit the 92px column and wraps; the meal's name already says which part of the day, so it's dropped there. A 24-hour locale reads "around 08:00".
 - **The glow on Done** stays the full backdrop glow behind the header and fades out over the first 80px of scrolling. The sticky bars take the paper only once it's gone (nothing is stuck before then), so they never show as grey blocks over the colour.
+- **Marta's first look at v3 (23 Oct 2026), applied:**
+  - "Pull up a chair for" stays on one line. At 40px it can't (19 mono characters need 456px; the column has 350), so the sentence sizes to fit: 40px where it fits, about 30px on a 390px phone. The ink goes on the line below, with no line under it.
+  - The ink is a fat marker: 8px on the pad (was 4), and every copy of the drawn name scales with it.
+  - A blank that's filled has no underline: just the word (Spell, the typed name, the weeks early).
+  - "Type the date" is out. **This overrides the brief**, which asked for it as the alternative to the gesture. The columns stay fully usable without swiping: each is a `spinbutton` (VoiceOver swipes up and down to adjust; arrows, Page Up/Down, Home/End on a keyboard), and a tap on a neighbour centres it.
+  - The stage line says the age: "At 10 months, fingers first." (corrected, if born early).
+  - "Born early?" moved to the top, small, under the sentence, and its field and line open there.
+  - Allergens gained **Meat** and **Gluten** (for families who keep meat out, or gluten for a reason that isn't a wheat allergy). They're choices, not first tastes, so they toggle Not yet ↔ Keep out only. They're kept in `profile.diet`, checked by the same gate as allergies (`allergyMatch`), named on Profile and in "Without …". That makes twelve circles, which only fit in the 375×667 pile at 88px (the brief's minimum), so below 700px of height they're 88px and the screen's spacing tightens. The 92px stays everywhere else. The word lists (including oats under Gluten) need a food-safety check.
 
 ## Spatial app (23 Oct 2026, supersedes the scrolling Home)
 
@@ -191,6 +199,8 @@ The pager: swipes in all four directions on Home, the 24px edge zones against Sa
 - **Corrected age** for a baby born early: the due date's age, used for every stage decision until 24 months, from 1 to 20 weeks early.
 
 ## Needs a food-safety source (verify)
+
+- The **Meat** and **Gluten** word lists (`DIETS`, index.html): whether oats belong under Gluten (cross-contamination), and what else gives meat or gluten away in a food's name.
 
 - Storage note: **fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool** (`content.js` → `storage`).
 - Lead times: **8 hours** to defrost a frozen portion in the fridge, **8 hours** to soak dried legumes (`LEAD` in `home.js`).

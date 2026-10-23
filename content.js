@@ -245,7 +245,7 @@ const CONTENT = {
       dayClamped:"Day set to {n}",
       future:"That day hasn't happened yet.",
       old:"This table is set for ages 0 to 3. Check the date?",
-      typeDate:"Type the date",
+      stageAt:"At {months}, {tagline}.",
       bornEarly:"Born early?",
       early:"Born {blank} weeks early.", weeksLabel:"Weeks early",
       using:"We're using {months}, counting from the due date.",
@@ -256,7 +256,7 @@ const CONTENT = {
     keepOut:{
       sentence:"Hold the {blank}.",
       line:"Tap to keep it out. We'll never suggest it.",
-      labels:{egg:"Egg", milk:"Milk", peanut:"Peanut", treenuts:"Tree nuts", wheat:"Wheat", soy:"Soy", fish:"Fish", shellfish:"Shellfish", sesame:"Sesame"},
+      labels:{egg:"Egg", milk:"Milk", peanut:"Peanut", treenuts:"Tree nuts", wheat:"Wheat", soy:"Soy", fish:"Fish", shellfish:"Shellfish", sesame:"Sesame", meat:"Meat", gluten:"Gluten"},
       notYet:"Not yet",
       out:"Keep out",
       fine:"Tried, all fine",

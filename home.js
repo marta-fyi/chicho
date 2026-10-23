@@ -1386,7 +1386,7 @@ function warmingUp(){
 function shortList(a){ return a.length <= 4 ? listJoin(a) : a.slice(0, 4).join(", ") + " " + say("home.andMore", {n:a.length - 4}); }
 function offPlateWords(){
   const P = state.profile;
-  return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...P.avoid.map(a=>lower1(a.name))];
+  return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...dietOut(P).map(g=>lower1(g.label)), ...P.avoid.map(a=>lower1(a.name))];
 }
 function renderProfile(){
   const P = state.profile;
@@ -1421,7 +1421,7 @@ function renderProfile(){
   });
   // Off the plate: preferences, then the allergen records (kept apart)
   const off = section(col, "offplate", say("profile.offPlate"));
-  const allergies = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label.split(" /")[0]), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>a.name)];
+  const allergies = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label.split(" /")[0]), ...dietOut(P).map(g=>g.label), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>a.name)];
   const notFan = P.avoid.filter(a=>a.kind==="dislike").map(a=>a.name);
   off.appendChild(el("p", "sec-p", allergies.length ? say("profile.allergies", {list:listJoin(allergies.map(lower1))}) : say("profile.allergiesNone")));
   if(notFan.length) off.appendChild(el("p", "sec-p", say("profile.notFan", {list:listJoin(notFan.map(lower1))})));
@@ -1629,7 +1629,7 @@ async function sendWeekLink(status){
 /* ---------- message templates (content.js has every word) ---------- */
 function allergyList(){
   const P = state.profile;
-  return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>lower1(a.name))];
+  return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...dietOut(P).map(g=>lower1(g.label)), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>lower1(a.name))];
 }
 function lockedList(){ return LOCKED_RULES.filter(r=>!r.until || ageNow() < r.until).map(r=>lower1(r.label)); }
 function groceriesText(){

@@ -306,7 +306,10 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     opacity:.4;transform:scaleY(.7);transform-origin:bottom;transition:opacity var(--dur-2), transform var(--dur-2) var(--ease-out);pointer-events:none;
   }
   .blank:focus-within::after{transform:none;opacity:.6;}
-  .blank[data-state="ok"]::after, .blank[data-state="hint"]::after{opacity:1;}
+  .blank[data-state="hint"]::after{opacity:1;}
+  .blank[data-state="ok"]::after{opacity:0;}   /* filled in: just the word, no line (Marta) */
+  .blank[data-state="ok"]{min-width:0;}
+  .blank[data-state="ok"] .blank-mirror, .blank[data-state="ok"] .blank-input{padding:0;}
   .blank.idle:focus-within::after{animation:blank-pulse 1.4s ease-in-out 4 alternate;}   /* four breaths, then still */
   @keyframes blank-pulse{from{opacity:.25;}to{opacity:.75;}}
   .blank.time{min-width:0;}
@@ -319,7 +322,9 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   @keyframes draw-rise{from{opacity:0;transform:translateY(12px);}}
   .ink-blank{position:relative;display:inline-block;min-width:4ch;height:1.1em;vertical-align:-.2em;}
   .ink-blank::after{content:"";position:absolute;left:0;right:0;bottom:-.06em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;opacity:.4;}
-  .ink-blank.has-ink::after{opacity:1;}
+  .ink-blank.has-ink::after{display:none;}
+  .draw-lead, .sent-xl label{white-space:nowrap;}
+  .sent-xl{font-size:min(40px, calc((min(100vw, var(--col)) - var(--pad-l) - var(--pad-r)) / 11.6));}
   .ink-live{display:flex;justify-content:center;align-items:flex-end;height:100%;}
   .ink-mirror{display:block;height:100%;width:auto;max-width:min(70vw, 300px);}
   .pad-wrap{position:relative;width:100%;margin-top:12px;color:var(--ink);}
@@ -357,18 +362,16 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .bd-col.untouched .bd-v{opacity:.35;}
   .bd-labels{flex:none;display:grid;grid-template-columns:repeat(3, 1fr);margin-top:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
   .bd-msg{flex:none;margin-top:8px;}
-  .bd-type{flex:none;}
-  .bd-stage{flex:none;min-height:160px;margin-top:4px;}
+  .bd-stage{flex:none;min-height:96px;margin-top:8px;}
   .bd-tag{margin:0;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
   .bd-tag.milk{font-size:18px;line-height:1.35;text-wrap:balance;}
   .bd-line{margin:4px 0 0;font-size:16px;color:var(--ink-muted);}
-  .bd-early{margin:4px 0 0;font-size:16px;}
-  .bd-early-link{margin-top:2px;}
-  .bd.typed{justify-content:center;}
-  .bd-typed{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;}
-  .bd-field{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
-  .bd-input{width:100%;min-height:52px;font-size:16px;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink);}
-  @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.31));} .bd-sent{font-size:30px;} .bd-stage{min-height:132px;} }
+  .bd-top{flex:none;display:flex;flex-direction:column;align-items:center;min-height:44px;font-size:13px;color:var(--ink-muted);}
+  .bd-top .btn-text{font-size:13px;color:var(--ink-muted);}
+  .bd-early{margin:0;font-size:13px;line-height:44px;}
+  .bd-early .blank{min-width:2.5ch;}
+  .bd-using{margin:-8px 0 0;font-size:13px;color:var(--ink-muted);}
+  @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.31));} .bd-sent{font-size:30px;} .bd-stage{min-height:88px;} }
   /* Allergens: the sentence, the locked line, then the pile fills what's left (at least 280px) */
   .al-sent{flex:none;margin-top:8px;}
   .al-blank{display:inline-block;width:3.2ch;height:.1em;min-height:3px;margin:0 .1em;border-radius:2px;background:currentColor;vertical-align:-.06em;}
@@ -384,8 +387,8 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .al-why:empty{min-height:0;}
   .al-note{flex:none;margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted);}
   .pile{position:relative;z-index:1;flex:1;min-height:280px;width:100%;margin-top:8px;}
-  .ab{position:absolute;left:0;top:0;width:92px;height:92px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;will-change:transform;}
-  .ab-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;border-radius:50%;border:1.5px solid var(--ink);}
+  .ab{position:absolute;left:0;top:0;width:var(--ab, 92px);height:var(--ab, 92px);padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;will-change:transform;}
+  .ab-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 4px;border-radius:50%;border:1.5px solid var(--ink);}
   .ab-l{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1.15;text-wrap:balance;max-width:100%;
         display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
   .ab-s{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;}
@@ -395,6 +398,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .ab[data-state="ok"] .ab-in{border-width:2px;}
   .ab[data-state="ok"] .ab-l{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
   .ab.add .ab-in{border-style:dashed;}
+  @media (max-height:700px){ .al-step{--ab:88px;padding-top:0;} .al-sent{font-size:30px;margin-top:0;} .al-line{font-size:15px;margin-top:4px;} .al-locked-open{margin-top:0;} .al-step .pile{margin-top:0;} .onb-foot{padding-top:6px;padding-bottom:calc(env(safe-area-inset-bottom) + 12px);} }
   .ab:focus-visible{outline:none;}
   .ab:focus-visible .ab-in{outline:2px solid var(--ink);outline-offset:3px;}
   .ab:active .ab-in{transform:scale(.97);}
@@ -1196,6 +1200,13 @@ const ALLERGENS = [
   {id:"shellfish", label:"Shellfish",      emoji:"🦐", words:["shrimp","prawn","prawns","crab","lobster","mussel","mussels","clam","squid"]},
   {id:"sesame",    label:"Sesame",         emoji:"🌱", words:["sesame","tahini","hummus"]}
 ];
+/* what a family keeps off the plate by choice, or for a condition that isn't one of the nine (Marta, 23 Oct 2026):
+   kept out (profile.diet[id] = "avoid") or not; the words that give a food away */
+const DIETS = [
+  {id:"meat",   label:"Meat",   words:["chicken","beef","turkey","lamb","pork","meat","meatball","meatballs","ham","bacon","sausage","duck","veal","liver"]},
+  {id:"gluten", label:"Gluten", words:["wheat","bread","toast","pasta","couscous","flour","barley","rye","spelt","semolina","bulgur","oat","oats","oatmeal","cracker","crackers"]}
+];
+const dietOut = profile=>DIETS.filter(g=>(profile.diet || {})[g.id]==="avoid");
 /* foods whose allergens don't show in the name */
 const HIDDEN_ALLERGENS = {"Beef meatballs, soft":["egg","wheat"]};
 function allergensOf(name){
@@ -1206,6 +1217,7 @@ function allergensOf(name){
    blocks foods with that word; one naming an allergen ("egg") blocks
    everything carrying it. */
 function allergyMatch(name, profile){
+  if(dietOut(profile).some(g=>g.words.some(w=>hasWord(name, w)))) return true;
   const own = allergensOf(name);
   if(own.some(a=>(profile.allergens||{})[a]==="avoid")) return true;
   return (profile.avoid||[]).some(x=>x.kind==="allergy" && (
@@ -1416,6 +1428,7 @@ function freshProfile(){
   return {name:"", birthDate:null, onboarded:false, onboardingStep:0,
           allergens:{},      // {egg:"avoid"|"ok"}
           avoid:[],          // [{name, kind:"allergy"|"dislike"}]
+          diet:{},           // {meat:"avoid", gluten:"avoid"}: DIETS kept out
           fine:[],           // [{name}]: the family's own items marked "Tried, all fine" (not kept out)
           priorities:[],     // up to 3 PRIORITIES ids
           staples:[], remindAt:null, lastStage:null,
@@ -1527,6 +1540,7 @@ function migrate(saved){
   prof.avoid = (Array.isArray(prof.avoid) ? prof.avoid : [])
     .filter(a=>a && typeof a.name==="string" && a.name.trim())
     .map(a=>({name:a.name.trim(), kind:a.kind==="allergy" ? "allergy" : "dislike"}));
+  prof.diet = Object.fromEntries(Object.entries(prof.diet && typeof prof.diet==="object" ? prof.diet : {}).filter(([k, v])=>DIETS.some(g=>g.id===k) && v==="avoid"));
   prof.fine = (Array.isArray(prof.fine) ? prof.fine : []).filter(a=>a && typeof a.name==="string" && a.name.trim()).map(a=>({name:a.name.trim()}));
   const al = {};
   Object.entries(prof.allergens || {}).forEach(([k,v])=>{ if(ALLERGENS.some(a=>a.id===k) && (v==="avoid" || v==="ok")) al[k] = v; });

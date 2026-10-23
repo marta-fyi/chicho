@@ -26,7 +26,7 @@ f.onload = async () => {
     // Draw: no welcome; the page opens on the sentence and its pad
     ok("a first run opens straight on Draw (no welcome)", step() === "draw" && !d.getElementById("onboarding").hidden && !d.querySelector(".wel-art, .wel-h"));
     ok("'Pull up a chair for ____.' is the title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent.replace(/\s+/g, " ").trim() === "Pull up a chair for ." && d.activeElement === d.getElementById("onbTitle"), d.getElementById("onbTitle").textContent);
-    ok("…at 40px", getComputedStyle(d.getElementById("onbTitle")).fontSize === "40px");
+    ok("…'Pull up a chair for' on one line (up to 40px, smaller where it wouldn't fit)", d.querySelector(".draw-lead").getClientRects().length === 1 && d.querySelector(".draw-lead").getBoundingClientRect().height < parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) * 1.5 && parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) <= 40);
     ok("no Back on Draw, no Close on a first run", d.getElementById("onbBack").hidden && d.getElementById("onbClose").hidden);
     ok("progress: four hairline segments, the first on; 'Step 1 of 4: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 4 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 4: Name");
     await wait(700);
@@ -86,8 +86,9 @@ f.onload = async () => {
     ok("two touched: still not ready", next().getAttribute("aria-disabled") === "true" && !col("day").classList.contains("untouched"));
     key("year", "ArrowUp"); key("year", "ArrowDown");
     ok("all three: 14 December 2025, saved", E("state.profile.birthDate") === "2025-12-14" && next().getAttribute("aria-disabled") === "false" && d.querySelector(".bd-msg").textContent === "", E("state.profile.birthDate"));
-    ok("the stage: 'Fingers first' · '3 meals · lumpy mash and finger foods'",
-       d.querySelector(".bd-tag").textContent === "Fingers first" && d.querySelector(".bd-line").textContent === "3 meals · lumpy mash and finger foods");
+    ok("the stage, with the age: 'At 10 months, fingers first.' · '3 meals · lumpy mash and finger foods'",
+       d.querySelector(".bd-tag").textContent === "At 10 months, fingers first." && d.querySelector(".bd-line").textContent === "3 meals · lumpy mash and finger foods", d.querySelector(".bd-tag").textContent);
+    ok("'Born early?' sits small at the top, under the sentence; no 'Type the date'", d.querySelector(".bd-top .bd-early-link").textContent === "Born early?" && d.querySelector(".bd-top").compareDocumentPosition(d.querySelector(".bd")) === 4 && !d.querySelector(".bd-type"));
     key("year", "ArrowUp");
     ok("a future date: 'That day hasn't happened yet.', no Next", d.querySelector(".bd-msg").textContent === "That day hasn't happened yet." && next().getAttribute("aria-disabled") === "true");
     key("day", "End"); key("month", "Home"); key("month", "ArrowUp");
@@ -105,7 +106,10 @@ f.onload = async () => {
     // allergens: the pile
     ok("'Hold the ____.' with its support line", step() === "keepout" && d.getElementById("onbTitle").textContent === "Hold the ." && d.querySelector(".al-line").textContent === "Tap to keep it out. We'll never suggest it.", d.getElementById("onbTitle").textContent);
     const circles = [...d.querySelectorAll(".pile .ab")];
-    ok("ten circles in a fixed order, the last 'Something else'", circles.length === 10 && JSON.stringify(circles.map(b => b.dataset.name)) === JSON.stringify(["Egg", "Milk", "Peanut", "Tree nuts", "Wheat", "Soy", "Fish", "Shellfish", "Sesame", "Something else"]), circles.map(b => b.dataset.name));
+    ok("twelve circles in a fixed order: the nine, Meat and Gluten, then 'Something else'", circles.length === 12 && JSON.stringify(circles.map(b => b.dataset.name)) === JSON.stringify(["Egg", "Milk", "Peanut", "Tree nuts", "Wheat", "Soy", "Fish", "Shellfish", "Sesame", "Meat", "Gluten", "Something else"]), circles.map(b => b.dataset.name));
+    const meat = d.querySelector('.ab[data-id="meat"]');
+    meat.click(); ok("Meat: Keep out keeps every meat off the plate", E("state.profile.diet.meat") === "avoid" && E("allergyMatch('Chicken, shredded', state.profile) && allergyMatch('Beef meatballs, soft', state.profile) && !allergyMatch('Lentils', state.profile)"));
+    meat.click(); ok("…and a second tap lets it back (two states: it's a choice, not a first taste)", !("meat" in E("state.profile.diet")) && meat.dataset.state === "");
     const egg = d.querySelector('.ab[data-id="egg"]');
     ok("each is a button saying its state: 'Egg: Not yet. Tap to change.'", egg.tagName === "BUTTON" && egg.getAttribute("aria-label") === "Egg: Not yet. Tap to change.");
     egg.click(); ok("tap once: Keep out (filled, struck through, the word)", E("state.profile.allergens.egg") === "avoid" && egg.dataset.state === "out" && egg.querySelector(".ab-s").textContent === "Keep out" && getComputedStyle(egg.querySelector(".ab-l")).textDecorationLine === "line-through");

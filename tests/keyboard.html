@@ -37,15 +37,11 @@ f.onload = async () => {
     ok("…and the pinned Next sits above it", R(next()).bottom <= VIS);
     await kb(false);
     ok("keyboard down: still no jump", Math.abs(R($("#onbTitle")).top - top0) < 1);
-    // birthday, typed: three numeric fields
+    // birthday: "Born ____ weeks early." is a numeric field
     E("goStep('birthday')"); await wait(600);
-    $(".bd-type").click(); await wait(100);
-    const [dd, mm, yy] = d.querySelectorAll("#onbCard .bd-input");
-    ok("'Type the date': three numeric fields", [dd, mm, yy].every(i => i.inputMode === "numeric"), [dd, mm, yy].map(i => i.inputMode));
-    ok("…with bday autocomplete", [dd, mm, yy].map(i => i.autocomplete).sort().join() === "bday-day,bday-month,bday-year");
-    await kb(true);
-    ok("keyboard up on the typed date: the fields stay visible", [dd, mm, yy].every(i => R(i).bottom <= VIS), [dd, mm, yy].map(i => R(i).bottom));
-    await kb(false);
+    $(".bd-early-link").click(); await wait(100);
+    const wk = $(".bd-top .blank-input");
+    ok("'Born early?': a numeric weeks field, focused", !!wk && wk.inputMode === "numeric" && d.activeElement === wk);
     // every input, in onboarding and in a sheet, is at least 16px
     const sizes = [];
     for (const step of ["spell", "birthday", "keepout", "mealtimes"]) {
