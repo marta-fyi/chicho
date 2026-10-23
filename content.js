@@ -49,6 +49,7 @@ const CONTENT = {
   /* ---------- a meal, opened in place ---------- */
   meal:{
     meta:"{n} min · {texture}",
+    wake:"Keep screen on", wakeOn:"Screen stays on for an hour", wakeOff:"Screen can sleep again",
     newToday:"New today: {food}",
     amount:"{amount} · {texture}",
     change:"Change",
@@ -77,6 +78,7 @@ const CONTENT = {
     stage:"{name} is {months}. Textures are changing.",
     stageUpdate:"Update the week",
     later:"Later",
+    install:"Add Chicho to your Home Screen to open it like an app. Tap Share, then Add to Home Screen.",
     allergen:"{allergen}, for the first time. A small taste, then keep an eye on how {name} feels.",
     allergenAction:"What to watch for",
     noPlan:"Set the week for {name}.",

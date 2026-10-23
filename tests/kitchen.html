@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · kitchen and install tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Kitchen and install tests</h1>
+<p>"Keep screen on" (a stand-in Screen Wake Lock): off by default, hidden where unsupported, let go when hidden, left or after 60 minutes, back only if left on. The install line: day 2, once, with Later, never when installed. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s);
+    const setup = (firstDay, clock) => E(`setClock(${clock || "new Date(2026, 9, 22, 12, 10).getTime()"});
+       state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "${firstDay}", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok"); state.asked = {};
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding(); homeChanged();`);
+    // no Wake Lock: no toggle
+    Object.defineProperty(w.navigator, "wakeLock", {value: undefined, configurable: true});
+    setup("2026-10-01"); await wait(200);
+    ok("where the Wake Lock isn't supported, there's no toggle", !$(".wake"));
+    // a stand-in Wake Lock
+    const log = [];
+    const lock = () => { const s = new w.EventTarget(); s.released = false; s.release = () => { s.released = true; log.push("release"); s.dispatchEvent(new w.Event("release")); return Promise.resolve(); }; return s; };
+    Object.defineProperty(w.navigator, "wakeLock", {value: {request: t => { log.push("request:" + t); return Promise.resolve(lock()); }}, configurable: true});
+    E("homeChanged()"); await wait(50);
+    const t = () => $("#openMeal .wake");
+    ok("the open meal has 'Keep screen on', off by default", !!t() && t().textContent === "Keep screen on" && t().getAttribute("aria-pressed") === "false" && log.length === 0);
+    ok("…a 44px target", t().getBoundingClientRect().height >= 44);
+    t().click(); await wait(50);
+    ok("on: the screen wake lock is requested", log.join() === "request:screen" && t().getAttribute("aria-pressed") === "true" && E("!!wake.lock"));
+    const hidden = v => { Object.defineProperty(d, "hidden", {value: v, configurable: true}); d.dispatchEvent(new w.Event("visibilitychange")); };
+    hidden(true); await wait(30);
+    ok("the tab is hidden: it lets go", log.at(-1) === "release" && !E("wake.lock") && E("wake.on"));
+    hidden(false); await wait(30);
+    ok("visible again, still on: it comes back", log.at(-1) === "request:screen" && E("!!wake.lock"));
+    w.dispatchEvent(new w.Event("pagehide")); await wait(30);
+    ok("leaving the page lets go", log.at(-1) === "release");
+    hidden(true); hidden(false); await wait(30);
+    E("wake.until = Date.now() - 1"); hidden(true); hidden(false); await wait(30);
+    ok("after 60 minutes it turns off and doesn't come back", !E("wake.on") && log.at(-1) === "release" && t().getAttribute("aria-pressed") === "false");
+    ok("…the limit is one constant: 60 minutes", E("WAKE_MAX_MS") === 3600000);
+    t().click(); await wait(30); t().click(); await wait(30);
+    ok("off again: let go", log.at(-1) === "release" && !E("wake.on"));
+    // the install line
+    E("platform = () => 'apple'; isStandalone = () => false");
+    Object.defineProperty(w.navigator, "maxTouchPoints", {value: 5, configurable: true});
+    const M = () => E("momentLine()");
+    setup("2026-10-22", "new Date(2026, 9, 22, 15, 0).getTime()"); await wait(30);
+    ok("day 1: no install line", M().key !== "install");
+    setup("2026-10-21", "new Date(2026, 9, 22, 15, 0).getTime()"); E("state.plan.days.forEach(d => d.meals.forEach(m => m.items.forEach(i => i.offered = true)))"); await wait(30);
+    const m = M();
+    ok("day 2: 'Add Chicho to your Home Screen…' in the moment slot", m.key === "install" && m.text === "Add Chicho to your Home Screen to open it like an app. Tap Share, then Add to Home Screen.", m);
+    ok("…with a 'Later' action", m.actions.map(a => a[0]).join() === "Later");
+    E("homeChanged()"); await wait(30);
+    ok("…shown on the page", /Add Chicho to your Home Screen/.test($("#moment").textContent));
+    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Later").click(); await wait(30);
+    ok("Later puts it away, for good", M().key !== "install" && E("state.asked.installLater") === "2026-10-22");
+    E("delete state.asked.installLater; state.asked.install = '2026-10-21'; save(); setClock(new Date(2026, 9, 22, 15, 0).getTime())");
+    ok("once: never on another day", M().key !== "install");
+    E("state.asked = {}; isStandalone = () => true");
+    ok("never when already running standalone", M().key !== "install");
+    E("isStandalone = () => false; platform = () => 'android'");
+    ok("not on Android (its own install prompt; the words are iOS's)", M().key !== "install");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · kitchen";
+};
+</script>
+</body></html>

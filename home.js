@@ -133,6 +133,8 @@ function momentLine(){
   const shopDay = P.shopDay!==undefined && P.shopDay!==null && t.getDay()===P.shopDay;
   if(n && (soon || shopDay) && t.getHours() < 19 && open("shop"))
     return L("shop", say("moment.shop", {n}), [[say("moment.shopAction"), ()=>sendGroceries()], [say("moment.later"), putAway("shop")]]);
+  // day 2 (once), never when already installed: how to add Chicho to the Home Screen
+  if(installLineDue(today)) return L("install", say("moment.install"), [[say("moment.later"), ()=>{ state.asked = Object.assign({}, state.asked, {installLater:iso}); putAway("install")(); }]]);
   const dayOver = !(nx && nx.when==="today");
   if(dayOver && tmFirst && open("tomorrow")){
     const f = tmFirst.m.items.map(i=>lower1(baseName(i)));
@@ -145,6 +147,19 @@ function momentLine(){
   // a daily food tip from today's foods (the same all day)
   const food = todayDay.meals.flatMap(m=>m.items)[0];
   return L("tip", say("cook.tips", {name, food:food ? lower1(baseName(food)) : "food"}, "tip"));
+}
+/* ---------- the install line ---------- */
+function isStandalone(){ return matchMedia("(display-mode: standalone)").matches || navigator.standalone===true; }
+/* the second day (or the first one after it that Chicho is opened), on an iPhone or iPad in the browser, once:
+   it shows all that day unless "Later", and never on another day. Not while a meal is "now". */
+function installLineDue(today){
+  const P = state.profile, A = state.asked || {}, iso = todayISO();
+  if(isStandalone() || platform()!=="apple" || !navigator.maxTouchPoints) return false;
+  if(!P.firstDay || P.firstDay >= iso || A.installLater) return false;
+  if(A.install && A.install!==iso) return false;
+  if(today.some(x=>x.status==="now")) return false;
+  if(!A.install){ state.asked = Object.assign({}, A, {install:iso}); save(); }
+  return true;
 }
 /* at most one late question a day, never on day one, never while a meal is "now" */
 function lateQuestion(today){
@@ -346,7 +361,7 @@ function renderMeals(){
     nextLabel = say("home.tomorrow");
   }
   const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : ""))].join("|")
-            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",");
+            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on;
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -586,6 +601,7 @@ function mealOpen(x, isDefault){
     const sd = textBtn(say("meal.send"), ()=>openSheet("send", {date:x.date}), "small");
     sd.dataset.f = "send:" + x.key;
     links.appendChild(sd);
+    if(isDefault && wakeSupported()) links.appendChild(wakeToggle());
   }
   a.appendChild(links);
   // arrow keys move through the open meal's controls
@@ -602,6 +618,38 @@ function mealOpen(x, isDefault){
   return a;
 }
 let addingTo = null;
+/* ---------- Keep screen on: the Screen Wake Lock, while cooking ----------
+   Off by default; only where the browser has it. It lets go when the page is hidden or left, and after
+   60 minutes (then the toggle turns off); it comes back only if it was left on and the page is visible again. */
+const WAKE_MAX_MS = 60 * 60000;
+const wake = {on:false, lock:null, until:0, timer:0};
+function wakeSupported(){ return "wakeLock" in navigator && !!navigator.wakeLock; }
+async function wakeAcquire(){
+  if(!wake.on || document.hidden || wake.lock) return;
+  try{ wake.lock = await navigator.wakeLock.request("screen"); wake.lock.addEventListener("release", ()=>{ wake.lock = null; }); }
+  catch(e){ wake.on = false; homeChanged(); }
+}
+function wakeRelease(){ const l = wake.lock; wake.lock = null; if(l) try{ l.release(); }catch(e){} }
+function wakeSet(on){
+  wake.on = on; clearTimeout(wake.timer);
+  if(on){ wake.until = Date.now() + WAKE_MAX_MS; wake.timer = setTimeout(()=>wakeSet(false), WAKE_MAX_MS); wakeAcquire(); announce(say("meal.wakeOn")); }
+  else { wakeRelease(); announce(say("meal.wakeOff")); }
+  homeChanged();
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) wakeRelease();
+  else if(wake.on && Date.now() < wake.until) wakeAcquire();
+  else if(wake.on) wakeSet(false);
+});
+addEventListener("pagehide", wakeRelease);
+function wakeToggle(){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn-text small wake"; b.dataset.f = "wake";
+  b.setAttribute("aria-pressed", String(wake.on));
+  b.innerHTML = `<i aria-hidden="true"></i>${esc(say("meal.wake"))}`;
+  b.addEventListener("click", ()=>wakeSet(!wake.on));
+  return b;
+}
 /* three safe alternatives from the same food group for this meal */
 function alternatives(m, k){
   const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
