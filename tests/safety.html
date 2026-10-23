@@ -137,7 +137,7 @@ f.onload = () => {
     const names = [0, 6, 9, 12, 24, 36].map(m => E(`stageFor(${m}).name`));
     ok("stage names follow the brief", JSON.stringify(names) === JSON.stringify(["Milk only", "First tastes", "Fingers first", "A seat at the family table", "Big opinions, small plates", "Big opinions, small plates"]), names);
     ok("boundaries: 8→First tastes, 11→Fingers first, 23→family table", E("[stageFor(8).id, stageFor(11).id, stageFor(23).id].join()") === "first,textures,family");
-    ok("the stage line reads '3 meals · lumpy mash & finger foods' at 9 months", E("stageLine(stageFor(9))") === "3 meals · lumpy mash & finger foods", E("stageLine(stageFor(9))"));
+    ok("the stage line reads '3 meals · lumpy mash and finger foods' at 9 months", E("stageLine(stageFor(9))") === "3 meals · lumpy mash and finger foods", E("stageLine(stageFor(9))"));
     ok("the locked line names honey before 12 months", /honey/.test(E("lockedLine(10)")) && E("lockedLine(10)").startsWith("Always off the plate at this age:"), E("lockedLine(10)"));
     ok("…and drops it from 12 months", !/honey/.test(E("lockedLine(12)")), E("lockedLine(12)"));
     ok("every locked line names nuts, grapes, salt and sugar", [6, 9, 12, 24].every(m => /whole nuts, whole grapes, added salt and sugar/.test(E(`lockedLine(${m})`))));

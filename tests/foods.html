@@ -63,7 +63,7 @@ f.onload = async () => {
     const headlines = [...flat(C.home.headline), ...onbHeads];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
-    const support = [C.onb.draw.hint, C.onb.spell.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
+    const support = [C.onb.draw.hint, C.onb.spell.line, C.onb.birthday.nothingYet, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
     ok("no onboarding headline is a question", onbHeads.every(h => !h.trim().endsWith("?")), onbHeads.filter(h => h.trim().endsWith("?")));
     ok("support lines are at most 12 words", support.every(s => words(s) <= 12), support.filter(s => words(s) > 12));
     const all = JSON.stringify(C);

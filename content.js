@@ -238,21 +238,20 @@ const CONTENT = {
           erase:"Erase", done:"Done", undo:"Undo", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
     spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},
     birthday:{
-      sentence:"{name} arrived on {day} / {month} / {year}.",
-      line:"We'll grow the menu with them.",
-      cta:"Next",
+      sentence:"{name} showed up on…",
       day:"Day", month:"Month", year:"Year",
-      hint:{
-        future:"That day hasn't come yet.",
-        days:"{month} has {n} days.",
-        year:"A year like {year}.",
-        month:"A month, like {month}.",
-        old:"We cook for the first three years, so we'll plan for a three-year-old."
-      },
-      milk:{one:"Milk is all {name} needs right now. We'll have the table ready in {n} month.",
-            other:"Milk is all {name} needs right now. We'll have the table ready in {n} months."},
-      remind:"Remind me",
-      explore:"Look around anyway"
+      dayLabel:"day", monthLabel:"month", yearLabel:"year",
+      swipe:"Swipe each column.",
+      dayClamped:"Day set to {n}",
+      future:"That day hasn't happened yet.",
+      old:"This table is set for ages 0 to 3. Check the date?",
+      typeDate:"Type the date",
+      bornEarly:"Born early?",
+      early:"Born {blank} weeks early.", weeksLabel:"Weeks early",
+      using:"We're using {months}, counting from the due date.",
+      milk:{one:"Milk is all {name} needs for now. We'll save a seat for {n} more month.",
+            other:"Milk is all {name} needs for now. We'll save a seat for {n} more months."},
+      nothingYet:"Nothing to cook yet."
     },
     keepOut:{
       title:"Keep these off the plate.",
@@ -278,7 +277,7 @@ const CONTENT = {
   },
 
   /* Every word about a stage. name = the big tagline under the birthday fields;
-     meals + textureShort make the small line beneath it ("3 meals · lumpy mash & finger foods");
+     meals + textureShort make the small line beneath it ("3 meals · lumpy mash and finger foods");
      locked = the "always off the plate" line (the rules themselves live in LOCKED_RULES). */
   stages:{
     milk:{
@@ -294,7 +293,7 @@ const CONTENT = {
     },
     textures:{
       name:"Fingers first",
-      meals:"3 meals", textureShort:"lumpy mash & finger foods", caption:"lumpy mash",
+      meals:"3 meals", textureShort:"lumpy mash and finger foods", caption:"lumpy mash",
       portionHint:"2–4 tablespoons of each food",
       note:"Milk alongside meals, as they eat more.",
       avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"],

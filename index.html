@@ -337,9 +337,37 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .pf-ink{display:block;height:56px;width:auto;max-width:100%;color:var(--ink);}
   .pf-name:has(.pf-ink){margin-bottom:10px;}
   .pf-name + .scr-sub{margin-top:0;}
-  .stage-say{margin-top:28px;min-height:84px;}
-  .stage-name{margin:0;font-size:30px;font-weight:500;letter-spacing:-.025em;line-height:1.15;color:var(--ink);}
-  .stage-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
+  /* Birthday: three full-height columns between the sentence and the stage; the page itself never scrolls */
+  .onb-card.fill{overflow:hidden;}
+  .onb-card.fill::before, .onb-card.fill::after{display:none;}
+  .bd-sent{flex:none;margin-top:8px;font-size:clamp(30px, 9vw, 34px);}
+  .bd-ink{display:inline-block;vertical-align:-.15em;}
+  .bd-ink-svg{display:block;height:1em;width:auto;max-width:min(50vw, 200px);}
+  .bd{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;margin-top:12px;}
+  .bd-cols{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:repeat(3, 1fr);container-type:inline-size;}
+  .bd-band{position:absolute;left:0;right:0;top:calc(50% - 36px);height:72px;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);pointer-events:none;}
+  .bd-col{position:relative;min-height:0;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+          scrollbar-width:none;touch-action:pan-y;outline:none;border-radius:12px;}
+  .bd-col::-webkit-scrollbar{display:none;}
+  .bd-col:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;}
+  .bd-it{height:72px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;cursor:pointer;
+         font-size:min(56px, calc((33.33cqw - 6px) / 2.31));font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;}
+  .bd-v{display:block;}
+  .bd-col.untouched .bd-v{opacity:.35;}
+  .bd-labels{flex:none;display:grid;grid-template-columns:repeat(3, 1fr);margin-top:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
+  .bd-msg{flex:none;margin-top:8px;}
+  .bd-type{flex:none;}
+  .bd-stage{flex:none;min-height:160px;margin-top:4px;}
+  .bd-tag{margin:0;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
+  .bd-tag.milk{font-size:18px;line-height:1.35;text-wrap:balance;}
+  .bd-line{margin:4px 0 0;font-size:16px;color:var(--ink-muted);}
+  .bd-early{margin:4px 0 0;font-size:16px;}
+  .bd-early-link{margin-top:2px;}
+  .bd.typed{justify-content:center;}
+  .bd-typed{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;}
+  .bd-field{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
+  .bd-input{width:100%;min-height:52px;font-size:16px;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink);}
+  @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.31));} .bd-sent{font-size:30px;} .bd-stage{min-height:132px;} }
   /* pills: a thin black outline; on = black with white text */
   .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:28px;}
   .pill-o{
@@ -916,8 +944,10 @@ function birthDateFromMonths(m, at){
   const d = new Date(first.getFullYear(), first.getMonth(), Math.min(n.getDate(), days));
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
+/* the age everything plans for: corrected for a baby born early, until 24 months (correctedMonths, onboarding.js; verify) */
 function ageNow(){
-  const m = state.profile && state.profile.birthDate ? ageMonths(state.profile.birthDate) : null;
+  const P = state.profile;
+  const m = P && P.birthDate ? (typeof correctedMonths==="function" ? correctedMonths(P.birthDate, P.bornEarlyWeeks) : ageMonths(P.birthDate)) : null;
   return m===null ? 10 : m;
 }
 

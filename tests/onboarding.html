@@ -72,31 +72,35 @@ f.onload = async () => {
     d.querySelector(".pad-row .btn-ink").click(); await settle();
     enter(d.querySelector(".blank-input")); await settle();
 
-    // birthday
+    // birthday: three columns, nothing counts until each is touched
     ok("Enter continues to the birthday", step() === "birthday");
-    ok("the sentence names them", d.getElementById("onbTitle").textContent.startsWith("Lula arrived on"));
-    const [dd, mm, yy] = d.querySelectorAll(".blank-input");
-    ok("the day blank is labelled 'Lula arrived on'", d.querySelector(`label[for="${dd.id}"]`).textContent === "Lula arrived on");
-    ok("the month field is a plain field (no popover list)", !mm.getAttribute("role") && !d.querySelector(".month-peek"));
-    type(dd, "31"); type(mm, "feb"); type(yy, "2026");
-    ok("31 February: a quiet hint, no Next", /February has 28 days/.test(d.querySelector(".onb-hint").textContent) && next().classList.contains("wait"), d.querySelector(".onb-hint").textContent);
-    type(dd, "1"); type(mm, "12"); type(yy, "2026");
-    ok("a future date: 'That day hasn't come yet.'", d.querySelector(".onb-hint").textContent === "That day hasn't come yet.");
-    type(dd, "14"); type(mm, "dec"); type(yy, "2025");
-    ok("14 dec 2025: valid, Next appears, the hint clears", !next().classList.contains("wait") && d.querySelector(".onb-hint").textContent === "");
-    ok("the birth date is saved as it's typed", E("state.profile.birthDate") === "2025-12-14");
-    ok("the stage follows: 'Fingers first' · '3 meals · lumpy mash & finger foods'",
-       d.querySelector(".stage-name").textContent === "Fingers first" && d.querySelector(".stage-line").textContent === "3 meals · lumpy mash & finger foods");
-    type(yy, "2026"); type(mm, "July"); type(dd, "1");
-    ok("born 1 July 2026: milk only", d.querySelector(".stage-name").textContent === "Milk only");
+    ok("'Lula showed up on…', the name as its ink (and its spelling for screen readers)", d.getElementById("onbTitle").textContent === "Lula showed up on…" && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
+    ok("progress: 'Step 2 of 4: Birthday'", d.getElementById("onbProgress").textContent === "Step 2 of 4: Birthday");
+    await wait(300);
+    const cols = () => [...d.querySelectorAll(".bd-col")], col = k => d.querySelector(`.bd-col[data-key="${k}"]`);
+    ok("three spinbuttons in the locale's order", JSON.stringify(cols().map(c => c.dataset.key)) === JSON.stringify(E("bdOrder()")) && cols().every(c => c.getAttribute("role") === "spinbutton"));
+    ok("untouched: dim, 'Swipe each column.', Next aria-disabled", cols().every(c => c.classList.contains("untouched")) && d.querySelector(".bd-msg").textContent === "Swipe each column." && next().getAttribute("aria-disabled") === "true");
+    ok("…starting at 15, this month, last year", col("day").getAttribute("aria-valuenow") === "15" && col("month").getAttribute("aria-valuetext") === "October" && col("year").getAttribute("aria-valuenow") === "2025");
+    const key = (k, name, n = 1) => { for (let i = 0; i < n; i++) col(k).dispatchEvent(new w.KeyboardEvent("keydown", {key: name, bubbles: true, cancelable: true})); };
+    key("day", "ArrowDown"); key("month", "ArrowUp", 2);
+    ok("two touched: still not ready", next().getAttribute("aria-disabled") === "true" && !col("day").classList.contains("untouched"));
+    key("year", "ArrowUp"); key("year", "ArrowDown");
+    ok("all three: 14 December 2025, saved", E("state.profile.birthDate") === "2025-12-14" && next().getAttribute("aria-disabled") === "false" && d.querySelector(".bd-msg").textContent === "", E("state.profile.birthDate"));
+    ok("the stage: 'Fingers first' · '3 meals · lumpy mash and finger foods'",
+       d.querySelector(".bd-tag").textContent === "Fingers first" && d.querySelector(".bd-line").textContent === "3 meals · lumpy mash and finger foods");
+    key("year", "ArrowUp");
+    ok("a future date: 'That day hasn't happened yet.', no Next", d.querySelector(".bd-msg").textContent === "That day hasn't happened yet." && next().getAttribute("aria-disabled") === "true");
+    key("day", "End"); key("month", "Home"); key("month", "ArrowUp");
+    ok("31 then February: 'Day set to 28'", col("day").getAttribute("aria-valuenow") === "28" && d.querySelector(".bd-step .sr-only[aria-live]").textContent === "Day set to 28", [col("day").getAttribute("aria-valuenow"), d.querySelector(".bd-step .sr-only[aria-live]").textContent]);
+    key("month", "PageUp"); key("day", "Home");
+    ok("1 July 2026: milk for now, with how long", E("state.profile.birthDate") === "2026-07-01" && d.querySelector(".bd-tag").textContent === "Milk is all Lula needs for now. We'll save a seat for 3 more months." && d.querySelector(".bd-line").textContent === "Nothing to cook yet.", d.querySelector(".bd-stage").textContent);
+    ok("…and Next still goes on", next().getAttribute("aria-disabled") === "false");
+    key("year", "ArrowDown"); key("month", "PageUp"); key("day", "Home", 1); key("day", "ArrowUp", 13);
+    ok("back to 14 December 2025", E("state.profile.birthDate") === "2025-12-14", E("state.profile.birthDate"));
     next().click(); await settle();
-    ok("under 6 months: the calm milk screen, not an error", step() === "birthday" && E("onb.sub") === "milk" && /Milk is all Lula needs right now/.test(d.getElementById("onbTitle").textContent));
-    d.querySelectorAll("#onbFoot .btn-text")[0].click(); await settle();   // Look around anyway
-    ok("'Look around anyway' explores a first-tastes week", E("state.profile.exploreEarly") === true && step() === "keepout");
     d.getElementById("onbBack").click(); await settle();
-    ok("Back keeps what was entered", step() === "birthday" && d.querySelectorAll(".blank-input")[2].value === "2026");
-    const [dd2, mm2, yy2] = d.querySelectorAll(".blank-input");
-    type(dd2, "14"); type(mm2, "December"); type(yy2, "2025"); enter(yy2); await settle();
+    ok("Back keeps what was chosen, touched", step() === "birthday" && col("month").getAttribute("aria-valuetext") === "December" && !col("year").classList.contains("untouched"));
+    next().click(); await settle();
 
     // keep out
     ok("keep out is a statement", step() === "keepout" && d.getElementById("onbTitle").textContent === "Keep these off the plate.");

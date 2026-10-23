@@ -29,32 +29,22 @@ f.onload = async () => {
     const next = () => $("#onbFoot .btn-ink");
     ok("typing the spelling: the field and Next are both above the keyboard", R(name).bottom <= VIS && R(next()).bottom <= VIS, [R(name).bottom, R(next()).bottom]);
     await kb(false);
-    // birthday: its field takes the focus on arrival, and the keyboard never moves the sentence
-    name.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(600);
+    // Spell: the keyboard never moves the sentence
     const top0 = R($("#onbTitle")).top;
     await kb(true);
-    ok("keyboard up: the scroller ends at the keyboard", Math.round(R($("#onboarding")).bottom) === VIS, R($("#onboarding")).bottom);
+    ok("keyboard up: the onboarding ends at the keyboard", Math.round(R($("#onboarding")).bottom) === VIS, R($("#onboarding")).bottom);
     ok("…the sentence doesn't move (no jump)", Math.abs(R($("#onbTitle")).top - top0) < 1, [top0, R($("#onbTitle")).top]);
+    ok("…and the pinned Next sits above it", R(next()).bottom <= VIS);
     await kb(false);
     ok("keyboard down: still no jump", Math.abs(R($("#onbTitle")).top - top0) < 1);
-    const [dd, mm, yy] = d.querySelectorAll("#onbCard .blank-input");
-    ok("birthday: three numeric fields", [dd, mm, yy].every(i => i.inputMode === "numeric"), [dd, mm, yy].map(i => i.inputMode));
-    ok("…with bday autocomplete and return-key hints", dd.autocomplete === "bday-day" && mm.autocomplete === "bday-month" && yy.autocomplete === "bday-year" && dd.enterKeyHint === "next" && yy.enterKeyHint === "done");
-    ok("…the day has the focus", d.activeElement === dd);
-    type(dd, "1"); ok("'1' could still be 1x: the day waits", d.activeElement === dd);
-    type(dd, "14"); ok("'14' fills the day: on to the month", d.activeElement === mm);
-    type(mm, "1"); ok("'1' could still be 1x: the month waits", d.activeElement === mm);
-    type(mm, "12"); ok("'12' fills the month: on to the year", d.activeElement === yy);
-    type(yy, "2025"); await wait(50);
-    ok("a number month works: 14 / 12 / 2025 → 2025-12-14", E("state.profile.birthDate") === "2025-12-14");
-    type(mm, "dec"); await wait(50);
-    ok("…and a typed name still works", E("state.profile.birthDate") === "2025-12-14");
-    type(dd, "7"); ok("'7' can only be a day: on to the month", d.activeElement === mm);
-    type(dd, "31"); type(mm, "2"); type(yy, "2026"); await wait(50);
-    ok("31 / 2: a gentle inline hint, no Next", /February has 28 days/.test($(".onb-hint").textContent) && next().classList.contains("wait"), $(".onb-hint").textContent);
+    // birthday, typed: three numeric fields
+    E("goStep('birthday')"); await wait(600);
+    $(".bd-type").click(); await wait(100);
+    const [dd, mm, yy] = d.querySelectorAll("#onbCard .bd-input");
+    ok("'Type the date': three numeric fields", [dd, mm, yy].every(i => i.inputMode === "numeric"), [dd, mm, yy].map(i => i.inputMode));
+    ok("…with bday autocomplete", [dd, mm, yy].map(i => i.autocomplete).sort().join() === "bday-day,bday-month,bday-year");
     await kb(true);
-    yy.focus(); await wait(400);
-    ok("keyboard up on the birthday: the year field and its hint stay visible", R(yy).bottom <= VIS && R($(".onb-hint")).bottom <= VIS, [R(yy).bottom, R($(".onb-hint")).bottom]);
+    ok("keyboard up on the typed date: the fields stay visible", [dd, mm, yy].every(i => R(i).bottom <= VIS), [dd, mm, yy].map(i => R(i).bottom));
     await kb(false);
     // every input, in onboarding and in a sheet, is at least 16px
     const sizes = [];

@@ -27,6 +27,11 @@ Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welco
 - **Steps are saved by name**, not by position, so a reload resumes on the right screen however the order changes again; a save from the v2 order is mapped. A reload mid-flow says "Welcome back." once, above the sentence, gone after 3 s.
 - **Close discards.** A replay, or an edit opened from Profile, works on the live profile; opening it keeps a copy, and Close puts the copy back. Save and Love it keep the changes. Profile's last Settings row is now "Replay the first steps" (there's no welcome to replay).
 - **The late questions** (priorities, kitchen basics, meal times) aren't in this brief: they stay as single steps from Profile and the moment line, in the new shell, without progress segments.
+- **Birthday: three columns.** Day, month and year in the locale's order (`formatToParts`), each a native scroller with mandatory snap, one value per 72px row, a band of two hairlines across the middle. The value in the band is chosen on `scrollend` (or a 90 ms pause where there's no `scrollend`, as in Safari today) with a 120 ms pulse; a tap on a neighbour scrolls it in. Each column is a `spinbutton`: arrows ±1, Page Up/Down ±5, Home/End. Up raises the value, as a spinbutton does, even in the year column, which lists the newest year first. Nothing counts until all three columns have been touched (the start, 15 · this month · last year, is dim), and "Type the date" swaps them for three numeric fields with the same rules.
+- **56px values don't fit.** Four mono digits at 56px measure 134px, and a third of the 390px column is 117px, so the values size to the column: 56px wherever it fits, about 48px at 390 wide and 46px at 375. The columns stay equal thirds, as the brief asks.
+- **The fade and scale per row** come from the scroll offset in one `requestAnimationFrame` per scroll event (transform and opacity only), in every browser. CSS scroll-driven animations can't hit the brief's exact values at 1, 2 and 3 rows away without knowing the column's height, and two code paths would look different. Nothing runs while the columns are still.
+- **Born early** asks "Born ____ weeks early." (1–20). Everything then plans for the corrected age (`ageNow()`, Profile's age line included) until 24 months, and says "We're using {n} months, counting from the due date." **verify**.
+- **"lumpy mash and finger foods".** The stage line now says "and", as the brief writes it, instead of "&".
 
 ## Spatial app (23 Oct 2026, supersedes the scrolling Home)
 
@@ -168,6 +173,7 @@ The pager: swipes in all four directions on Home, the 24px edge zones against Sa
 - Locked foods and their ages: honey and cow's milk as a drink under 12 months; whole nuts, whole grapes, hard raw chunks, added salt and sugar, unpasteurised foods throughout.
 - The **family-salt advice** ("Set aside {name}'s portion before adding salt"), shown at lunch/dinner from 12 months, at most three times.
 - Portion sizes per stage, textures per food, the 60-minute "now" window as a rhythm (not a rule).
+- **Corrected age** for a baby born early: the due date's age, used for every stage decision until 24 months, from 1 to 20 weeks early.
 
 ## Needs a food-safety source (verify)
 

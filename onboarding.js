@@ -69,7 +69,7 @@ function openOnboarding(step, opts){
   onb.replay = !!o.replay;
   onb.snapshot = P.onboarded ? JSON.parse(JSON.stringify(P)) : null;   // Close puts this back
   onb.sub = step==="draw" && P.name && !P.ink && (!onb.single || o.sub==="typed") ? "typed" : null;
-  onb.draft = null; onb.revealed = false; onb.adding = false;
+  onb.draft = null; onb.revealed = false; onb.adding = false; onb.bd = null; onb.early = false; onb.bdTyped = false;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
@@ -192,9 +192,11 @@ function renderOnb(){
   const card = document.getElementById("onbCard"), foot = document.getElementById("onbFoot");
   card.innerHTML = ""; foot.innerHTML = "";
   card.className = "onb-card bare";
+  el.classList.remove("has-field");
   card.scrollTop = 0;
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
   onbGlow(ONB_GLOW[key] || "grain");
+  el.dataset.step = key;
   ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
     athome:onbAtHome, mealtimes:onbMealTimes, reveal:onbReveal})[key](card, P);
   // a reload mid-flow: "Welcome back." once, above the sentence, gone after 3 s
@@ -496,8 +498,11 @@ function inkSVG(ink, cls){
   return `<svg class="${cls || "name-ink"}" data-ink viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false"><path d="${d.trim()}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-/* 3. birthday: "{name} arrived on __ / ____ / ____." The stage follows along below. */
+/* 3. Birthday: "{name} showed up on…" over three full-height columns (day, month, year, in the locale's order).
+   Each column scrolls and snaps natively; the value in the band is the one chosen. Nothing counts until every
+   column has been touched, so a date that only looks valid can't be accepted unchanged. */
 const MONTH_NAMES = (()=>{ const f = new Intl.DateTimeFormat(undefined, {month:"long"}); return Array.from({length:12}, (_, k)=>f.format(new Date(2024, k, 1))); })();
+const MONTH_SHORT = (()=>{ const f = new Intl.DateTimeFormat(undefined, {month:"short"}); return Array.from({length:12}, (_, k)=>f.format(new Date(2024, k, 1))); })();
 const MONTHS_EN = ["january","february","march","april","may","june","july","august","september","october","november","december"];
 /* "10", "oct", "October", "octubre" → 9; null when unclear */
 function parseMonth(v){
@@ -508,75 +513,246 @@ function parseMonth(v){
   [MONTH_NAMES.map(m=>m.toLowerCase()), MONTHS_EN].forEach(list=>list.forEach((m, k)=>{ if(m===t || (t.length>=3 && m.startsWith(t))) hits.add(k); }));
   return hits.size===1 ? [...hits][0] : null;
 }
-function onbBirthday(card, P){
-  const name = P.name || "They";
-  if(onb.sub==="milk"){
-    const m = ageNow(), left = Math.max(1, 6 - m);
-    const [first, ...rest] = say("onb.birthday.milk", {name, n:left}).split(/(?<=\.)\s+/);
-    const h = document.createElement("h1");
-    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = first;
-    card.append(h, line(rest.join(" ")));
-    onbCta(card, say("onb.birthday.remind"), ()=>{
-      const b = localDate(P.birthDate);
-      const at = new Date(b.getFullYear(), b.getMonth()+6, b.getDate());
-      P.remindAt = isoOf(at);
-      P.exploreEarly = false; save(); nextStep();
-    }, {extra:[{label:say("onb.birthday.explore"), on:()=>{ P.exploreEarly = true; save(); nextStep(); }}]});
-    return;
-  }
-  const today = now();
-  const had = P.birthDate ? localDate(P.birthDate) : null;
-  let next;
-  const check = ()=>{
-    const d = +day.input.value, mo = parseMonth(month.input.value), y = +year.input.value;
-    day.set(d>=1 && d<=31 ? "ok" : ""); month.set(mo!==null ? "ok" : ""); year.set(/^\d{4}$/.test(year.input.value) ? "ok" : "");
-    let msg = "", date = null;
-    if(day.input.value && month.input.value && year.input.value){
-      if(mo===null) msg = say("onb.birthday.hint.month", {month:MONTH_NAMES[today.getMonth()]});
-      else if(!/^\d{4}$/.test(year.input.value) || y < today.getFullYear()-10) msg = say("onb.birthday.hint.year", {year:today.getFullYear()-1});
-      else{
-        const max = new Date(y, mo+1, 0).getDate();
-        if(d < 1 || d > max){ msg = say("onb.birthday.hint.days", {month:MONTH_NAMES[mo], n:max}); day.set("hint"); }
-        else{
-          date = new Date(y, mo, d);
-          if(date > today){ msg = say("onb.birthday.hint.future"); date = null; }
-          else if(ageMonths(isoOf(date)) > AGE_MAX) msg = say("onb.birthday.hint.old");
-        }
-      }
-    }
-    help.textContent = msg;
-    if(date){ P.birthDate = isoOf(date); save(); }
-    paintStage(date ? ageMonths(isoOf(date)) : null);
-    next.ready(!!date);
-    return !!date;
+/* the order a locale writes a date in: ["month","day","year"] for en-US, ["day","month","year"] for en-GB… */
+function bdOrder(locale){
+  return new Intl.DateTimeFormat(locale, {day:"numeric", month:"short", year:"numeric"}).formatToParts(new Date(2026, 9, 22))
+    .map(p=>p.type).filter(t=>t==="day" || t==="month" || t==="year");
+}
+const daysIn = (y, m)=>new Date(y, m + 1, 0).getDate();
+/* age in months, corrected for a baby born early (weeks before the due date) until 24 months (verify) */
+function correctedMonths(iso, weeks){
+  const m = ageMonths(iso);
+  if(m===null || !weeks || m >= 24) return m;
+  const b = localDate(iso);
+  return ageMonths(isoOf(new Date(b.getFullYear(), b.getMonth(), b.getDate() + weeks * 7)));
+}
+const BD_ROW = 72;
+const BD_FADE = [[1, 1], [.45, .86], [.22, .74], [.1, .64]];   // [opacity, scale] at 0, 1, 2, 3+ rows from the band
+/* one column: role=spinbutton over a native snapping scroller. o: {key, label, items:[{v, text, full}], value, touched, onPick(v)} */
+function bdWheel(o){
+  const col = document.createElement("div");
+  col.className = "bd-col" + (o.touched ? "" : " untouched");
+  col.tabIndex = 0;
+  col.setAttribute("role", "spinbutton");
+  col.setAttribute("aria-label", o.label);
+  const vals = o.items.map(it=>it.v);
+  col.setAttribute("aria-valuemin", String(Math.min(...vals))); col.setAttribute("aria-valuemax", String(Math.max(...vals)));
+  col.dataset.key = o.key;
+  const els = o.items.map((it, k)=>{
+    const e = document.createElement("div");
+    e.className = "bd-it"; e.dataset.k = k; e.setAttribute("aria-hidden", "true");
+    e.innerHTML = `<span class="bd-v">${esc(it.text)}</span>`;
+    e.addEventListener("click", ()=>{ touch(); to(k, true); });
+    col.appendChild(e);
+    return e;
+  });
+  let idx = Math.max(0, vals.indexOf(o.value)), raf = 0, endT = 0, H = 0;
+  const w = {el:col, touched:!!o.touched};
+  const aria = ()=>{ const it = o.items[idx]; col.setAttribute("aria-valuenow", String(it.v)); col.setAttribute("aria-valuetext", it.full || it.text); };
+  const paint = ()=>{
+    raf = 0;
+    const st = col.scrollTop;
+    els.forEach((e, k)=>{
+      const dd = Math.min(3, Math.abs(k * BD_ROW - st) / BD_ROW), i = Math.floor(dd), f = dd - i, a = BD_FADE[i], b = BD_FADE[Math.min(3, i + 1)];
+      e.style.opacity = (a[0] + (b[0] - a[0]) * f).toFixed(3);
+      e.style.transform = `scale(${(a[1] + (b[1] - a[1]) * f).toFixed(3)})`;
+    });
   };
-  const go = ()=>{ if(!check()) return; ageNow() < 6 ? goStep(onb.step, "milk") : (P.exploreEarly = false, save(), nextStep()); };
-  // full = two digits, or one that can't start a longer number (day 4–9, month 2–9); the month also takes a name
-  const day = blank({value:had ? String(had.getDate()) : "", min:2, maxLength:2, inputmode:"numeric", autocomplete:"bday-day", enterkeyhint:"next", label:say("onb.birthday.day"),
-    onInput:v=>{ check(); if(/^\d{2}$/.test(v) || /^[4-9]$/.test(v)) month.input.focus(); }, onEnter:()=>month.input.focus()});
-  const month = blank({value:had ? String(had.getMonth() + 1) : "", min:2, maxLength:9, inputmode:"numeric", autocomplete:"bday-month", enterkeyhint:"next", label:say("onb.birthday.month"),
-    onInput:v=>{ check(); if(/^\d{2}$/.test(v) || /^[2-9]$/.test(v)) year.input.focus(); }, onEnter:()=>year.input.focus()});
-  const year = blank({value:had ? String(had.getFullYear()) : "", min:4, maxLength:4, inputmode:"numeric", autocomplete:"bday-year", enterkeyhint:"done", label:say("onb.birthday.year"),
-    onInput:()=>check(), onEnter:go});
-  const s = sentence(say("onb.birthday.sentence", {name}), {day, month, year});
-  // the day field is labelled by the words before it ("Lula arrived on"), the others by their own names
-  card.append(s, line(say("onb.birthday.line")));
-  const help = hint();
+  const end = ()=>{
+    const k = Math.max(0, Math.min(els.length - 1, Math.round(col.scrollTop / BD_ROW)));
+    if(k===idx) return;
+    idx = k; aria();
+    if(!calm()) els[k].firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.04)"}, {transform:"scale(1)"}], {duration:120, easing:"ease-out"});
+    o.onPick(o.items[k].v, w);
+  };
+  const touch = ()=>{ if(w.touched) return; w.touched = true; col.classList.remove("untouched"); o.onTouch && o.onTouch(w); };
+  const to = (k, smooth)=>{
+    k = Math.max(0, Math.min(els.length - 1, k));
+    col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"});
+    if(!smooth || calm()){ paint(); end(); }
+  };
+  col.addEventListener("scroll", ()=>{
+    if(!raf) raf = requestAnimationFrame(paint);
+    if(!("onscrollend" in window)){ clearTimeout(endT); endT = setTimeout(end, 90); }
+  }, {passive:true});
+  col.addEventListener("scrollend", end);
+  ["pointerdown", "touchstart", "wheel"].forEach(t=>col.addEventListener(t, touch, {passive:true}));
+  col.addEventListener("keydown", e=>{
+    const v = o.items[idx].v, lo = Math.min(...vals), hi = Math.max(...vals);
+    const step = {ArrowUp:1, ArrowDown:-1, PageUp:5, PageDown:-5}[e.key];
+    let n = null;
+    if(step!==undefined) n = Math.max(lo, Math.min(hi, v + step));
+    else if(e.key==="Home") n = lo;
+    else if(e.key==="End") n = hi;
+    if(n===null) return;
+    e.preventDefault(); touch();
+    to(vals.indexOf(n), false);
+  });
+  const layout = ()=>{
+    const h = col.clientHeight;
+    if(!h || h===H) return;
+    H = h;
+    const pad = Math.max(0, (h - BD_ROW) / 2);
+    col.style.paddingTop = col.style.paddingBottom = pad + "px";
+    col.scrollTop = idx * BD_ROW; paint();
+  };
+  new ResizeObserver(()=>requestAnimationFrame(layout)).observe(col);
+  aria();
+  w.set = (v, smooth)=>{ const k = vals.indexOf(v); if(k >= 0 && k!==idx){ idx = k; aria(); col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"}); if(!smooth || calm()) paint(); } };
+  w.value = ()=>o.items[idx].v;
+  w.layout = layout;
+  return w;
+}
+function onbBirthday(card, P){
+  const name = P.name || "They", today = now(), Y = today.getFullYear();
+  card.classList.add("fill", "bd-step");
+  const had = P.birthDate ? localDate(P.birthDate) : null;
+  // where the columns start: the saved date (already chosen), or day 15, this month, last year, all dim
+  const bd = onb.bd || (onb.bd = had ? {day:had.getDate(), month:had.getMonth(), year:had.getFullYear(), touched:{day:true, month:true, year:true}}
+                                    : {day:15, month:today.getMonth(), year:Y - 1, touched:{}});
+  // the sentence: the name as ink (read aloud by its spelling) or as text
+  const h = document.createElement("h1");
+  h.className = "sent bd-sent"; h.id = "onbTitle"; h.tabIndex = -1;
+  const [pre, post] = say("onb.birthday.sentence").split("{name}");
+  h.append(pre);
+  if(P.ink && P.ink.strokes && P.ink.strokes.length){
+    const s = document.createElement("span");
+    s.className = "bd-ink"; s.innerHTML = inkSVG(P.ink, "bd-ink-svg") + `<span class="sr-only">${esc(name)}</span>`;
+    h.appendChild(s);
+  }else h.append(name);
+  h.append(post);
+  card.appendChild(h);
+  const live = document.createElement("p");
+  live.className = "sr-only"; live.setAttribute("aria-live", "polite");
+  const box = document.createElement("div");
+  box.className = "bd";
+  const msg = document.createElement("p");
+  msg.className = "onb-hint bd-msg"; msg.setAttribute("aria-live", "polite");
   const stage = document.createElement("div");
-  stage.className = "stage-say"; stage.setAttribute("aria-live", "polite");
-  stage.innerHTML = `<p class="stage-name"></p><p class="stage-line"></p>`;
-  card.append(help, stage);
-  let shownStage = null;
-  function paintStage(m){
+  stage.className = "bd-stage"; stage.setAttribute("aria-live", "polite");
+  let next;
+  const allTouched = ()=>bd.touched.day && bd.touched.month && bd.touched.year;
+  const clampDay = ()=>{
+    const max = daysIn(bd.year, bd.month);
+    if(bd.day > max){
+      bd.day = max;
+      wheels.day && wheels.day.set(max, true);
+      live.textContent = say("onb.birthday.dayClamped", {n:max});
+      if(typed) typed.day.value = String(max);
+    }
+  };
+  let shownStage = "";
+  const check = ()=>{
+    let text = "", date = null;
+    if(!allTouched()) text = say("onb.birthday.swipe");
+    else{
+      date = new Date(bd.year, bd.month, bd.day);
+      if(date > today){ text = say("onb.birthday.future"); date = null; }
+      else if(ageMonths(isoOf(date)) > AGE_MAX){ text = say("onb.birthday.old"); date = null; }
+    }
+    msg.textContent = typed && !allTouched() ? "" : text;
+    if(date){ P.birthDate = isoOf(date); save(); }
+    paintStage(date);
+    next.ready(!!date);
+  };
+  function paintStage(date){
+    const m = date ? correctedMonths(isoOf(date), P.bornEarlyWeeks) : null;
     const st = m===null ? null : stageFor(m);
-    const id = st ? st.id : null;
-    if(id===shownStage) return;
-    shownStage = id;
-    stage.querySelector(".stage-name").textContent = st ? st.name : "";
-    stage.querySelector(".stage-line").textContent = st ? stageLine(st) : "";
-    if(st && !calm()) stage.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}], {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
+    const sig = m===null ? "" : (st.solids ? st.id : "milk:" + m) + ":" + (P.bornEarlyWeeks || 0) + ":" + !!onb.early;
+    if(sig===shownStage) return;
+    shownStage = sig;
+    stage.innerHTML = "";
+    if(m===null) return;
+    if(!st.solids){
+      const left = Math.max(1, 6 - m);
+      stage.append(line(say("onb.birthday.milk", {name, n:left}), "bd-tag milk"), line(say("onb.birthday.nothingYet"), "bd-line"));
+    }else stage.append(line(st.name, "bd-tag"), line(stageLine(st), "bd-line"));
+    // born early: "Born ____ weeks early." and the age it uses
+    if(onb.early || P.bornEarlyWeeks){
+      const b = blank({value:P.bornEarlyWeeks ? String(P.bornEarlyWeeks) : "", min:2, maxLength:2, inputmode:"numeric", enterkeyhint:"done", label:say("onb.birthday.weeksLabel"),
+        onInput:v=>{ const n = +v; P.bornEarlyWeeks = /^\d{1,2}$/.test(v) && n >= 1 && n <= 20 ? n : 0; b.set(P.bornEarlyWeeks ? "ok" : ""); save(); onb.early = true; shownStage = ""; const f = document.activeElement; check(); refocus(f); }});
+      b.set(P.bornEarlyWeeks ? "ok" : "");
+      const s = sentence(say("onb.birthday.early"), {blank:b}, "bd-early");
+      s.removeAttribute("id"); s.tabIndex = -1;
+      const p = document.createElement("p"); p.className = "bd-early"; while(s.firstChild) p.appendChild(s.firstChild);
+      stage.appendChild(p);
+      if(P.bornEarlyWeeks) stage.appendChild(line(say("onb.birthday.using", {months:m}), "bd-line"));
+    }else{
+      const e = textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; shownStage = ""; check(); const f = stage.querySelector(".blank-input"); if(f) f.focus(); }, "small bd-early-link");
+      stage.appendChild(e);
+    }
+    if(!calm()) stage.animate([{opacity:0}, {opacity:1}], {duration:250, easing:"ease-out"});
   }
-  next = onbCta(card, say("onb.birthday.cta"), go, {ready:false});
+  // after re-painting the stage, the weeks field keeps the caret
+  const refocus = f=>{ if(f && f.classList.contains("blank-input") && !f.isConnected){ const g = stage.querySelector(".blank-input"); if(g){ g.focus(); const n = g.value.length; g.setSelectionRange(n, n); } } };
+  const wheels = {};
+  let typed = null;
+  const order = bdOrder();
+  const pick = key=>(v, w)=>{
+    bd[key] = v;
+    if(key!=="day") clampDay(); else if(bd.day > daysIn(bd.year, bd.month)) clampDay();
+    check();
+  };
+  const onTouch = key=>()=>{ bd.touched[key] = true; check(); };
+  const columns = ()=>{
+    const cols = document.createElement("div");
+    cols.className = "bd-cols";
+    cols.innerHTML = `<div class="bd-band" aria-hidden="true"></div>`;
+    const labels = document.createElement("div");
+    labels.className = "bd-labels"; labels.setAttribute("aria-hidden", "true");
+    const ITEMS = {
+      day:Array.from({length:31}, (_, k)=>({v:k + 1, text:String(k + 1)})),
+      month:MONTH_SHORT.map((t, k)=>({v:k + 1, text:t, full:MONTH_NAMES[k]})),
+      year:[Y, Y - 1, Y - 2, Y - 3].map(y=>({v:y, text:String(y)}))
+    };
+    order.forEach(key=>{
+      const value = key==="month" ? bd.month + 1 : bd[key];
+      const w = bdWheel({key, label:say("onb.birthday." + key), items:ITEMS[key], value, touched:!!bd.touched[key],
+        onPick:key==="month" ? (v, x)=>pick("month")(v - 1, x) : pick(key), onTouch:onTouch(key)});
+      wheels[key] = w;
+      cols.appendChild(w.el);
+      labels.appendChild(Object.assign(document.createElement("span"), {textContent:say("onb.birthday." + key + "Label")}));
+    });
+    box.append(cols, labels);
+  };
+  // "Type the date": three numeric fields in the same order, the same rules
+  const typeIt = ()=>{
+    onb.bdTyped = true;
+    box.innerHTML = ""; box.classList.add("typed");
+    typed = {};
+    const row = document.createElement("div");
+    row.className = "bd-typed";
+    order.forEach(key=>{
+      const lab = document.createElement("label");
+      lab.className = "bd-field";
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.inputMode = "numeric"; inp.autocomplete = "bday-" + key; inp.maxLength = key==="year" ? 4 : 2;
+      inp.className = "bd-input";
+      if(bd.touched[key]) inp.value = String(key==="month" ? bd.month + 1 : bd[key]);
+      inp.addEventListener("input", ()=>{
+        const t = inp.value.trim(), n = +t;
+        const ok = key==="day" ? /^\d{1,2}$/.test(t) && n >= 1 && n <= 31 : key==="month" ? parseMonth(t)!==null : /^\d{4}$/.test(t);
+        bd.touched[key] = ok;
+        if(ok){ if(key==="month") bd.month = parseMonth(t); else bd[key] = n; }
+        if(ok && bd.touched.day && bd.touched.month && bd.touched.year && bd.day > daysIn(bd.year, bd.month)) clampDay();
+        check();
+      });
+      lab.append(inp, Object.assign(document.createElement("span"), {textContent:say("onb.birthday." + key + "Label")}));
+      typed[key] = inp;
+      row.appendChild(lab);
+    });
+    box.appendChild(row);
+    msg.textContent = "";
+    typed[order[0]].focus();
+    check();
+  };
+  if(onb.bdTyped) setTimeout(typeIt); else columns();
+  const typeLink = textButton(say("onb.birthday.typeDate"), ()=>{ typeLink.remove(); typeIt(); }, "small bd-type");
+  if(onb.bdTyped) typeLink.hidden = true;
+  card.append(box, msg, stage, live);
+  next = onbCta(card, say("onb.next"), ()=>{ if(next.getAttribute("aria-disabled")==="true") return; P.exploreEarly = false; save(); nextStep(); },
+                {ready:false, extra:[]});
+  card.insertBefore(typeLink, msg.nextSibling);
   check();
 }
 
