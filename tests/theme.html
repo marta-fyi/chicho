@@ -34,7 +34,10 @@ const ratio = (fg, bg) => { const a = lum(over(fg, bg)), b = lum(bg); return (Ma
     ok("--ink-muted is at least 4.5:1 on --bg", ratio(parse(w.getComputedStyle($("#whoAge")).color), bg) >= 4.5, ratio(parse(w.getComputedStyle($("#whoAge")).color), bg).toFixed(2));
     ok("the page itself is --bg (paper), no night-sky image", w.getComputedStyle(d.documentElement).backgroundColor === "rgb(220, 221, 221)" && w.getComputedStyle($(".bg")).display === "none");
     ok("…and bg.jpg is never requested in the light theme", !w.performance.getEntriesByType("resource").some(e => /bg\.jpg/.test(e.name)) && !d.getElementById("bgPreload"));
-    ok("the theme colour is the paper", $('meta[name="theme-color"]').content === "#DCDDDD", $('meta[name="theme-color"]').content);
+    const metas = () => [...d.querySelectorAll('meta[name="theme-color"]')].map(m => m.media + "=" + m.content);
+    ok("two theme-color metas: light #DCDDDD, dark the top of the night sky", metas().join() === "(prefers-color-scheme: light)=#DCDDDD,(prefers-color-scheme: dark)=#3D4662", metas());
+    ok("installed: standalone, status-bar style 'default'", $('meta[name="apple-mobile-web-app-capable"]').content === "yes" && $('meta[name="apple-mobile-web-app-status-bar-style"]').content === "default");
+    ok("the manifest says standalone, on the paper", await (await w.fetch("manifest.webmanifest")).json().then(m => m.display === "standalone" && m.theme_color === "#DCDDDD"));
     ok("color-scheme is 'light dark'", $('meta[name="color-scheme"]').content === "light dark");
     // Profile → Appearance
     w.eval("openSheet('profile')"); await wait(300);
@@ -45,13 +48,14 @@ const ratio = (fg, bg) => { const a = lum(over(fg, bg)), b = lum(bg); return (Ma
     ok("Dark: the dark theme, stored on this device", d.documentElement.dataset.theme === "dark" && w.eval("state.profile.appearance") === "dark" && JSON.parse(w.localStorage.getItem("toddlerMealPlanner.v1")).profile.appearance === "dark");
     ok("…the night sky shows, the ink turns white", w.getComputedStyle($(".bg")).display === "block" && w.getComputedStyle($("#headline")).color === "rgb(255, 255, 255)");
     ok("…the sheet takes the dark surface", w.getComputedStyle($("#sheet")).backgroundColor === "rgb(28, 35, 66)", w.getComputedStyle($("#sheet")).backgroundColor);
-    ok("…the theme colour is the top of the night sky", $('meta[name="theme-color"]').content === "#3D4662", $('meta[name="theme-color"]').content);
+    ok("…both theme colours pin to the top of the night sky", metas().every(m => m.endsWith("=#3D4662")), metas());
     ok("…and the night-sky image is preloaded", !!d.getElementById("bgPreload"));
     // same layout: the headline sits in the same place in both themes
     const darkTop = Math.round($("#headline").getBoundingClientRect().top);
     [...d.querySelectorAll(".s-seg-opts button")][1].click(); await wait(100);
     ok("Light again; the layout doesn't move between themes", d.documentElement.dataset.theme === "light" && Math.round($("#headline").getBoundingClientRect().top) === darkTop);
     [...d.querySelectorAll(".s-seg-opts button")][0].click(); await wait(100);
+    ok("Auto again: each meta has its own colour back", metas().join() === "(prefers-color-scheme: light)=#DCDDDD,(prefers-color-scheme: dark)=#3D4662", metas());
     ok("Auto again follows the system", d.documentElement.dataset.theme === "light" && w.eval("state.profile.appearance") === "auto");
     // a saved choice applies before the first paint
     w.eval("state.profile.appearance = 'dark'; save()");

@@ -995,7 +995,7 @@ const SHEETS = {
       const b = document.createElement("button");
       b.type = "button"; b.dataset.f = "appearance:" + v; b.textContent = say("profileSheet.appearanceOpts." + v);
       b.setAttribute("aria-pressed", String((P.appearance || "auto")===v));
-      b.addEventListener("click", ()=>{ P.appearance = v; save(); applyTheme(v); haptic(); refreshSheetView(); });
+      b.addEventListener("click", ()=>{ P.appearance = v; save(); applyTheme(v); updateChrome(); haptic(); refreshSheetView(); });
       seg.lastChild.appendChild(b);
     });
     body.appendChild(seg);
@@ -1250,12 +1250,16 @@ async function renderSnapshot(){
    ==================================================================== */
 let currentTitle = "Chicho", faviconFood = null;
 /* the browser's own chrome takes the theme's top colour: the paper, or the top of the night sky */
+const THEME_COLOR = {light:"#DCDDDD", dark:"#3D4662"};   // mirrors --bg and --night-top (the metas need literal colours)
 function themeColor(){ return getComputedStyle(document.documentElement).getPropertyValue(document.documentElement.dataset.theme==="dark" ? "--night-top" : "--bg").trim(); }
 function updateChrome(){
   document.title = currentTitle;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  const c = themeColor();
-  if(meta && c && meta.content!==c) meta.content = c;
+  // Auto: each meta keeps its own scheme's colour. A chosen theme pins both to it, whatever the system says.
+  const pinned = (state.profile.appearance || "auto")!=="auto" || /[?&]theme=/.test(location.search);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    const c = pinned ? themeColor() : (/dark/.test(m.media) ? THEME_COLOR.dark : THEME_COLOR.light);
+    if(c && m.content!==c) m.content = c;
+  });
   const nx = milkOnly() ? null : nextMeal(), food = nx && nx.m.items[0] ? foodOf(nx.m.items[0].name) : null;
   const id = food && hasArt(food) ? food.id : null;
   if(id!==faviconFood){ faviconFood = id; drawFavicon(food); }
