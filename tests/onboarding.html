@@ -180,6 +180,15 @@ f.onload = async () => {
     ok("a changed time is saved as theirs", E("state.profile.mealTimes.lunch") === "12:00");
     next().click(); await settle();
     ok("…and confirmed, so the late question doesn't ask again", E("state.profile.mealTimesConfirmed") === true && d.getElementById("onboarding").hidden);
+
+    // under 6 months: Birthday → Allergens → one closing screen → Home (only Home and Profile)
+    E(`localStorage.clear(); state.profile = freshProfile(); state.plans = []; state.profile.name = "Lula"; state.profile.birthDate = birthDateFromMonths(3); save(); openOnboarding("keepout")`); await settle();
+    ok("under 6: Allergens' pill is 'Next' (there's no week to show)", next().textContent === "Next");
+    next().click(); await wait(500);
+    ok("…then 'Lula's table opens in 3 months.' and 'Nothing to cook yet.', no Reveal, no Done", step() === "reveal" && d.getElementById("onbTitle").textContent === "Lula's table opens in 3 months." && d.querySelector("#onbCard .onb-line").textContent === "Nothing to cook yet." && !d.querySelector(".wk-day, .wk-say"), d.getElementById("onbTitle").textContent);
+    ok("…Back to Allergens is there; the pill says 'Look around'", !d.getElementById("onbBack").hidden && next().textContent === "Look around");
+    next().click(); await settle();
+    ok("'Look around' goes Home, with no week, and only Home and Profile", d.getElementById("onboarding").hidden && E("state.profile.onboarded") && !E("hasPlan()") && JSON.stringify(E("screensNow()")) === JSON.stringify(["home", "profile"]));
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

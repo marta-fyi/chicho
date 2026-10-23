@@ -40,13 +40,15 @@ function stepAfter(key){ let k = S(key) + 1; while(k < ONB_STEPS.length && !step
 function stepBefore(key){ let k = S(key) - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return ONB_STEPS[Math.max(0, k)]; }
 function hasBack(){
   if(onb.single) return false;
-  return !["draw","reveal"].includes(onb.step) || (onb.step==="reveal" && onb.revealed);
+  return !["draw","reveal"].includes(onb.step) || (onb.step==="reveal" && (onb.revealed || noWeekYet()));
 }
 function goBack(){
   const to = stepBefore(onb.step);
   goStep(to, to==="draw" && state.profile.name && !state.profile.ink ? "typed" : null);
 }
 function nextStep(){ goStep(stepAfter(onb.step)); }
+/* under 6 months there's no week yet: Allergens ends on the closing screen instead of Reveal and Done */
+function noWeekYet(){ return ageNow() < 6 && !state.profile.exploreEarly; }
 
 /* step is a name ("birthday"); no step = where the family left off */
 function openOnboarding(step, opts){
@@ -867,7 +869,7 @@ function makePile(zone, els, seed){
 /* the locked line: the stage's list, each item a text button whose reason opens under the line, one at a time */
 const LOCKED_WORDS = {"honey":["honey"], "whole nuts":["nuts"], "whole grapes":["grapes"], "added salt and sugar":["salt","sugar"], "cow's milk as a drink":["cowsmilk"]};
 function lockedItems(months){
-  return stageFor(months).locked.split(", ").map(label=>({label, why:(LOCKED_WORDS[label] || []).map(id=>(LOCKED_RULES.find(r=>r.id===id) || {}).why).filter(Boolean).join(" ")}));
+  return stageFor(Math.max(6, months)).locked.split(", ").map(label=>({label, why:(LOCKED_WORDS[label] || []).map(id=>(LOCKED_RULES.find(r=>r.id===id) || {}).why).filter(Boolean).join(" ")}));
 }
 function onbKeepout(card, P){
   const months = ageNow();
@@ -1048,10 +1050,10 @@ function onbKeepout(card, P){
     onb.draft = null;   // the week is built again from these answers
     const to = stepAfter("keepout");
     if(onb.single){ nextStep(); return; }
-    if(calm() || !pile){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
+    if(calm() || !pile || noWeekYet()){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
     pile.open(()=>goStep(to, null, {instant:true}));
   };
-  onbCta(card, onb.single ? say("onb.save") : say("onb.keepOut.cta"), go);
+  onbCta(card, onb.single ? say("onb.save") : noWeekYet() ? say("onb.next") : say("onb.keepOut.cta"), go);
 }
 
 /* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */
@@ -1189,7 +1191,7 @@ function revealLines(P){
 }
 function onbReveal(card, P){
   const name = P.name || "";
-  if(ageNow() < 6 && !P.exploreEarly) return onbClosing(card, P);
+  if(noWeekYet()) return onbClosing(card, P);
   if(!onb.draft) onb.draft = generateWeek(planMonths(), P);   // first, and synchronously: nothing waits for the animation
   const today = weekStartsToday(), t = now();
   const start = today ? new Date(t.getFullYear(), t.getMonth(), t.getDate()) : tomorrowOf(new Date(t.getFullYear(), t.getMonth(), t.getDate()));
