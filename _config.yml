@@ -1,0 +1,3 @@
+# GitHub Pages (Jekyll) settings. docs/ stays in the repo but is not published.
+exclude:
+  - docs
