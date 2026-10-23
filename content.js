@@ -174,7 +174,7 @@ const CONTENT = {
     firsts:"Firsts", first:"First {food} · {date}", firstsNone:"Firsts show up here as they happen.",
     addPhoto:"Add photo", removePhoto:"Remove photo", photoOf:"A photo of {food}", photoTooBig:"That photo is too big to keep on this device.",
     settings:"Settings", name:"Name", editSpelling:"Edit spelling", birthday:"Birthday", mealTimes:"Meal times", priorities:"Priorities",
-    basics:"Kitchen basics", redraw:"Redraw", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay welcome"
+    basics:"Kitchen basics", redraw:"Redraw", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay the first steps"
   },
   allergenNote:{
     note:"Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.",
@@ -232,13 +232,11 @@ const CONTENT = {
     next:"Next",
     save:"Save",
     skip:"Skip",
-    welcome:{
-      title:"Every meal is a first.",
-      line:"Tell us about them. We'll take care of the week.",
-      cta:"Begin"
-    },
-    name:{draw:"Write their name.", drawLine:"With a finger, the way you'd write it for them. It stays on this phone.",
-          spell:"Spelled {blank}.", clear:"Clear", pad:"Drawing pad for their name", cta:"Next"},
+    welcomeBack:"Welcome back.",
+    progress:{names:["Name","Birthday","Allergens","Week"], step:"Step {n} of 4: {name}"},
+    draw:{sentence:"Pull up a chair for {blank}.", title:"Sign here", hint:"Big letters. Wobbly is perfect.",
+          erase:"Erase", done:"Done", undo:"Undo", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
+    spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},
     birthday:{
       sentence:"{name} arrived on {day} / {month} / {year}.",
       line:"We'll grow the menu with them.",

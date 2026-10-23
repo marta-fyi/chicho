@@ -15,6 +15,19 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Onboarding v3 (23 Oct 2026, supersedes every earlier onboarding order)
+
+Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welcome screen: the page opens on Draw. The code lives in `onboarding.js`; `index.html` keeps the data, the generator, safety and the stages.
+
+- **The shell.** No cards. A top bar (a text "Back" top-left, four hairline segments for Name · Birthday · Allergens · Week, a text "Close" top-right on a replay), the sentence in a scroller of its own, and the primary pill pinned above the safe area (52px). Screen readers hear "Step 2 of 4: Birthday". The light theme has its own glow per step (1.2 s crossfade, the same two-layer crossfade as Home's); the dark theme has the night sky, untouched. A pill that isn't ready yet stays in place, dimmed and `aria-disabled` (it used to be invisible until ready).
+- **The sheet is back, for onboarding only.** The brief's Draw pad, "Something else" and the short-screen locked list each open "the sheet component", which the spatial app had removed. `onbSheet()` is one small bottom sheet: a scrim, Esc, a tap outside and everything behind made inert when it's modal; no scrim for the drawing pad, which simply sits below the sentence.
+- **The drawing-pad addendum** isn't on disk (it came in an earlier session), so the sheet follows this brief's own list: "Sign here", "Big letters. Wobbly is perfect.", Erase · Done · Undo, "Type instead". Done is `aria-disabled` until there's ink; Undo takes the last stroke back; Erase clears it. The sentence's blank mirrors the ink live (the same SVG as the corner name, marked `data-ink`).
+- **Type instead** puts the name in the blank of the same sentence and skips Spell (it clears any ink: a typed name has none). Back from Birthday goes to whichever name screen was used.
+- **Spell's prefill** uses the Handwriting Recognition API where the browser has it (some Chromium platforms). iOS Safari has none today, so on an iPhone the field starts empty.
+- **Steps are saved by name**, not by position, so a reload resumes on the right screen however the order changes again; a save from the v2 order is mapped. A reload mid-flow says "Welcome back." once, above the sentence, gone after 3 s.
+- **Close discards.** A replay, or an edit opened from Profile, works on the live profile; opening it keeps a copy, and Close puts the copy back. Save and Love it keep the changes. Profile's last Settings row is now "Replay the first steps" (there's no welcome to replay).
+- **The late questions** (priorities, kitchen basics, meal times) aren't in this brief: they stay as single steps from Profile and the moment line, in the new shell, without progress segments.
+
 ## Spatial app (23 Oct 2026, supersedes the scrolling Home)
 
 Chicho is now five full-screen views on a 2D canvas: **Profile** above Home, **Shuffle** to its right, **Kitchen** below it and **New week** below Kitchen. Home is where you offer; each other screen does one job and is one swipe away. The layout is one constant (`LAYOUT` in `home.js`); swipe directions, the arrow keys, the map and the parallax all derive from it. Where the sections further down describe the old Home (Up next, the week strip, the Shop line, Variety, sheets, row swipes, scrub, Tomorrow mode, press and hold, cook mode), this section wins.

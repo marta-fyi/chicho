@@ -80,14 +80,14 @@ f.onload = async () => {
     E(`state.profile.ink = null; save(); refresh("profile")`); await wait(30);
     // settings reopen the onboarding's sentences, with a text Close that comes back here
     const rows = [...sec("settings").querySelectorAll(".row-btn")].map(b => b.querySelector(".row-t span").textContent);
-    ok("Settings: birthday, meal times, priorities, kitchen basics, replay as rows", JSON.stringify(rows) === JSON.stringify(["Birthday", "Meal times", "Priorities", "Kitchen basics", "Replay welcome"]), rows);
+    ok("Settings: birthday, meal times, priorities, kitchen basics, replay as rows", JSON.stringify(rows) === JSON.stringify(["Birthday", "Meal times", "Priorities", "Kitchen basics", "Replay the first steps"]), rows);
     const nameRow = sec("settings").firstElementChild.nextElementSibling;
     ok("…led by 'Name · Lula' with 'Redraw' and 'Edit spelling'", nameRow.classList.contains("s-person") && /^Name · Lula/.test(nameRow.textContent) && $('[data-f="set:redraw"]').textContent === "Redraw" && $('[data-f="set:name"]').textContent === "Edit spelling", nameRow.textContent);
-    $('[data-f="set:redraw"]').click(); await wait(400);
-    ok("Redraw opens the name step on its drawing pad", !d.getElementById("onboarding").hidden && d.getElementById("onbTitle").textContent === "Write their name." && !!d.querySelector("#onbCard .pad"));
+    $('[data-f="set:redraw"]').click(); await wait(800);
+    ok("Redraw opens Draw on its pad", !d.getElementById("onboarding").hidden && d.getElementById("onbTitle").textContent.startsWith("Pull up a chair for") && !!d.querySelector(".pad-sheet .pad"));
     d.getElementById("onbClose").click(); await wait(100);
     $('[data-f="set:name"]').click(); await wait(400);
-    ok("Edit spelling opens the same step, its spelling field focused", d.getElementById("onbTitle").textContent === "Write their name." && d.activeElement === d.querySelector("#onbCard .blank-input"));
+    ok("Edit spelling (no ink): the typed sentence, its field focused", d.getElementById("onbTitle").textContent.startsWith("Pull up a chair for") && d.activeElement === d.querySelector("#onbCard .blank-input") && !d.querySelector(".pad-sheet"));
     ok("…with a text 'Close'", !d.getElementById("onbClose").hidden && d.getElementById("onbClose").textContent === "Close");
     d.getElementById("onbClose").click(); await wait(100);
     ok("…Close comes back to Profile", d.getElementById("onboarding").hidden && E("pg.cur") === "profile");

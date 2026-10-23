@@ -1,10 +1,16 @@
 // The onboarding: one sentence per screen (index.html holds the data, the generator and the stages).
-/* ---------- onboarding ----------
-   One sentence per screen, completed by you: the field sits inside the
-   sentence as its missing word. Every answer is saved as it's given, so
-   closing the tab and coming back resumes at the same step, and Back keeps
-   what was entered. Nothing about the plan changes until "Love it". */
-const ONB_STEPS = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
+/* ---------- onboarding (v3) ----------
+   Draw → Spell → Birthday → Allergens → Reveal → Done → Home. One sentence per screen, completed by you.
+   Every answer is saved as it's given (and the step on every advance), so a reload resumes where it was,
+   with "Welcome back." once. Nothing about the plan changes until "Love it". A replay or an edit from
+   Profile works on the live profile, and Close puts back what was there when it opened. */
+const ONB_STEPS = ["draw","spell","birthday","keepout","reveal","priorities","athome","mealtimes"];
+/* legacy: the step order before v3, for a save that stopped mid-flow (onboardingStep was an index) */
+const ONB_STEPS_V2 = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
+/* the four progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
+const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, reveal:3, done:3};
+/* the glow behind each step (light theme): Reveal cycles through all five */
+const ONB_GLOW = {draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
 const STAPLES = [
   ["Oats","Oatmeal"],["Rice","Rice, soft-cooked"],["Pasta","Whole wheat pasta"],["Bread","Whole wheat toast"],
   ["Eggs","Egg, well cooked"],["Yogurt","Greek yogurt"],["Cheese","Cheese, grated"],["Lentils","Lentils"],
@@ -14,44 +20,60 @@ const STAPLES = [
 ];
 /* each allergen pill shows the drawing of a food that carries it, when there is one */
 const ALLERGEN_ART = {egg:"egg", milk:"milk", peanut:"peanut-butter", wheat:"toast", soy:"tofu", fish:"white-fish", sesame:"hummus"};
-let onb = {step:0, sub:null, dir:1, draft:null, revealed:false, kind:"allergy", adding:false};
+let onb = {step:"draw", sub:null, dir:1, draft:null, revealed:false, kind:"allergy", adding:false, snapshot:null, welcomeBack:false};
 const S = key=>ONB_STEPS.indexOf(key);
 
 /* months to plan for: a baby under 6 months only gets a menu if the
-   family chose to explore anyway, and then it's a first-tastes week */
+   family chose to explore anyway (legacy: v2's "Look around anyway"), and then it's a first-tastes week */
 function planMonths(){
   const m = ageNow();
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
-/* Ask late: a first run (or a replay) asks only what safety needs (name,
-   birthday, allergens); the rest is asked later, in context, one at a time,
-   and always reachable from the profile sheet. Meal times need meals. */
+/* Ask late: a first run (or a replay) asks only what safety needs (name, birthday, allergens); the rest is
+   asked later, in context, one at a time, from Profile. Spell only follows a drawn name. Meal times need meals. */
 const LATE_STEPS = ["priorities","athome","mealtimes"];
 function stepApplies(key){
   if(key==="mealtimes" && planMonths() < 6) return false;
+  if(key==="spell" && !(state.profile.ink && state.profile.ink.strokes && state.profile.ink.strokes.length)) return false;
   return !LATE_STEPS.includes(key) || !!onb.single;
 }
-function stepAfter(n){ let k = n + 1; while(k < ONB_STEPS.length-1 && !stepApplies(ONB_STEPS[k])) k++; return k; }
-function stepBefore(n){ let k = n - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return Math.max(0, k); }
+function stepAfter(key){ let k = S(key) + 1; while(k < ONB_STEPS.length && !stepApplies(ONB_STEPS[k])) k++; return ONB_STEPS[k] || "end"; }
+/* Back: Spell → Draw, Birthday → Spell (or Draw, typed), Allergens → Birthday; Draw and Reveal have none */
+function stepBefore(key){ let k = S(key) - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return ONB_STEPS[Math.max(0, k)]; }
+function hasBack(){
+  if(onb.single) return false;
+  return !["draw","reveal"].includes(onb.step) || (onb.step==="reveal" && onb.revealed);
+}
+function goBack(){
+  const to = stepBefore(onb.step);
+  goStep(to, to==="draw" && state.profile.name && !state.profile.ink ? "typed" : null);
+}
 function nextStep(){ goStep(stepAfter(onb.step)); }
 
-/* step is an index or a name ("reveal") */
+/* step is a name ("birthday"); no step = where the family left off */
 function openOnboarding(step, opts){
   const P = state.profile;
-  if(typeof step==="string") step = S(step);
   const o = opts || {};
-  onb.step = Math.max(0, Math.min(ONB_STEPS.length-1, step===undefined ? (P.onboardingStep||0) : step));
-  // from the profile menu: one step (single) or a few (through), then back home
-  onb.from = o.single || o.through ? onb.step : null;
-  onb.through = o.through ? S(o.through) : o.single ? onb.step : null;
+  let saved = P.onboardingStep;
+  if(typeof saved==="number") saved = ({welcome:"draw", name:"draw"})[ONB_STEPS_V2[saved]] || ONB_STEPS_V2[saved];   // legacy: v2 index
+  if(step===undefined){
+    step = S(saved) >= 0 && !LATE_STEPS.includes(saved) ? saved : "draw";
+    onb.welcomeBack = !P.onboarded && (step!=="draw" || !!P.name || !!P.ink);
+  }else onb.welcomeBack = false;
+  if(S(step) < 0) step = "draw";
+  onb.step = step;
+  // from Profile: one step (single) or a few (through), then back
+  onb.from = o.single || o.through ? step : null;
+  onb.through = o.through || (o.single ? step : null);
   onb.single = onb.through!==null;
   onb.replay = !!o.replay;
-  onb.sub = null; onb.draft = null; onb.revealed = false; onb.adding = false;
+  onb.snapshot = P.onboarded ? JSON.parse(JSON.stringify(P)) : null;   // Close puts this back
+  onb.sub = step==="draw" && P.name && !P.ink && (!onb.single || o.sub==="typed") ? "typed" : null;
+  onb.draft = null; onb.revealed = false; onb.adding = false;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
   el.hidden = false;
-  document.getElementById("onbClose").hidden = !P.onboarded;   // a re-run can be left; a first run can't
   renderOnb();
   focusStep();
 }
@@ -59,13 +81,24 @@ function closeOnboarding(){
   document.getElementById("onboarding").hidden = true;
   document.body.classList.remove("onb-open");
   document.getElementById("app").inert = false; document.body.classList.remove("is-onb");
-  clearInterval(welTimer); clearTimeout(onb.revealTimer);
+  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  onb.snapshot = null;
   homeChanged();
+}
+/* Close (a replay or an edit from Profile): nothing unfinished is kept */
+function discardOnboarding(){
+  if(onb.snapshot){
+    const P = state.profile;
+    Object.keys(P).forEach(k=>delete P[k]);
+    Object.assign(P, onb.snapshot);
+    save();
+  }
+  closeOnboarding();
 }
 function finishOnboarding(){
   if(!state.profile.firstDay) state.profile.firstDay = todayISO();   // late questions never come on day one
   state.profile.onboarded = true;
-  state.profile.onboardingStep = 0;
+  state.profile.onboardingStep = null;
   delete state.profile.returning;
   save();
   closeOnboarding();
@@ -75,41 +108,41 @@ function focusStep(){
   const card = document.getElementById("onbCard");
   const f = card.querySelector(".blank-input:not([type=time])");
   const title = card.querySelector("#onbTitle");
-  document.getElementById("onboarding").classList.toggle("has-field", !!card.querySelector(".blank-input"));
-  if(f && !card.querySelector(".pad")){ f.focus({preventScroll:true}); keepInView(); }
+  document.getElementById("onboarding").classList.toggle("has-field", !!f);
+  if(f){ f.focus({preventScroll:true}); keepInView(); }
   else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
 }
-/* the field being typed in and the Next button stay above the keyboard; one smooth scroll, never a jump */
+/* the field being typed in and the pinned pill stay above the keyboard; one smooth scroll, never a jump */
 function keepInView(){
-  const el = document.getElementById("onboarding");
+  const el = document.getElementById("onboarding"), card = document.getElementById("onbCard");
   if(el.hidden) return;
-  const a = document.activeElement, cta = el.querySelector(".onb-cta");
-  if(!a || !el.contains(a)) return;
-  const box = el.getBoundingClientRect(), r = a.getBoundingClientRect(), c = cta ? cta.getBoundingClientRect() : r;
+  const a = document.activeElement;
+  if(!a || !card.contains(a)) return;
+  const box = card.getBoundingClientRect(), r = a.getBoundingClientRect();
   const bottom = box.bottom - 16;
   let dy = 0;
-  if(Math.max(r.bottom, c.bottom) > bottom) dy = Math.max(r.bottom, c.bottom) - bottom;
+  if(r.bottom > bottom) dy = r.bottom - bottom;
   if(r.top - dy < box.top + 8) dy = r.top - box.top - 8;
-  if(Math.abs(dy) > 1) el.scrollBy({top:dy, behavior:calm() ? "auto" : "smooth"});
+  if(Math.abs(dy) > 1) card.scrollBy({top:dy, behavior:calm() ? "auto" : "smooth"});
 }
 kbListeners.push(()=>requestAnimationFrame(keepInView));
 /* iOS only opens the keyboard for a focus inside a tap. The next step's field doesn't exist yet when Next is
    tapped, so a hidden field takes the focus during the tap, and the real one takes it over after the swap. */
-function holdKeyboard(n){
-  if(ONB_STEPS[n]!=="birthday") return;   // the name step starts on the pad, not the keyboard
+function holdKeyboard(key, sub){
+  if(!(key==="spell" || key==="birthday" || (key==="draw" && sub==="typed"))) return;
   let p = document.getElementById("kbProxy");
   if(!p){ p = document.createElement("input"); p.id = "kbProxy"; p.className = "kb-proxy"; p.setAttribute("aria-hidden", "true"); p.tabIndex = -1; document.body.appendChild(p); }
-  p.inputMode = ONB_STEPS[n]==="birthday" ? "numeric" : "text";
+  p.inputMode = key==="birthday" ? "numeric" : "text";
   p.focus({preventScroll:true});
 }
 /* the finished sentence slides up and fades; the next one rises in */
-function goStep(n, sub){
-  if(onb.single && (n < onb.from || n > onb.through)){ save(); closeOnboarding(); return; }
+function goStep(key, sub){
+  if(onb.single && (key==="end" || S(key) < S(onb.from) || S(key) > S(onb.through))){ save(); onb.snapshot = null; closeOnboarding(); return; }
   const card = document.getElementById("onbCard");
-  onb.dir = n > onb.step || (n===onb.step && sub) ? 1 : -1;
+  onb.dir = S(key) > S(onb.step) || (key===onb.step && sub) ? 1 : -1;
   const swap = ()=>{
-    onb.step = n; onb.sub = sub || null; onb.adding = false;
-    if(!onb.single) state.profile.onboardingStep = n;
+    onb.step = key; onb.sub = sub || null; onb.adding = false;
+    if(!onb.single) state.profile.onboardingStep = key;
     save();
     renderOnb();
     if(!calm()) card.animate([{transform:`translateY(${onb.dir*28}px)`, opacity:0}, {transform:"none", opacity:1}],
@@ -117,32 +150,63 @@ function goStep(n, sub){
     else card.animate([{opacity:0},{opacity:1}], {duration:180});
     focusStep();
   };
-  holdKeyboard(n);
+  holdKeyboard(key, sub);
   if(calm()){ swap(); return; }
   const out = card.animate([{transform:"none", opacity:1}, {transform:`translateY(${-onb.dir*24}px)`, opacity:0}],
                            {duration:170, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"});
   out.onfinish = ()=>{ out.cancel(); swap(); };
 }
 
+/* the onboarding's own glow (light theme): two layers crossfade over 1.2 s, as Home's do */
+let onbGlowKey = null;
+function onbGlow(cat){
+  const group = glowGroup(cat);
+  if(group===onbGlowKey) return;
+  const layers = [...document.querySelectorAll("#onbGlow .glow-l")];
+  const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
+  if(onbGlowKey===null) on.style.backgroundImage = glowGradient(GLOW[group].hex);
+  else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
+  onbGlowKey = group;
+  document.getElementById("onboarding").dataset.glow = group;
+}
+
 function renderOnb(){
-  const P = state.profile, key = ONB_STEPS[onb.step];
-  const dots = document.getElementById("onbDots");
-  const shown = ONB_STEPS.filter((k, i)=>i > 0 && stepApplies(k));   // the welcome has no dot
-  dots.innerHTML = shown.map(k=>`<i class="${k===key ? "on" : ""}"></i>`).join("");
-  document.getElementById("onbProgress").textContent = onb.step ? `Step ${shown.indexOf(key)+1} of ${shown.length}` : "";
+  const P = state.profile, key = onb.step;
+  const el = document.getElementById("onboarding");
+  el.querySelectorAll(".onb-sheet, .onb-scrim").forEach(x=>x.remove());
+  [document.getElementById("onbTop"), document.getElementById("onbCard"), document.getElementById("onbFoot")].forEach(x=>x.inert = false);
+  el.classList.remove("has-sheet");
+  // progress: four hairline segments (none for an edit from Profile)
+  const seg = ONB_SEGMENT[key];
+  const segs = document.getElementById("onbDots");
+  segs.hidden = onb.single || seg===undefined;
+  segs.innerHTML = [0, 1, 2, 3].map(k=>`<i class="${k < seg ? "done" : k===seg ? "on" : ""}"></i>`).join("");
+  document.getElementById("onbProgress").textContent = segs.hidden ? "" : say("onb.progress.step", {n:seg + 1, name:say("onb.progress.names." + seg)});
   const back = document.getElementById("onbBack");
-  back.hidden = onb.step===0 && !onb.sub && !onb.single;
-  back.setAttribute("aria-label", say("onb.back"));
-  back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single && onb.step===onb.from ? closeOnboarding() : goStep(stepBefore(onb.step));
+  back.textContent = say("onb.back");
+  back.hidden = !hasBack();
+  back.onclick = goBack;
   const close = document.getElementById("onbClose");
-  close.textContent = say("onb.close"); close.onclick = closeOnboarding;
-  const card = document.getElementById("onbCard");
-  card.innerHTML = "";
+  close.hidden = !P.onboarded;   // a replay or an edit can be left; a first run can't
+  close.textContent = say("onb.close"); close.onclick = discardOnboarding;
+  const card = document.getElementById("onbCard"), foot = document.getElementById("onbFoot");
+  card.innerHTML = ""; foot.innerHTML = "";
   card.className = "onb-card bare";
-  clearInterval(welTimer); clearTimeout(onb.revealTimer);
-  document.getElementById("onboarding").classList.toggle("is-welcome", key==="welcome");
-  ({welcome:onbWelcome, name:onbName, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
+  card.scrollTop = 0;
+  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  onbGlow(ONB_GLOW[key] || "grain");
+  ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
     athome:onbAtHome, mealtimes:onbMealTimes, reveal:onbReveal})[key](card, P);
+  // a reload mid-flow: "Welcome back." once, above the sentence, gone after 3 s
+  if(onb.welcomeBack){
+    onb.welcomeBack = false;
+    const wb = line(say("onb.welcomeBack"), "onb-wb");
+    wb.setAttribute("role", "status");
+    card.insertBefore(wb, card.firstChild);
+    const gone = ()=>wb.remove();
+    if(calm()) setTimeout(gone, 3000);
+    else wb.animate([{opacity:1}, {opacity:1, offset:.85}, {opacity:0}], {duration:3000, fill:"forwards"}).onfinish = gone;
+  }
 }
 
 /* ---------- the pieces every step is made of ---------- */
@@ -203,12 +267,12 @@ function hint(){ const p = document.createElement("p"); p.className = "onb-hint"
 /* the primary button (fades in once the step has a valid value) and quiet text buttons */
 function onbCta(card, label, onNext, opts){
   const o = opts || {};
-  const wrap = document.createElement("div");
-  wrap.className = "onb-cta";
+  const wrap = document.getElementById("onbFoot");
+  wrap.innerHTML = "";
   const b = document.createElement("button");
-  b.type = "button"; b.className = "btn-ink";
+  b.type = "button"; b.className = "btn-ink onb-cta";
   b.textContent = onb.single && onb.step===onb.through && label===say("onb.next") ? say("onb.save") : label;
-  b.addEventListener("click", ()=>{ if(b.classList.contains("wait")) return; haptic(); onNext(); });
+  b.addEventListener("click", ()=>{ if(b.getAttribute("aria-disabled")==="true") return; haptic(); onNext(); });
   wrap.appendChild(b);
   (o.extra || []).forEach(x=>{
     const e = document.createElement("button");
@@ -216,8 +280,8 @@ function onbCta(card, label, onNext, opts){
     e.addEventListener("click", x.on);
     wrap.appendChild(e);
   });
-  card.appendChild(wrap);
-  const ready = v=>{ b.classList.toggle("wait", !v); b.tabIndex = v ? 0 : -1; b.setAttribute("aria-hidden", String(!v)); };
+  // until the step has a value, the pill stays where it is, dimmed and aria-disabled
+  const ready = v=>{ b.classList.toggle("wait", !v); b.setAttribute("aria-disabled", String(!v)); };
   ready(o.ready===undefined ? true : o.ready);
   b.ready = ready;
   return b;
@@ -234,81 +298,149 @@ function pillBtn(text, artId, opts){
 /* a line breaks between its sentences, not inside one, when each fits */
 function keepSentences(text){ return text.split(/(?<=[.!?…])\s+/).map(t=>`<span class="keep">${t}</span>`).join(" "); }
 
-/* 1. welcome: one drawing at a time, crossfading through the hero foods */
-let welTimer = 0;
-function onbWelcome(card){
-  const heroes = HERO_FOODS.filter(id=>hasArt(foodOf(id)));
-  const art = id=>foodArt(id, {size:140, alt:""});
-  card.classList.add("wel-in", "narrow");
-  card.innerHTML = `<div class="wel-art" aria-hidden="true" style="--d:0ms"><div class="wel-bob">
-      <span class="wel-layer is-on">${art(heroes[0])}</span><span class="wel-layer"></span></div></div>
-    <h1 class="onb-h wel-h" id="onbTitle" tabindex="-1" style="--d:120ms">${say("onb.welcome.title")}</h1>
-    <p class="wel-p" style="--d:200ms">${keepSentences(say("onb.welcome.line"))}</p>`;
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "btn-ink"; b.style.setProperty("--d", "280ms");
-  b.textContent = say("onb.welcome.cta");
-  b.addEventListener("click", ()=>{ haptic(); goStep(1); });
-  card.appendChild(b);
-  welcomeCycle(card, heroes);
-}
-/* every ~3 s the next food rises in with a small turn while the last one lifts away;
-   only the next drawing is fetched ahead, and nothing runs while the tab is hidden */
-function welcomeCycle(card, heroes){
-  clearInterval(welTimer);
-  if(heroes.length < 2) return;
-  const warm = id=>{ const f = foodOf(id); const im = new Image(); im.decoding = "async"; im.src = devicePixelRatio > 1.5 ? f.files.w384 : f.files.w192; };
-  let k = 0;
-  warm(heroes[1]);
-  welTimer = setInterval(()=>{
-    if(!card.isConnected || !card.classList.contains("wel-in")){ clearInterval(welTimer); return; }
-    if(document.hidden) return;
-    const cur = card.querySelector(".wel-layer.is-on"), next = card.querySelector(".wel-layer:not(.is-on)");
-    if(!cur || !next) return;
-    k = (k + 1) % heroes.length;
-    next.innerHTML = foodArt(heroes[k], {size:140, alt:""});
-    const img = next.querySelector("img");
-    (img && img.decode ? img.decode().catch(()=>{}) : Promise.resolve()).then(()=>{
-      cur.classList.remove("is-on"); next.classList.add("is-on");
-      if(calm()){
-        next.animate([{opacity:0}, {opacity:1}], {duration:400});
-        cur.animate([{opacity:1}, {opacity:0}], {duration:400});
-      }else{
-        next.animate([{opacity:0, transform:"translateY(10px) rotate(-8deg) scale(.92)"}, {opacity:1, transform:"none"}],
-                     {duration:400, easing:"cubic-bezier(.32,1.25,.5,1)"});
-        cur.animate([{opacity:1, transform:"none"}, {opacity:0, transform:"translateY(-12px) rotate(5deg) scale(.96)"}],
-                    {duration:280, easing:"cubic-bezier(.22,.61,.36,1)"});
-      }
-      warm(heroes[(k + 1) % heroes.length]);
-    });
-  }, 3000);
+/* ---------- the sheet: one component, rising from the bottom of the onboarding ----------
+   modal: a scrim, Esc and a tap on the scrim close it, and everything behind is inert (so focus stays inside).
+   Not modal: it simply sits there (the drawing pad on Draw). */
+function onbSheet(o){
+  const host = document.getElementById("onboarding");
+  const s = document.createElement("div");
+  s.className = "onb-sheet" + (o.cls ? " " + o.cls : "");
+  const id = "sh" + uid();
+  s.setAttribute("role", o.modal ? "dialog" : "group");
+  if(o.modal) s.setAttribute("aria-modal", "true");
+  s.innerHTML = `<div class="sh-in">${o.title ? `<h2 class="sh-title" id="${id}">${esc(o.title)}</h2>` : ""}</div>`;
+  if(o.title) s.setAttribute("aria-labelledby", id);
+  const body = s.firstChild;
+  let scrim = null;
+  const behind = [document.getElementById("onbTop"), document.getElementById("onbCard"), document.getElementById("onbFoot")];
+  const close = ()=>{
+    if(!s.isConnected) return;
+    document.removeEventListener("keydown", esc_);
+    behind.forEach(x=>x.inert = false);
+    const done = ()=>{ s.remove(); if(scrim) scrim.remove(); o.onClose && o.onClose(); };
+    if(calm()) done();
+    else{ s.animate([{transform:"none"}, {transform:"translateY(105%)"}], {duration:220, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"}).onfinish = done;
+          if(scrim) scrim.animate([{opacity:1}, {opacity:0}], {duration:220, fill:"forwards"}); }
+  };
+  const esc_ = e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } };
+  if(o.modal){
+    scrim = document.createElement("div");
+    scrim.className = "onb-scrim";
+    scrim.addEventListener("click", close);
+    host.appendChild(scrim);
+    behind.forEach(x=>x.inert = true);
+    document.addEventListener("keydown", esc_);
+  }
+  host.appendChild(s);
+  const rise = ()=>{
+    s.hidden = false;
+    if(!calm()) s.animate([{transform:"translateY(105%)"}, {transform:"none"}], {duration:420, easing:"cubic-bezier(.25,1.1,.4,1)"});
+    else s.animate([{opacity:0}, {opacity:1}], {duration:150});
+    if(scrim) scrim.animate([{opacity:0}, {opacity:1}], {duration:220});
+    host.style.setProperty("--sheet-h", s.offsetHeight + "px");
+    o.onOpen && o.onOpen();
+  };
+  if(o.delay){ s.hidden = true; onb.sheetTimer = setTimeout(rise, o.delay); }
+  else requestAnimationFrame(rise);
+  return {el:s, body, close};
 }
 
-/* 2. name: "Write their name." on a drawing pad (the ink is how the name shows in Chicho), then "Spelled ____."
-   for the words that say it. The ink never leaves the device. */
-function onbName(card, P){
-  let next;
+/* 1. Draw: "Pull up a chair for ____." The blank is the ink, live; the pad rises 400 ms later on a sheet.
+   The ink never leaves the device. "Type instead" asks for the name in the blank and skips Spell. */
+function onbDraw(card, P){
+  if(onb.sub==="typed") return onbDrawTyped(card, P);
+  const [before, after] = say("onb.draw.sentence").split("{blank}");
   const h = document.createElement("h1");
-  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.name.draw");
-  card.append(h, line(say("onb.name.drawLine")), inkPad(P));
+  h.className = "sent sent-xl draw-in"; h.id = "onbTitle"; h.tabIndex = -1;
+  const mirror = document.createElement("span");
+  mirror.className = "ink-blank";
+  const live = document.createElement("span");
+  live.className = "ink-live"; live.setAttribute("aria-hidden", "true");
+  const said = document.createElement("span");
+  said.className = "sr-only";
+  mirror.append(live, said);
+  h.append(before, mirror, after);
+  card.appendChild(h);
+  document.getElementById("onboarding").classList.add("has-sheet");
+  const sheet = onbSheet({cls:"pad-sheet", title:say("onb.draw.title"), delay:calm() ? 0 : 400});
+  const hintP = line(say("onb.draw.hint"), "sh-hint");
+  const pad = inkPad(P, {onChange:strokes=>{
+    live.innerHTML = inkSVG({strokes}, "ink-mirror");
+    mirror.classList.toggle("has-ink", strokes.length > 0);
+    said.textContent = strokes.length ? say("onb.draw.drawn") : "";
+    done.setAttribute("aria-disabled", String(!pad.has()));
+    erase.disabled = undo.disabled = !pad.has();
+  }});
+  const row = document.createElement("div");
+  row.className = "pad-row";
+  const erase = textButton(say("onb.draw.erase"), ()=>{ pad.erase(); haptic(); });
+  const done = document.createElement("button");
+  done.type = "button"; done.className = "btn-ink"; done.textContent = say("onb.draw.done");
+  done.addEventListener("click", ()=>{ if(done.getAttribute("aria-disabled")==="true") return; haptic(); nextStep(); });
+  const undo = textButton(say("onb.draw.undo"), ()=>{ pad.undo(); haptic(); });
+  row.append(erase, done, undo);
+  const typed = textButton(say("onb.draw.typeInstead"), ()=>goStep("draw", "typed"), "small type-instead");
+  sheet.body.append(hintP, pad, row, typed);
+  pad.paint();
+}
+function textButton(label, on, cls){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn-text" + (cls ? " " + cls : ""); b.textContent = label;
+  b.addEventListener("click", on);
+  return b;
+}
+/* Draw, typed: the same sentence with the name in its blank */
+function onbDrawTyped(card, P){
+  let next;
+  const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", autocapitalize:"words", enterkeyhint:"next",
+    onInput:v=>{ P.name = v.trim(); save(); b.set(P.name ? "ok" : ""); next.ready(!!P.name); },
+    onEnter:()=>go()});
+  b.set(P.name ? "ok" : "");
+  const go = ()=>{ if(!P.name) return; P.ink = null; save(); nextStep(); };   // typed, so no ink (and no Spell)
+  const s = sentence(say("onb.draw.sentence"), {blank:b});
+  s.classList.add("sent-xl");
+  card.appendChild(s);
+  next = onbCta(card, say("onb.next"), go, {ready:!!P.name});
+}
+/* 2. Spell: the ink above "Spelled for the grown-ups: ____." Handwriting recognition fills it in where the
+   browser has it (never on iOS today); it's always editable. */
+function onbSpell(card, P){
+  let next;
+  const ink = document.createElement("div");
+  ink.className = "spell-ink"; ink.setAttribute("aria-hidden", "true");
+  ink.innerHTML = inkSVG(P.ink, "spell-svg");
   const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", autocapitalize:"words", enterkeyhint:"next",
     onInput:v=>{ P.name = v.trim(); save(); b.set(P.name ? "ok" : ""); next.ready(!!P.name); },
     onEnter:()=>{ if(P.name) nextStep(); }});
   b.set(P.name ? "ok" : "");
-  const sp = sentence(say("onb.name.spell"), {blank:b}), p = document.createElement("p");
-  p.className = "sent spell";
-  while(sp.firstChild) p.appendChild(sp.firstChild);
-  card.appendChild(p);
-  next = onbCta(card, say("onb.name.cta"), ()=>{ if(P.name) nextStep(); }, {ready:!!P.name});
+  card.append(ink, sentence(say("onb.spell.sentence"), {blank:b}), line(say("onb.spell.line")));
+  next = onbCta(card, say("onb.next"), ()=>{ if(P.name) nextStep(); }, {ready:!!P.name});
+  if(!P.name) recognizeInk(P.ink).then(t=>{
+    if(!t || b.input.value || onb.step!=="spell") return;
+    b.input.value = t; b.sync(); P.name = t; save(); b.set("ok"); next.ready(true);
+  });
 }
-/* the pad: a finger (or pen, or mouse) writes; strokes are kept as points, drawn smooth, saved on every lift */
-function inkPad(P){
+/* the Handwriting Recognition API (Chromium on some platforms); "" anywhere else */
+async function recognizeInk(ink){
+  try{
+    if(!ink || !navigator.createHandwritingRecognizer || !window.HandwritingStroke) return "";
+    const r = await navigator.createHandwritingRecognizer({languages:[(navigator.language || "en").split("-")[0]]});
+    const d = r.startDrawing({recognitionType:"text"});
+    ink.strokes.forEach(s=>{ const st = new HandwritingStroke(); for(let i = 0; i < s.length; i += 2) st.addPoint({x:s[i], y:s[i + 1], t:i * 8}); d.addStroke(st); });
+    const p = await d.getPrediction();
+    r.finish();
+    return String(p && p[0] ? p[0].text : "").trim().slice(0, 30);
+  }catch(e){ return ""; }
+}
+/* the pad: a finger (or pen, or mouse) writes; strokes are kept as points, drawn smooth, saved on every lift.
+   pad.undo() takes the last stroke back, pad.erase() clears it; onChange hears every change (and every move) */
+function inkPad(P, o){
+  const opts = o || {};
   const wrap = document.createElement("div");
   wrap.className = "pad-wrap";
   const c = document.createElement("canvas");
-  c.className = "pad"; c.setAttribute("role", "img"); c.setAttribute("aria-label", say("onb.name.pad"));
-  const clear = document.createElement("button");
-  clear.type = "button"; clear.className = "btn-text small pad-clear"; clear.textContent = say("onb.name.clear");
-  wrap.append(c, clear);
+  c.className = "pad"; c.setAttribute("role", "img"); c.setAttribute("aria-label", say("onb.draw.pad"));
+  wrap.append(c);
   let strokes = P.ink && Array.isArray(P.ink.strokes) ? P.ink.strokes.map(s=>s.slice()) : [], cur = null, W = 0, H = 0, from = P.ink ? P.ink.w : 0;
   const size = ()=>{
     const r = c.getBoundingClientRect(), d = Math.min(3, devicePixelRatio || 1);
@@ -318,12 +450,15 @@ function inkPad(P){
     c.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
     return true;
   };
+  const all = ()=>strokes.concat(cur ? [cur] : []);
   const draw = ()=>{
-    const x = c.getContext("2d");
-    x.clearRect(0, 0, W, H);
-    x.strokeStyle = x.fillStyle = getComputedStyle(wrap).color; x.lineWidth = INK_WIDTH; x.lineCap = x.lineJoin = "round";
-    strokes.concat(cur ? [cur] : []).forEach(s=>{ x.beginPath(); inkPath(s, (cmd, ...a)=>x[cmd](...a)); x.stroke(); });
-    clear.hidden = !strokes.length;
+    if(W){
+      const x = c.getContext("2d");
+      x.clearRect(0, 0, W, H);
+      x.strokeStyle = x.fillStyle = getComputedStyle(wrap).color; x.lineWidth = INK_WIDTH; x.lineCap = x.lineJoin = "round";
+      all().forEach(s=>{ x.beginPath(); inkPath(s, (cmd, ...a)=>x[cmd](...a)); x.stroke(); });
+    }
+    opts.onChange && opts.onChange(all());
   };
   const keep = ()=>{ P.ink = strokes.length ? {w:Math.round(W), h:Math.round(H), strokes:strokes.map(s=>s.map(v=>Math.round(v * 10) / 10))} : null; save(); };
   const pt = e=>{ const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -336,8 +471,11 @@ function inkPad(P){
   });
   const up = ()=>{ if(!cur) return; strokes.push(cur); cur = null; draw(); keep(); haptic(); };
   c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
-  clear.addEventListener("click", ()=>{ strokes = []; draw(); keep(); c.focus && c.focus(); });
-  requestAnimationFrame(()=>{ if(size()) draw(); });
+  wrap.has = ()=>strokes.length > 0;
+  wrap.undo = ()=>{ strokes.pop(); draw(); keep(); };
+  wrap.erase = ()=>{ strokes = []; draw(); keep(); };
+  wrap.paint = ()=>{ draw(); requestAnimationFrame(()=>{ if(size()) draw(); }); };
+  new ResizeObserver(()=>{ if(W && c.getBoundingClientRect().width && c.getBoundingClientRect().width!==W){ const k = c.getBoundingClientRect().width / W; strokes = strokes.map(s=>s.map(v=>v * k)); size(); draw(); } }).observe(c);
   return wrap;
 }
 /* one stroke as smooth curves through the midpoints of its points; a single point is a dot */
@@ -355,7 +493,7 @@ function inkSVG(ink, cls){
   ink.strokes.forEach(s=>{ for(let i = 0; i < s.length; i += 2){ x0 = Math.min(x0, s[i]); x1 = Math.max(x1, s[i]); y0 = Math.min(y0, s[i + 1]); y1 = Math.max(y1, s[i + 1]); } });
   const pad = INK_WIDTH, f = v=>(Math.round(v * 10) / 10);
   const d = ink.strokes.map(s=>{ let out = ""; inkPath(s, (cmd, ...a)=>{ out += ({moveTo:"M", lineTo:"L", quadraticCurveTo:"Q"})[cmd] + a.map(f).join(" ") + " "; }); return out; }).join("");
-  return `<svg class="${cls || "name-ink"}" viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false"><path d="${d.trim()}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg class="${cls || "name-ink"}" data-ink viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false"><path d="${d.trim()}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 /* 3. birthday: "{name} arrived on __ / ____ / ____." The stage follows along below. */
@@ -636,7 +774,7 @@ function onbReveal(card, P){
     row.className = "rv-row"; row.setAttribute("aria-hidden", "true");
     row.innerHTML = draw.slice(0, 6).map((id, k)=>`<span class="rv-item" style="--k:${k};--r:${[-6,4,-3,6,-5,3][k]}deg">${foodArt(id, {size:32})}</span>`).join("");
     card.append(row, h);
-    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; clearTimeout(onb.revealTimer); if(ONB_STEPS[onb.step]==="reveal"){ renderOnb(); focusStep(); } };
+    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; clearTimeout(onb.revealTimer); if(onb.step==="reveal"){ renderOnb(); focusStep(); } };
     const skip = document.createElement("button");
     skip.type = "button"; skip.className = "btn-text"; skip.textContent = say("onb.reveal.skip");
     skip.addEventListener("click", done);

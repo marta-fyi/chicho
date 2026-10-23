@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
 <h1>Onboarding tests</h1>
-<p>The sentence steps, driven like a person would: typing into the blanks, Enter, Back. Every line should be PASS.</p>
+<p>Onboarding v3, driven like a person would: drawing on the pad, typing into the blanks, Enter, Back. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -16,22 +16,27 @@ document.body.append(f);
 f.onload = async () => {
   try {
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x);
-    const step = () => E("ONB_STEPS[onb.step]");
+    const step = () => E("onb.step");
     const type = (inp, v) => { inp.focus(); inp.value = v; inp.dispatchEvent(new w.Event("input", {bubbles: true})); };
     const enter = inp => inp.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
-    const next = () => d.querySelector("#onbCard .btn-ink");
+    const next = () => d.querySelector("#onbFoot .btn-ink");
     const settle = () => wait(450);
     const before = JSON.stringify(E("state.plan"));
 
-    ok("a first run opens on the welcome", step() === "welcome" && !d.getElementById("onboarding").hidden);
-    next().click(); await settle();
-
-    // name: write it on the pad, then the spelling; Next waits for the spelling
-    ok("step 2 is the name", step() === "name");
-    ok("'Write their name.' is the step's title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent === "Write their name." && d.activeElement === d.getElementById("onbTitle"));
-    const pad = d.querySelector("#onbCard canvas.pad"), clear = d.querySelector("#onbCard .pad-clear");
+    // Draw: no welcome; the page opens on the sentence and its pad
+    ok("a first run opens straight on Draw (no welcome)", step() === "draw" && !d.getElementById("onboarding").hidden && !d.querySelector(".wel-art, .wel-h"));
+    ok("'Pull up a chair for ____.' is the title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent.replace(/\s+/g, " ").trim() === "Pull up a chair for ." && d.activeElement === d.getElementById("onbTitle"), d.getElementById("onbTitle").textContent);
+    ok("…at 40px", getComputedStyle(d.getElementById("onbTitle")).fontSize === "40px");
+    ok("no Back on Draw, no Close on a first run", d.getElementById("onbBack").hidden && d.getElementById("onbClose").hidden);
+    ok("progress: four hairline segments, the first on; 'Step 1 of 4: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 4 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 4: Name");
+    await wait(700);
+    const sheet = d.querySelector(".onb-sheet.pad-sheet");
+    ok("the pad's sheet rises: 'Sign here', 'Big letters. Wobbly is perfect.'", sheet && !sheet.hidden && sheet.querySelector(".sh-title").textContent === "Sign here" && sheet.querySelector(".sh-hint").textContent === "Big letters. Wobbly is perfect.");
+    const btns = [...sheet.querySelectorAll("button")].map(b => b.textContent);
+    ok("…Erase, Done, Undo, then 'Type instead'", JSON.stringify(btns) === JSON.stringify(["Erase", "Done", "Undo", "Type instead"]), btns);
+    const pad = sheet.querySelector("canvas.pad"), done = sheet.querySelector(".pad-row .btn-ink");
     ok("a drawing pad, named for screen readers, with no browser panning on it", !!pad && pad.getAttribute("aria-label") === "Drawing pad for their name" && getComputedStyle(pad).touchAction === "none");
-    ok("…'Clear' waits until there's ink", clear.hidden);
+    ok("…Done is aria-disabled until there's ink, Erase and Undo off", done.getAttribute("aria-disabled") === "true" && sheet.querySelector(".pad-row .btn-text").disabled);
     const pr = pad.getBoundingClientRect();
     const stroke = pts => { const p = (t, [x, y]) => pad.dispatchEvent(new w.PointerEvent(t, {bubbles: true, cancelable: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientX: pr.left + x, clientY: pr.top + y}));
       p("pointerdown", pts[0]); pts.slice(1).forEach(q => p("pointermove", q)); p("pointerup", pts[pts.length - 1]); };
@@ -39,19 +44,33 @@ f.onload = async () => {
     stroke([[110, 30], [110, 120]]);
     const ink = E("state.profile.ink");
     ok("writing saves the ink: two strokes of points, on this device", ink && ink.strokes.length === 2 && ink.strokes[0].length >= 10 && ink.w > 0 && ink.h > 0, ink && ink.strokes.map(s => s.length));
-    ok("…and 'Clear' appears", !clear.hidden);
-    clear.click();
-    ok("'Clear' empties the pad and the ink", E("state.profile.ink") === null && clear.hidden);
+    ok("…the blank mirrors it live, as an SVG marked data-ink", !!d.querySelector("#onbTitle .ink-blank svg[data-ink] path"));
+    ok("…and Done is ready", done.getAttribute("aria-disabled") === "false");
+    [...sheet.querySelectorAll(".pad-row .btn-text")].find(b => b.textContent === "Undo").click();
+    ok("Undo takes the last stroke back", E("state.profile.ink.strokes.length") === 1);
+    [...sheet.querySelectorAll(".pad-row .btn-text")].find(b => b.textContent === "Erase").click();
+    ok("Erase empties the pad and the ink", E("state.profile.ink") === null && done.getAttribute("aria-disabled") === "true" && !d.querySelector("#onbTitle .ink-blank svg"));
+    done.click(); await settle();
+    ok("…an empty pad's Done does nothing", step() === "draw");
     stroke([[20, 120], [20, 30], [50, 80], [80, 30], [80, 120]]);
-    ok("…and it can be written again", E("state.profile.ink.strokes.length") === 1);
+    done.click(); await settle();
+
+    // Spell
+    ok("Done goes to Spell, the ink above 'Spelled for the grown-ups: ____.'", step() === "spell" && !!d.querySelector(".spell-ink svg[data-ink]") && d.getElementById("onbTitle").textContent.startsWith("Spelled for the grown-ups:"));
+    ok("…'So we can say hello properly.'", d.querySelector("#onbCard .onb-line").textContent === "So we can say hello properly.");
+    ok("…Back is a text 'Back', top-left; the first segment is still on", !d.getElementById("onbBack").hidden && d.getElementById("onbBack").textContent === "Back" && d.getElementById("onbProgress").textContent === "Step 1 of 4: Name");
     const nameIn = d.querySelector(".blank-input");
-    ok("then 'Spelled ____.', a paragraph whose words label the blank", d.querySelector(".sent.spell") && d.querySelector(".sent.spell").tagName === "P" && d.querySelector(`label[for="${nameIn.id}"]`).textContent === "Spelled");
+    ok("the words before the blank label it", d.querySelector(`label[for="${nameIn.id}"]`).textContent === "Spelled for the grown-ups:");
     ok("the blank has no placeholder", !nameIn.placeholder);
-    ok("Next waits (hidden from the tab order) until there's a name", next().classList.contains("wait") && next().tabIndex === -1);
+    ok("Next is pinned in the foot, aria-disabled until there's a name", next().classList.contains("wait") && next().getAttribute("aria-disabled") === "true");
     type(nameIn, "Lula");
-    ok("…and appears once there is one", !next().classList.contains("wait"));
+    ok("…and ready once there is one", !next().classList.contains("wait") && next().getAttribute("aria-disabled") === "false");
     ok("the mirror grows the field with the text", d.querySelector(".blank-mirror").textContent === "Lula");
-    enter(nameIn); await settle();
+    d.getElementById("onbBack").click(); await settle();
+    ok("Back from Spell: Draw, with the ink kept", step() === "draw" && E("state.profile.ink.strokes.length") === 1);
+    await wait(500);
+    d.querySelector(".pad-row .btn-ink").click(); await settle();
+    enter(d.querySelector(".blank-input")); await settle();
 
     // birthday
     ok("Enter continues to the birthday", step() === "birthday");
@@ -72,7 +91,7 @@ f.onload = async () => {
     ok("born 1 July 2026: milk only", d.querySelector(".stage-name").textContent === "Milk only");
     next().click(); await settle();
     ok("under 6 months: the calm milk screen, not an error", step() === "birthday" && E("onb.sub") === "milk" && /Milk is all Lula needs right now/.test(d.getElementById("onbTitle").textContent));
-    d.querySelectorAll("#onbCard .btn-text")[0].click(); await settle();   // Look around anyway
+    d.querySelectorAll("#onbFoot .btn-text")[0].click(); await settle();   // Look around anyway
     ok("'Look around anyway' explores a first-tastes week", E("state.profile.exploreEarly") === true && step() === "keepout");
     d.getElementById("onbBack").click(); await settle();
     ok("Back keeps what was entered", step() === "birthday" && d.querySelectorAll(".blank-input")[2].value === "2026");
@@ -106,7 +125,7 @@ f.onload = async () => {
     const rows = [...d.querySelectorAll("#onbCard .wk-rows .wk-row")];
     ok("the week preview: seven rows of text, one a day, today first, no drawings", rows.length === 7 && !d.querySelector("#onbCard .wk-rows .food-art, #onbCard .wk-rows img") && rows[0].querySelector(".wk-name").textContent === E("new Intl.DateTimeFormat(undefined, {weekday: 'short'}).format(now())") && rows.every(r => /: /.test(r.querySelector(".wk-meals").textContent)), rows.map(r => r.textContent).slice(0, 2));
     ok("nothing is applied before the choice", JSON.stringify(E("state.plan")) === before);
-    d.querySelectorAll("#onbCard .btn-text")[0].click(); await settle();
+    d.querySelectorAll("#onbFoot .btn-text")[0].click(); await settle();
     ok("Shuffle makes another week, still not applied", JSON.stringify(E("state.plan")) === before && !!E("onb.draft"));
     const draft = JSON.stringify(E("onb.draft.days"));
     E(`state.offers.push({id: "keepme", at: "", date: "2026-10-01", mealId: "legacy", itemId: null, foodId: "banana", outcome: null, firstOfFood: true, firstAllergen: false}); offersChanged()`);

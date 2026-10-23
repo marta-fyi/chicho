@@ -1472,8 +1472,8 @@ function renderProfile(){
   const nm = el("div", "s-person");
   nm.appendChild(el("p", "", say("profile.name") + (P.name ? " · " + P.name : "")));
   const na = el("span", "sh-acts");
-  const rd = textBtn(say("profile.redraw"), ()=>openOnboarding("name", {single:true}), "small"); rd.dataset.f = "set:redraw";
-  const sp = textBtn(say("profile.editSpelling"), ()=>{ openOnboarding("name", {single:true}); requestAnimationFrame(()=>{ const f = document.querySelector("#onbCard .blank-input"); if(f) f.focus(); }); }, "small"); sp.dataset.f = "set:name";
+  const rd = textBtn(say("profile.redraw"), ()=>openOnboarding("draw", {single:true}), "small"); rd.dataset.f = "set:redraw";
+  const sp = textBtn(say("profile.editSpelling"), ()=>openOnboarding(P.ink ? "spell" : "draw", {single:true, sub:"typed"}), "small"); sp.dataset.f = "set:name";
   na.append(rd, sp); nm.appendChild(na);
   set.appendChild(nm);
   row(say("profile.birthday"), P.birthDate ? fmtDayMonth(localDate(P.birthDate)) + " " + localDate(P.birthDate).getFullYear() : "", ()=>openOnboarding("birthday", {single:true}), "set:birthday");
@@ -1492,7 +1492,7 @@ function renderProfile(){
     seg.lastChild.appendChild(b);
   });
   set.appendChild(seg);
-  row(say("profile.replay"), "", ()=>openOnboarding("welcome", {replay:true}), "set:replay");
+  row(say("profile.replay"), "", ()=>openOnboarding("draw", {replay:true}), "set:replay");
   renderCaregivers(col);
 }
 /* caregivers: notes to self, the people who look after {name}, and the week as a link; numbers stay here */

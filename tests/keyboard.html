@@ -19,12 +19,14 @@ f.onload = async () => {
     const KB = 336, VIS = 844 - KB;
     const kb = async on => { w.__vv = on ? {height: VIS, offsetTop: 0} : null; E("kbSync()"); await wait(500); };
     const type = (inp, v) => { inp.focus(); inp.value = v; inp.dispatchEvent(new w.Event("input", {bubbles: true})); };
-    E("openOnboarding('name')"); await wait(400);
+    E("openOnboarding('draw')"); await wait(400);
+    ok("Draw starts on the pad: the title has the focus, so no keyboard yet", d.activeElement === $("#onbTitle") && !$("#onbCard .blank-input"));
+    E("state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60]]}; save(); goStep('spell')"); await wait(600);
     const name = $("#onbCard .blank-input");
     ok("the name's spelling field: given-name, words, 'next' on the return key", name.autocomplete === "given-name" && name.getAttribute("autocapitalize") === "words" && name.enterKeyHint === "next");
-    ok("…the step starts on the drawing pad: the title has the focus, so no keyboard yet", d.activeElement === $("#onbTitle") && !!$("#onbCard .pad"));
+    ok("…Spell's field takes the focus on arrival", d.activeElement === name);
     type(name, "Lula"); await kb(true);
-    const next = () => $("#onbCard .onb-cta .btn-ink");
+    const next = () => $("#onbFoot .btn-ink");
     ok("typing the spelling: the field and Next are both above the keyboard", R(name).bottom <= VIS && R(next()).bottom <= VIS, [R(name).bottom, R(next()).bottom]);
     await kb(false);
     // birthday: its field takes the focus on arrival, and the keyboard never moves the sentence
@@ -56,7 +58,7 @@ f.onload = async () => {
     await kb(false);
     // every input, in onboarding and in a sheet, is at least 16px
     const sizes = [];
-    for (const step of ["name", "birthday", "keepout", "mealtimes"]) {
+    for (const step of ["spell", "birthday", "keepout", "mealtimes"]) {
       E(`openOnboarding('${step}', {single: true})`); await wait(300);
       if (step === "keepout") { d.querySelector(".pill-add").click(); await wait(100); }
       d.querySelectorAll("#onboarding input").forEach(i => sizes.push([step, parseFloat(w.getComputedStyle(i).fontSize)]));

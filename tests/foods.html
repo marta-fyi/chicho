@@ -44,7 +44,7 @@ f.onload = async () => {
     ok("an unknown food is a hairline circle", /food-none/.test(E("foodArt('Dragon fruit')")));
     ok("missing art is collected for the console warning", E("MISSING_ART.has('milk') && MISSING_ART.has('raspberries')"));
     const hero = E("HERO_FOODS.filter(id => hasArt(foodOf(id)))");
-    ok("the whole welcome set is drawn (7 foods)", hero.length === 7, hero);
+    ok("the whole hero set is drawn (7 foods)", hero.length === 7, hero);
     // a broken drawing turns into its emoji
     const doc = w.document, box = doc.createElement("div");
     box.innerHTML = E("foodArt('banana', {size: 40})").replace(/banana-(64|192|384)\.(webp|png)/g, "nope.$2");
@@ -58,12 +58,12 @@ f.onload = async () => {
     const words = s => s.replace(/\{[^}]+\}/g, "X").split(/\s+/).filter(w => /\w/.test(w)).length;
     const banned = /little one|lovely|gentle questions|get started|\bplan\b|\btrack|\bmanage|\boptimi[sz]e/i;
     const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
-    const onbHeads = [C.onb.welcome.title, C.onb.name.draw, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
+    const onbHeads = [C.onb.draw.sentence, C.onb.spell.sentence, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
       C.onb.atHome.title, C.onb.mealTimes.title, C.onb.reveal.title, C.onb.done.title, C.onb.restful.title];
     const headlines = [...flat(C.home.headline), ...onbHeads];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
-    const support = [C.onb.welcome.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
+    const support = [C.onb.draw.hint, C.onb.spell.line, C.onb.birthday.line, C.onb.keepOut.line, C.onb.priorities.line, C.onb.atHome.line, C.onb.mealTimes.line, C.onb.done.line];
     ok("no onboarding headline is a question", onbHeads.every(h => !h.trim().endsWith("?")), onbHeads.filter(h => h.trim().endsWith("?")));
     ok("support lines are at most 12 words", support.every(s => words(s) <= 12), support.filter(s => words(s) > 12));
     const all = JSON.stringify(C);
