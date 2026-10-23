@@ -126,6 +126,14 @@ function noteMissing(id){
 }
 
 /* a drawing that fails to load (offline before it was cached, a typo) becomes the hairline circle */
+/* a loaded drawing becomes a mask filled with the ink (the same file the <img> loaded, so nothing loads twice) */
+const MASKS = typeof CSS!=="undefined" && CSS.supports && (CSS.supports("mask-image", "url(x.png)") || CSS.supports("-webkit-mask-image", "url(x.png)"));
+function artReady(img){
+  const pic = img.closest(".food-art");
+  if(!pic || !MASKS) return;
+  pic.style.setProperty("--mask", `url("${img.currentSrc || img.src}")`);
+  pic.classList.add("masked");
+}
 function artFailed(img){
   const pic = img.closest("picture"), f = foodOf(pic && pic.dataset.food);
   if(!pic) return;
@@ -162,5 +170,5 @@ function foodArt(idOrName, opts){
   const srcset = size<=32 ? `${F.w64} 1x, ${F.w192} 2x` : `${F.w192} 1x, ${F.w384} 2x`;
   return `<picture class="${cls}" style="${style}" data-food="${f.id}"${hide}><source type="image/webp" srcset="${srcset}">` +
     `<img src="${F.png}" width="${size}" height="${size}" alt="${escAttr(alt)}" decoding="async"${o.lazy ? ` loading="lazy"` : ""}` +
-    ` onerror="artFailed(this)"></picture>`;
+    ` onload="artReady(this)" onerror="artFailed(this)"></picture>`;
 }

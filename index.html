@@ -74,8 +74,7 @@ try{
     --on-ink:var(--sheet);           /* text on an ink-filled pill */
     --handle:rgba(18,18,18,.25);
     --shadow-sheet:0 -18px 48px -24px rgba(18,18,18,.28);
-    --art-ink:none;                  /* the drawings are black line art (until the mask bullets) */
-    --art-ink-on:invert(1);
+    --art-ink:brightness(0);         /* fallback where mask-image isn't supported: the line art, forced to black… */
     --night:rgba(16,30,70,.78);      /* the dark theme's evening tint, over bg.jpg */
     --night-mid:rgba(24,40,92,.72); --night-low:rgba(40,52,110,.66);
     --night-top:#3D4662;             /* the top of the night sky (theme-color) */
@@ -93,7 +92,7 @@ try{
     --scrim:rgba(4,8,24,.5);
     --handle:rgba(255,255,255,.3);
     --shadow-sheet:0 -18px 48px -24px rgba(0,0,0,.6);
-    --art-ink:invert(1); --art-ink-on:none;
+    --art-ink:brightness(0) invert(1);   /* …or to white */
   }
   @media (prefers-contrast: more){
     :root{--ink-muted:rgba(18,18,18,.85);--hairline:rgba(18,18,18,.3);}
@@ -346,7 +345,7 @@ try{
   .pill-o:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .pill-o:disabled{opacity:.3;cursor:default;}
   .pill-o:disabled:active{transform:none;}
-  .pill-o[aria-pressed="true"], .pill-o[data-state="out"]{background:var(--ink);color:var(--on-ink);--art-ink:var(--art-ink-on);}
+  .pill-o[aria-pressed="true"], .pill-o[data-state="out"]{background:var(--ink);color:var(--on-ink);--art-color:var(--on-ink);}
   .pill-mark{display:none;width:12px;height:12px;flex:none;position:relative;}
   .pill-o[data-state="out"] .pill-mark, .pill-o[data-state="loved"] .pill-mark{display:inline-block;}
   .pill-o[data-state="out"] .pill-mark::before, .pill-o[data-state="out"] .pill-mark::after{
@@ -667,6 +666,12 @@ try{
   /* ---------- food art (foods.js → foodArt()): a drawing, or its emoji ---------- */
   .food-art{display:inline-block;width:var(--art);height:var(--art);flex:none;line-height:1;}
   .food-art img{display:block;width:100%;height:100%;transform:scale(var(--scale,1));filter:var(--art-ink);}
+  /* the bullets: each drawing is a mask filled with the ink, so one file serves both themes (and an ink pill
+     fills it with --on-ink). artReady() in foods.js switches a bullet to its mask once the image has loaded,
+     so lazy loading still works; where masks aren't supported the image shows, forced to the ink's colour */
+  .food-art.masked{background-color:var(--art-color, var(--ink));
+    -webkit-mask:var(--mask) center / calc(var(--scale, 1) * 100%) no-repeat;mask:var(--mask) center / calc(var(--scale, 1) * 100%) no-repeat;}
+  .food-art.masked img{opacity:0;}
 
   /* ---------- micro-interactions ---------- */
   .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}

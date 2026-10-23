@@ -426,7 +426,7 @@ function mealRow(x){
   b.type = "button"; b.className = "mrow-btn"; b.dataset.f = "row:" + x.key;
   b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-controls", "mx-" + cssId(x.key));
   const prepped = (x.m.prepped || [])[0];
-  b.innerHTML = `${foodArt(x.m.items[0].name, {size:24})}<span class="mrow-t">${esc(whenLabel(x))}${prepped ? `<span class="mrow-sub">${esc(say("home.prepped", {food:baseName({name:prepped})}))}</span>` : ""}</span>`;
+  b.innerHTML = `${foodArt(x.m.items[0].name, {size:24, lazy:true})}<span class="mrow-t">${esc(whenLabel(x))}${prepped ? `<span class="mrow-sub">${esc(say("home.prepped", {food:baseName({name:prepped})}))}</span>` : ""}</span>`;
   b.addEventListener("click", ()=>{ picked = {key:x.key, until:nextBoundary(refsOn(now()))}; homeChanged(); focusLater("title:" + x.key); });
   row.appendChild(b);
   row.appendChild(ringBtn(x, "ring:" + x.key));
@@ -633,7 +633,7 @@ function renderAlso(def){
     if(s.kind==="salt" && state.shown.saltDay!==iso){ state.shown = Object.assign({}, state.shown, {salt:(state.shown.salt || 0) + 1, saltDay:iso}); save(); }
     const row = document.createElement("div");
     row.className = "also-row";
-    row.innerHTML = `${foodArt(s.food, {size:24})}<p class="also-text">${esc(s.text)}${s.note ? `<span class="also-note">${esc(s.note)}</span>` : ""}</p>`;
+    row.innerHTML = `${foodArt(s.food, {size:24, lazy:true})}<p class="also-text">${esc(s.text)}${s.note ? `<span class="also-note">${esc(s.note)}</span>` : ""}</p>`;
     const b = document.createElement("button");
     b.type = "button"; b.className = "also-btn"; b.dataset.f = "also:" + s.id;
     b.setAttribute("aria-pressed", "false");
