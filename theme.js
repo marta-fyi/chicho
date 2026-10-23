@@ -10,13 +10,14 @@
    Veg #AACF53, Fruit #F596AA, Protein #F5B1AA, Fats and dairy #A0D8EF.
 
    The stops are generated here as rgba() from the hex (no color-mix dependency), so
-   the tests can compute exactly what colour sits behind any point of the glow. */
+   the tests can compute exactly what colour sits behind any point of the glow. The group's
+   name (the poster's caption) is copy, so it lives in content.js (home.groups). */
 const GLOW = {
-  grain:     {hex:"#FFE56B", label:"Grains"},
-  vegetable: {hex:"#BBDD72", label:"Veg"},
-  fruit:     {hex:"#FEB7C5", label:"Fruit"},
-  protein:   {hex:"#FEBC9F", label:"Protein"},
-  fat:       {hex:"#83DCFE", label:"Fats and dairy"}
+  grain:     {hex:"#FFE56B"},
+  vegetable: {hex:"#BBDD72"},
+  fruit:     {hex:"#FEB7C5"},
+  protein:   {hex:"#FEBC9F"},
+  fat:       {hex:"#83DCFE"}
 };
 const GLOW_DEFAULT = "grain";
 const GLOW_CORE = "#83838A";   // the grey nucleus: ink on it measures 5.0:1

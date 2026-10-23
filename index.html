@@ -413,18 +413,20 @@ try{
      No cards, no panels: type size, weight and space carry the hierarchy.
      Nothing responds to hover; everything is a tap. */
   .home{max-width:calc(var(--col) + var(--pad-l) + var(--pad-r));margin:0 auto;padding:0 var(--pad-r) calc(env(safe-area-inset-bottom) + 48px) var(--pad-l);color:var(--ink);}
-  .top{position:relative;z-index:2;display:flex;justify-content:flex-end;align-items:center;gap:8px;
-       padding:calc(env(safe-area-inset-top) + 10px) 0 0;min-height:54px;}
-  .top-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:none;border-radius:999px;background:none;color:var(--ink);
-           font:inherit;font-size:16px;font-weight:500;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
-  .top-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;}
-  .me{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--ink);background:none;color:var(--ink);
-      font:inherit;font-size:17px;font-weight:500;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);}
-  .top-btn:active, .me:active{transform:scale(.95);}
   .lockscreen{display:flex;flex-direction:column;padding:4px 0 0;}
-  .head{text-align:center;}
-  .clock{display:block;font-size:20px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
-  .who{margin:4px 0 0;font-size:17px;color:var(--ink-85);}
+  /* the corner header: who at top-left (one 44px button, it opens Profile), when at top-right */
+  .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-top:calc(env(safe-area-inset-top) + 12px);}
+  .who-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
+  .who-age, .when-date{font-size:13px;line-height:1.4;color:var(--ink-muted);}
+  .who-name{font-size:20px;font-weight:500;line-height:1.3;text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
+  .who-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
+  .when{display:flex;flex-direction:column;align-items:flex-end;margin:0;padding:2px 0;text-align:right;font-variant-numeric:tabular-nums;}
+  .when-time{font-size:20px;font-weight:500;line-height:1.3;}
+  /* the poster's captions: 12px uppercase; the stage at 55% (decorative), the glow's group in --ink-muted (functional) */
+  .captions{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;font-size:12px;line-height:1.5;text-transform:uppercase;letter-spacing:var(--track-label);}
+  .captions p{margin:0;}
+  .cap-stage{display:flex;flex-direction:column;color:var(--ink-deco);}
+  .cap-glow{color:var(--ink-muted);text-align:right;white-space:nowrap;}
   .headline{margin:0;font-family:var(--font-display);font-size:clamp(32px, 9.5vw, 40px);font-weight:500;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
   .headline:focus{outline:none;}
   /* ---------- the glow (light theme) ----------
@@ -495,7 +497,7 @@ try{
   .offer-pill i svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
   .offer-pill:active{transform:scale(.97);}
   .offer-pill:focus-visible, .outcome:focus-visible, .alt:focus-visible, .ring-btn:focus-visible, .mrow-btn:focus-visible, .also-btn:focus-visible,
-  .top-btn:focus-visible, .me:focus-visible, .wd:focus-visible, .shop-line:focus-visible, .s-row:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+   .wd:focus-visible, .shop-line:focus-visible, .s-row:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .outcome{min-height:44px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;cursor:pointer;}
   .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
@@ -722,14 +724,11 @@ try{
   <div class="onb-card" id="onbCard"></div>
 </div>
 <div class="container home" id="home">
-  <div class="top">
-    <button type="button" class="top-btn" id="sendBtn" data-f="top:send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg><span id="sendLabel"></span></button>
-    <button type="button" class="me" id="profileBtn" data-f="top:me"></button>
-  </div>
   <main class="lockscreen" id="lock">
-    <header class="head">
-      <time class="clock" id="clock"></time>
-      <p class="who" id="who"></p>
+    <!-- two corners: who (opens Profile) and when -->
+    <header class="corners">
+      <button type="button" class="who-btn" id="profileBtn" data-f="top:me"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
+      <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
     </header>
     <div class="hl">
       <!-- the glow: one element at the top of the page, centred on the headline; it scrolls away with it -->
@@ -737,6 +736,11 @@ try{
       <h1 class="headline" id="headline" tabindex="-1"></h1>
     </div>
     <p class="moment" id="moment"></p>
+    <!-- the bottom of the poster: the stage (decorative) and the glow's food group (so colour is never the only signal) -->
+    <div class="captions">
+      <p class="cap-stage" aria-hidden="true"><span id="capStage"></span><span id="capLine"></span></p>
+      <p class="cap-glow" id="capGlow"></p>
+    </div>
     <section class="open-meal" id="openMeal"></section>
     <section class="rows" id="nextSec"><h2 class="mini" id="nextLabel"></h2><div id="nextList"></div></section>
     <section class="also" id="alsoSec" hidden><h2 class="mini" id="alsoLabel"></h2><div id="alsoList"></div></section>

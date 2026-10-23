@@ -43,7 +43,6 @@ const CONTENT = {
     shop:{one:"{n} thing for the next 3 days", other:"{n} things for the next 3 days", none:"Nothing to pick up for the next 3 days."},
     variety:{label:"Variety", some:"A rainbow in progress", all:"A full rainbow.", legend:"Filled: offered this week."},
     groups:{protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats and dairy"},
-    send:"Send",
     profile:"Profile"
   },
 
@@ -268,7 +267,7 @@ const CONTENT = {
     },
     first:{
       name:"First tastes",
-      meals:"1–2 small meals + milk", textureShort:"purées and soft finger foods",
+      meals:"1–2 small meals + milk", textureShort:"purées and soft finger foods", caption:"purées",
       portionHint:"a few spoonfuls of each; follow their appetite",
       note:"Milk is still their main food; solids are for tasting.",
       avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"],
@@ -276,7 +275,7 @@ const CONTENT = {
     },
     textures:{
       name:"Fingers first",
-      meals:"3 meals", textureShort:"lumpy mash & finger foods",
+      meals:"3 meals", textureShort:"lumpy mash & finger foods", caption:"lumpy mash",
       portionHint:"2–4 tablespoons of each food",
       note:"Milk alongside meals, as they eat more.",
       avoid:["Honey","Cow's milk as a drink","Whole nuts","Added salt or sugar"],
@@ -284,7 +283,7 @@ const CONTENT = {
     },
     family:{
       name:"A seat at the family table",
-      meals:"3 meals + 2 snacks", textureShort:"soft pieces",
+      meals:"3 meals + 2 snacks", textureShort:"soft pieces", caption:"soft pieces",
       portionHint:"about a quarter of an adult portion",
       note:"Whole cow's milk can be their main drink now.",
       avoid:["Whole nuts","Whole grapes","Added salt or sugar"],
@@ -292,7 +291,7 @@ const CONTENT = {
     },
     nearfamily:{
       name:"Big opinions, small plates",
-      meals:"3 meals + 2 snacks", textureShort:"bite-size family food",
+      meals:"3 meals + 2 snacks", textureShort:"bite-size family food", caption:"family food",
       portionHint:"a third to half an adult portion; let them serve themselves",
       note:"Picky-eating friendly: a few familiar staples repeat through the week, so every plate has something they know.",
       avoid:["Whole nuts","Whole grapes","Hard sweets"],

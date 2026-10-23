@@ -25,12 +25,13 @@ const R = el => el.getBoundingClientRect();
 /* fully on screen, and not under the stuck "Mark as offered" pill */
 const visible = (doc, el, H) => { if (!el) return false; const r = R(el), pill = doc.querySelector("#openMeal .mx-acts"); const p = pill ? R(pill) : {top: H};
   return r.height > 0 && r.top >= 0 && r.bottom <= H && (r.bottom <= p.top + 1 || r.top >= p.bottom - 1); };
-const HEADER = ["#clock", "#who"];
+const HEADER = ["#profileBtn", "#clockDate", "#clock"];
 (async () => {
   try {
     localStorage.clear();
     // 390×844: header, headline, moment line, the open meal's title and its first two food rows; "Up next" peeks
     let f = await load(390, 844), d = f.contentDocument;
+    ok("390×844: the corner header sits in the two top corners", Math.round(R(d.getElementById("profileBtn")).left) === 20 && Math.round(R(d.getElementById("clock")).right) === 370, [R(d.getElementById("profileBtn")).left, R(d.getElementById("clock")).right]);
     [...HEADER, "#headline", "#moment"].forEach(sel => ok(`390×844: ${sel} is above the fold`, visible(d, d.querySelector(sel), 844), Math.round(R(d.querySelector(sel)).bottom)));
     ok("390×844: the open meal's title is above the fold", visible(d, d.querySelector("#openMeal .mx-title"), 844), Math.round(R(d.querySelector("#openMeal .mx-title")).bottom));
     const rows = [...d.querySelectorAll("#openMeal .fr")];

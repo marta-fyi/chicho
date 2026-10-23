@@ -26,12 +26,16 @@ f.onload = async () => {
     const key = (el, k) => el.dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true}));
 
     // the top of the page
-    ok("header: 'Thursday, October 22 · 12:10' on one line", $("#clock").textContent === E("fmtHeaderDate(now())") && $("#clock").textContent.includes(" · "), $("#clock").textContent);
-    ok("…then 'Lula · 18 months'", $("#who").textContent === "Lula · 18 months");
+    ok("top-right: 'Thursday 22 Oct' over the time", $("#clockDate").textContent === "Thursday 22 Oct" && $("#clock").textContent === E("fmtTime(now())"), [$("#clockDate").textContent, $("#clock").textContent]);
+    ok("…in tabular numerals", getComputedStyle($(".when")).fontVariantNumeric === "tabular-nums");
+    ok("top-left: '18 months' over 'LULA', one button that opens Profile", $("#whoAge").textContent === "18 months" && $("#whoName").textContent === "Lula" && getComputedStyle($("#whoName")).textTransform === "uppercase" && $("#profileBtn").tagName === "BUTTON");
+    ok("…44px at least, its name underlined", $("#profileBtn").getBoundingClientRect().height >= 44 && /underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
+    ok("no profile circle, no Send button, no centred header lines", !$(".me") && !$("#sendBtn") && !$(".top") && !$(".head"));
     ok("the clock and headline are plain text, not live regions", !$("#clock").closest("[aria-live]") && !$("#headline").closest("[aria-live]"));
+    ok("captions: the stage, decorative and hidden from screen readers", $(".cap-stage").getAttribute("aria-hidden") === "true" && $("#capStage").textContent === "A seat at the family table" && $("#capLine").textContent === "3 meals + 2 snacks · soft pieces");
+    ok("…and the glow's food group, in words, read aloud", !$(".cap-glow").closest("[aria-hidden]") && $("#capGlow").textContent === E("say('home.groups.' + document.documentElement.dataset.glow)"));
     ok("headline: 'Lunch in 20 minutes.'", $("#headline").textContent === "Lunch in 20 minutes.");
     ok("the tab: 'Lunch in 20 min · Chicho'", d.title === "Lunch in 20 min · Chicho", d.title);
-    ok("Send has its word, and the profile circle its initial", $("#sendBtn").textContent.trim() === "Send" && $("#profileBtn").textContent === "L");
 
     // the open meal: the next one, in place
     ok("the open meal is lunch", $("#openMeal .mx-title").textContent === "Lunch");
@@ -132,7 +136,9 @@ f.onload = async () => {
     $("#profileBtn").click(); await wait(300);
     ok("the profile sheet: the six entries", [...d.querySelectorAll("#sheetBody .s-row")].map(b => b.textContent).join("|") === "Birthday and profile|Off the plate|Priorities|Meal times|People|Replay welcome");
     $("#sheetClose").click(); await wait(300);
-    $("#sendBtn").click(); await wait(300);
+    const sendLink = [...d.querySelectorAll(".mx-links .btn-text")].find(b => b.textContent === "Send");
+    ok("Send lives in the open meal (no top bar)", !!sendLink, [...d.querySelectorAll(".mx-links")].map(x => x.textContent));
+    (sendLink || {click: () => E("openSheet('send', {})")}).click(); await wait(300);
     ok("the send sheet: groceries, tomorrow, the link, copy, more — and what it does", /Groceries to myself/.test($("#sheetBody").textContent) && /This week, as a link/.test($("#sheetBody").textContent) && /Opens Messages with everything filled in\. You press send\./.test($("#sheetBody").textContent));
     $("#sheetClose").click(); await wait(300);
 

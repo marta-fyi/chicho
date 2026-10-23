@@ -20,8 +20,12 @@ function weekDays(){
 function weekDone(){ const s = weekStart(); return now() >= new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7); }
 const fmt = (o=>d=>new Intl.DateTimeFormat(undefined, o).format(d));
 const fmtWeekday = fmt({weekday:"long"}), fmtShortDay = fmt({weekday:"short"}), fmtDayMonth = fmt({day:"numeric", month:"long"});
-/* "Thursday, October 22 · 7:33 PM": the reader's own locale and clock, no seconds */
-function fmtHeaderDate(d){ return fmt({weekday:"long", day:"numeric", month:"long"})(d) + " · " + fmtTime(d); }
+/* the top-right corner: "Thursday 22 Oct" over the time (the reader's own clock, no seconds) */
+function fmtCornerDate(d){
+  const parts = new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"short"}).formatToParts(d);
+  const part = t=>(parts.find(p=>p.type===t) || {}).value || "";
+  return `${part("weekday")} ${part("day")} ${part("month").replace(/\.$/, "")}`;
+}
 /* the date a plan day (by its weekday name) falls on, from today */
 function dateOfPlanDay(name){ return dateForDay(state.plan.days.findIndex(d=>d.name===name)); }
 
@@ -274,11 +278,13 @@ function renderHome(){
   if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
   lastISO = todayISO();
   if(picked && t >= picked.until) picked = null;
-  setText($("profileBtn"), (P.name || "·").trim().charAt(0).toUpperCase());
-  $("profileBtn").setAttribute("aria-label", say("home.profile") + (P.name ? ": " + P.name : ""));
-  setText($("clock"), fmtHeaderDate(t));
+  setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
+  setText($("whoName"), P.name || say("home.profile"));
+  $("profileBtn").setAttribute("aria-label", say("home.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
+  setText($("clockDate"), fmtCornerDate(t));
+  setText($("clock"), fmtTime(t));
   $("clock").setAttribute("datetime", t.toISOString());
-  setText($("who"), P.birthDate ? say("home.who", {name:P.name || "", months:ageNow()}) : (P.name || ""));
+  renderCaptions(st);
   const calmState = milkOnly(), empty = !calmState && !hasPlan();
   $("home").classList.toggle("is-milk", calmState);
   $("home").classList.toggle("is-empty", empty);
@@ -357,6 +363,11 @@ function renderMeals(){
   const open = all.find(x=>x.key===openKey) || def;
   setGlow(open && open.m.items[0] ? open.m.items[0].cats[0] : null);
 }
+/* the poster's bottom corners: the stage (name over its line), and the glow's food group in words */
+function renderCaptions(st){
+  setText($("capStage"), st.name);
+  setText($("capLine"), st.solids ? `${st.meals} · ${st.caption || st.textureShort}` : st.meals);
+}
 /* ---------- the glow follows the open meal ---------- */
 let glowKey = null;
 function setGlow(cat){
@@ -369,6 +380,7 @@ function setGlow(cat){
   else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
   glowKey = group;
   document.documentElement.dataset.glow = group;
+  setText($("capGlow"), say("home.groups." + group));
 }
 /* one soft pulse when a meal is offered: that's the whole reward */
 function pulseGlow(){
@@ -691,7 +703,7 @@ function renderShopLine(){
 }
 function entrance(){
   if(calm()) return;
-  [$("clock"), $("who"), $("headline"), $("moment"), $("openMeal")].forEach((el, k)=>el && el.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}],
+  [$("profileBtn"), $("clock").parentNode, $("headline"), $("moment"), $("openMeal")].forEach((el, k)=>el && el.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}],
     {duration:420, delay:k*70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}));
 }
 /* below-the-fold sections fade up as they come into view */
@@ -1303,17 +1315,15 @@ function scheduleTick(){
     // the viewer's own Chicho data is never touched
     save = function(){};
     try{ const set = Storage.prototype.setItem; Storage.prototype.setItem = function(k, v){ if(this===localStorage) return; return set.call(this, k, v); }; }catch(e){}
-    document.querySelector(".top") && document.querySelector(".top").remove();
+    document.querySelector(".corners") && document.querySelector(".corners").remove();
     renderSnapshot();
     return;
   }
-  setText($("sendLabel"), say("home.send"));
   setText($("alsoLabel"), say("home.also"));
   setText($("earlierLabel"), say("home.earlier"));
   setText($("weekLabel"), say("home.week"));
   setText($("shopLabel"), say("shopSheet.title"));
   setText($("varLabel"), say("home.variety.label"));
-  $("sendBtn").addEventListener("click", ()=>openSheet("send", {}));
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));
   currentDay = dayDisplayOrder()[0];
