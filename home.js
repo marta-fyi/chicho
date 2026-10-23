@@ -321,7 +321,7 @@ function renderHome(){
   renderWeek();
   renderShopLine();
   updateChrome();
-  if(firstDraw){ firstDraw = false; entrance(); }
+  if(firstDraw){ firstDraw = false; entrance(); try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
 }
 /* ---------- looking ahead: scrub through the day, or the whole of tomorrow ----------
    view.day 1 re-skins the page to tomorrow's plan (tap or swipe the date); view.idx is a meal of that day

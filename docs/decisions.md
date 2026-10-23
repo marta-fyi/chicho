@@ -72,10 +72,10 @@ Chicho is designed, built and tested for 360–430px. Everything below supersede
 
 ## Performance (measured, `docs/perf.json`)
 
-Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms, 1.6 Mb/s), a returning family on the light home:
+Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms, 1.6 Mb/s), text gzipped as GitHub Pages serves it, a returning family on the light home, uncached:
 
-- **First contentful paint: ~0.93 s** (budget 1.5 s); layout shift 0; ~515 KB transferred, uncached.
-- **The breath:** composited (Chromium reports no compositing failure); main thread **~1 ms a second** with it on, 3 ms with it off; 120 fps, worst frame 9 ms.
+- **First meaningful paint: ~1.14 s** (budget 1.5 s), timed by a `chicho:home` mark when the headline and the open meal first render. First contentful paint (~0.8 s) is only the grain tile on the page's background, so it isn't the budget's number: the home is drawn by script, and an uncompressed test server had made it look like 1.7 s. ~315 KB transferred; layout shift 0.
+- **The breath:** composited (Chromium reports no compositing failure); main thread **~1 ms a second** with it on, 4 ms with it off; 120 fps, worst frame 9 ms.
 - **The grain:** a static 34 KB tile; no paint or main-thread cost after the first paint (it never repaints: the breath scales and fades a composited layer above it).
 
 ## Check on a real iPhone

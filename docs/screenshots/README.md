@@ -10,7 +10,9 @@ Devices, at the brief's sizes (the whole screen, as an installed app has it): `s
   (`sheet-day`, `sheet-shop`, `sheet-shop-large` for the large detent, `sheet-send`, `sheet-profile`,
   `sheet-people`), every onboarding step (`onb-welcome`, `onb-name`, `onb-birthday`, `onb-keepout`,
   `onb-priorities`, `onb-athome`, `onb-mealtimes`, `onb-reveal`, `onb-done`), and in light each glow
-  colour (`glow-grain`, `glow-vegetable`, `glow-fruit`, `glow-protein`, `glow-fat`).
+  colour (`glow-grain`, `glow-vegetable`, `glow-fruit`, `glow-protein`, `glow-fat`), and the patterns:
+  `change` (one alternative at a time), `tomorrow`, `cook` (with a timer running), `sheet-shop-instore`,
+  `sheet-shop-staples`.
 - **Every other device, engine and theme:** `home`, `week`, `sheet-shop`, `onb-birthday`.
 
 The state is the tests' usual one: Thursday 22 October 2026, 12:10, an 18-month-old called Lula.

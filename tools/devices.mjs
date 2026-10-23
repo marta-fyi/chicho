@@ -8,12 +8,13 @@
 // the fold budget. Screenshots land in docs/screenshots/: the full set (home, an expanded meal, each sheet, the
 // week, every onboarding step, each glow colour) for WebKit iPhone 14 in both themes, and home, week, shop and
 // the birthday step for every other device, engine and theme. --quick skips the screenshots.
-// --perf adds the throttled run (Chromium, 4× CPU, Slow 4G): first paint and the cost of the grain and the breath.
+// --perf adds the throttled run (--perf-only runs just that) (Chromium, 4× CPU, Slow 4G): first paint and the cost of the grain and the breath.
 // Safe-area insets can't be emulated here; the real-iPhone list in docs/decisions.md covers them.
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { createRequire } from "node:module";
+import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,13 +27,16 @@ const TYPES = {".html":"text/html; charset=utf-8", ".js":"text/javascript", ".we
 const server = createServer((req, res) => {
   const p = join(root, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!p.startsWith(root) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end(); return; }
-  res.writeHead(200, {"content-type": TYPES[extname(p)] || "application/octet-stream"}); res.end(readFileSync(p));
+  // text is gzipped, as GitHub Pages serves it (the throttled run measures what a phone really downloads)
+  const body = readFileSync(p), text = /\.(html|js|json|webmanifest)$/.test(p) && /gzip/.test(req.headers["accept-encoding"] || "");
+  res.writeHead(200, Object.assign({"content-type": TYPES[extname(p)] || "application/octet-stream"}, text ? {"content-encoding": "gzip"} : {}));
+  res.end(text ? gzipSync(body) : body);
 }).listen(0, "127.0.0.1");
 await new Promise(r => server.on("listening", r));
 const base = `http://127.0.0.1:${server.address().port}/index.html?test&now=2026-10-22T12:10`;
 
 const SHOTS = join(root, "docs", "screenshots");
-if (!args.has("--quick")) { if (existsSync(SHOTS)) readdirSync(SHOTS).filter(f => /\.(png|jpg)$/.test(f)).forEach(f => rmSync(join(SHOTS, f))); mkdirSync(SHOTS, {recursive: true}); }
+if (!args.has("--quick") && !args.has("--perf-only")) { if (existsSync(SHOTS)) readdirSync(SHOTS).filter(f => /\.(png|jpg)$/.test(f)).forEach(f => rmSync(join(SHOTS, f))); mkdirSync(SHOTS, {recursive: true}); }
 const SEED = `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
   ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
   state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`;
@@ -59,7 +63,7 @@ const CHECKS = () => {
 };
 
 const browsers = {chromium: await pw.chromium.launch(), webkit: await pw.webkit.launch()};
-for (const engine of ["webkit", "chromium"]) {
+for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
   for (const [slug, name] of DEVICES) {
     for (const theme of ["light", "dark"]) {
       const dev = Object.assign({}, pw.devices[name]);
@@ -93,6 +97,13 @@ for (const engine of ["webkit", "chromium"]) {
           }
           await page.evaluate("openSheet('shop')"); await page.waitForTimeout(300);
           await page.evaluate("setDetent('large')"); await page.waitForTimeout(350); await shot("sheet-shop-large"); await reset();
+          // the patterns: one-at-a-time Change, tomorrow, cook mode (with a timer), in the store, the staples question
+          await page.evaluate("const f = defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m.items[0]; openFood.add(f.id); changing = {id: f.id, i: 0}; homeChanged()"); await page.waitForTimeout(250); await shot("change"); await reset();
+          await page.evaluate("setView(1, null)"); await page.waitForTimeout(350); await shot("tomorrow"); await page.evaluate("setView(0, null)"); await reset();
+          await page.evaluate("startCooking(defaultOpen(refsOn(now()), refsOn(tomorrowOf(now())))); const st = cookSteps(cookRef().m).find(s => s.min); if (st) startTimer(st)"); await page.waitForTimeout(350); await shot("cook");
+          await page.evaluate("state.timers = []; save(); stopCooking()"); await reset();
+          await page.evaluate("openSheet('shop'); setStoreMode(true)"); await page.waitForTimeout(400); await shot("sheet-shop-instore"); await reset();
+          await page.evaluate("state.asked = Object.assign({}, state.asked); delete state.asked.staplesShop; delete state.asked.staplesDone; openSheet('shop')"); await page.waitForTimeout(350); await shot("sheet-shop-staples"); await reset();
           if (theme === "light") for (const g of ["grain", "vegetable", "fruit", "protein", "fat"]) {
             await page.evaluate(`glowKey = null; setGlow('${g}')`); await page.waitForTimeout(100); await shot("glow-" + g);
           }
@@ -110,7 +121,7 @@ for (const engine of ["webkit", "chromium"]) {
   }
 }
 
-if (args.has("--perf")) {
+if (args.has("--perf") || args.has("--perf-only")) {
   // throttled: a mid-range phone (4× CPU) on Slow 4G (150ms RTT, 1.6 Mb/s down)
   const pdev = Object.assign({}, pw.devices["iPhone 14"], {colorScheme: "light"}); delete pdev.defaultBrowserType;
   const ctx = await browsers.chromium.newContext(pdev);
@@ -125,7 +136,8 @@ if (args.has("--perf")) {
     const fcp = performance.getEntriesByName("first-contentful-paint")[0];
     const lcp = performance.getEntriesByType("largest-contentful-paint").at(-1);
     let cls = 0; performance.getEntriesByType("layout-shift").forEach(e => { if (!e.hadRecentInput) cls += e.value; });
-    r({fcp: fcp && Math.round(fcp.startTime), lcp: lcp && Math.round(lcp.startTime), cls: +cls.toFixed(4), bytes: performance.getEntriesByType("resource").reduce((n, e) => n + (e.transferSize || 0), 0) + (performance.getEntriesByType("navigation")[0].transferSize || 0)});
+    const home = performance.getEntriesByName("chicho:home")[0];   // the headline and the open meal are on screen
+    r({firstHome: home && Math.round(home.startTime), fcp: fcp && Math.round(fcp.startTime), lcp: lcp && Math.round(lcp.startTime), cls: +cls.toFixed(4), bytes: performance.getEntriesByType("resource").reduce((n, e) => n + (e.transferSize || 0), 0) + (performance.getEntriesByType("navigation")[0].transferSize || 0)});
   }, 3000)));
   // the breath: main-thread time over 6 s of a still page, with it on and then off (nothing else may tick: a rAF
   // frame counter would itself force main-thread frames), then the frame rate with it on (grain: static either way)
@@ -140,7 +152,7 @@ if (args.has("--perf")) {
   const breathOff = await busy();
   const perf = {profile: "Chromium, iPhone 14, 4× CPU, Slow 4G (150ms, 1.6 Mb/s)", ...paint, breathOn, breathOff};
   console.log("\nperf " + JSON.stringify(perf, null, 1));
-  ok("throttled first contentful paint under 1.5 s", paint.fcp && paint.fcp < 1500, paint.fcp);
+  ok("throttled first meaningful paint (the headline and the open meal) under 1.5 s", paint.firstHome && paint.firstHome < 1500, paint);
   ok("no layout shift on load", paint.cls < .01, paint.cls);
   writeFileSync(join(root, "docs", "perf.json"), JSON.stringify(perf, null, 2) + "\n");
   await ctx.close();
@@ -148,5 +160,5 @@ if (args.has("--perf")) {
 
 await browsers.chromium.close(); await browsers.webkit.close(); server.close();
 const fails = results.filter(l => l.startsWith("FAIL"));
-console.log(results.filter(l => l.startsWith("FAIL")).join("\n") || "", `\n${results.length - fails.length} passed, ${fails.length} failed` + (args.has("--quick") ? "" : `; screenshots in docs/screenshots/ (${readdirSync(SHOTS).filter(f => f.endsWith(".jpg")).length})`));
+console.log(results.filter(l => l.startsWith("FAIL")).join("\n") || "", `\n${results.length - fails.length} passed, ${fails.length} failed` + (args.has("--quick") || args.has("--perf-only") ? "" : `; screenshots in docs/screenshots/ (${readdirSync(SHOTS).filter(f => f.endsWith(".jpg")).length})`));
 process.exit(fails.length ? 1 : 0);
