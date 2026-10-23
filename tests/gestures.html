@@ -87,6 +87,22 @@ f.onload = async () => {
     ok("swiping the date left also shows tomorrow", E("view.day") === 1);
     await swipe($("#whenBtn"), 200, 100); await wait(300);
     ok("…and right, today", E("view.day") === 0);
+    // press and hold for something big
+    const nw = $("#newWeekBtn"), planSig = () => E("JSON.stringify(state.plan.days.map(d => d.meals.map(m => m.items.map(i => i.name))))");
+    const sig0 = planSig();
+    const press = type => nw.dispatchEvent(new w.PointerEvent(type, {bubbles: true, button: 0, pointerId: 9, pointerType: "touch"}));
+    ok("'Start a new week' is a hold, not a dialog: a ring, 48px tall", nw.textContent === "Start a new week" && !!nw.querySelector(".hold-ring b") && nw.getBoundingClientRect().height >= 44 && !d.querySelector("dialog[open]"));
+    press("pointerdown"); await wait(400); press("pointerup"); await wait(300);
+    ok("let go before the ring is full: nothing changes", planSig() === sig0 && $("#newWeekUndo").hidden);
+    press("pointerdown"); await wait(1250);
+    ok("hold for a second: a new week is set", planSig() !== sig0 && E("state.weekStarted") === "2026-10-22");
+    ok("…with 'New week set. Undo' for 5 seconds", !$("#newWeekUndo").hidden && /New week set\. Undo/.test($("#newWeekUndo").textContent));
+    press("pointerup");
+    [...d.querySelectorAll("#newWeekUndo .btn-text")].find(b => b.textContent === "Undo").click(); await wait(50);
+    ok("Undo brings the old week back exactly", planSig() === sig0 && E("state.weekStarted") === "2026-10-20" && $("#newWeekUndo").hidden);
+    nw.dispatchEvent(new w.KeyboardEvent("keydown", {key: " ", bubbles: true})); await wait(1250);
+    ok("holding Space does it too (keyboard)", planSig() !== sig0);
+    nw.dispatchEvent(new w.KeyboardEvent("keyup", {key: " ", bubbles: true}));
     ok("the date is a 44px button", $("#whenBtn").getBoundingClientRect().height >= 44 && $("#whenBtn").tagName === "BUTTON");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

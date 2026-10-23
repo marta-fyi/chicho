@@ -521,6 +521,12 @@ try{
   .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:8px 0 0;font-size:17px;}
   .mx-links .btn-text.small{min-height:44px;padding:0;font-size:17px;}
   .mx-links label{font-weight:500;}
+  .hold{display:inline-flex;align-items:center;gap:12px;min-height:48px;margin-top:20px;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:13px;
+        text-transform:uppercase;letter-spacing:var(--track-label);cursor:pointer;-webkit-touch-callout:none;}
+  .hold-ring{position:relative;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink);overflow:hidden;}
+  .hold-ring b{position:absolute;inset:0;border-radius:50%;background:var(--ink);transform:scale(0);}
+  .hold:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
+  #newWeekUndo{margin-top:4px;}
   .wake{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
   .wake i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;}
   .wake[aria-pressed="true"] i{background:currentColor;}
@@ -787,6 +793,9 @@ try{
     <div class="strip" id="weekStrip"></div>
     <p class="var-line"><span class="mini" id="varLabel"></span> <span id="varText"></span></p>
     <div class="vdots" id="vdots"></div>
+    <!-- something big: press and hold (a ring fills over a second), then a 5-second undo, never a dialog -->
+    <button type="button" class="hold" id="newWeekBtn" data-f="newweek"><i class="hold-ring" aria-hidden="true"><b></b></i><span id="newWeekLabel"></span></button>
+    <p class="undo-line" id="newWeekUndo" hidden></p>
   </section>
   <section class="below shop-sec" aria-labelledby="shopLabel">
     <h2 class="label" id="shopLabel"></h2>

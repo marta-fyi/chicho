@@ -896,6 +896,47 @@ function watchFold(){
   check();
 }
 
+/* ---------- Start a new week: press and hold ----------
+   A big action gets a deliberate gesture instead of a dialog: hold for a second while the ring fills (pointer,
+   or Space/Enter held), let go early and nothing happens. Then "New week set. Undo" for 5 seconds. */
+const HOLD_MS = 1000;
+let holdAnim = null, weekUndo = null;
+function holdStart(){
+  if(holdAnim) return;
+  const disc = document.querySelector("#newWeekBtn .hold-ring b");
+  holdAnim = disc.animate([{transform:"scale(0)"}, {transform:"scale(1)"}], {duration:HOLD_MS, easing:"linear", fill:"forwards"});
+  holdAnim.onfinish = ()=>{ holdAnim.cancel(); holdAnim = null; startNewWeek(); };
+}
+function holdCancel(){
+  if(!holdAnim) return;
+  const a = holdAnim; holdAnim = null; a.onfinish = null;
+  if(calm()){ a.cancel(); return; }
+  a.pause(); const p = a.effect.getComputedTiming().progress || 0; a.cancel();
+  document.querySelector("#newWeekBtn .hold-ring b").animate([{transform:`scale(${p})`}, {transform:"scale(0)"}], {duration:160, easing:"ease-out"});
+}
+function startNewWeek(){
+  const P = state.profile, old = {plan:state.plan, weekStarted:state.weekStarted, lastStage:P.lastStage, history:state.history.slice()};
+  if(hasPlan()) state.history.push({weekOf:state.weekStarted});
+  state.plan = generateWeek(planMonths(), P);
+  state.weekStarted = todayISO(); P.lastStage = stageNow().id; currentDay = dayDisplayOrder()[0];
+  picked = null; save(); haptic(); pulseGlow();
+  clearTimeout(weekUndo && weekUndo.timer);
+  weekUndo = {old, timer:setTimeout(()=>{ weekUndo = null; renderWeekUndo(); }, 5000)};
+  announce(say("week.newSet")); homeChanged(); renderWeekUndo();
+}
+function renderWeekUndo(){
+  const p = $("newWeekUndo");
+  p.hidden = !weekUndo; p.innerHTML = "";
+  if(!weekUndo) return;
+  p.append(say("week.newSet") + " ");
+  const u = textBtn(say("meal.undo"), ()=>{
+    const o = weekUndo.old; clearTimeout(weekUndo.timer); weekUndo = null;
+    Object.assign(state, {plan:o.plan, weekStarted:o.weekStarted, history:o.history}); state.profile.lastStage = o.lastStage;
+    save(); announce(say("week.restored")); homeChanged(); renderWeekUndo(); focusLater("newweek");
+  }, "inline");
+  u.dataset.f = "undo:newweek";
+  p.appendChild(u);
+}
 /* a new week: the reveal, then "Love it" applies it */
 function setNextWeek(){ closeSheet(true); openOnboarding("reveal", {single:true}); }
 
@@ -1516,6 +1557,14 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
   setText($("varLabel"), say("home.variety.label"));
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
   $("whenBtn").addEventListener("click", ()=>setView(view.day ? 0 : 1, null));
+  const nw = $("newWeekBtn");
+  setText($("newWeekLabel"), say("week.hold"));
+  nw.setAttribute("aria-label", say("week.holdLabel"));
+  nw.addEventListener("pointerdown", e=>{ if(e.button===0) holdStart(); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev=>nw.addEventListener(ev, holdCancel));
+  nw.addEventListener("contextmenu", e=>e.preventDefault());   // a long press is ours, not the browser's menu
+  nw.addEventListener("keydown", e=>{ if((e.key===" " || e.key==="Enter") && !e.repeat){ e.preventDefault(); holdStart(); } else if(e.key===" " || e.key==="Enter") e.preventDefault(); });
+  nw.addEventListener("keyup", e=>{ if(e.key===" " || e.key==="Enter") holdCancel(); });
   onSwipe($("whenBtn"), dir=>setView(dir==="left" ? 1 : 0, null));
   onSwipe(document.querySelector(".hl"), scrub);
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));

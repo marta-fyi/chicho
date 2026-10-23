@@ -47,6 +47,9 @@ const CONTENT = {
     view:{tomorrow:"Tomorrow", backToday:"Back to today", backNow:"Back to now", showTomorrow:"Show tomorrow"}
   },
 
+  /* ---------- the week ---------- */
+  week:{hold:"Start a new week", holdLabel:"Start a new week: press and hold", newSet:"New week set.", restored:"The week is back as it was."},
+
   /* ---------- a meal, opened in place ---------- */
   meal:{
     meta:"{n} min · {texture}",
