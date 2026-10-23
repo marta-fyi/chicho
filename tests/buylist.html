@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · buy list tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Buy list tests</h1>
+<p>deriveBuyList() on a hand-made week (now: Thursday 22 October 2026, 12:10): stock states, Low's 48 hours, merging, past and offered meals, the horizon, shopping units, manual adds, Not this week, Got it and the order. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 600;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    // the week: Thursday to Sunday; times by slot (snack1 11:05 has passed its hour, snack2 11:15 hasn't)
+    E(`window.T = {breakfast: "08:00", snack1: "11:05", snack2: "11:15", lunch: "12:30", dinner: "19:00"};
+       window.mk = (slot, foods) => ({id: "m-" + Math.random().toString(36).slice(2, 8), slot, label: slot, items: foods.map(([name, qty]) => ({id: uid(), name, qty: qty + " g", cats: []}))});
+       window.W = {startsOn: "2026-10-19", days: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(name => ({name, meals: []}))};
+       const day = n => W.days.find(d => d.name === n).meals;
+       day("Thursday").push(mk("breakfast", [["Oatmeal", 40]]), mk("snack1", [["Greek yogurt", 100]]), mk("snack2", [["Blueberries, halved", 30]]),
+                             mk("lunch", [["Pumpkin", 100], ["Chicken", 120]]), mk("dinner", [["Pumpkin", 100], ["Banana", 60]]));
+       day("Friday").push(mk("lunch", [["Whole wheat pasta", 300]]), mk("dinner", [["Lentils", 300], ["Kiwi", 70], ["White fish", 260]]));
+       day("Saturday").push(mk("lunch", [["Rice, soft-cooked", 50]]), mk("dinner", [["Pumpkin", 100]]));
+       day("Sunday").push(mk("lunch", [["Mango", 300]]));
+       window.B = (pantry, shop, opts) => deriveBuyList(W, pantry || [], shop || {}, now(), Object.assign({timeOf: s => T[s]}, opts || {}));
+       window.P = (id, state) => ({foodId: id, name: id, state, updatedAt: ""});`);
+    const ids = x => E(`(${x}).map(r => r.foodId)`);
+    const row = (x, id) => E(`(${x}).find(r => r.foodId === "${id}") || null`);
+
+    // 1. needs, with nothing at home
+    const all = ids("B()");
+    ok("nothing at home: every food still needed in the three days", ["blueberries", "pumpkin", "chicken", "banana", "whole wheat pasta", "kiwi", "lentils", "white fish", "rice"].every(id => all.includes(id)) && all.length === 9, all);
+    ok("a meal whose hour has passed is out (breakfast 08:00, snack 11:05)", !all.includes("oatmeal") && !all.includes("greek yogurt"), all);
+    ok("…a meal inside its hour still counts (snack 11:15 at 12:10)", all.includes("blueberries"));
+    ok("the horizon ends with the third day: Sunday's mango is out, Saturday's dinner is in", !all.includes("mango") && row("B()", "rice") !== null);
+    ok("the same food across meals is one row, its grams summed (pumpkin 3 × 100 g)", all.filter(id => id === "pumpkin").length === 1 && row("B()", "pumpkin").grams === 300, row("B()", "pumpkin"));
+
+    // 2. stock states
+    ok("Plenty covers the whole need", !ids(`B([P("pumpkin", "plenty")])`).includes("pumpkin"));
+    const low = row(`B([P("pumpkin", "low")])`, "pumpkin");
+    ok("Low covers what's needed within 48 hours: only Saturday's dinner (54 h away) is left", low && low.grams === 100 && E(`isoOf(new Date(${+new Date(low.first)}))`) === "2026-10-24", low);
+    ok("Low with every need inside 48 hours: nothing to buy (banana, tonight)", !ids(`B([P("banana", "low")])`).includes("banana"));
+    ok("Out covers nothing", row(`B([P("chicken", "out")])`, "chicken").grams === 120);
+    ok("…and a food not in the pantry counts as Out", row("B()", "chicken").grams === 120);
+
+    // 3. offered meals
+    const lunch = E(`W.days.find(d => d.name === "Thursday").meals.find(m => m.slot === "lunch").id`);
+    const off = `B([], {}, {isOffered: (m) => m.id === "${lunch}"})`;
+    ok("an offered meal needs nothing more: chicken gone, pumpkin down to 200 g", !ids(off).includes("chicken") && row(off, "pumpkin").grams === 200, ids(off));
+
+    // 4. shopping units, never the plan's grams
+    const unit = id => row("B()", id).unit.text;
+    ok("pack: pumpkin 300 g → '1 pack' (500 g packs)", unit("pumpkin") === "1 pack", unit("pumpkin"));
+    ok("pack with its own label: lentils 300 g → '2 tins'", unit("lentils") === "2 tins", unit("lentils"));
+    ok("a defaulted food's pack: pasta 300 g → '1 pack'", unit("whole wheat pasta") === "1 pack");
+    ok("weight under 200 g → '200 g' (chicken 120 g)", unit("chicken") === "200 g", unit("chicken"));
+    ok("weight → the next 100 g (white fish 260 g → '300 g')", unit("white fish") === "300 g", unit("white fish"));
+    ok("piece: banana 60 g → '1 piece'", unit("banana") === "1 piece");
+    const units = E("B().map(r => r.unit.text)");
+    ok("no plan grams anywhere: any gram value is a whole 100 g of a weight food", E(`B().every(r => !/\\d+ ?g\\b/.test(r.unit.text) || (r.unit.kind === "weight" && r.unit.n % 100 === 0 && r.unit.n >= 200))`), units);
+
+    // 5. added by hand, not this week, got it
+    const man = `B([P("pumpkin", "plenty")], {manual: [{foodId: "pumpkin"}, {foodId: "olive oil"}]})`;
+    ok("a manual add shows even when covered (pumpkin at Plenty)", row(man, "pumpkin") && row(man, "pumpkin").manual === true);
+    ok("…an unplanned one is one unit, with no 'when' ('Olive oil' / '1 bottle')", row(man, "olive oil").name === "Olive oil" && E(`buyMeta(${man}.find(r => r.foodId === "olive oil"), now())`) === "1 bottle", row(man, "olive oil"));
+    ok("Not this week (this plan week) takes it off", !ids(`B([], {notThisWeek: [{foodId: "chicken", planWeekId: "2026-10-19"}]})`).includes("chicken"));
+    ok("…a Not this week from another plan week doesn't", ids(`B([], {notThisWeek: [{foodId: "chicken", planWeekId: "2026-10-12"}]})`).includes("chicken"));
+    ok("…and it beats a manual add", !ids(`B([], {manual: [{foodId: "chicken"}], notThisWeek: [{foodId: "chicken", planWeekId: "2026-10-19"}]})`).includes("chicken"));
+    ok("what's in Got it isn't on the list", !ids(`B([], {got: [{foodId: "banana", at: "2026-10-22T11:00:00", prevState: null}]})`).includes("banana"));
+
+    // 6. the order: soonest uncovered need, then food group (Grains, Veg, Fruit, Protein, Fats), then name
+    ok("soonest first, then group, then name", JSON.stringify(all) === JSON.stringify(["blueberries", "pumpkin", "chicken", "banana", "whole wheat pasta", "kiwi", "lentils", "white fish", "rice"]), all);
+    ok("…manual adds with no need come last", ids(man).at(-1) === "olive oil", ids(man));
+
+    // 7. when: tonight (today's dinner), today, tomorrow, the weekday
+    const meta = id => E(`buyMeta(B().find(r => r.foodId === "${id}"), now())`);
+    ok("'Pumpkin' / '1 pack · today'", meta("pumpkin") === "1 pack · today", meta("pumpkin"));
+    ok("today's dinner is 'tonight' (banana)", meta("banana") === "1 piece · tonight", meta("banana"));
+    ok("tomorrow (pasta)", meta("whole wheat pasta") === "1 pack · tomorrow", meta("whole wheat pasta"));
+    const sat = E(`new Intl.DateTimeFormat(undefined, {weekday: "long"}).format(new Date(2026, 9, 24))`);
+    ok("further on, the weekday (rice, Saturday)", meta("rice") === "1 pack · " + sat, meta("rice"));
+
+    // 8. dated plans: a week starting Saturday takes over from its date
+    E(`window.W2 = {startsOn: "2026-10-24", days: W.days.map(d => ({name: d.name, meals: d.name === "Saturday" ? [mk("lunch", [["Quinoa", 40]])] : []}))}`);
+    const two = E(`deriveBuyList([W, W2], [], {}, now(), {timeOf: s => T[s]}).map(r => r.foodId)`);
+    ok("with two weeks, Saturday reads the new one (quinoa, not rice)", two.includes("quinoa") && !two.includes("rice") && two.includes("kiwi"), two);
+    ok("…and Not this week still means the running week", !E(`deriveBuyList([W, W2], [], {notThisWeek: [{foodId: "kiwi", planWeekId: "2026-10-19"}]}, now(), {timeOf: s => T[s]}).map(r => r.foodId)`).includes("kiwi"));
+
+    // 9. pure: the same arguments give the same list, and nothing is written
+    const before = E("JSON.stringify([W, localStorage.getItem('toddlerMealPlanner.v1')])");
+    ok("pure: same list twice, the plan and the save untouched", JSON.stringify(E("B()")) === JSON.stringify(E("B()")) && E("JSON.stringify([W, localStorage.getItem('toddlerMealPlanner.v1')])") === before);
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · buy list";
+};
+</script>
+</body></html>

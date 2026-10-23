@@ -82,3 +82,75 @@ function gramsOf(item){ const m = String(item && item.qty || "").match(/(\d+(?:\
 /* the storage line, from the numbers above: "Fridge 2 days · freezer 1 month · reheat once, …" */
 function spanText(days){ return days % 30===0 ? say("kitchen.span.months", {n:days / 30}) : say("kitchen.span.days", {n:days}); }
 function storageNote(){ return say("kitchen.storage", {fridge:spanText(KITCHEN.FRIDGE_DAYS), freezer:spanText(KITCHEN.FREEZER_DAYS)}); }
+
+/* ---------- the plan's meals between two days, in time order (pure) ----------
+   plan: one dated plan ({startsOn, days}) or the list of them (a date uses the latest that has started).
+   opts.timeOf(slot, date) → "HH:mm" (the app passes mealTime); without it, the fallback times. */
+function planMealsIn(plan, fromDay, days, opts){
+  const recs = (Array.isArray(plan) ? plan : [plan]).filter(Boolean), timeOf = (opts && opts.timeOf) || (slot=>FALLBACK_TIMES[slot] || "12:00");
+  const out = [];
+  for(let k = 0; k < days; k++){
+    const date = new Date(fromDay.getFullYear(), fromDay.getMonth(), fromDay.getDate() + k);
+    const rec = planRecOn({plans:recs}, date);
+    if(!rec) continue;
+    const dayIdx = rec.days.findIndex(d=>d.name===DAY_ORDER[date.getDay()]);
+    if(dayIdx < 0) continue;
+    rec.days[dayIdx].meals.forEach((m, j)=>{
+      if(!m.items.length || m.skipped) return;
+      out.push({m, k:j, dayIdx, date, iso:isoOf(date), start:atTime(date, timeOf(m.slot, date)), planWeekId:rec.startsOn});
+    });
+  }
+  return out.sort((a, b)=>a.start - b.start);
+}
+/* a meal still needs its food until an hour after its anchor */
+function stillAhead(x, now){ return now < new Date(x.start.getTime() + NEED_GRACE_MIN * 60000); }
+
+/* ---------- Buy: deriveBuyList(plan, pantry, shop, now, opts) (pure) ----------
+   1. needs: planned grams per food from every meal not offered whose anchor + 60 min hasn't passed, through the end
+      of day (today + HORIZON_DAYS - 1)
+   2. cover: Plenty covers the lot; Low only what's needed within LOW_COVERS_HOURS; Out (or not in the pantry) nothing
+   3. one row per food, the uncovered grams summed, in shopping units (never the plan's grams)
+   4. plus shop.manual (even when covered), minus shop.notThisWeek for the running plan week, minus what's in Got it
+   5. soonest uncovered need first, then food group order, then name
+   opts: {timeOf(slot, date), isOffered(m, date, item)}. Rows: {foodId, name, group, grams, unit, first, firstSlot, manual} */
+function deriveBuyList(plan, pantry, shop, now, opts){
+  const o = opts || {}, isOffered = o.isOffered || (()=>false), S = shop || {};
+  const stock = {}; (pantry || []).forEach(p=>{ stock[p.foodId] = p; });
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const rows = {};
+  planMealsIn(plan, today, KITCHEN.HORIZON_DAYS, o).forEach(x=>{
+    if(!stillAhead(x, now)) return;
+    x.m.items.forEach(i=>{
+      if(isOffered(x.m, x.date, i)) return;
+      const id = foodKey(baseName(i)), st = stock[id] ? stock[id].state : "out";
+      const covered = st==="plenty" || (st==="low" && x.start - now <= KITCHEN.LOW_COVERS_HOURS * 3600000);
+      if(covered) return;
+      const r = rows[id] || (rows[id] = {foodId:id, name:baseName(i), grams:0, first:null, firstSlot:null, manual:false});
+      r.grams += gramsOf(i);
+      if(!r.first || x.start < r.first){ r.first = x.start; r.firstSlot = x.m.slot; }
+    });
+  });
+  (S.manual || []).forEach(x=>{
+    const r = rows[x.foodId] || (rows[x.foodId] = {foodId:x.foodId, name:stock[x.foodId] ? stock[x.foodId].name : foodName(x.foodId), grams:0, first:null, firstSlot:null, manual:false});
+    r.manual = true;
+  });
+  const cur = planRecOn({plans:(Array.isArray(plan) ? plan : [plan]).filter(Boolean)}, now), week = cur ? cur.startsOn : null;
+  (S.notThisWeek || []).forEach(x=>{ if(x.planWeekId===week) delete rows[x.foodId]; });
+  (S.got || []).forEach(x=>{ delete rows[x.foodId]; });
+  const order = g=>{ const k = FOOD_GROUP_ORDER.indexOf(g); return k < 0 ? 99 : k; };
+  return Object.values(rows).map(r=>{
+    const meta = kitchenMeta(r.foodId);
+    return Object.assign(r, {group:meta.group, unit:shopUnits(r.grams, meta)});
+  }).sort((a, b)=>(a.first ? +a.first : Infinity) - (b.first ? +b.first : Infinity) || order(a.group) - order(b.group) || a.name.localeCompare(b.name));
+}
+/* a food's display name from its key: the pool's name before the comma, else the key itself */
+function foodName(foodId){ const p = poolFood(foodId); return p ? baseName(p) : upper1(foodId); }
+/* when a row is first needed: "tonight" (today's dinner), "today", "tomorrow", or the weekday */
+const fmtWeekdayK = d=>new Intl.DateTimeFormat(undefined, {weekday:"long"}).format(d);
+function whenLabel(first, slot, now){
+  if(!first) return "";
+  const days = Math.round((new Date(first.getFullYear(), first.getMonth(), first.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  return days===0 ? say(slot==="dinner" ? "kitchen.when.tonight" : "kitchen.when.today") : days===1 ? say("kitchen.when.tomorrow") : fmtWeekdayK(first);
+}
+/* "1 pack · tomorrow" (an item added by hand, needed by no meal, is just its unit) */
+function buyMeta(r, now){ const w = whenLabel(r.first, r.firstSlot, now); return w ? say("kitchen.rowMeta", {unit:r.unit.text, when:w}) : r.unit.text; }

@@ -27,6 +27,8 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 
 - **A legacy non-food** in the pantry (an old "Wipes" extra) has the group "other": one pack, no plan need. It still shows in At home, under "Everything else", only when there is one.
 - **Grams in Buy.** The brief says Buy shows no grams, and also that a `weight` food rounds up to the next 100 g (200 g at least). A shopping weight is a unit at the counter, not the plan's portion grams, so `weight` foods read "300 g". The plan's own grams ("35 g") never reach Buy, and the tests check that every gram value in a Buy row is a whole 100 g of a `weight` food.
+- **deriveBuyList is pure.** It reads only its arguments: the plan (one dated week or the list of them), the pantry, `shop` and the time. A meal's time and whether it's been offered come in as two callbacks in a fifth argument (`timeOf`, `isOffered`), so the tests can pass their own and the app passes `mealTime` and the offer log. It also leaves out whatever is in **Got it**. The brief's five steps don't say so, but without it a manual add would come straight back after being ticked.
+- **Low and the 48 hours** are measured from now to each meal's anchor. A food at Low with a need 54 hours away goes on the list with only that need's amount.
 - **Migration (schema 10).** The pantry and freezer carry over as they were (a valid `prevState` is kept). `shop` (`manual`, `notThisWeek`, `got`) and `cookAhead.done` start empty. The old generic "Cook double", "Make double … and freeze half" and same-oven suggestions are deleted, along with their stored ticks (`double:`, `freeze:`, `roast:` and `steam:` ids in `prepped`).
 
 ## Onboarding v3 (23 Oct 2026, supersedes every earlier onboarding order)

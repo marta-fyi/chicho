@@ -149,7 +149,8 @@ const CONTENT = {
     useOne:"Use one", useOneOf:"Use one portion of {food}", prepDone:"Done: {task}",
     freezerEmpty:"Nothing in the freezer, nothing to prep.",
     /* shopping units (the labels themselves are the food manifest's: foods.js) */
-    unit:"{n} {label}", weight:"{g} g",
+    unit:"{n} {label}", weight:"{g} g", rowMeta:"{unit} · {when}",
+    when:{tonight:"tonight", today:"today", tomorrow:"tomorrow"},
     /* storage, built from the numbers in KITCHEN (kitchen.js; check against a food-safety source: docs/decisions.md) */
     storage:"Fridge {fridge} · freezer {freezer} · reheat once, piping hot, then let it cool.",
     span:{days:{one:"{n} day", other:"{n} days"}, months:{one:"{n} month", other:"{n} months"}}
