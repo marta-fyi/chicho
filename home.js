@@ -416,7 +416,7 @@ function renderMeals(){
     nextLabel = say("home.tomorrow");
   }
   const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : "") + (outcomeUntil[x.key] > Date.now() ? "o" : ""))].join("|")
-            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "") + "|v" + view.day + ":" + view.idx;
+            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + Object.keys(addUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "") + "|v" + view.day + ":" + view.idx;
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -609,7 +609,7 @@ function mealOpen(x, isDefault){
   ul.className = rest.className = "mx-foods";
   m.items.forEach((item, k)=>{
     const li = document.createElement("li");
-    const id = "fr-" + item.id, isOpen = openFood.has(item.id);
+    const id = "fr-" + item.id, isOpen = openFood.has(item.id) || addUndo[item.id] && addUndo[item.id].until > Date.now();
     const b = document.createElement("button");
     b.type = "button"; b.className = "fr"; b.dataset.f = "fr:" + item.id;
     b.setAttribute("aria-expanded", String(isOpen)); b.setAttribute("aria-controls", id);
@@ -623,6 +623,14 @@ function mealOpen(x, isDefault){
       if(tip) more.insertAdjacentHTML("beforeend", `<p class="fr-tip">${esc(tip)}</p>`);
       const why = whyFor(item);
       if(why) more.insertAdjacentHTML("beforeend", `<p class="fr-why">${esc(say("meal.why", {why:lower1(why)}))}</p>`);
+      const au = addUndo[item.id];
+      if(au && au.until > Date.now()){
+        const p = document.createElement("p");
+        p.className = "undo-line";
+        p.append(say("meal.added", {food:baseName(item)}) + " ");
+        p.appendChild(textBtn(say("meal.undo"), ()=>{ const j = m.items.indexOf(item); if(j >= 0){ setOffered(item, false); m.items.splice(j, 1); } delete addUndo[item.id]; save(); homeChanged(); focusLater("add:" + x.key); }, "inline"));
+        more.appendChild(p);
+      }
       const cu = changeUndo[item.id];
       if(cu && cu.until > Date.now()){
         const p = document.createElement("p");
@@ -706,23 +714,39 @@ function mealOpen(x, isDefault){
   const links = document.createElement("p");
   links.className = "mx-links";
   if(addingTo===x.key){
-    const b = blank({min:8, maxLength:30, onEnter:()=>{
-      const v = b.input.value.trim(); addingTo = null;
+    // one field; suggestions follow what's typed ("ban" → Banana), each with its bullet; one tap adds it, offered
+    const add = v=>{
+      addingTo = null;
       if(v){
-        const pool = FOOD_POOL.find(f=>foodOf(f.name) && foodOf(f.name)===foodOf(v));
-        const item = it(pool ? pool.name : upper1(v), "", pool ? pool.cats.slice() : ["other"]);
+        const pool = FOOD_POOL.find(f=>foodOf(f.name) && foodOf(f.name)===foodOf(v)) || FOOD_POOL.find(f=>f.name===v);
+        const item = it(pool ? pool.name : upper1(v), pool ? portionFor(pool, st) : "", pool ? pool.cats.slice() : ["other"], pool ? textureFor(pool, st) : undefined);
         if(lockedRule(item.name, ageNow()) || allergyMatch(item.name, state.profile)){ announce(keepOutReason(item.name)); homeChanged(); return; }
         m.items.push(item);
-        if(mealOffered({items:m.items.filter(i=>i!==item)}) || m.items.length===1) setOffered(item, true);
-        save(); announce(say("meal.added", {food:upper1(v)}));
+        setOffered(item, true);   // what's added was offered: that's why it's being added
+        addUndo[item.id] = {until:Date.now() + 5000, key:x.key};
+        setTimeout(()=>{ delete addUndo[item.id]; homeChanged(); }, 5050);
+        save(); haptic(); announce(say("meal.added", {food:baseName(item)}));
       }
       homeChanged(); focusLater("add:" + x.key);
-    }});
+    };
+    const list = document.createElement("div");
+    list.className = "suggest-list"; list.setAttribute("aria-live", "polite");
+    const fill = q=>{
+      list.innerHTML = "";
+      suggestFoods(q, m).forEach(f=>{
+        const sb = document.createElement("button");
+        sb.type = "button"; sb.className = "alt"; sb.dataset.f = "sug:" + f.name;
+        sb.innerHTML = `${foodArt(f.name, {size:24})}<span>${esc(f.name.split(",")[0])}</span>`;
+        sb.addEventListener("click", ()=>add(f.name));
+        list.appendChild(sb);
+      });
+    };
+    const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const first = list.querySelector("button"); add(first && b.input.value.trim().length >= 2 ? first.dataset.f.slice(4) : b.input.value.trim()); }});
     b.input.dataset.f = "adding:" + x.key;
     b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); addingTo = null; homeChanged(); focusLater("add:" + x.key); } });
     const parts = say("meal.alsoOffered").split("{blank}");
     const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-    links.append(l, " ", b.el);
+    links.append(l, " ", b.el, list);
     requestAnimationFrame(()=>b.input.focus());
   }else{
     const add = textBtn(say("meal.addOther"), ()=>{ addingTo = x.key; homeChanged(); }, "small");
@@ -749,7 +773,20 @@ function mealOpen(x, isDefault){
   });
   return a;
 }
-let addingTo = null, changing = null;   // changing: {id (the food being changed), i (which alternative shows)}
+let addingTo = null, changing = null;
+const addUndo = {};   // food id → {until, key}: "Banana added. Undo" for 5 seconds
+/* foods that match what's typed, safe for {name} (the generator's gate, allergies out), not already in the meal:
+   names and aliases that start with it first, drawn ones first, at most four */
+function suggestFoods(q, m){
+  const t = String(q || "").trim().toLowerCase();
+  if(t.length < 2) return [];
+  const months = planMonths(), have = new Set(m.items.map(i=>i.name));
+  const words = f=>{ const e = foodOf(f.name); return [f.name, ...(e ? [e.label, ...(e.aliases || [])] : [])].map(w=>w.toLowerCase()); };
+  const score = f=>{ const w = words(f); return w.some(x=>x.startsWith(t)) ? 0 : w.some(x=>x.split(/[ ,]+/).some(p=>p.startsWith(t))) ? 1 : 9; };
+  return FOOD_POOL.filter(f=>!have.has(f.name) && isAllowed(f, months, state.profile) && !allergyMatch(f.name, state.profile) && score(f) < 9)
+    .sort((a, b)=>score(a) - score(b) || (hasArt(foodOf(b.name)) ? 1 : 0) - (hasArt(foodOf(a.name)) ? 1 : 0) || a.name.localeCompare(b.name))
+    .slice(0, 4);
+}   // changing: {id (the food being changed), i (which alternative shows)}
 /* ---------- Keep screen on: the Screen Wake Lock, while cooking ----------
    Off by default; only where the browser has it. It lets go when the page is hidden or left, and after
    60 minutes (then the toggle turns off); it comes back only if it was left on and the page is visible again. */

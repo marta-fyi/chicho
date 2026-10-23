@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · quick add tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Quick add tests</h1>
+<p>"Add something else": one field, live suggestions with their bullets ("ban" → Banana), one tap adds it and logs it offered, with an Undo; nothing unsafe is ever suggested. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(10), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok"); state.profile.allergens.egg = "avoid";
+       state.plan = generateWeek(10, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.foods = {}; save(); closeOnboarding(); homeChanged();`);
+    await wait(300);
+    const meal = () => E("defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m");
+    const n0 = meal().items.length;
+    [...d.querySelectorAll("#openMeal .mx-links .btn-text")].find(b => b.textContent === "Add something else").click(); await wait(80);
+    const inp = $("#openMeal .mx-links input");
+    const type = v => { inp.value = v; inp.dispatchEvent(new w.Event("input", {bubbles: true})); };
+    ok("one field, focused", !!inp && d.activeElement === inp);
+    type("b"); ok("one letter: no suggestions yet", $$(".suggest-list button").length === 0);
+    type("ban");
+    const sug = $$(".suggest-list button");
+    ok("'ban' → Banana first, with its line-art bullet", sug.length >= 1 && sug[0].textContent === "Banana" && !!sug[0].querySelector(".food-art"), sug.map(b => b.textContent));
+    ok("…at most four, each a 44px target", sug.length <= 4 && sug.every(b => b.getBoundingClientRect().height >= 44));
+    sug[0].click(); await wait(60);
+    const added = meal().items.find(i => i.name === "Banana");
+    ok("one tap adds it to the meal", meal().items.length === n0 + 1 && !!added);
+    ok("…logged as offered", added && added.offered === true);
+    ok("…with its amount and texture from the stage", added && /\d+ g/.test(added.qty) && !!added.tex, added);
+    const undo = [...d.querySelectorAll("#openMeal .undo-line .btn-text")].find(b => b.textContent === "Undo");
+    ok("…and 'Banana added. Undo' for 5 seconds", !!undo && /Banana added\./.test(undo.parentNode.textContent));
+    undo.click(); await wait(60);
+    ok("Undo takes it back out", meal().items.length === n0 && !meal().items.some(i => i.name === "Banana"));
+    // safety: allergies and locked foods never appear
+    ok("an allergy is never suggested (egg is kept out here)", E("suggestFoods('egg', defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m).length") === 0);
+    ok("a locked food is never suggested (honey under 12 months)", E("suggestFoods('hon', defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m).length") === 0);
+    ok("every suggestion passes the generator's gate", E("['ca', 'po', 'ch', 'ap', 'yo', 'to'].every(q => suggestFoods(q, defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m).every(f => isAllowed(f, planMonths(), state.profile) && !allergyMatch(f.name, state.profile)))"));
+    // Enter takes the first suggestion
+    [...d.querySelectorAll("#openMeal .mx-links .btn-text")].find(b => b.textContent === "Add something else").click(); await wait(80);
+    const inp2 = $("#openMeal .mx-links input"); inp2.value = "pea"; inp2.dispatchEvent(new w.Event("input", {bubbles: true}));
+    const firstName = $(".suggest-list button") && $(".suggest-list button").dataset.f.slice(4);
+    inp2.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(60);
+    ok("Enter takes the first suggestion", !!firstName && meal().items.some(i => i.name === firstName), firstName);
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · quick add";
+};
+</script>
+</body></html>
