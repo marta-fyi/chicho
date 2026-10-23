@@ -3,15 +3,15 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
 <h1>Home tests</h1>
-<p>The lock screen, driven by taps and keys against a set clock (Thursday 22 October 2026, 12:10): offered, outcomes, the one-open-at-a-time meal, sheets. Every line should be PASS.</p>
+<p>Home is where you offer: driven by taps against a set clock (Thursday 22 October 2026, 12:10). The corner header, the headline and moment line, the meal now (text only), the pill (Mark as offered → Offered · Undo → how it went → Add how it went), the footer line, and nothing else. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 localStorage.clear();
 const f = document.createElement("iframe");
-f.src = "../index.html?test&now=2026-10-22T12:10";
-f.style.cssText = "width:1200px;height:900px;border:1px solid #ccc";
+f.src = "../index.html?test&theme=light&now=2026-10-22T12:10";
+f.style.cssText = "width:390px;height:844px;border:1px solid #ccc";
 document.body.append(f);
 f.onload = async () => {
   try {
@@ -19,140 +19,90 @@ f.onload = async () => {
     E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
        state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
-       state.exposures = {}; state.foods = {}; save(); closeOnboarding();`);
-    await wait(200);
+       state.offers = []; state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01", profile: "2026-10-01"}; offersChanged(); save(); closeOnboarding();`);
+    await wait(300);
     const $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
     const lunch = () => E("state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch')");
-    const key = (el, k) => el.dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true}));
+    const lunchOffered = () => E("mealOffered(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'), now())");
+    const pill = () => $("#offerZone .offer-pill");
 
-    // the top of the page
+    // the corner header
     ok("top-right: 'Thursday 22 Oct' over the time", $("#clockDate").textContent === "Thursday 22 Oct" && $("#clock").textContent === E("fmtTime(now())"), [$("#clockDate").textContent, $("#clock").textContent]);
-    ok("…in tabular numerals", getComputedStyle($(".when")).fontVariantNumeric === "tabular-nums");
-    ok("top-left: '18 months' over 'LULA', one button that opens Profile", $("#whoAge").textContent === "18 months" && $("#whoName").textContent === "Lula" && getComputedStyle($("#whoName")).textTransform === "uppercase" && $("#profileBtn").tagName === "BUTTON");
+    ok("…in tabular numerals, and plain text now (not a button)", getComputedStyle($(".when")).fontVariantNumeric === "tabular-nums" && $(".when").tagName === "P" && !$(".when button"));
+    ok("top-left: '18 months' over 'LULA', one button", $("#whoAge").textContent === "18 months" && $("#whoName").textContent === "Lula" && getComputedStyle($("#whoName")).textTransform === "uppercase" && $("#profileBtn").tagName === "BUTTON");
     ok("…44px at least, its name underlined", $("#profileBtn").getBoundingClientRect().height >= 44 && /underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
-    ok("no profile circle, no Send button, no centred header lines", !$(".me") && !$("#sendBtn") && !$(".top") && !$(".head"));
     ok("the clock and headline are plain text, not live regions", !$("#clock").closest("[aria-live]") && !$("#headline").closest("[aria-live]"));
-    ok("captions: the stage, decorative and hidden from screen readers", $(".cap-stage").getAttribute("aria-hidden") === "true" && $("#capStage").textContent === "A seat at the family table" && $("#capLine").textContent === "3 meals + 2 snacks · soft pieces");
-    ok("…and the glow's food group, in words, read aloud", !$(".cap-glow").closest("[aria-hidden]") && $("#capGlow").textContent === E("say('home.groups.' + document.documentElement.dataset.glow)"));
     ok("headline: 'Lunch in 20 minutes.'", $("#headline").textContent === "Lunch in 20 minutes.");
     ok("the tab: 'Lunch in 20 min · Chicho'", d.title === "Lunch in 20 min · Chicho", d.title);
+    ok("a moment line under it", $("#moment").textContent.length > 0);
 
-    // the open meal: the next one, in place
-    ok("the open meal is lunch", $("#openMeal .mx-title").textContent === "Lunch");
-    ok("…its meta: 'around 12:30 · {n} min · {texture}'", /^around .+ · \d+ min · .+/.test($("#openMeal .mx-meta").textContent), $("#openMeal .mx-meta").textContent);
-    ok("…a row per food with amount and texture", $$("#openMeal .fr").length === lunch().items.length && $$("#openMeal .fr-sub").every(s => / · /.test(s.textContent)));
-    ok("…the how, in one or two lines", !!$("#openMeal .mx-how") && $("#openMeal .mx-how").textContent.split(". ").length <= 3);
-    ok("…and 'Mark as offered'", $("#openMeal .offer-pill").textContent === "Mark as offered");
-    ok("earlier today: breakfast and the snack, with only an empty ring (no 'Not logged')", $$("#earlierList .mrow").length === 2 && $$("#earlierList .ring-btn").every(r => r.getAttribute("aria-pressed") === "false") && !/logged/i.test($("#earlierSec").textContent));
-    ok("up next: the snack and dinner", $$("#nextList .mrow").length === 2 && $("#nextLabel").textContent === "Up next");
+    // the meal now: text only
+    const title = $("#nowMeal .meal-title");
+    ok("the meal: 'Lunch · around 12:30'", title.textContent === `Lunch · around ${E("fmtTime(new Date(2026, 9, 22, 12, 30))")}`, title.textContent);
+    const ts = getComputedStyle(title);
+    ok("…24px, weight 500 (the face has 400 and 500; the brief's 600 is a logged conflict)", ts.fontSize === "24px" && ts.fontWeight === "500", [ts.fontSize, ts.fontWeight]);
+    const lines = $$("#nowMeal .meal-foods li");
+    ok("foods as plain lines: 'Name · qty · texture'", lines.length === lunch().items.length && lines.every((li, k) => li.textContent === [E(`baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`), lunch().items[k].qty, E(`textureOf(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`)].filter(Boolean).join(" · ")), lines.map(l => l.textContent));
+    ok("…no list markers", getComputedStyle($("#nowMeal .meal-foods")).listStyleType === "none");
+    const how = $("#nowMeal .meal-how");
+    ok("the how: at most two lines", !!how && how.querySelector(".clamp") && (() => { const c = how.querySelector(".clamp"); return Math.round(c.getBoundingClientRect().height / parseFloat(getComputedStyle(c).lineHeight)) <= 2; })());
+    ok("at most one 'While you're at it' line", $$("#nowMeal .meal-also").length <= 1);
+    ok("Home is text only: no bullets, icons, illustrations or svg", !$("#home .food-art, #home picture, #home img, #home svg"));
+    ok("no week strip, Shop line, Variety, Up next, cook mode or sheets", !$("#weekStrip, #shopLine, .vdots, #nextList, #earlierList, #cook, dialog, .sheet, .captions"));
+    ok("the footer: 'Next: Snack around 4:00.'", $("#footLine").textContent === `Next: Snack around ${E("fmtTime(new Date(2026, 9, 22, 16, 0))")}.` && !$("#footLine").hidden, $("#footLine").textContent);
+    ok("the pill: 'Mark as offered'", pill().textContent === "Mark as offered" && pill().getAttribute("aria-pressed") === "false");
+    const bar = $("#offerZone .offer-bar").getBoundingClientRect();
+    ok("…full width of the column, 48px tall, near the bottom", Math.abs(bar.width - $("#nowMeal").getBoundingClientRect().width) < 1 && bar.height === 48 && bar.bottom > 844 - 140, [bar.width, bar.height, bar.bottom]);
 
-    // offered → Offered · Undo → Offered + how it went
-    $("#openMeal .offer-pill").click(); await wait(30);
-    const pillNow = () => [...d.querySelectorAll(".mx")].find(x => x.querySelector(".mx-title").textContent === "Lunch");
-    ok("tap: lunch is offered", E("mealOffered(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'))") === true);
-    ok("…it stays open: 'Offered · Undo' for 5 seconds", !!pillNow() && pillNow().querySelector(".offer-pill").textContent.trim() === "Offered" && [...pillNow().querySelectorAll(".mx-acts .btn-text")].some(b => b.textContent === "Undo"));
-    await wait(80);
+    // Mark as offered → Offered · Undo (5 s) → how it went (20 s) → Add how it went
+    E("OUTCOME_MS = 1500");
+    pill().click(); await wait(30);
+    ok("tap: lunch is offered", lunchOffered() === true);
+    ok("…'Offered · Undo' for 5 seconds", pill().textContent === "Offered" && pill().getAttribute("aria-pressed") === "true" && $("#offerZone .btn-text.undo") && $("#offerZone .btn-text.undo").textContent === "Undo");
+    ok("…no outcome row yet (it comes after the Undo window)", !$(".outcomes"));
+    ok("…the meal stays on Home", $("#nowMeal .meal-title").textContent.startsWith("Lunch"));
+    await wait(400);
     ok("…announced politely: 'Lunch offered'", d.getElementById("liveStatus").textContent === "Lunch offered", d.getElementById("liveStatus").textContent);
-    ok("variety counts what was offered", E("GROUPS.some(c => offeredFoods(c).length)"));
-    [...pillNow().querySelectorAll(".mx-acts .btn-text")].find(b => b.textContent === "Undo").click(); await wait(30);
-    ok("Undo: not offered again", E("mealOffered(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'))") === false && pillNow().querySelector(".offer-pill").textContent === "Mark as offered");
-    ok("…and nothing left behind in variety", !E("offeredFoods(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[0].cats[0]).includes(baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[0]))"));
-    pillNow().querySelector(".offer-pill").click(); await wait(5200);
-    ok("after 5 seconds: 'Offered', and the outcome row (it rose with the tick) is still there", !!$(".outcomes") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    ok("…the headline moves on", /^Snack around/.test($("#headline").textContent), $("#headline").textContent);
+    $("#offerZone .btn-text.undo").click(); await wait(30);
+    ok("Undo: not offered again", lunchOffered() === false && pill().textContent === "Mark as offered" && E("state.offers.length") === 0);
+    pill().click(); await wait(5250);
+    ok("after 5 seconds: 'Offered', and the outcome row inline", pill().textContent === "Offered" && !$("#offerZone .undo") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    const ob = $$(".outcome").map(b => b.getBoundingClientRect().width);
+    ok("…equal weight: three text pills the same width", Math.max(...ob) - Math.min(...ob) < 1.5 && new Set($$(".outcome").map(b => getComputedStyle(b).fontWeight + getComputedStyle(b).borderTopWidth)).size === 1, ob);
+    await wait(2000);
+    ok("ignored: it gives way to a quiet 'Add how it went'", !$(".outcomes") && $("#offerZone .how-went .btn-text") && $("#offerZone .how-went .btn-text").textContent === "Add how it went" && $("#offerZone .how-went .btn-text").classList.contains("quiet"));
+    $("#offerZone .how-went .btn-text").click(); await wait(40);
+    ok("'Add how it went' brings the row back", $$(".outcome").length === 3);
     $$(".outcome")[0].click(); await wait(30);
-    ok("an outcome is the food's preference, never its safety", E("lunch = state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'); lunch.outcome") === "loved" && E("Object.values(state.foods).every(r => !r.preference || ['loved','some','nottoday'].includes(r.preference))"));
-    E("showOutcome(lunchKey = defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).key, 10000)"); E("homeChanged()"); await wait(30);
-    $$(".outcome")[0].click(); await wait(30);
-    ok("…tapping it again clears it (optional, equal)", !E("state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').outcome"));
-    ok("now lunch is offered, the headline moves on: 'Snack around 4:00.'", /^Snack around/.test($("#headline").textContent), $("#headline").textContent);
-    $$(".mx-title").find(t => t.textContent === "Lunch") && $$("button.mx-title").find(t => t.textContent === "Lunch") && $$("button.mx-title").find(t => t.textContent === "Lunch").click(); await wait(40);
-    ok("closing it, the default open meal is the next one (the snack)", $("#openMeal .mx-title") && $("#openMeal .mx-title").textContent === "Snack", $("#openMeal .mx-title") && $("#openMeal .mx-title").textContent);
+    const evs = E("state.offers");
+    ok("an outcome fills in the meal's events", evs.length === lunch().items.length && evs.every(e => e.outcome === "loved"), evs);
+    ok("…pressed while it shows", $$(".outcome")[0] && $$(".outcome")[0].getAttribute("aria-pressed") === "true");
+    await wait(2200);
+    ok("…answered: nothing waits (no row, no 'Add how it went')", !$(".outcomes") && !$("#offerZone .how-went"));
 
-    // the ring on a compact row
-    const ring = $$("#earlierList .ring-btn")[0];
-    ring.click(); await wait(30);
-    ok("a row's ring offers that meal, with an Undo line", E("mealOffered(state.plan.days[planDayIndex(now())].meals[0])") && /Offered · Undo/.test($("#earlierList").textContent));
+    // the footer at the end of the day; tomorrow
+    E("setClock(new Date(2026, 9, 22, 19, 30)); picked = null; changed()"); await wait(400);
+    ok("at dinner: the footer is tomorrow's first meal", $("#footLine").textContent === `Tomorrow: Breakfast around ${E("fmtTime(new Date(2026, 9, 23, 8, 0))")}.`, $("#footLine").textContent);
+    E("setClock(new Date(2026, 9, 22, 20, 30)); picked = null; changed()"); await wait(400);
+    ok("after dinner: tomorrow's breakfast, titled as tomorrow", /^Breakfast tomorrow · around/.test($("#nowMeal .meal-title").textContent), $("#nowMeal .meal-title").textContent);
 
-    // one open at a time, in place
-    const rowBtn = $$("#earlierList .mrow-btn")[1];
-    rowBtn.click(); await wait(60);
-    ok("tapping a row opens it in place", !!$("#earlierList .mx") && $$(".mx").length === 1, $$(".mx").length);
-    ok("…and the other one closes to a row", !!$("#openMeal .mrow") && !$("#openMeal .mx"));
-    ok("…its title says it's expanded", $("#earlierList .mx-title").getAttribute("aria-expanded") === "true");
-    $("#earlierList .mx-title").click(); await wait(60);
-    ok("tapping its title closes it; the default comes back", !!$("#openMeal .mx") && $$(".mx").length === 1);
-    $$("#earlierList .mrow-btn")[1].click(); await wait(60);
-    E("setClock(new Date(2026, 9, 22, 16, 1)); tick();"); await wait(400);   // the headline crossfades (140 ms out, then in)
-    ok("the choice stands until the next boundary, then the now meal opens again", $$(".mx").length === 1 && $("#openMeal .mx-title") && $("#openMeal .mx-title").textContent === "Snack", $("#openMeal .mx-title") && $("#openMeal .mx-title").textContent);
-    ok("…'Snack time.'", $("#headline").textContent === "Snack time.");
+    // the corner name goes to Profile
+    E("setClock(new Date(2026, 9, 22, 12, 10)); changed()");
+    $("#profileBtn").click(); await wait(450);
+    ok("the name goes to Profile", E("pg.cur") === "profile");
+    E("go('home', {quiet: true})"); await wait(450);
 
-    // a food row: tip, why, Change with undo
-    const fr = $("#openMeal .fr");
-    fr.click(); await wait(40);
-    const frNow = $("#openMeal .fr");
-    ok("a food row expands inline", frNow.getAttribute("aria-expanded") === "true" && !d.getElementById(frNow.getAttribute("aria-controls")).hidden);
-    ok("…with its why", /^Why: /.test($("#openMeal .fr-why") ? $("#openMeal .fr-why").textContent : ""));
-    const snack = () => E("state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'snack2')");
-    const was = snack().items[0].name;
-    [...d.querySelectorAll("#openMeal .fr-more .btn-text")].find(b => b.textContent === "Change").click(); await wait(20);
-    const card = () => $("#openMeal .alt-card");
-    ok("Change shows one alternative at a time, with its bullet", $$("#openMeal .alt-card").length === 1 && !!card().querySelector(".food-art"));
-    const firstAlt = card().textContent;
-    const another = () => [...d.querySelectorAll("#openMeal .alt-acts .btn-text")].find(b => b.textContent === "Another");
-    ok("…'Another' cycles to the next one", !!another() && (another().click(), true));
-    await wait(30);
-    ok("…a different food, still one", $$("#openMeal .alt-card").length === 1 && card().textContent !== firstAlt, [firstAlt, card().textContent]);
-    ok("…every alternative is safe (the same gate as the generator)", E(`(() => { const m = state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'snack2'); return alternatives(m, 0, 8).every(f => isAllowed(f, planMonths(), state.profile)); })()`));
-    const picked = card().textContent.trim();
-    [...d.querySelectorAll("#openMeal .alt-acts .btn-text")].find(b => b.textContent === "Keep").click(); await wait(40);
-    ok("…'Keep' replaces the food with it", snack().items[0].name !== was && E("baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'snack2').items[0])").startsWith(picked.split(" ")[0]), [snack().items[0].name, picked]);
-    const undo = [...d.querySelectorAll("#openMeal .undo-line .btn-text")].find(b => b.textContent === "Undo");
-    ok("…with an Undo for 5 seconds", !!undo);
-    undo.click(); await wait(40);
-    ok("…Undo brings it back", snack().items[0].name === was);
-    // add something else
-    [...d.querySelectorAll("#openMeal .mx-links .btn-text")].find(b => b.textContent === "Add something else").click(); await wait(60);
-    const add = $("#openMeal .mx-links input");
-    ok("'Add something else' asks in a sentence: 'Also offered: ____'", !!add && /Also offered:/.test($("#openMeal .mx-links").textContent));
-    add.value = "Mango"; add.dispatchEvent(new w.Event("input", {bubbles: true})); key(add, "Enter"); await wait(40);
-    ok("…and adds it", snack().items.some(i => i.name === "Mango"));
-    // keyboard: arrows move within the open meal
-    const first = $("#openMeal .fr"); first.focus();
-    key(first, "ArrowDown"); await wait(20);
-    ok("↓ moves to the next control in the meal", d.activeElement !== first && $("#openMeal").contains(d.activeElement));
-
-    // sheets: the one overlay
-    const wd = $$(".wd")[3];
-    wd.focus(); wd.click(); await wait(300);
-    ok("a day opens a sheet with that day's meals", $("#sheet").open && $$("#sheetBody .s-meal").length >= 3 && /Friday/.test($("#sheetTitle").textContent), $("#sheetTitle").textContent);
-    ok("…with 'Change' on a future day", $$("#sheetBody .btn-text").some(b => b.textContent === "Change"));
-    ok("…and a visible ✕ of 44px", $("#sheetClose").getBoundingClientRect().width >= 44 && $("#sheetClose").getBoundingClientRect().height >= 44);
-    $("#sheet").dispatchEvent(new w.Event("cancel", {cancelable: true})); await wait(300);
-    ok("Esc closes it and gives focus back to the day", !$("#sheet").open && d.activeElement === $$(".wd")[3]);
-    $("#shopLine").click(); await wait(300);
-    const items = () => $$("#sheetBody .s-item").length;
-    ok("the shop sheet lists what to pick up, each with a bought ring", $("#sheet").open && $("#sheetTitle").textContent === "Shop" && $$("#sheetBody .ring-btn").length >= 1);
-    const firstName = $("#sheetBody .s-item-n").textContent;
-    ok("…'runs out' or 'for' a weekday, in words (never red)", /^(runs out|for) ([A-Z][a-z]+day|today|tomorrow)$/.test($("#sheetBody .s-item-sub").textContent), $("#sheetBody .s-item-sub").textContent);
-    $("#sheetBody .ring-btn").click(); await wait(60);
-    ok("a ring = bought: it moves to In stock", [...d.querySelectorAll("#inStockList .s-item-n")].some(n => n.textContent === firstName));
-    ok("…with 'Send the list' at the foot", [...d.querySelectorAll("#sheetBody .btn-ink")].some(b => b.textContent === "Send the list"));
-    const r = $("#sheet").getBoundingClientRect();
-    $("#sheet").dispatchEvent(new w.MouseEvent("click", {bubbles: true, clientX: 5, clientY: 5}));
-    await wait(300);
-    ok("a tap outside closes it", !$("#sheet").open);
-    $("#profileBtn").click(); await wait(300);
-    ok("the profile sheet: the six entries", [...d.querySelectorAll("#sheetBody .s-row")].map(b => b.textContent).join("|") === "Birthday and profile|Off the plate|Priorities|Meal times|People|Replay welcome");
-    $("#sheetClose").click(); await wait(300);
-    const sendLink = [...d.querySelectorAll(".mx-links .btn-text")].find(b => b.textContent === "Send");
-    ok("Send lives in the open meal (no top bar)", !!sendLink, [...d.querySelectorAll(".mx-links")].map(x => x.textContent));
-    (sendLink || {click: () => E("openSheet('send', {})")}).click(); await wait(300);
-    ok("the send sheet: groceries, tomorrow, the link, copy, more — and what it does", /Groceries to myself/.test($("#sheetBody").textContent) && /This week, as a link/.test($("#sheetBody").textContent) && /Opens Messages with everything filled in\. You press send\./.test($("#sheetBody").textContent));
-    $("#sheetClose").click(); await wait(300);
+    // under 6 months and no plan: a calm Home
+    E("state.profile.birthDate = birthDateFromMonths(4); changed()"); await wait(450);
+    ok("under 6 months: the milk headline, no meal, no pill", $("#headline").textContent === "Milk is all Lula needs right now." && getComputedStyle($("#nowMeal")).display === "none" && getComputedStyle($("#offerZone")).display === "none");
+    E("state.profile.birthDate = birthDateFromMonths(18); state.plan.days.forEach(d => d.meals.forEach(m => m.items = [])); changed()"); await wait(450);
+    ok("no plan: 'The table's empty.' and no pill", $("#headline").textContent === "The table's empty." && getComputedStyle($("#offerZone")).display === "none");
 
     // the voice, on the page itself
-    ok("no banned word anywhere on the page", !/\b(eaten|cleared|missed|streak|score|behind|not logged)\b/i.test(d.body.innerText), (d.body.innerText.match(/\b(eaten|cleared|missed|streak|score|behind|not logged)\b/ig) || []));
-    ok("no emoji on the page", !/\p{Extended_Pictographic}/u.test(d.body.innerText.replace(/[☐✕]/g, "")));
+    E("state.plan = generateWeek(18, state.profile); changed()"); await wait(50);
+    ok("no banned word anywhere on Home", !/\b(eaten|cleared|missed|streak|score|behind|not logged)\b/i.test($("#home").innerText));
+    ok("no emoji or icon glyph on the page", !/\p{Extended_Pictographic}|[✕✓✔☐]/u.test(d.body.innerText));
     ok("the favicon is drawn (or the static icon)", /^data:image\/png|icon-192\.png$/.test(d.getElementById("favicon").href));
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }

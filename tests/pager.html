@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · pager tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
+<body>
+<h1>Pager tests</h1>
+<p>Five full-screen views on a 2D canvas (Thursday 22 October 2026, 12:10, an 18-month-old's day, a 390×844 phone): the layout constant, swipes driven by touch pointer events (axis lock, commit, spring back, rubber band, edge starts), the header zone and the pull past a scroll edge, routes and Back, the position map, the keyboard, reduced motion, the one-time hints, and under 6 months. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const SEED = months => `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesConfirmed: true});
+  ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+  state.plan = generateWeek(${months}, state.profile) || defaultPlan(); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.hints = {}; save(); closeOnboarding(); changed();`;
+const load = (hash, months) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = 390; f.height = 844; f.src = "../index.html?test&now=2026-10-22T12:10" + (hash || "");
+  document.body.append(f);
+  f.onload = async () => { f.contentWindow.eval(SEED(months || 18)); await wait(500); res(f); };
+});
+(async () => {
+  try {
+    localStorage.clear();
+    let f = await load(), w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const cur = () => E("pg.cur");
+    const cam = () => (($("#camera").style.transform.match(/-?[\d.]+px/g) || ["0px", "0px"]).slice(0, 2)).map(v => Math.round(parseFloat(v)));
+    /* a touch-pointer drag; dt real ms between moves (velocity comes from real time stamps) */
+    const P = (type, x, y, t) => t.dispatchEvent(new w.PointerEvent(type, {pointerId: 7, pointerType: "touch", isPrimary: true, clientX: x, clientY: y, button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true, cancelable: true}));
+    const drag = async (x0, y0, dx, dy, o = {}) => {
+      const steps = o.steps || 8, dt = o.dt === undefined ? 20 : o.dt, t = o.target || d.elementFromPoint(x0, y0) || $("#pager");
+      P("pointerdown", x0, y0, t);
+      for (let k = 1; k <= steps; k++) { if (dt) await wait(dt); P("pointermove", x0 + dx * k / steps, y0 + dy * k / steps, t); }
+      if (o.release !== false) { P("pointerup", x0 + dx, y0 + dy, t); if (o.click) t.click(); }
+      return t;
+    };
+    const settle = () => wait(450);
+    const go = async n => { E(`go('${n}')`); await settle(); };
+
+    // the canvas: one constant, the neighbours derive from it
+    ok("LAYOUT is the one constant: profile (0,-1), home (0,0), shuffle (1,0), kitchen (0,1), week (0,2)", E("JSON.stringify(LAYOUT)") === JSON.stringify({profile:[0,-1], home:[0,0], shuffle:[1,0], kitchen:[0,1], week:[0,2]}));
+    ok("…neighbours come from it: right of Home is Shuffle, below is Kitchen, above is Profile, left is nothing", E("[neighbour('home','right'), neighbour('home','down'), neighbour('home','up'), neighbour('home','left'), neighbour('kitchen','down')].join()") === "shuffle,kitchen,profile,,week");
+    ok("…and a change to it moves the screens and their swipes (one place)", E("(() => { const was = LAYOUT.week; LAYOUT.week = [1,1]; const n = neighbour('shuffle','down'); LAYOUT.week = was; return n; })()") === "week");
+    ok("screens sit on the grid by transform", $("#scr-shuffle").style.transform === "translate(100%, 0%)" && $("#scr-week").style.transform === "translate(0%, 200%)" && $("#scr-profile").style.transform === "translate(0%, -100%)");
+    ok("it opens on Home, at the origin", cur() === "home" && cam().join() === "0,0", cam());
+
+    // swipes from Home
+    let t = await drag(200, 500, -20, 0, {steps: 2, release: false});
+    ok("the finger drives the camera 1:1 (20px left → 20px)", cam()[0] === -20, cam());
+    P("pointerup", 180, 500, t); await settle();
+    ok("…a short slow drag springs back", cur() === "home" && cam().join() === "0,0", [cur(), cam()]);
+    await drag(200, 500, 4, 6, {steps: 2, release: false});
+    ok("under 10px nothing moves (the axis isn't locked yet)", cam().join() === "0,0", cam());
+    P("pointerup", 204, 506, d.elementFromPoint(200, 500)); await wait(50);
+    t = await drag(200, 500, -60, 12, {steps: 4, release: false});
+    for (let k = 1; k <= 4; k++) { await wait(15); P("pointermove", 140, 512 + k * 60, t); }
+    ok("the axis locks after 10px: a drag that starts sideways stays sideways", cam()[1] === 0 && cam()[0] === -60, cam());
+    P("pointercancel", 140, 752, t); await settle();
+    await drag(250, 500, -100, 0, {steps: 10, dt: 30});
+    await settle();
+    ok("100px slowly (under 35%, under 0.5 px/ms): springs back", cur() === "home", cur());
+    await drag(250, 500, -160, 0, {steps: 10, dt: 40});
+    await settle();
+    ok("past 35% of the width: swipe left from Home → Shuffle", cur() === "shuffle" && cam().join() === "-390,0", [cur(), cam()]);
+    await drag(100, 500, 80, 0, {steps: 4, dt: 5});
+    await settle();
+    ok("a quick flick (above 0.5 px/ms) commits: swipe right from Shuffle → Home", cur() === "home", cur());
+    await drag(200, 500, 0, 140, {steps: 4, dt: 5}); await settle();
+    ok("swipe down from Home → Profile", cur() === "profile" && cam().join() === "0,844", [cur(), cam()]);
+    await go("home");
+    await drag(200, 600, 0, -330, {steps: 8, dt: 30}); await settle();
+    ok("swipe up from Home → Kitchen", cur() === "kitchen" && cam().join() === "0,-844", [cur(), cam()]);
+    await drag(200, 60, 0, -330, {steps: 8, dt: 30}); await settle();
+    ok("swipe up again (from Kitchen's header zone) → New week", cur() === "week" && cam().join() === "0,-1688", [cur(), cam()]);
+    await go("home");
+    t = await drag(150, 500, 100, 0, {steps: 4, release: false});
+    ok("nothing left of Home: it rubber-bands at 0.3x (100px → 30px)", cam()[0] === 30, cam());
+    P("pointerup", 250, 500, t); await settle();
+    ok("…and comes back", cur() === "home" && cam().join() === "0,0");
+    await drag(10, 500, -250, 0, {steps: 6, dt: 10}); await settle();
+    ok("a swipe starting within 24px of the left edge is left to the browser", cur() === "home");
+    await drag(380, 500, -250, 0, {steps: 6, dt: 10}); await settle();
+    ok("…and of the right edge", cur() === "home");
+
+    // a finished drag isn't also a tap
+    const pill = $("#offerZone .offer-pill");
+    await drag(200, pill.getBoundingClientRect().top + 20, -60, 0, {steps: 4, dt: 30, target: pill, click: true}); await settle();
+    ok("a drag that starts on 'Mark as offered' doesn't also tap it", cur() === "home" && !E("mealOffered(homeRef().ref.m, now())"));
+
+    // only transform moves the camera
+    ok("the camera moves by transform only (no top/left)", !$("#camera").style.top && !$("#camera").style.left && w.getComputedStyle($("#camera")).top === "0px" && /translate3d/.test($("#camera").style.transform));
+    ok("…and the backdrop pans at 0.3x (parallax)", (await (async () => { await go("shuffle"); const m = $("#glowPlane").style.transform.match(/-?[\d.]+px/); await go("home"); return m && Math.round(parseFloat(m[0])) === -117; })()));
+
+    // scrolling screens: header zone, and the pull past the edge
+    await go("kitchen");
+    const kb = $("#scr-kitchen .scr-body");
+    ok("Kitchen scrolls natively (pan-y), its header zone takes the drag (touch-action none)", w.getComputedStyle(kb).touchAction === "pan-y" && w.getComputedStyle($("#scr-kitchen .scr-head")).touchAction === "none" && w.getComputedStyle($("#scr-home")).touchAction === "none");
+    await drag(200, 500, 0, 330, {steps: 8, dt: 30}); await settle();
+    ok("a vertical pointer drag in the body is the body's scroll, not the pager's", cur() === "kitchen");
+    const T = (type, y, target) => { const touch = new w.Touch({identifier: 3, target, clientX: 200, clientY: y}); target.dispatchEvent(new w.TouchEvent(type, {touches: type === "touchend" ? [] : [touch], targetTouches: type === "touchend" ? [] : [touch], changedTouches: [touch], bubbles: true, cancelable: true})); };
+    const pull = async (body, y0, dy, steps = 10, dt = 30) => { T("touchstart", y0, body); for (let k = 1; k <= steps; k++) { await wait(dt); T("touchmove", y0 + dy * k / steps, body); } T("touchend", y0 + dy, body); };
+    kb.scrollTop = 0;
+    await pull(kb, 300, 40); await settle();
+    ok("at the top, a pull of 40px (inside the 48px resistance) stays", cur() === "kitchen");
+    kb.scrollTop = 120; await wait(50);
+    ok("(the kitchen list is long enough to scroll)", kb.scrollTop > 0, kb.scrollTop);
+    await pull(kb, 300, 400); await settle();
+    ok("scrolled down, a pull down is the body's scroll: it stays", cur() === "kitchen");
+    kb.scrollTop = 0; await wait(50);
+    await pull(kb, 300, 400); await settle();
+    ok("at the top, a pull past 48px goes to the screen above (Home)", cur() === "home", cur());
+    await go("kitchen");
+    await drag(200, 60, 0, 330, {steps: 8, dt: 30}); await settle();
+    ok("Kitchen's header zone, dragged down → Home", cur() === "home");
+
+    // only the current screen is live; only it and its neighbours are rendered
+    const live = () => ["home", "shuffle", "kitchen", "week", "profile"].map(k => { const e = $("#scr-" + k); return k + ":" + (e.inert ? "i" : "-") + (e.getAttribute("aria-hidden") === "true" ? "h" : "-") + (k === "home" || e.children.length ? "r" : "-"); }).join(" ");
+    ok("on Home: the others inert and aria-hidden; Home's neighbours rendered, New week not", live() === "home:--r shuffle:ihr kitchen:ihr week:ih- profile:ihr", live());
+    await go("week");
+    ok("on New week: only it and Kitchen are rendered (Shuffle and Profile emptied after the move)", live() === "home:ihr shuffle:ih- kitchen:ihr week:--r profile:ih-", live());
+
+    // the Home control
+    for (const k of ["shuffle", "kitchen", "week", "profile"]) {
+      await go(k);
+      const b = d.querySelector(`[data-f="${k}:home"]`), r = b.getBoundingClientRect();
+      ok(`${k}: a pinned 'Home' text control, top-left, 44px`, b.textContent === "Home" && r.left < 30 && r.top < 60 && r.height >= 44 && r.width >= 44 && !!b.closest(".scr-head"), [b.textContent, r.left, r.top, r.width, r.height]);
+    }
+    d.querySelector('[data-f="profile:home"]').click(); await settle();
+    ok("…and it goes Home", cur() === "home");
+
+    // routes
+    const calls = [], H = w.history, push = H.pushState.bind(H), repl = H.replaceState.bind(H);
+    H.pushState = (...a) => { calls.push("push " + a[2]); return push(...a); };
+    H.replaceState = (...a) => { calls.push("replace " + a[2]); return repl(...a); };
+    await go("shuffle");
+    ok("leaving Home pushes one history entry: #shuffle", w.location.hash === "#shuffle" && calls.join() === "push #shuffle", [w.location.hash, calls]);
+    await go("kitchen");
+    ok("between the other screens it replaces: #kitchen, no new entry", w.location.hash === "#kitchen" && calls.join() === "push #shuffle,replace #kitchen", [w.location.hash, calls]);
+    await go("week");
+    ok("…#week", w.location.hash === "#week" && calls.length === 3 && calls[2] === "replace #week", calls);
+    w.history.back(); await wait(600);
+    ok("one Back returns Home", cur() === "home" && ["", "#home"].includes(w.location.hash), [cur(), w.location.hash]);
+    await go("profile");
+    ok("#profile", w.location.hash === "#profile");
+    await go("home"); await wait(200);
+    ok("going Home by hand takes the entry back (no entry left over)", ["", "#home"].includes(w.location.hash) && !(w.history.state && w.history.state.chicho), w.location.hash);
+    f = await load("#kitchen"); w = f.contentWindow; d = f.contentDocument;
+    ok("a deep link (or reload) opens on its screen: #kitchen", cur() === "kitchen" && cam().join() === "0,-844", [cur(), cam()]);
+    w.history.back(); await wait(600);
+    ok("…and Back from it goes Home", cur() === "home", cur());
+
+    // the position map
+    const nav = $("#map"), links = $$("#map a");
+    ok("the map is a <nav aria-label='Screens'>, 44px, outside the pager", nav.tagName === "NAV" && nav.getAttribute("aria-label") === "Screens" && !$("#pager").contains(nav) && Math.round(nav.getBoundingClientRect().height) === 44);
+    ok("…five real links named Home, Shuffle, Kitchen, New week, Profile", links.length === 5 && links.every(a => a.getAttribute("href") && a.href) && links.map(a => a.textContent).sort().join() === "Home,Kitchen,New week,Profile,Shuffle", links.map(a => a.textContent));
+    ok("…laid out like the canvas (built with CSS, not an icon)", (() => { const p = k => d.querySelector(".m-" + k).getBoundingClientRect(); return p("profile").top < p("home").top && p("home").top < p("kitchen").top && p("kitchen").top < p("week").top && p("shuffle").left > p("home").left && Math.abs(p("shuffle").top - p("home").top) < 1 && !nav.querySelector("svg, img"); })());
+    ok("…the current one is aria-current and filled", d.querySelector(".m-home").getAttribute("aria-current") === "page" && w.getComputedStyle(d.querySelector(".m-home"), "::before").opacity === "1" && w.getComputedStyle(d.querySelector(".m-week"), "::before").opacity === "0.35");
+    d.querySelector(".m-week").click(); await settle();
+    ok("tapping a dot goes there (New week)", cur() === "week" && d.querySelector(".m-week").getAttribute("aria-current") === "page" && !d.querySelector(".m-home").hasAttribute("aria-current"));
+    d.querySelector(".m-home").click(); await settle();
+
+    // the keyboard
+    const key = (k, target) => (target || d.body).dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true, cancelable: true}));
+    d.activeElement && d.activeElement.blur && d.activeElement.blur();
+    key("ArrowRight"); await settle();
+    ok("→ goes to Shuffle", cur() === "shuffle");
+    key("ArrowLeft"); await settle();
+    ok("← comes back Home", cur() === "home");
+    key("ArrowDown"); await settle(); key("ArrowDown"); await settle();
+    ok("↓ ↓ goes to Kitchen, then New week", cur() === "week");
+    key("Escape"); await settle();
+    ok("Esc goes Home", cur() === "home");
+    key("ArrowUp"); await settle();
+    ok("↑ goes to Profile", cur() === "profile");
+    key("Home"); await settle();
+    ok("the Home key goes Home", cur() === "home");
+    key("ArrowLeft"); await settle();
+    ok("← from Home: nothing there, nothing happens", cur() === "home");
+    await go("kitchen");
+    d.querySelector('[data-f="kitchen:add"]').click(); await wait(100);
+    const field = d.querySelector('[data-f="kitchen:adding"]');
+    field.focus(); key("ArrowDown", field); key("ArrowUp", field); await settle();
+    ok("not while typing in a field", cur() === "kitchen" && d.activeElement === field);
+    E("kitchenUI.adding = false; refresh('kitchen')");
+    await go("home");
+    E("go('shuffle')"); await settle();
+    ok("arriving, the screen's heading takes the focus", d.activeElement === d.getElementById("t-shuffle"), d.activeElement && d.activeElement.id);
+    await go("home");
+
+    // reduced motion: a 150ms crossfade, gestures still work
+    const mm = w.matchMedia.bind(w);
+    w.matchMedia = q => /reduce/.test(q) ? {matches: true, media: q, addEventListener() {}, removeEventListener() {}} : mm(q);
+    E("go('shuffle')");
+    const fade = d.getElementById("scr-shuffle").getAnimations().find(a => a.effect.getTiming().duration === 150);
+    ok("reduced motion: no slide (the camera is already there), a 150ms crossfade instead", !E("pg.anim") && cam().join() === "-390,0" && !!fade, [cam(), !!fade]);
+    ok("…and no parallax", !/[1-9]/.test(d.getElementById("glowPlane").style.transform.replace(/translate3d|,\s*0\)$/g, "")), d.getElementById("glowPlane").style.transform);
+    await settle();
+    await drag(100, 500, 200, 0, {steps: 6, dt: 30}); await settle();
+    ok("…gestures still work", cur() === "home");
+    w.matchMedia = mm; E("applyCamera(pg.x, pg.y)");
+
+    // the one-time hints (everything visited above has seen its hint: start afresh)
+    E("state.hints = {}; momentKey = null; save(); renderHome()");
+    ok("the first shopping list: 'Swipe up for the kitchen.' with Later", /^Swipe up for the kitchen\. Later$/.test($("#moment").textContent), $("#moment").textContent);
+    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Later").click(); await wait(100);
+    ok("…Later puts it away for good", !!E("state.hints.kitchen") && !/Swipe/.test($("#moment").textContent), $("#moment").textContent);
+    E("delete state.hints.kitchen; momentKey = null; save(); renderHome()");
+    ok("…(it's back when unseen)", /Swipe up for the kitchen/.test($("#moment").textContent));
+    $("#moment .btn-text").click(); await settle();
+    ok("…the hint itself is a link there (never gesture-only), and a visit marks it seen", cur() === "kitchen" && !!E("state.hints.kitchen"));
+    await go("home");
+    E("delete state.hints.shuffle; momentKey = null");
+    const lunch = E("(() => { const x = refsOn(now()).find(x => x.m.slot === 'lunch'); setStock(foodIdOf(x.m.items[0]), baseName(x.m.items[0]), 'out'); save(); changed(); return x.m.id; })()");
+    ok("a planned food out of stock: 'Swipe left to shuffle lunch.'", /^Swipe left to shuffle lunch\. Later$/.test($("#moment").textContent), $("#moment").textContent);
+    $("#moment .btn-text").click(); await settle();
+    ok("…tapping it opens Shuffle on that meal", cur() === "shuffle" && d.activeElement && d.activeElement.dataset.meal === lunch, [cur(), d.activeElement && d.activeElement.dataset.meal]);
+    await go("home");
+    ok("…seen: from now on it's the plain line, 'Out of … Shuffle lunch?'", /^Out of .+\. Shuffle lunch\? Later$/.test($("#moment").textContent), $("#moment").textContent);
+    E(`delete state.hints.profile; state.moment = {date: todayISO(), later: ['missing', 'shop']}; state.asked = {priorities: '2026-10-01', kitchen: '2026-10-01'};
+       const x = refsOn(now())[0]; state.offers.push({id: 'old1', at: '2026-10-12T08:00', date: '2026-10-12', mealId: 'legacy', itemId: null, foodId: 'banana', outcome: null, firstOfFood: true, firstAllergen: false});
+       offersChanged(); momentKey = null; save(); renderHome();`);
+    ok("after the first week of offers: 'Swipe down to see how Lula is doing.'", /^Swipe down to see how Lula is doing\. Later$/.test($("#moment").textContent), $("#moment").textContent);
+    await drag(200, 500, 0, 300, {steps: 6, dt: 20}); await settle();
+    ok("…swiping down goes there and marks it seen", cur() === "profile" && !!E("state.hints.profile"));
+    await go("home");
+    ok("…and it's gone", !/Swipe down/.test($("#moment").textContent), $("#moment").textContent);
+
+    // under 6 months: only Home and Profile
+    f = await load("", 3); w = f.contentWindow; d = f.contentDocument;
+    ok("under 6 months: only Home and Profile exist", E("screensNow().join()") === "home,profile");
+    const dots = [...d.querySelectorAll("#map a")].filter(a => !a.hidden).map(a => a.className).join();
+    ok("…the map shows two dots", dots === "m-profile,m-home", dots);
+    await drag(250, 500, -200, 0, {steps: 6, dt: 30}); await settle();
+    ok("…swipe left rubber-bands (no Shuffle)", cur() === "home");
+    await drag(200, 600, 0, -330, {steps: 6, dt: 30}); await settle();
+    ok("…swipe up too (no Kitchen)", cur() === "home");
+    E("go('kitchen')"); await settle();
+    ok("…and a link to another screen lands Home", cur() === "home");
+    ok("…the others aren't rendered", ["shuffle", "kitchen", "week"].every(k => !d.getElementById("scr-" + k).children.length));
+    await drag(200, 500, 0, 300, {steps: 6, dt: 20}); await settle();
+    ok("…swipe down still reaches Profile", cur() === "profile");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · pager";
+})();
+</script>
+</body></html>

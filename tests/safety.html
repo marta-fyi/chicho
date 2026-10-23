@@ -102,7 +102,7 @@ f.onload = () => {
     const batch = w.generateWeek(18, P({priorities: ["batch"], allergens: allOk}));
     const dn = k => batch.days[k].meals.find(x => x.label === "Dinner").items.map(i => i.name).join("+");
     ok("batch-cook repeats Monday's dinner on Wednesday", dn(0) === dn(2) && batch.days[2].meals.find(x => x.label === "Dinner").from === "Monday", [dn(0), dn(2)]);
-    ok("a dinner carrying a first allergen is never repeated by batch-cooking", (() => { E("state.foods = {}; state.exposures = {}");
+    ok("a dinner carrying a first allergen is never repeated by batch-cooking", (() => { E("state.offers = []; offersChanged()");
       for (let n = 0; n < 60; n++) { const wk = w.generateWeek(18, P({priorities: ["batch"]}));
         const rep = wk.days.flatMap(d => d.meals.filter(m => m.from));
         if (rep.some(m => m.items.some(i => w.allergensOf(i.name).length && !w.introducedAllergens(P({})).size && w.newAllergens(i.name, w.introducedAllergens(P({}))).length))) return false; }
@@ -123,10 +123,14 @@ f.onload = () => {
     const swapBad = E(`(() => { const bad = [];
       for (let t = 0; t < 400; t++) {
         const d = state.plan.days[t % 7], m = d.meals[t % d.meals.length]; if (!m.items.length) continue;
-        const k = t % m.items.length; swapItem(m, k); const n = m.items[k].name, f = FOOD_POOL.find(x => x.name === n);
-        if (!isAllowed(f, 10, state.profile)) bad.push(n);
+        const k = t % m.items.length;
+        alternatives(m, k, 8).forEach(f => { if (!isAllowed(f, 10, state.profile)) bad.push("alt " + f.name); });
+        if (t % 4 === 0) { const items = freshMeal(m, now(), d.meals); if (items) { m.items = items; items.forEach(i => { const f = FOOD_POOL.find(x => x.name === i.name); if (!isAllowed(f, 10, state.profile)) bad.push("shuffle " + i.name); }); } }
       } return bad; })()`);
-    ok("400 swaps at 10 months with egg, milk and kiwi allergies stay safe", swapBad.length === 0, swapBad.slice(0, 5));
+    ok("400 swaps and 100 meal shuffles at 10 months with egg, milk and kiwi allergies stay safe", swapBad.length === 0, swapBad.slice(0, 5));
+    E("state.profile.avoid.push({name: 'Banana', kind: 'dislike'}); state.plan = generateWeek(10, state.profile)");
+    ok("a shuffle or a swap never brings what they're not a fan of", E(`(() => { for (let t = 0; t < 200; t++) { const d = state.plan.days[t % 7], m = d.meals[t % d.meals.length]; if (!m.items.length) continue;
+        if (alternatives(m, 0, 8).some(f => /Banana/.test(f.name))) return false; const it = freshMeal(m, now(), d.meals); if (it && it.some(i => /Banana/.test(i.name))) return false; } return true; })()`));
 
     // stages
     ok("no menu under 6 months", [0, 3, 5].every(m => w.generateWeek(m, P({})) === null));
@@ -141,7 +145,7 @@ f.onload = () => {
        E("STAGES.filter(s => s.solids).every(s => s.slots.length && s.portions && s.groups.length === 5 && s.meals && s.textureShort && s.locked)"));
 
     // first allergens come one at a time, ALLERGEN_SPACING_DAYS apart, from the plan's first day
-    E("state.foods = {}; state.exposures = {}");
+    E("state.offers = []; offersChanged()");
     let schedBad = [];
     const gap = E("ALLERGEN_SPACING_DAYS");
     for (let t = 0; t < 300; t++) {
@@ -162,7 +166,7 @@ f.onload = () => {
     ok(`300 weeks: at most one new allergen a day, ${gap} days apart`, schedBad.length === 0, schedBad.slice(0, 5));
     ok("an allergen marked 'tried and loved' isn't scheduled as new", (() => { const prof = P({allergens: {egg: "ok", milk: "ok", wheat: "ok", soy: "ok", fish: "ok", sesame: "ok", peanut: "ok", treenuts: "ok", shellfish: "ok"}});
       const known = w.introducedAllergens(prof); return ["egg", "milk", "wheat", "fish"].every(a => known.has(a)); })());
-    ok("a swap never brings a first allergen", (() => { E("state.foods = {}; state.exposures = {}; state.profile = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(10)}); state.plan = generateWeek(10, state.profile)");
+    ok("a swap never brings a first allergen", (() => { E("state.offers = []; offersChanged(); state.profile = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(10)}); state.plan = generateWeek(10, state.profile)");
       const known = E("[...introducedAllergens(state.profile)]");
       return E(`state.plan.days.every(d => d.meals.every(m => m.items.every((x, k) => alternatives(m, k).every(f => newAllergens(f.name, introducedAllergens(state.profile)).length === 0))))`); })());
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }

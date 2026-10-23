@@ -19,7 +19,7 @@ f.onload = async () => {
     E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01",
          people: [{id: "p1", name: "Ana", phone: "+34600112233", role: "nanny"}], self: {phone: "+447700900123"}});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
-       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-22"; state.profile.lastStage = stageNow().id; state.stock = {}; state.exposures = {}; save(); closeOnboarding();`);
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-22"; state.profile.lastStage = stageNow().id; state.pantry = []; state.offers = []; offersChanged(); save(); closeOnboarding();`);
 
     // numbers and sms: links
     ok("numbers keep digits and a leading +", E(`normPhone("+34 600-11 22 33")`) === "+34600112233" && E(`normPhone("(07700) 900.123")`) === "07700900123");
@@ -30,10 +30,16 @@ f.onload = async () => {
     // groceries
     const g = E("groceriesText()"), gl = g.trim().split("\n");
     ok("groceries: '{name}'s groceries · {date}' then 'Updated {time}'", gl[0] === `Lula's groceries · ${E("fmtDayMonth(now())")}` && gl[1] === `Updated ${E("fmtTime(now())")}`, gl.slice(0, 2));
-    ok("…one '☐ ' line per item, and no other symbol", gl.slice(2).every(l => l.startsWith("☐ ")) && !/\p{Extended_Pictographic}/u.test(g), gl.slice(2, 5));
-    const order = E("dayDisplayOrder().map(i => state.plan.days[i].name)");
-    const expectBy = E(`shopList("week").map(n => { const s = shortfall(n.key).short, first = n.days.slice().sort((a, b) => dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(a) - dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(b))[0]; return dayDisplayOrder().map(i => state.plan.days[i].name).indexOf(s || first) < 3; })`);
-    ok("…' · by {weekday}' only when it runs out within 3 days", gl.slice(2, 2 + expectBy.length).every((l, k) => / · by [A-Z][a-z]+day$/.test(l) === expectBy[k]) && expectBy.some(Boolean));
+    ok("…one '☐ ' line per item, and no other symbol", gl.slice(2).every(l => l.startsWith("☐ ")) && !/\p{Extended_Pictographic}/u.test(g.replace(/☐/g, "")), gl.slice(2, 5));
+    const list = E("toBuyList().map(n => n.name + ' · by ' + fmtWeekday(n.date))");
+    ok("…the items are Kitchen's To buy (next 3 days' needs minus stock), each ' · by {weekday}'", list.length > 0 && JSON.stringify(gl.slice(2).map(l => l.slice(2))) === JSON.stringify(list), [gl.slice(2, 4), list.slice(0, 2)]);
+    const first = E("toBuyList()[0]");
+    E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "plenty")`);
+    ok("…and what's at home (Plenty) drops off", !E("groceriesText()").includes("☐ " + first.name + " ·"));
+    E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "low")`);
+    ok("…Low still counts as at home", !E("groceriesText()").includes("☐ " + first.name + " ·"));
+    E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "out")`);
+    ok("…Out puts it back", E("groceriesText()").includes("☐ " + first.name + " ·"));
 
     // a day for a caretaker
     let t = E("dayText(tomorrowOf(now()))");
@@ -44,9 +50,6 @@ f.onload = async () => {
     t = E("dayText(tomorrowOf(now()), 'https://example.org/x')");
     ok("…with allergies: 'Allergies: egg and kiwi.'", /^Allergies: egg and kiwi\. Not yet: /.test(t.split("\n")[2]), t.split("\n")[2]);
     ok("…and 'Full day: {link}' when there's a link", t.trim().split("\n").pop() === "Full day: https://example.org/x");
-    E(`state.exposures = {banana: 1}`);
-    ok("…'New today: {food}.' when the day has a new food", /\nNew today: [a-z].*\.\n?/.test(E("dayText(tomorrowOf(now()))")));
-    E(`state.exposures = {}`);
     // the week
     const wk = E("weekText('https://example.org/w')").split("\n");
     ok("week: '{name}'s week', 'Updated {date} {time}', a line per day, then the link", wk[0] === "Lula's week" && /^Updated /.test(wk[1]) && wk.slice(2, -1).every(l => /^[A-Z][a-z]+day: /.test(l)) && wk.pop() === "Full week: https://example.org/w", wk);
@@ -56,6 +59,10 @@ f.onload = async () => {
     ok("payload v1: name, age in months, generated-at, allergies, dislikes, locked, days", p.v === 1 && p.n === "Lula" && p.m === 18 && typeof p.g === "string" && Array.isArray(p.a) && Array.isArray(p.k) && p.days.length === 2);
     const raw = JSON.stringify(p);
     ok("…never the birth date", !raw.includes(E("state.profile.birthDate")));
+    E(`(() => { const x = mealsOn(now())[0]; offerMeal(x.m, now(), true); setOutcome(x.m, now(), "loved"); setStock("zzpantry", "Zzpantry", "low"); state.freezer.push({foodId: "zzfrozen", name: "Zzfrozen", portions: 2, madeOn: todayISO()}); })()`);
+    const raw2 = JSON.stringify(E("snapshotPayload([now(), tomorrowOf(now())])"));
+    ok("…never offers, outcomes, stock or the freezer", !/loved|outcome|offer|zzpantry|zzfrozen|plenty|"low"/i.test(raw2) && !E("state.offers").some(e => raw2.includes(e.id)), raw2.slice(0, 200));
+    ok("…and the day's text carries no offers or stock either", !/Offered|Loved it|Plenty|Zzpantry/i.test(E("dayText(now())") + E("weekText()")));
     ok("…never a phone number, never another person's name", !/600112233|7700900123/.test(raw) && !raw.includes("Ana") && !raw.includes("nanny"));
     ok("…foods by manifest id", p.days[0].ml[0].f.every(([id]) => typeof id === "string" && (id[0] === "~" || E(`!!FOOD_BY_ID[${JSON.stringify(id)}]`))));
     const enc = await w.encodePayload(p);

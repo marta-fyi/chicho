@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
 <h1>Clock tests</h1>
-<p>Soft anchors with the clock set by hand: status (upcoming, now for 60 minutes, earlier, offered), the next meal, the headline rules and the tab title, midnight, daylight saving, custom times and the stages with fewer meals. Every line should be PASS.</p>
+<p>Soft anchors with the clock set by hand: status (upcoming, now for 60 minutes, earlier, offered), the next meal, the headline rules and the tab title, midnight, daylight saving, custom times, the stages with fewer meals, and the offer log those statuses are read from. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -20,10 +20,10 @@ f.onload = () => {
     const setup = (months, clock) => {
       E(`setClock(${clock || at(6, 0)})`);
       E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}, now())});
-         state.plan = generateWeek(${months}, state.profile); state.exposures = {}; state.foods = {};`);
+         state.plan = generateWeek(${months}, state.profile); state.offers = []; offersChanged();`);
     };
     const H = clock => (E(`setClock(${clock})`), E("headlineNow()"));
-    const offer = slot => E(`mealsOn(now()).forEach(x => { if (x.slot === "${slot}") x.m.items.forEach(i => setOffered(i, true)); })`);
+    const offer = slot => E(`mealsOn(now()).forEach(x => { if (x.slot === "${slot}") offerMeal(x.m, x.date, true); })`);
     ok("one named constant holds the now window: 60 minutes", E("NOW_WINDOW_MIN") === 60);
 
     setup(18);
@@ -94,16 +94,31 @@ f.onload = () => {
     setup(18, at(9, 0)); E("state.plan.days.forEach(d => d.meals.forEach(m => m.items = []))");
     ok("no plan: 'The table's empty.'", H(at(9, 0)).headline === "The table's empty.");
 
-    // schema 8: offered replaces the old marks
-    const old = E(`migrate({schemaVersion: 7, profile: {birthDate: "2025-04-01", onboarded: true}, plan: {days: [{name: "Monday", meals: [
-      {label: "Breakfast", slot: "breakfast", items: [{id: "a", name: "Oatmeal", qty: "40 g", cats: ["grain"], ["e" + "aten"]: true, ate: "all"}, {id: "b", name: "Banana", qty: "60 g", cats: ["fruit"], ["e" + "aten"]: true, ate: "some"}]},
-      {label: "Lunch", slot: "lunch", items: [{id: "c", name: "Peas", qty: "40 g", cats: ["vegetable"], ate: "refused"}]},
-      {label: "Dinner", slot: "dinner", items: [{id: "d", name: "Pasta", qty: "40 g", cats: ["grain"]}]}]}]}})`);
-    const ms = old.plan.days[0].meals;
-    ok("schema 8: any mark becomes offered", ms[0].items.every(i => i.offered === true) && ms[1].items[0].offered === true && ms[2].items[0].offered === false);
-    ok("…how it went moves to the meal: some → 'some', refused → 'nottoday'", ms[0].outcome === "some" && ms[1].outcome === "nottoday" && !("outcome" in ms[2]), ms.map(m => m.outcome));
-    ok("…and the old fields are gone", ms.every(m => m.items.every(i => !("ate" in i) && !(("e" + "aten") in i))));
-    ok("schema 8: people, self and the late-question memory start empty", JSON.stringify(old.profile.people) === "[]" && old.profile.self.phone === "" && typeof old.asked === "object");
+    // the offer log: one event per food, filled in by the outcome, corrected by a new event, taken back by Undo
+    setup(18, at(12, 40));
+    const L = () => E("state.offers");
+    E(`lunchRef = mealsOn(now()).find(x => x.slot === "lunch"); offerMeal(lunchRef.m, lunchRef.date, true)`);
+    const n = E("lunchRef.m.items.length");
+    ok("ticking a meal writes one event per food, outcome null", L().length === n && L().every(e => e.outcome === null && e.mealId === E("lunchRef.m.id") && e.date === "2026-10-22"), L());
+    ok("…each with its food id, its time, and whether it's a first", L().every(e => typeof e.foodId === "string" && e.at && typeof e.firstOfFood === "boolean" && typeof e.firstAllergen === "boolean"));
+    ok("…a first food is marked as one (nothing was offered before)", L().every(e => e.firstOfFood === true));
+    ok("…and the meal reads as offered from the log", E("mealOffered(lunchRef.m, lunchRef.date)") === true && E("mealsOn(now()).find(x => x.slot === 'lunch').status") === "offered");
+    ok("…on that date only: the same meal next week is not offered", E("mealOffered(lunchRef.m, new Date(2026, 9, 29))") === false);
+    E(`setOutcome(lunchRef.m, lunchRef.date, "loved")`);
+    ok("an outcome fills the events in (no new events)", L().length === n && L().every(e => e.outcome === "loved"));
+    E(`setOutcome(lunchRef.m, lunchRef.date, "some")`);
+    ok("a change of mind writes correction events, history stays", L().length === 2 * n && L().slice(0, n).every(e => e.outcome === "loved") && L().slice(n).every(e => e.corrects && e.outcome === "some"), L());
+    ok("…and the live outcome is the latest word", E("mealOutcome(lunchRef.m, lunchRef.date)") === "some" && E("liveOffers().length") === n);
+    E(`setOutcome(lunchRef.m, lunchRef.date, "some")`);
+    ok("tapping the same outcome again clears it (a correction to null)", E("mealOutcome(lunchRef.m, lunchRef.date)") === null && L().length === 3 * n);
+    E(`offerMeal(lunchRef.m, lunchRef.date, false)`);
+    ok("Undo removes the tick's events and their corrections", L().length === 0 && E("mealOffered(lunchRef.m, lunchRef.date)") === false);
+    E(`offerMeal(lunchRef.m, lunchRef.date, true); offerMeal(lunchRef.m, lunchRef.date, true)`);
+    ok("ticking twice doesn't double the events", L().length === n);
+    E(`dinnerRef = mealsOn(now()).find(x => x.slot === "dinner"); offerMeal(dinnerRef.m, dinnerRef.date, true)`);
+    const repeat = E("dinnerRef.m.items.filter(i => lunchRef.m.items.some(j => foodIdOf(j) === foodIdOf(i))).map(i => foodIdOf(i))");
+    ok("a food offered again is not a first", E("state.offers.filter(e => e.mealId === dinnerRef.m.id)").every(e => e.firstOfFood === !repeat.includes(e.foodId)));
+    ok("known foods come from the log", E("[...knownFoods()].length") === E("new Set(state.offers.map(e => e.foodId)).size"));
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

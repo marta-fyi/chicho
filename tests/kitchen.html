@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Chicho · kitchen and install tests</title>
-<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · kitchen tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
-<h1>Kitchen and install tests</h1>
-<p>"Keep screen on" (a stand-in Screen Wake Lock): off by default, hidden where unsupported, let go when hidden, left or after 60 minutes, back only if left on. The install line: day 2, once, with Later, never when installed. Every line should be PASS.</p>
+<h1>Kitchen tests</h1>
+<p>The Kitchen screen (Thursday 22 October 2026, 12:10, an 18-month-old's week): To buy for the next three days minus what's at home, Running low, At home by food group (Plenty, Low, Out as words), Add something, the freezer and prep, Send the list, and In the store with the Wake Lock. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -15,58 +15,102 @@ f.width = 390; f.height = 844;
 document.body.append(f);
 f.onload = async () => {
   try {
-    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s);
-    const setup = (firstDay, clock) => E(`setClock(${clock || "new Date(2026, 9, 22, 12, 10).getTime()"});
-       state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "${firstDay}", mealTimesConfirmed: true});
-       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok"); state.asked = {};
-       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding(); homeChanged();`);
-    // no Wake Lock: no toggle
-    Object.defineProperty(w.navigator, "wakeLock", {value: undefined, configurable: true});
-    setup("2026-10-01"); await wait(200);
-    ok("where the Wake Lock isn't supported, there's no toggle", !$(".wake"));
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x);
+    const $ = s => d.querySelector("#scr-kitchen " + s), $$ = s => [...d.querySelectorAll("#scr-kitchen " + s)];
     // a stand-in Wake Lock
     const log = [];
-    const lock = () => { const s = new w.EventTarget(); s.released = false; s.release = () => { s.released = true; log.push("release"); s.dispatchEvent(new w.Event("release")); return Promise.resolve(); }; return s; };
+    const lock = () => { const s = new w.EventTarget(); s.release = () => { log.push("release"); s.dispatchEvent(new w.Event("release")); return Promise.resolve(); }; return s; };
     Object.defineProperty(w.navigator, "wakeLock", {value: {request: t => { log.push("request:" + t); return Promise.resolve(lock()); }}, configurable: true});
-    E("homeChanged()"); await wait(50);
-    const t = () => $("#openMeal .wake");
-    ok("the open meal has 'Keep screen on', off by default", !!t() && t().textContent === "Keep screen on" && t().getAttribute("aria-pressed") === "false" && log.length === 0);
-    ok("…a 44px target", t().getBoundingClientRect().height >= 44);
-    t().click(); await wait(50);
-    ok("on: the screen wake lock is requested", log.join() === "request:screen" && t().getAttribute("aria-pressed") === "true" && E("!!wake.lock"));
-    const hidden = v => { Object.defineProperty(d, "hidden", {value: v, configurable: true}); d.dispatchEvent(new w.Event("visibilitychange")); };
-    hidden(true); await wait(30);
-    ok("the tab is hidden: it lets go", log.at(-1) === "release" && !E("wake.lock") && E("wake.on"));
-    hidden(false); await wait(30);
-    ok("visible again, still on: it comes back", log.at(-1) === "request:screen" && E("!!wake.lock"));
-    w.dispatchEvent(new w.Event("pagehide")); await wait(30);
-    ok("leaving the page lets go", log.at(-1) === "release");
-    hidden(true); hidden(false); await wait(30);
-    E("wake.until = Date.now() - 1"); hidden(true); hidden(false); await wait(30);
-    ok("after 60 minutes it turns off and doesn't come back", !E("wake.on") && log.at(-1) === "release" && t().getAttribute("aria-pressed") === "false");
-    ok("…the limit is one constant: 60 minutes", E("WAKE_MAX_MS") === 3600000);
-    t().click(); await wait(30); t().click(); await wait(30);
-    ok("off again: let go", log.at(-1) === "release" && !E("wake.on"));
-    // the install line
-    E("platform = () => 'apple'; isStandalone = () => false");
-    Object.defineProperty(w.navigator, "maxTouchPoints", {value: 5, configurable: true});
-    const M = () => E("momentLine()");
-    setup("2026-10-22", "new Date(2026, 9, 22, 15, 0).getTime()"); await wait(30);
-    ok("day 1: no install line", M().key !== "install");
-    setup("2026-10-21", "new Date(2026, 9, 22, 15, 0).getTime()"); E("state.plan.days.forEach(d => d.meals.forEach(m => m.items.forEach(i => i.offered = true)))"); await wait(30);
-    const m = M();
-    ok("day 2: 'Add Chicho to your Home Screen…' in the moment slot", m.key === "install" && m.text === "Add Chicho to your Home Screen to open it like an app. Tap Share, then Add to Home Screen.", m);
-    ok("…with a 'Later' action", m.actions.map(a => a[0]).join() === "Later");
-    E("homeChanged()"); await wait(30);
-    ok("…shown on the page", /Add Chicho to your Home Screen/.test($("#moment").textContent));
-    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Later").click(); await wait(30);
-    ok("Later puts it away, for good", M().key !== "install" && E("state.asked.installLater") === "2026-10-22");
-    E("delete state.asked.installLater; state.asked.install = '2026-10-21'; save(); setClock(new Date(2026, 9, 22, 15, 0).getTime())");
-    ok("once: never on another day", M().key !== "install");
-    E("state.asked = {}; isStandalone = () => true");
-    ok("never when already running standalone", M().key !== "install");
-    E("isStandalone = () => false; platform = () => 'android'");
-    ok("not on Android (its own install prompt; the words are iOS's)", M().key !== "install");
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+       state.pantry = []; state.freezer = []; state.offers = []; offersChanged(); save(); closeOnboarding(); go("kitchen", {quiet: true});`);
+    await wait(500);
+    ok("the Kitchen: a pinned 'Home' control, its title, 'In the store'", $(".home-link").textContent === "Home" && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store");
+    ok("the sections, in order: To buy, At home, Freezer and prep (Running low only when something is low)", $$("section.sec").map(s => s.dataset.sec).join() === "tobuy,athome,freezer", $$("section.sec").map(s => s.dataset.sec));
+
+    // 1. To buy: the next three days' needs, minus what's at home
+    const list = () => E("toBuyList().map(n => n.foodId)");
+    const rows = () => $$('[data-sec="tobuy"] .row');
+    ok("To buy lists every need of the next three days that isn't at home", rows().length === list().length && list().length > 0, [rows().length, list().length]);
+    ok("…each '{food} · for {day} {meal}'", rows().every(r => /^.+ · for (today's|tomorrow's|[A-Z][a-z]+day's) (breakfast|snack|lunch|dinner)$/.test(r.querySelector(".row-t").textContent)), rows().slice(0, 3).map(r => r.textContent));
+    ok("…soonest first", rows()[0].textContent.includes("today's"));
+    const window3 = E(`(() => { const s = new Set(); for (let k = 0; k < 3; k++) mealsOn(new Date(2026, 9, 22 + k)).filter(x => x.status !== "earlier").forEach(x => x.m.items.forEach(i => s.add(foodIdOf(i)))); return [...s]; })()`);
+    ok("…only foods from meals still to come in that window (not breakfast, already past)", list().every(id => window3.includes(id)), list().filter(id => !window3.includes(id)));
+    ok("…never in grams or packs", !rows().some(r => /\d+ ?g\b|pack/.test(r.textContent)));
+    const first = E("toBuyList()[0]");
+    $(`[data-f="buy:${first.foodId}"]`).click(); await wait(40);
+    ok("ticking it: off To buy, into At home as Plenty", !list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === "plenty");
+    ok("…its group in At home now shows it, as the word 'Plenty'", (() => { const g = E(`groupOfFood("${first.foodId}")`); $(`[data-f="group:${g}"]`).click(); return true; })() && (await wait(30), $(`[data-f="stock:${first.foodId}"]`)) && $(`[data-f="stock:${first.foodId}"] .state-word`).textContent === "Plenty");
+
+    // 2. Plenty → Low → Out, as words; Low is Running low, Out goes back to To buy when the plan needs it
+    $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    ok("tap: Low, and it shows under Running low", E(`stockState("${first.foodId}")`) === "low" && !!$(`[data-sec="low"] [data-f="stock:${first.foodId}"]`) && $$("section.sec").map(s => s.dataset.sec).join() === "tobuy,low,athome,freezer");
+    ok("…Low is still at home: not on To buy", !list().includes(first.foodId));
+    $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    ok("tap: Out, and the plan needs it, so it's back on To buy", E(`stockState("${first.foodId}")`) === "out" && list().includes(first.foodId) && !!$(`[data-f="buy:${first.foodId}"]`));
+    $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    ok("tap: Plenty again (nothing is final)", E(`stockState("${first.foodId}")`) === "plenty");
+    ok("At home: one row per food group, folded until opened", $$('[data-sec="athome"] .group-btn').length >= 5 && $$('[data-sec="athome"] .group-btn[aria-expanded="false"]').length >= 4);
+    ok("…no counts on the groups (no totals as pressure)", $$('[data-sec="athome"] .group-btn').every(b => !/\d/.test(b.textContent)));
+    ok("…each line reads its state as a word, with a label saying what a tap does", $$('[data-sec="athome"] .row-btn').every(b => /^(Plenty|Low|Out)$/.test(b.querySelector(".state-word").textContent) && /Tap for (Plenty|Low|Out)/.test(b.getAttribute("aria-label"))));
+
+    // 3. Add something
+    $('[data-f="kitchen:add"]').click(); await wait(40);
+    const inp = $('[data-f="kitchen:adding"]');
+    ok("'Add something' opens one field inline, in a sentence", !!inp && /At home:/.test(inp.closest(".add-line").textContent) && d.activeElement === inp);
+    inp.value = "avo"; inp.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(20);
+    const sug = $('[data-f="sug:Avocado"]');
+    ok("…suggestions follow what's typed ('avo' → Avocado)", !!sug);
+    sug.click(); await wait(40);
+    ok("…one tap puts it at home as Plenty, its group opened", E(`stockState("avocado")`) === "plenty" && !!$('[data-f="stock:avocado"]'));
+    $('[data-f="kitchen:add"]').click(); await wait(30);
+    const inp2 = $('[data-f="kitchen:adding"]');
+    inp2.value = "Wipes"; inp2.dispatchEvent(new w.Event("input", {bubbles: true}));
+    inp2.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(40);
+    ok("…anything typed works too, under Everything else", E(`stockState("wipes")`) === "plenty" && !!$('[data-f="group:other"]'));
+
+    // 4. Freezer and prep
+    E(`state.freezer.push({foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-20"}); save(); refresh("kitchen")`); await wait(30);
+    const fz = () => $('[data-sec="freezer"]').textContent;
+    const made = E("fmtDayShort(localDate('2026-10-20'))");
+    ok("the freezer: 'Lentils · 2 portions · made 20 Oct' (in the reader's own date format)", fz().includes("Lentils · 2 portions · made " + made), fz().slice(0, 80));
+    ok("…the storage note shows once for the section, not on every task", fz().split(E("say('storage')")).length === 2);
+    ok("…with the storage note (flagged for checking in docs/decisions.md)", fz().includes(E("say('storage')")));
+    $('[data-f="useone:lentils"]').click(); await wait(30);
+    ok("'Use one': 1 portion left", fz().includes("Lentils · 1 portion · made " + made));
+    $('[data-f="useone:lentils"]').click(); await wait(30);
+    ok("…and at none, it's gone", !/Lentils ·/.test(fz()));
+    const prep = $$('[data-sec="freezer"] .ring-btn');
+    ok("open prep tasks each have a done ring", prep.every(r => r.getAttribute("aria-pressed") === "false" && /^Done: /.test(r.getAttribute("aria-label"))), prep.length);
+
+    // 5. Send the list
+    let copied = null;
+    Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
+    Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
+    const send = $('[data-f="kitchen:send"]');
+    ok("'Send the list' sits at the end of To buy", !!send && send.closest('[data-sec="tobuy"]') && send.textContent === "Send the list");
+    send.click(); await wait(80);
+    ok("…it sends the groceries text (copied here: no number, no share sheet)", copied === E("groceriesText()"), copied && copied.slice(0, 60));
+
+    // 6. In the store
+    const tog = () => $('[data-f="instore"]');
+    ok("'In the store' is off by default, a 44px target", tog().getAttribute("aria-pressed") === "false" && tog().getBoundingClientRect().height >= 44 && !log.length);
+    tog().click(); await wait(60);
+    ok("on: the screen wake lock is requested", log.join() === "request:screen" && tog().getAttribute("aria-pressed") === "true");
+    const heads = $$('[data-sec="tobuy"] h3.sec-h').map(h => h.textContent);
+    const order = ["Grains", "Veg", "Fruit", "Protein", "Fats and dairy", "Everything else"];
+    ok("…To buy regroups by food group, in order", heads.length >= 2 && heads.every((h, i) => order.includes(h) && (i === 0 || order.indexOf(h) > order.indexOf(heads[i - 1]))), heads);
+    E(`go("home", {quiet: true})`); await wait(450);
+    ok("leaving the Kitchen leaves the store and lets the screen sleep", !E("kitchenUI.store") && !E("wake.on") && log.at(-1) === "release", log);
+    E(`go("kitchen", {quiet: true})`); await wait(450);
+    ok("…and it's off when you come back", tog().getAttribute("aria-pressed") === "false");
+
+    // nothing red, no counters
+    const colours = new Set($$("*").filter(e => e.offsetParent && e.textContent.trim()).map(e => w.getComputedStyle(e).color));
+    ok("nothing is red: only the ink and its muted step", [...colours].every(c => /^rgba?\((18, 18, 18|255, 255, 255|246, 246, 244)/.test(c)), [...colours]);
+    ok("no counters or totals anywhere on the screen", !/\b\d+ (items?|things?)\b|\btotal\b|\d+\s*\/\s*\d+/i.test(d.getElementById("scr-kitchen").textContent));
+    ok("no emoji or icon glyphs", !/\p{Extended_Pictographic}|✕|✓/u.test(d.getElementById("scr-kitchen").textContent));
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

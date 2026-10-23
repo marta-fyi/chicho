@@ -3,18 +3,19 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
 <body>
 <h1>Moment line tests</h1>
-<p>The one line under the headline, picked by the first rule that applies, with the clock set by hand (Thursday 22 October 2026). Every line should be PASS.</p>
+<p>The one line under the headline, picked by the first rule that applies, with the clock set by hand (Thursday 22 October 2026). It is also the router: its text action goes to the screen that does the job. One-time gesture hints come first, the first time each screen is useful. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 localStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test";
-f.style.cssText = "width:390px;height:300px;border:1px solid #ccc";
+f.style.cssText = "width:390px;height:844px;border:1px solid #ccc";
 document.body.append(f);
-f.onload = () => {
+f.onload = async () => {
   try {
-    const w = f.contentWindow, E = x => w.eval(x);
+    const w = f.contentWindow, E = x => w.eval(x), d = f.contentDocument;
+    const wait = ms => new Promise(r => setTimeout(r, ms));
     const at = (h, m, d = 22) => `new Date(2026, 9, ${d}, ${h}, ${m})`;
     // a household with nothing pending: introduced allergens, everything in stock, meal times confirmed, a day-one well past
     const setup = (months, clock, extra) => {
@@ -22,12 +23,16 @@ f.onload = () => {
       E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months || 18}, now()),
            firstDay: "2026-10-01", mealTimesConfirmed: true, priorities: ["iron"], allergens: {egg: "ok", milk: "ok", peanut: "ok", treenuts: "ok", wheat: "ok", soy: "ok", fish: "ok", shellfish: "ok", sesame: "ok"}});
          state.plan = generateWeek(${Math.max(6, months || 18)}, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
-         state.foods = {}; state.exposures = {banana: 1}; state.moment = {}; state.asked = {}; state.extras = [];
-         state.stock = {}; state.plan.days.forEach(d => d.meals.forEach(m => m.items.forEach(i => { state.stock[foodKey(i.name)] = {name: i.name, g: null, plenty: true}; })));
-         ${extra || ""}`);
+         state.offers = [{id: "o1", at: "2026-10-21T08:00", date: "2026-10-21", mealId: "legacy", itemId: null, foodId: "banana", outcome: null, firstOfFood: true, firstAllergen: false}];
+         state.moment = {}; state.asked = {}; state.newToBuy = []; state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01", profile: "2026-10-01"};
+         state.pantry = []; state.plans.forEach(p => p.days.forEach(d => d.meals.forEach(m => m.items.forEach(i => { if (!pantryOf(foodIdOf(i))) setStock(foodIdOf(i), baseName(i), "plenty"); }))));
+         offersChanged(); ${extra || ""}`);
+      E("if (!document.getElementById('onboarding').hidden) closeOnboarding()");
     };
     const M = () => E("momentLine()");
     const actions = m => m.actions.map(a => a[0]);
+    const goTo = async fn => { fn(); await wait(450); return E("pg.cur"); };
+    const home = async () => { E("go('home', {quiet: true})"); await wait(450); };
 
     setup(); const quiet = M();
     ok("nothing pending: a daily food tip, the same all day", quiet.key === "tip" && quiet.text && E("momentLine().text") === quiet.text, quiet);
@@ -40,7 +45,8 @@ f.onload = () => {
     // 2. stage changed this month
     setup(12, at(15, 0), `state.profile.lastStage = "textures";`);
     let m = M();
-    ok("12 months, new stage: 'Lula is 12 months. Textures are changing.'", m.text === "Lula is 12 months. Textures are changing." && JSON.stringify(actions(m)) === JSON.stringify(["Update the week", "Later"]), m);
+    ok("12 months, new stage: 'Lula is 12 months. Update the week?'", m.text === "Lula is 12 months." && JSON.stringify(actions(m)) === JSON.stringify(["Update the week?", "Later"]), m);
+    ok("…'Update the week?' goes to New week", await goTo(m.actions[0][1]) === "week"); await home();
     m.actions[1][1]();
     ok("Later puts it away for today", M().key !== "stage" && E("state.moment.later").includes("stage"));
     E(`setClock(${at(15, 0, 23)})`);
@@ -53,33 +59,68 @@ f.onload = () => {
     m = M();
     ok("egg for the first time: the calm line", /^Egg, for the first time\. A small taste, then keep an eye on how Lula feels\.$/.test(m.text) && m.tone === "calm", m);
     ok("…with 'What to watch for'", JSON.stringify(actions(m)) === JSON.stringify(["What to watch for"]));
-    m.actions[0][1]();
-    ok("…which opens the note: 'Not medical advice…'", f.contentDocument.getElementById("sheet").open && /Not medical advice\./.test(f.contentDocument.getElementById("sheetBody").textContent));
-    E("closeSheet(true)");
-    setup(18, at(15, 0), `state.profile.allergens = {}; state.foods = {"egg, well cooked": {safety: "introduced", safetyOn: "2026-10-20"}};
+    ok("…which goes to Profile, Off the plate, with the note: 'Not medical advice…'", await goTo(m.actions[0][1]) === "profile" && d.activeElement && d.activeElement.dataset.sec === "offplate" && /Not medical advice\./.test(d.querySelector('[data-sec="offplate"]').textContent));
+    await home();
+    setup(18, at(15, 0), `state.profile.allergens = {}; state.offers.push({id: "o2", at: "2026-10-20T08:00", date: "2026-10-20", mealId: "legacy", itemId: null, foodId: "egg", outcome: null, firstOfFood: true, firstAllergen: true}); offersChanged();
       ALLERGENS.forEach(a => { if (a.id !== "egg") state.profile.allergens[a.id] = "ok"; });
       state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`);
-    ok("egg introduced on an earlier day: no allergen line", !/^allergen/.test(M().key), M().key);
+    ok("egg introduced on an earlier day (from the log): no allergen line", !/^allergen/.test(M().key), M().key);
     ok("the stage line comes before the allergen line", (setup(12, at(15, 0), `state.profile.lastStage = "textures"; state.profile.allergens = {}; state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`), M().key) === "stage");
 
     // 4. no plan for today
     setup(18, at(15, 0), `state.plan.days[planDayIndex(now())].meals.forEach(m => m.items = []);`);
     ok("nothing planned today: 'Set the week for Lula.' with 'Set the week'", M().text === "Set the week for Lula." && actions(M())[0] === "Set the week", M());
+    ok("…which goes to New week", await goTo(M().actions[0][1]) === "week"); await home();
 
     // 5. the week is over
     setup(18, at(15, 0), `state.weekStarted = "2026-10-14";`);
-    ok("a week later: 'Week done. Ready for the next?' with 'Set next week'", M().text === "Week done. Ready for the next?" && actions(M())[0] === "Set next week", M());
+    ok("a week later: 'Week done. Ready for the next?'", M().text === "Week done." && actions(M())[0] === "Ready for the next?", M());
+    ok("…'Ready for the next?' goes to New week", await goTo(M().actions[0][1]) === "week"); await home();
 
-    // 6. shopping, before 19:00
-    setup(18, at(15, 0), `state.stock = {};`);
+    // 6. a planned food that's run out, for a meal still to come today: Shuffle, scrolled to that meal
+    const outDinner = `(() => { const x = mealsOn(now()).find(x => x.slot === "dinner"); setStock(foodIdOf(x.m.items[0]), baseName(x.m.items[0]), "out"); dinnerId = x.m.id; dinnerFood = lower1(baseName(x.m.items[0])); })();`;
+    setup(18, at(15, 0), outDinner);
     m = M();
-    ok("things running out: '{n} things for the next 3 days.' with 'Send the list'", /^\d+ things? for the next 3 days\.$/.test(m.text) && actions(m)[0] === "Send the list", m);
+    ok("out of a planned food: 'Out of {food}. Shuffle dinner?'", m.key === "missing" && m.text === `Out of ${E("dinnerFood")}.` && JSON.stringify(actions(m)) === JSON.stringify(["Shuffle dinner?", "Later"]), m);
+    ok("…goes to Shuffle", await goTo(m.actions[0][1]) === "shuffle");
+    ok("…scrolled to that meal, which takes focus", d.activeElement && d.activeElement.dataset.meal === E("dinnerId"), [d.activeElement && d.activeElement.outerHTML.slice(0, 60), E("dinnerId"), E("pg.cur")]);
+    await home();
+    setup(18, at(15, 0), outDinner + `state.hints = {kitchen: "2026-10-01", profile: "2026-10-01"};`);
+    m = M();
+    ok("the first time: the hint instead, 'Swipe left to shuffle dinner.' (tappable) with Later", m.key === "hint:shuffle" && !m.text && JSON.stringify(actions(m)) === JSON.stringify(["Swipe left to shuffle dinner.", "Later"]), m);
+    ok("…tapping the hint goes there too", await goTo(m.actions[0][1]) === "shuffle");
+    ok("…and visiting the screen marks the hint seen", !!E("state.hints.shuffle") && M().key === "missing");
+    await home();
+    setup(18, at(15, 0), outDinner + `state.hints = {kitchen: "2026-10-01", profile: "2026-10-01"};`);
+    M().actions[1][1]();
+    ok("Later on a hint puts it away for good", !!E("state.hints.shuffle") && M().key === "missing");
+
+    // 7. things to pick up, before 19:00: Kitchen
+    setup(18, at(15, 0), `state.pantry = [];`);
+    m = M();
+    ok("things to pick up: '{n} things to pick up.' (the sentence is the link) with Later", m.key === "shop" && !m.text && /^\d+ things? to pick up\.$/.test(actions(m)[0]) && actions(m)[1] === "Later", m);
+    ok("…its number is the to-buy list", actions(m)[0].startsWith(String(E("toBuyList().length"))));
+    ok("…goes to Kitchen", await goTo(m.actions[0][1]) === "kitchen"); await home();
     E(`setClock(${at(19, 5)})`);
     ok("…not after 19:00", M().key !== "shop", M().key);
+    setup(18, at(15, 0), `state.pantry = []; state.hints = {shuffle: "2026-10-01", profile: "2026-10-01"};`);
+    m = M();
+    ok("the first shopping list: the hint 'Swipe up for the kitchen.' first", m.key === "hint:kitchen" && actions(m)[0] === "Swipe up for the kitchen.", m);
+    // only needed later in the 3 days, not today or tomorrow: no line (unless new from a shuffle)
+    const farOnly = `state.pantry = state.pantry.filter(p => true); (() => { const d2 = new Date(2026, 9, 24); const x = mealsOn(d2)[0]; const i = x.m.items.find(i => !mealsOn(now()).concat(mealsOn(tomorrowOf(now()))).some(y => y.m.items.some(j => foodIdOf(j) === foodIdOf(i)))); if (i) setStock(foodIdOf(i), baseName(i), "out"); farFood = i ? foodIdOf(i) : null; })();`;
+    setup(18, at(15, 0), farOnly);
+    if (E("farFood")) {
+      ok("only something for Saturday: no line yet", M().key !== "shop", M());
+      E(`state.newToBuy = [farFood]`);
+      m = M();
+      ok("…after a shuffle put it on the list: '1 new thing to pick up.'", m.key === "shop" && actions(m)[0] === "1 new thing to pick up.", m);
+      E("go('kitchen', {quiet: true})"); await wait(450);
+      ok("…opening the Kitchen takes the 'new' away", E("state.newToBuy.length") === 0); await home();
+    } else ok("(no Saturday-only food in this week: skipped)", true);
     setup(18, at(15, 0), `state.profile.shopDay = 4;`);
-    ok("nothing running out, but it's shopping day… still nothing to pick up, so no line", M().key !== "shop");
+    ok("nothing to pick up, even on shopping day: no line", M().key !== "shop");
 
-    // 7. after the last meal, tomorrow's plan
+    // 8. after the last meal, tomorrow's plan
     setup(18, at(20, 30));
     m = M();
     ok("after dinner: 'Tomorrow: {food1} and {food2}.' with 'Send tomorrow'", /^Tomorrow: [a-z].* and [a-z].*\.$/.test(m.text) && actions(m)[0] === "Send tomorrow", m);
@@ -87,11 +128,11 @@ f.onload = () => {
     ok("…'Send to Ana' once a person is saved", actions(M())[0] === "Send to Ana");
 
     // after 21:30: quiet
-    setup(18, at(21, 45), `state.stock = {};`);
+    setup(18, at(21, 45), `state.pantry = [];`);
     m = M();
     ok("after 21:30: only tomorrow's first meal, no actions", m.key === "quiet" && /^Breakfast tomorrow: /.test(m.text) && m.actions.length === 0, m);
 
-    // 8. late questions
+    // 9. late questions
     setup(18, at(15, 0), `state.profile.mealTimesConfirmed = false;`);
     m = M();
     ok("meal times not confirmed: 'What time does lunch usually happen?' with Set / Later", m.text === "What time does lunch usually happen?" && JSON.stringify(actions(m)) === JSON.stringify(["Set", "Later"]), m);
@@ -107,6 +148,20 @@ f.onload = () => {
     ok("priorities, after the first week", M().text === "Anything to lean on this week, like iron or quick meals?", M().text);
     setup(18, at(15, 0), `state.asked = {shared: "2026-10-20"};`);
     ok("people, after the first share", M().text === "Anyone else looking after Lula?", M().text);
+    ok("…'Set' goes to Profile, caregivers", await goTo(M().actions[0][1]) === "profile" && d.activeElement && d.activeElement.dataset.sec === "people"); await home();
+
+    // 10. after the first week of offers: the Profile hint
+    setup(18, at(15, 0), `state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01"}; state.offers[0].date = "2026-10-10"; offersChanged();`);
+    m = M();
+    ok("a week after the first offer: 'Swipe down to see how Lula is doing.'", m.key === "hint:profile" && actions(m)[0] === "Swipe down to see how Lula is doing.", m);
+    ok("…goes to Profile", await goTo(m.actions[0][1]) === "profile"); await home();
+    setup(18, at(15, 0), `state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01"};`);
+    ok("…not before a week of offers", M().key === "tip", M().key);
+
+    // on the page: the line renders its actions as inline text buttons
+    setup(18, at(15, 0), outDinner); E("momentKey = null; changed()"); await wait(50);
+    const btns = [...d.querySelectorAll("#moment .btn-text")];
+    ok("on Home: the text, then the action as an inline text button, Later quieter", d.getElementById("moment").textContent.startsWith("Out of") && btns.length === 2 && btns[0].classList.contains("inline") && btns[1].classList.contains("quiet"));
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

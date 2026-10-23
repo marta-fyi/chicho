@@ -31,67 +31,55 @@ const CONTENT = {
     },
     /* said once by the polite live region when the state changes, never every minute */
     announce:{now:"{meal} time", offered:"{meal} offered", unoffered:"{meal} not offered", copied:"List copied", done:"That's today done"},
-    around:"around {time}",
     rowWhen:"{meal} · around {time}",
-    tomorrowWhen:"{meal} tomorrow · around {time}",
-    prepped:"{food} · prepped",
-    upNext:"Up next",
-    tomorrow:"Tomorrow",
-    earlier:"Earlier today",
+    mealTitle:"{meal} · around {time}",
+    mealTitleTomorrow:"{meal} tomorrow · around {time}",
+    andMore:{one:"and {n} more", other:"and {n} more"},
+    more:"More",
     also:"While you're at it",
-    week:"This week",
-    shop:{one:"{n} thing for the next 3 days", other:"{n} things for the next 3 days", none:"Nothing to pick up for the next 3 days."},
-    variety:{label:"Variety", some:"A rainbow in progress", all:"A full rainbow.", legend:"Filled: offered this week."},
-    groups:{protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats and dairy"},
-    profile:"Profile",
-    view:{tomorrow:"Tomorrow", backToday:"Back to today", backNow:"Back to now", showTomorrow:"Show tomorrow"}
+    next:"Next: {meal} around {time}.",
+    nextTomorrow:"Tomorrow: {meal} around {time}.",
+    groups:{protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats and dairy"}
   },
 
-  /* ---------- the week ---------- */
-  week:{hold:"Start a new week", holdLabel:"Start a new week: press and hold", newSet:"New week set.", restored:"The week is back as it was."},
+  /* ---------- the five screens (their names are also the map's links) ---------- */
+  screens:{home:"Home", shuffle:"Shuffle", kitchen:"Kitchen", week:"New week", profile:"Profile"},
+  days:{today:"today", tomorrow:"tomorrow", Today:"Today", Tomorrow:"Tomorrow",
+        poss:{today:"today's", tomorrow:"tomorrow's"}, possDay:"{weekday}'s"},
 
-  /* ---------- a meal, opened in place ---------- */
+  /* ---------- a meal ---------- */
   meal:{
-    meta:"{n} min · {texture}",
-    wake:"Keep screen on", wakeOn:"Screen stays on for an hour", wakeOff:"Screen can sleep again",
-    newToday:"New today: {food}",
-    amount:"{amount} · {texture}",
     change:"Change",
     another:"Another", keep:"Keep",
     changeTo:"Change {food}",
     changed:"Changed to {food}.",
-    noChange:"Nothing else safe to swap in here.",
-    why:"Why: {why}",
     offer:"Mark as offered",
     offered:"Offered",
     undo:"Undo",
-    outcome:{loved:"Loved it", some:"Ate some", nottoday:"Not today"},
+    outcome:{loved:"Loved it", some:"Ate some", not_today:"Not today"},
     outcomeLabel:"How it went",
-    addOther:"Add something else",
-    alsoOffered:"Also offered: {blank}",
-    added:"{food} added.",
-    send:"Send",
-    ringOn:"{meal}: offered",
-    ringOff:"Mark {meal} as offered",
-    foodMore:"{food}: more",
-    open:"{meal}, around {time}: {foods}"
+    addHow:"Add how it went"
   },
 
   /* ---------- the moment line: one line at a time, never two ---------- */
   moment:{
     milk:{one:"Solids start in {n} month.", other:"Solids start in {n} months."},
-    stage:"{name} is {months}. Textures are changing.",
-    stageUpdate:"Update the week",
+    stage:"{name} is {months}.",
+    stageUpdate:"Update the week?",
     later:"Later",
     install:"Add Chicho to your Home Screen to open it like an app. Tap Share, then Add to Home Screen.",
     allergen:"{allergen}, for the first time. A small taste, then keep an eye on how {name} feels.",
     allergenAction:"What to watch for",
     noPlan:"Set the week for {name}.",
     noPlanAction:"Set the week",
-    weekDone:"Week done. Ready for the next?",
-    weekNext:"Set next week",
-    shop:{one:"{n} thing for the next 3 days.", other:"{n} things for the next 3 days."},
-    shopAction:"Send the list",
+    weekDone:"Week done.",
+    weekNext:"Ready for the next?",
+    shop:{one:"{n} thing to pick up.", other:"{n} things to pick up."},
+    shopNew:{one:"{n} new thing to pick up.", other:"{n} new things to pick up."},
+    missing:"Out of {food}.",
+    missingAction:"Shuffle {meal}?",
+    /* one-time hints, each the first time a screen is useful; never a tour */
+    hint:{shuffle:"Swipe left to shuffle {meal}.", kitchen:"Swipe up for the kitchen.", profile:"Swipe down to see how {name} is doing."},
     tomorrow:"Tomorrow: {food1} and {food2}.",
     tomorrowOne:"Tomorrow: {food1}.",
     sendTo:"Send to {person}",
@@ -145,34 +133,52 @@ const CONTENT = {
     ]
   },
 
-  /* ---------- cook mode: one step at a time ---------- */
-  cookMode:{
-    start:"Start cooking", stop:"Stop cooking", step:"Step {n} of {total}",
-    next:"Next step", back:"Back a step", done:"Done", finished:"That's it. Serve it all as {texture}.",
-    need:"You'll need", portions:{one:"{n} portion", other:"{n} portions"}, portionsLabel:"Portions",
-    timer:"Start a {min}-minute timer", timerLeft:"{food} · {time}", timerUp:"Time's up: {food}",
-    limit:"A web page can't ring when the phone is locked or you switch apps. Keep Chicho open while the timer runs."
+  /* ---------- Shuffle: change the menu ---------- */
+  shuffle:{
+    whichDay:"Which day", day:"Shuffle the day", meal:"Shuffle", mealLabel:"Shuffle {meal}", kept:"Kept", keepLabel:"Keep {meal} as it is",
+    none:"No other option fits right now.", didMeal:"{meal} shuffled.", didDay:"The day is shuffled.", undone:"Back as it was.",
+    instead:"Instead: {food}", nothing:"Nothing planned for this day.", sendTomorrow:"Send tomorrow"
   },
-
-  /* ---------- sheets: the only overlays ---------- */
-  sheet:{close:"Close", back:"Back"},
-  day:{title:"{weekday} {date}", nothing:"Nothing planned for this day.", change:"Change"},
-  shopSheet:{
-    title:"Shop", runsOut:"runs out {weekday}", forDay:"for {weekday}", today:"today", tomorrow:"tomorrow", inStock:"In stock",
-    bought:"Bought {food}", notBought:"{food}: not bought", send:"Send the list", alsoGet:"Also pick up {blank}", none:"Nothing to pick up.",
-    inStore:"In the store", other:"Everything else",
-    staples:"Already in the kitchen…", staplesHint:"Tap what you have. It comes off the list.", staplesDone:"That's all",
-    stapleHave:"{food}: at home", stapleNeed:"{food}: on the list"
+  /* ---------- Kitchen: stock, shopping, prep ---------- */
+  kitchen:{
+    inStore:"In the store", toBuy:"To buy", low:"Running low", atHome:"At home", freezer:"Freezer and prep", other:"Everything else",
+    forMeal:"{food} · for {day} {meal}", bought:"Bought {food}", send:"Send the list",
+    nothingToBuy:"Nothing to pick up for the next 3 days.", groupEmpty:"Nothing marked here yet.",
+    state:{plenty:"Plenty", low:"Low", out:"Out"}, stockLabel:"{food}: {state}. Tap for {next}.",
+    add:"Add something", addSentence:"At home: {blank}", added:"{food}: at home",
+    portions:{one:"{food} · {n} portion · made {date}", other:"{food} · {n} portions · made {date}"},
+    useOne:"Use one", useOneOf:"Use one portion of {food}", prepDone:"Done: {task}",
+    freezerEmpty:"Nothing in the freezer, nothing to prep."
+  },
+  /* ---------- New week: start the next one ---------- */
+  newWeek:{
+    starts:"Next week starts {blank}.", cook:"We'll cook on {blank} days.", into:"This week, we're most into…", newFoods:"Try {blank} new foods.",
+    cookHint:"A number from 1 to 7.", newHint:"A number from 0 to 5.",
+    allergenRule:"New allergens still come one at a time, {n} days apart.",
+    more:"More", offPlate:"Off the plate: {list}.", offPlateNone:"Nothing off the plate beyond the usual.",
+    atHome:"At home: {list}.", atHomeNone:"Nothing marked at home yet.",
+    again:"To offer again, in a new form: {list}.", againNone:"Nothing to offer again yet.",
+    seeProfile:"Profile", seeKitchen:"Kitchen",
+    set:"Set the table", from:"From {date}.", back:"Back to the sentences", done:"New week set."
+  },
+  /* ---------- Profile: know {name} ---------- */
+  profile:{
+    going:"How it's going", groupLine:"{group}: {foods}.", waiting:"Still waiting: {foods}.", nothingYet:"nothing yet",
+    loved:"Loved it", lovedNone:"Nothing yet. Foods show up here once they're mostly loved.",
+    warming:"Still warming up", warmingNone:"Nothing yet.", offeredTimes:{one:"{food} · offered {n} time", other:"{food} · offered {n} times"},
+    way:{steam:"Try it roasted this time, in wedges.", roast:"Try it steamed and mashed this time.", boil:"Try it in a new shape: soft strips instead of mash.",
+         raw:"Try it in a different shape, or next to something familiar.", pair:"Try it next to {food}, a food they love."},
+    offPlate:"Off the plate", allergies:"Allergies: {list}.", allergiesNone:"No allergies noted.", notFan:"Not a fan: {list}.",
+    allergenRecord:"Allergens", edit:"Edit",
+    firsts:"Firsts", first:"First {food} · {date}", firstsNone:"Firsts show up here as they happen.",
+    addPhoto:"Add photo", removePhoto:"Remove photo", photoOf:"A photo of {food}", photoTooBig:"That photo is too big to keep on this device.",
+    settings:"Settings", name:"Name", editSpelling:"Edit spelling", birthday:"Birthday", mealTimes:"Meal times", priorities:"Priorities",
+    basics:"Kitchen basics", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay welcome"
   },
   allergenNote:{
-    title:"Watching a first taste",
     note:"Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.",
-    notYet:"Not yet", introduced:"Introduced on {date}", noReaction:"Introduced, no reaction noted on {date}", markNoReaction:"No reaction noted"
-  },
-  profileSheet:{
-    title:"Profile", birthday:"Birthday and profile", offPlate:"Off the plate", priorities:"Priorities",
-    mealTimes:"Meal times", people:"People", replay:"Replay welcome",
-    appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}
+    notYet:"Not yet", introduced:"Introduced on {date}", introducedBefore:"Introduced", noReaction:"Introduced, no reaction noted on {date}",
+    markNoReaction:"No reaction noted", markFor:"No reaction noted for {allergen}", keepOut:"Keep out"
   },
   people:{
     title:"People",
@@ -184,27 +190,21 @@ const CONTENT = {
     stays:"Numbers stay on this device.",
     save:"Save",
     remove:"Remove {person}",
-    placeholderRole:""
+    removeShort:"Remove",
+    sendTomorrow:"Send tomorrow"
   },
 
   /* ---------- sharing: text first, nothing sent without you ---------- */
   send:{
-    title:"Send",
-    groceries:"Groceries to myself",
     tomorrowTo:"Tomorrow to {person}",
-    todayTo:"Today to {person}",
-    tomorrowAny:"Tomorrow, to someone",
     weekLink:"This week, as a link",
-    copy:"Copy as text",
-    more:"More…",
-    explain:"Opens Messages with everything filled in. You press send.",
     copied:"Copied",
     linkWarn:"This link includes {name}'s allergies and menu. Anyone who has it can read them, and it can't be taken back.",
     linkOk:"Make the link",
-    linkShort:"The week didn't fit in one link, so it covers today and tomorrow.",
-    selfAsk:"Notes to self go to {blank}.",
-    selfSkip:"Skip"
+    linkShort:"The week didn't fit in one link, so it covers today and tomorrow."
   },
+  /* the week preview (onboarding and New week): one row a day */
+  weekRow:{meal:"{meal}: {foods}"},
   share:{
     groceries:{head:"{name}'s groceries · {date}", updated:"Updated {time}", item:"☐ {item}", by:" · by {weekday}"},
     day:{head:"{name} · {weekday} {date}", updated:"Updated {time}", allergies:"Allergies: {list}. Not yet: {locked}.", none:"none",

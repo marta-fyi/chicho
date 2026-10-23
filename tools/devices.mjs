@@ -3,11 +3,13 @@
 // with its WebKit and Chromium browsers downloaded.)
 //
 // WebKit and Chromium, as iPhone SE (375×667), iPhone 14 (390×844), iPhone 14 Pro Max (430×932) and iPhone 14
-// landscape, in light and dark. Each run asserts: no horizontal overflow, the corner header inside the screen,
-// every tap target at least 44×44, the sticky pill clear of what it must not cover, and (at 390×844 and 375×667)
-// the fold budget. Screenshots land in docs/screenshots/: the full set (home, an expanded meal, each sheet, the
-// week, every onboarding step, each glow colour) for WebKit iPhone 14 in both themes, and home, week, shop and
-// the birthday step for every other device, engine and theme. --quick skips the screenshots.
+// landscape, in light and dark. Each run asserts: no horizontal overflow, Home never scrolls (and nothing on it is
+// cropped: an overfull meal block scrolls inside itself), the corner header inside the screen, every tap target on
+// Home at least 44×44 (the map's dots are the logged exception), the pill, footer and map clear of each other, and
+// in portrait the headline, moment line, meal title, first food and the pill on screen. Screenshots land in
+// docs/screenshots/: every screen for every device, engine and theme, plus (WebKit iPhone 14, both themes) the
+// offered states, Change, In the store, the New week preview, Profile's sections, a mid-swipe, each glow colour and
+// every onboarding step. --quick skips the screenshots.
 // --perf adds the throttled run (--perf-only runs just that) (Chromium, 4× CPU, Slow 4G): first paint and the cost of the grain and the breath.
 // Safe-area insets can't be emulated here; the real-iPhone list in docs/decisions.md covers them.
 import { createServer } from "node:http";
@@ -44,21 +46,23 @@ const DEVICES = [["se", "iPhone SE"], ["14", "iPhone 14"], ["14max", "iPhone 14 
 const results = [];
 const ok = (name, cond, got) => { results.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got))); };
 
-/* in the page: the checks every device makes */
+/* in the page: the checks every device makes (on Home) */
 const CHECKS = () => {
   const R = el => el.getBoundingClientRect(), H = innerHeight, W = document.documentElement.clientWidth, $ = s => document.querySelector(s);
-  const pill = $("#openMeal .mx-acts"), p = pill ? R(pill) : null;
-  const clear = el => el && R(el).height > 0 && R(el).top >= 0 && R(el).bottom <= H && (!p || R(el).bottom <= p.top + 1 || R(el).top >= p.bottom - 1);
-  const targets = [...document.querySelectorAll("#home button, #home a[href]")].filter(b => b.offsetParent && !b.classList.contains("inline") && !b.closest("[hidden]"));
-  const rows = [...document.querySelectorAll("#openMeal .fr")];
+  const on = el => el && R(el).height > 0 && R(el).top >= 0 && R(el).bottom <= H + 0.5 && R(el).left >= 0 && R(el).right <= W + 0.5;
+  const meet = (a, b) => a && b && R(a).height && R(b).height && R(a).bottom > R(b).top + 0.5 && R(a).top < R(b).bottom - 0.5 && R(a).right > R(b).left + 0.5 && R(a).left < R(b).right - 0.5;
+  const box = $("#nowMeal"), foot = $("#footLine"), map = $("#map"), bar = $(".offer-bar");
+  // the footer's words, not its box (the box runs under the map by design: it pads 56px on the right)
+  const words = (() => { const r = document.createRange(); r.selectNodeContents(foot); return {getBoundingClientRect: () => r.getBoundingClientRect()}; })();
+  const targets = [...document.querySelectorAll("#scr-home button, #scr-home a[href]")].filter(b => b.offsetParent && !b.classList.contains("inline") && !b.closest("[hidden]"));
   return {
     overflow: document.documentElement.scrollWidth - W,
+    homeScroll: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - H,
+    cropped: box.scrollHeight > box.clientHeight + 1 && !box.classList.contains("scrolls"),
     header: [R($("#profileBtn")).top >= 0 && R($("#profileBtn")).left >= 0, R($("#clock")).right <= W],
     small: targets.filter(b => R(b).width < 44 || R(b).height < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)),
-    pillCovers: p ? ["#headline", "#openMeal .mx-title", "#nextLabel"].filter(s => { const e = $(s); return e && R(e).bottom > p.top + 1 && R(e).top < p.bottom - 1; }).concat(rows.slice(0, 2).filter(r => R(r).bottom > p.top + 1 && R(r).top < p.bottom - 1).map(() => ".fr")) : [],
-    fold390: ["#profileBtn", "#clock", "#headline", "#moment", "#openMeal .mx-title"].every(s => clear($(s))) && rows.slice(0, 2).every(clear),
-    fold375: ["#headline", "#openMeal .mx-title"].every(s => clear($(s))) && clear(rows[0]),
-    nextPeeks: $("#nextLabel") && R($("#nextLabel")).bottom <= H
+    clash: [meet(bar, map) && "pill/map", !foot.hidden && meet(words, map) && "footer/map", !foot.hidden && meet(foot, bar) && "footer/pill"].filter(Boolean),
+    first: ["#headline", "#moment", ".meal-title", ".meal-foods li", ".offer-bar"].filter(s => !on($(s)))
   };
 };
 
@@ -76,38 +80,52 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
       await page.goto(base);
       await page.evaluate(SEED); await page.waitForTimeout(500);
       const c = await page.evaluate(CHECKS);
+      const portrait = slug !== "14land";
       ok(`${tag}: no horizontal overflow`, c.overflow <= 0, c.overflow);
+      ok(`${tag}: Home never scrolls the page`, c.homeScroll <= 0, c.homeScroll);
+      ok(`${tag}: nothing on Home is cropped`, !c.cropped);
       ok(`${tag}: the corner header is inside the screen`, c.header.every(Boolean), c.header);
-      ok(`${tag}: every tap target is at least 44×44`, c.small.length === 0, c.small);
-      ok(`${tag}: the sticky pill covers nothing it shouldn't`, c.pillCovers.length === 0, c.pillCovers);
-      if (slug === "14") { ok(`${tag}: fold budget at 390×844`, c.fold390, c); ok(`${tag}: Up next peeks`, c.nextPeeks); }
-      if (slug === "se") ok(`${tag}: fold budget at 375×667`, c.fold375, c);
+      ok(`${tag}: every tap target on Home is at least 44×44`, c.small.length === 0, c.small);
+      ok(`${tag}: the pill, footer and map keep clear of each other`, c.clash.length === 0, c.clash);
+      if (portrait) ok(`${tag}: headline, moment line, meal title, first food and the pill on screen`, c.first.length === 0, c.first);
       if (!args.has("--quick")) {
         const full = engine === "webkit" && slug === "14";
         const shot = async what => page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-${what}.jpg`), type: "jpeg", quality: 80, animations: "disabled", scale: "css"});
-        const reset = async () => { await page.evaluate("closeSheet(true); picked = null; openFood.clear(); homeChanged(); scrollTo(0, 0)"); await page.waitForTimeout(150); };
+        const go = async (name, extra) => { await page.evaluate(`go('${name}', {quiet: true})${extra ? "; " + extra : ""}`); await page.waitForTimeout(500); };
         await shot("home");
-        await page.evaluate("document.getElementById('weekSec').classList.add('in'); document.querySelectorAll('.below').forEach(s => s.classList.add('in')); document.getElementById('weekSec').scrollIntoView()");
-        await page.waitForTimeout(200); await shot("week"); await reset();
-        await page.evaluate("openSheet('shop')"); await page.waitForTimeout(350); await shot("sheet-shop"); await reset();
+        for (const name of ["shuffle", "kitchen", "week", "profile"]) { await go(name); await shot(name); }
+        await go("home");
         if (full) {
-          await page.evaluate("document.querySelector('#openMeal .fr').click()"); await page.waitForTimeout(250); await shot("meal-expanded"); await reset();
-          for (const [kind, arg] of [["day", "{pos: 2}"], ["send", "{}"], ["profile", "{}"], ["people", "{}"]]) {
-            await page.evaluate(`openSheet('${kind}', ${arg})`); await page.waitForTimeout(350); await shot("sheet-" + kind); await reset();
-          }
-          await page.evaluate("openSheet('shop')"); await page.waitForTimeout(300);
-          await page.evaluate("setDetent('large')"); await page.waitForTimeout(350); await shot("sheet-shop-large"); await reset();
-          // the patterns: one-at-a-time Change, tomorrow, cook mode (with a timer), in the store, the staples question
-          await page.evaluate("const f = defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).m.items[0]; openFood.add(f.id); changing = {id: f.id, i: 0}; homeChanged()"); await page.waitForTimeout(250); await shot("change"); await reset();
-          await page.evaluate("setView(1, null)"); await page.waitForTimeout(350); await shot("tomorrow"); await page.evaluate("setView(0, null)"); await reset();
-          await page.evaluate("startCooking(defaultOpen(refsOn(now()), refsOn(tomorrowOf(now())))); const st = cookSteps(cookRef().m).find(s => s.min); if (st) startTimer(st)"); await page.waitForTimeout(350); await shot("cook");
-          await page.evaluate("state.timers = []; save(); stopCooking()"); await reset();
-          await page.evaluate("openSheet('shop'); setStoreMode(true)"); await page.waitForTimeout(400); await shot("sheet-shop-instore"); await reset();
-          await page.evaluate("state.asked = Object.assign({}, state.asked); delete state.asked.staplesShop; delete state.asked.staplesDone; openSheet('shop')"); await page.waitForTimeout(350); await shot("sheet-shop-staples"); await reset();
+          // Home: offered, then how it went, then the quiet line
+          await page.evaluate("document.querySelector('.offer-pill').click()"); await page.waitForTimeout(400); await shot("home-offered-undo");
+          await page.evaluate("Object.keys(undoUntil).forEach(k => { undoUntil[k] = 0; showOutcome(k, 20000); }); layoutSig = ''; renderHome()"); await page.waitForTimeout(400); await shot("home-outcomes");
+          await page.evaluate("Object.keys(outcomeUntil).forEach(k => delete outcomeUntil[k]); layoutSig = ''; renderHome()"); await page.waitForTimeout(200); await shot("home-addhow");
+          await page.evaluate("const r = homeRef().ref; offerMeal(r.m, r.date, false); picked = null; save(); changed()"); await page.waitForTimeout(300);
+          // a mid-swipe: halfway to the Kitchen (the backdrop at 0.3x)
+          await page.evaluate("applyCamera(0, .5)"); await page.waitForTimeout(150); await shot("swipe-half"); await page.evaluate("applyCamera(0, 0)");
+          // Shuffle: one-at-a-time Change, and Tomorrow
+          await go("shuffle", "document.querySelector('[data-f^=\"change:\"]').click()"); await shot("shuffle-change");
+          await page.evaluate("shuffleUI.changing = null; shuffleUI.day = 1; refresh('shuffle')"); await page.waitForTimeout(200); await shot("shuffle-tomorrow");
+          await page.evaluate("shuffleUI.day = 0; refresh('shuffle')");
+          // Kitchen: stock in its states, a group open, In the store, the freezer
+          await go("kitchen", "const n = toBuyList(); setStock(n[0].foodId, n[0].name, 'plenty'); setStock(n[1].foodId, n[1].name, 'low'); setStock('rice', 'Rice', 'out'); state.freezer = [{foodId: 'lentils', name: 'Lentils', portions: 2, madeOn: '2026-10-20'}]; kitchenUI.open.grain = true; kitchenUI.open.vegetable = true; save(); changed()");
+          await shot("kitchen-stock");
+          await page.evaluate("document.querySelector('#scr-kitchen .scr-body').scrollTop = 9999"); await page.waitForTimeout(150); await shot("kitchen-freezer");
+          await page.evaluate("kitchenUI.store = true; refresh('kitchen'); document.querySelector('#scr-kitchen .scr-body').scrollTop = 0"); await page.waitForTimeout(200); await shot("kitchen-instore");
+          await page.evaluate("kitchenUI.store = false; state.pantry = []; state.freezer = []; kitchenUI.open = {}; save(); changed()");
+          // New week: More open, then the preview
+          await go("week", "nwUI.more = true; refresh('week'); document.querySelector('#scr-week .scr-body').scrollTop = 9999"); await page.waitForTimeout(150); await shot("week-more");
+          await page.evaluate("nwUI.more = false; setTable()"); await page.waitForTimeout(250); await shot("week-preview");
+          await page.evaluate("nwUI.draft = null; refresh('week')");
+          // Profile, with a week of offers behind it
+          await page.evaluate(`(() => { const d0 = now(); for (let k = 1; k <= 6; k++) { const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - k); mealsOn(d).forEach((x, j) => { offerMeal(x.m, d, true); setOutcome(x.m, d, ["loved", "some", "not_today"][(k + j) % 3]); }); } save(); changed(); })()`);
+          await go("profile"); await shot("profile-going");
+          for (const sec of ["warming", "offplate", "firsts", "settings", "people"]) { await page.evaluate(`document.querySelector('#scr-profile [data-sec=${sec}]').scrollIntoView()`); await page.waitForTimeout(150); await shot("profile-" + sec); }
+          await go("home");
           if (theme === "light") for (const g of ["grain", "vegetable", "fruit", "protein", "fat"]) {
             await page.evaluate(`glowKey = null; setGlow('${g}')`); await page.waitForTimeout(100); await shot("glow-" + g);
           }
-          await page.evaluate("glowKey = null; homeChanged()");
+          await page.evaluate("glowKey = null; changed()");
         }
         const steps = full ? ["welcome", "name", "birthday", "keepout", "priorities", "athome", "mealtimes", "reveal", "done"] : ["birthday"];
         for (const step of steps) {
@@ -136,7 +154,7 @@ if (args.has("--perf") || args.has("--perf-only")) {
     const fcp = performance.getEntriesByName("first-contentful-paint")[0];
     const lcp = performance.getEntriesByType("largest-contentful-paint").at(-1);
     let cls = 0; performance.getEntriesByType("layout-shift").forEach(e => { if (!e.hadRecentInput) cls += e.value; });
-    const home = performance.getEntriesByName("chicho:home")[0];   // the headline and the open meal are on screen
+    const home = performance.getEntriesByName("chicho:home")[0];   // the headline and the meal are on screen
     r({firstHome: home && Math.round(home.startTime), fcp: fcp && Math.round(fcp.startTime), lcp: lcp && Math.round(lcp.startTime), cls: +cls.toFixed(4), bytes: performance.getEntriesByType("resource").reduce((n, e) => n + (e.transferSize || 0), 0) + (performance.getEntriesByType("navigation")[0].transferSize || 0)});
   }, 3000)));
   // the breath: main-thread time over 6 s of a still page, with it on and then off (nothing else may tick: a rAF
@@ -152,7 +170,7 @@ if (args.has("--perf") || args.has("--perf-only")) {
   const breathOff = await busy();
   const perf = {profile: "Chromium, iPhone 14, 4× CPU, Slow 4G (150ms, 1.6 Mb/s)", ...paint, breathOn, breathOff};
   console.log("\nperf " + JSON.stringify(perf, null, 1));
-  ok("throttled first meaningful paint (the headline and the open meal) under 1.5 s", paint.firstHome && paint.firstHome < 1500, paint);
+  ok("throttled first meaningful paint (the headline and the meal) under 1.5 s", paint.firstHome && paint.firstHome < 1500, paint);
   ok("no layout shift on load", paint.cls < .01, paint.cls);
   writeFileSync(join(root, "docs", "perf.json"), JSON.stringify(perf, null, 2) + "\n");
   await ctx.close();

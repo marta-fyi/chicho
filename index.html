@@ -159,15 +159,6 @@ try{
   :focus{outline:none;}
   :focus-visible{outline:3px solid var(--tint);outline-offset:2px;}
 
-  /* ---------- background ----------
-     Light: the paper itself (--bg on the root; the grain comes with the glow).
-     Dark: the night sky, Marta's gradient image (bg.jpg, untouched) under the
-     evening tint, now still: the glow's breath is the only continuous animation. */
-  .bg{display:none;}
-  [data-theme="dark"] .bg{display:block;position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg);}
-  .bg-img{position:absolute;inset:0;background:url("bg.jpg") center / cover no-repeat;}
-  .bg-night{position:absolute;inset:0;background:linear-gradient(180deg, var(--night), var(--night-mid) 60%, var(--night-low));}
-
   /* ---------- buttons (iOS 26: capsules) ---------- */
 
   /* segmented control: a capsule track, the selected segment a raised glass
@@ -240,21 +231,19 @@ try{
      float above the card; the step slides and fades as you move, and the
      background image drifts faster for a moment, like moving through the sky. */
   .onb-open{overflow:hidden;}
-  .onb-open .container{visibility:hidden;}
+  .onb-open .app{visibility:hidden;}
   .onb{position:fixed;inset:0 0 var(--kb, 0px) 0;z-index:100;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:center;
        padding:calc(env(safe-area-inset-top) + 14px) var(--pad-r) calc(env(safe-area-inset-bottom) + 24px) var(--pad-l);}
   .onb[hidden]{display:none;}
   .onb [hidden]{display:none !important;}   /* hidden wins over any display set below */
   .onb-top{width:min(var(--col),100%);display:flex;align-items:center;gap:12px;min-height:48px;margin-bottom:12px;}
-  .onb-back, .onb-close{
+  .onb-back{
     width:44px;height:44px;border:none;border-radius:50%;background:none;
     display:grid;place-items:center;cursor:pointer;color:var(--ink);font-size:0;line-height:1;position:relative;
     transition:transform var(--dur-1) var(--ease-out);
   }
-  .onb-close::before, .onb-close::after{content:"";position:absolute;inset:0;margin:auto;width:20px;height:2px;border-radius:2px;background:currentColor;rotate:45deg;}
-  .onb-close::after{rotate:-45deg;}
-  .onb-back:focus-visible, .onb-close:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .onb-back:active, .onb-close:active{transform:scale(.92);}
+  .onb-back:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .onb-back:active{transform:scale(.92);}
   .onb-back[hidden], .onb-close[hidden]{display:none;}
   .onb-back::before{content:"";width:10px;height:10px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
   .onb-dots{flex:1;display:flex;justify-content:center;gap:8px;}
@@ -262,7 +251,8 @@ try{
   .onb-dots i.on{background:var(--ink);}
   .is-welcome .onb-dots{visibility:hidden;}
     .onb-spacer{width:44px;flex:0 0 auto;}
-  .onb-close:not([hidden]) + .onb-spacer{display:none;}   /* the X sits at the column's right edge */
+  .onb-close{margin-right:-6px;}   /* a text "Close", at the column's right edge */
+  .onb-close:not([hidden]) + .onb-spacer{display:none;}
   .onb-card{position:relative;width:min(var(--col),100%);display:flex;flex-direction:column;align-items:center;text-align:center;margin:auto 0;padding:0 0 56px;}
   /* a step you type into starts at a fixed height (small-viewport units don't change with the keyboard), so opening
      or closing the keyboard never moves the sentence; the scroller ends at the keyboard (--kb) */
@@ -386,10 +376,6 @@ try{
            animation-delay:calc(var(--k) * 70ms);}
   @keyframes rv-rise{from{opacity:0;transform:translateY(24px) scale(.85);}}
   /* the week, before it's yours */
-  .wk-prev{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:4px;width:100%;margin-top:28px;}
-  .wk-day{display:flex;flex-direction:column;align-items:center;gap:2px;}
-  .wk-name{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px;}
-  .wk-art{display:block;rotate:var(--r);}
   
   @media (prefers-reduced-motion: reduce){
     .blank.idle:focus-within::after{animation:none;}
@@ -399,11 +385,11 @@ try{
   }
 
   /* labels and button text: uppercase with +0.06em (the words stay sentence case in content.js) */
-  .btn-ink, .offer-pill, .mx-acts .btn-text.undo, .outcome, .pill-o, .alt, .also-btn, .s-seg-opts button, .kind-toggle button,
-  .mini, .label, .s-sec, .btn-text:not(.inline), .wd-l{text-transform:uppercase;letter-spacing:var(--track-label);}
-  .btn-ink, .offer-pill, .mx-acts .btn-text.undo{font-size:14px;}
-  .outcome, .pill-o, .alt, .also-btn, .s-seg-opts button, .btn-text:not(.inline), .kind-toggle button{font-size:13px;}
-  .mini, .label, .s-sec, .wd-l{font-size:12px;}
+  .btn-ink, .offer-pill, .offer-bar .btn-text.undo, .outcome, .pill-o, .alt, .s-seg-opts button, .kind-toggle button,
+  .sec-h, .btn-text:not(.inline){text-transform:uppercase;letter-spacing:var(--track-label);}
+  .btn-ink, .offer-pill, .offer-bar .btn-text.undo{font-size:14px;}
+  .outcome, .pill-o, .alt, .s-seg-opts button, .btn-text:not(.inline), .kind-toggle button{font-size:13px;}
+  .sec-h{font-size:12px;}
 
   /* ---------- keep out, priorities ---------- */
 
@@ -413,253 +399,202 @@ try{
   .lock{position:relative;width:9px;height:7px;border-radius:2px;background:var(--muted);margin-top:4px;}
   .lock::before{content:"";position:absolute;left:1.5px;bottom:5px;width:6px;height:5px;border:1.5px solid var(--muted);border-bottom:none;border-radius:4px 4px 0 0;box-sizing:border-box;}
 
-  /* ---------- home: a lock screen ----------
-     A phone: one column, 20px from each edge (or the safe area), at most 430px
-     wide; wider screens get the same column, centred, on the same background.
-     No cards, no panels: type size, weight and space carry the hierarchy.
-     Nothing responds to hover; everything is a tap. */
-  .home{max-width:calc(var(--col) + var(--pad-l) + var(--pad-r));margin:0 auto;padding:0 var(--pad-r) calc(env(safe-area-inset-bottom) + 48px) var(--pad-l);color:var(--ink);}
-  .lockscreen{display:flex;flex-direction:column;padding:4px 0 0;}
-  /* the corner header: who at top-left (one 44px button, it opens Profile), when at top-right */
-  .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-top:calc(env(safe-area-inset-top) + 12px);}
+  /* ---------- the app: five full-screen views on a 2D canvas ----------
+     One pager: the screens sit on a grid (LAYOUT in home.js), a camera holds them
+     and only the camera moves (transform). Home never scrolls, so the pager owns
+     every direction there; the other screens scroll natively and are left by their
+     header zone or by pulling past their scroll edge. Nothing responds to hover. */
+  html, body{overscroll-behavior:none;}
+  body.is-app{height:100dvh;overflow:hidden;padding-bottom:0;}
+  .app{position:fixed;inset:0;color:var(--ink);}
+  .pager{position:absolute;inset:0;overflow:hidden;}
+  .camera{position:absolute;inset:0;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;}
+  .screen.is-off{visibility:hidden;}
+  .scr-col{width:100%;max-width:calc(var(--col) + var(--pad-l) + var(--pad-r));margin:0 auto;padding:0 var(--pad-r) 0 var(--pad-l);}
+  .scr-home{touch-action:none;}
+  .home-in{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:calc(env(safe-area-inset-top) + 12px);padding-bottom:calc(env(safe-area-inset-bottom) + 12px);}
+  /* the backdrop: the glow (light) or the night sky (dark), panning at 0.3x of the camera */
+  .backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+  .bg{display:none;}
+  [data-theme="dark"] .bg{display:block;position:absolute;top:-36%;bottom:-66%;left:-6%;right:-36%;background:var(--bg);}
+  .bg-img{position:absolute;inset:0;background:url("bg.jpg") center / cover no-repeat;}
+  .bg-night{position:absolute;inset:0;background:linear-gradient(180deg, var(--night), var(--night-mid) 60%, var(--night-low));}
+  .glow-plane{position:absolute;inset:0;--glow-size:calc(1.5 * min(var(--vw, 100vw) - var(--pad-l) - var(--pad-r), var(--col)));}
+  [data-theme="dark"] .glow-plane{display:none;}
+  .glow-pulse{position:absolute;left:50%;top:var(--glow-y, 160px);width:var(--glow-size);height:var(--glow-size);translate:-50% -50%;transition:opacity 1.2s ease-in-out;}
+  .glow-dim .glow-pulse{opacity:.55;}
+  .glow{position:absolute;inset:0;animation:breathe 10s ease-in-out infinite;will-change:transform, opacity;}
+  @keyframes breathe{0%, 100%{transform:scale(1);opacity:.94;} 50%{transform:scale(1.05);opacity:1;}}
+  .tab-hidden .glow{animation-play-state:paused;}
+  .glow-s{position:absolute;inset:0;opacity:0;}
+  .glow-s.home-on{opacity:1;}
+  .glow-l{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease-in-out;}
+  .glow-l.is-on{opacity:1;}
+  .glow-grain{position:absolute;inset:0;background:url("img/grain.png") 0 0 / 128px 128px;
+              -webkit-mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);}
+  @media (prefers-reduced-motion: reduce){ .glow{animation:none;} .glow-l{transition-duration:.3s;} }
+
+  /* ---------- Home: offer ---------- */
+  .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .who-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
   .who-age, .when-date{font-size:13px;line-height:1.4;color:var(--ink-muted);}
   .who-name{font-size:20px;font-weight:500;line-height:1.3;text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
   .who-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
-  .when{display:flex;flex-direction:column;align-items:flex-end;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:right;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:pan-y;}
-  .when[aria-pressed="true"] .when-date{color:var(--ink);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
-  .when:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
-  .hl{touch-action:pan-y;}
+  .when{display:flex;flex-direction:column;align-items:flex-end;margin:0;padding:2px 0;text-align:right;font-variant-numeric:tabular-nums;}
   .when-time{font-size:20px;font-weight:500;line-height:1.3;}
-  /* the poster's captions: 12px uppercase; the stage at 55% (decorative), the glow's group in --ink-muted (functional) */
-  .captions{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;font-size:12px;line-height:1.5;text-transform:uppercase;letter-spacing:var(--track-label);}
-  .captions p{margin:0;}
-  .cap-stage{display:flex;flex-direction:column;color:var(--ink-deco);}
-  .cap-glow{flex:none;width:15ch;color:var(--ink-muted);text-align:right;}   /* one width for every group's name, so changing colour never moves the page */
-  .headline{margin:0;font-family:var(--font-display);font-size:clamp(32px, 9.5vw, 40px);font-weight:500;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
+  .headline{margin:20px 0 0;font-family:var(--font-display);font-size:clamp(32px, 9.5vw, 40px);font-weight:500;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
   .headline:focus{outline:none;}
-  /* ---------- the glow (light theme) ----------
-     ~150% of the column, square, centred on the headline. The wrapper spans the
-     screen and clips sideways (never a horizontal scroll) and sits behind
-     everything. Two stacked layers crossfade (1.2s) when the open meal's food
-     group changes; the breath (scale 1→1.05, opacity .94→1, 10s) is the page's
-     only continuous animation, paused when the tab is hidden, off under reduced
-     motion. After 21:30 it drops to 55%. Its gradient comes from theme.js. */
-  .hl{position:relative;margin-top:16px;}
-  .glow-wrap{position:absolute;left:50%;top:50%;width:var(--vw, 100vw);height:0;transform:translateX(-50%);overflow-x:clip;overflow-y:visible;
-             pointer-events:none;z-index:-1;transition:opacity 1.2s ease-in-out;
-             --glow-size:calc(1.5 * min(var(--vw, 100vw) - var(--pad-l) - var(--pad-r), var(--col)));}
-  [data-theme="dark"] .glow-wrap{display:none;}
-  .glow-dim .glow-wrap{opacity:.55;}
-  .glow-pulse{position:absolute;left:50%;top:0;width:var(--glow-size);height:var(--glow-size);translate:-50% -50%;}
-  .glow{position:absolute;inset:0;animation:breathe 10s ease-in-out infinite;will-change:transform, opacity;}
-  @keyframes breathe{0%, 100%{transform:scale(1);opacity:.94;} 50%{transform:scale(1.05);opacity:1;}}
-  .tab-hidden .glow{animation-play-state:paused;}
-  .glow-l{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease-in-out;}
-  .glow-l.is-on{opacity:1;}
-  /* the grain, layered over the colour, fading out with it */
-  .glow-grain{position:absolute;inset:0;background:url("img/grain.png") 0 0 / 128px 128px;
-              -webkit-mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);}
-  @media (prefers-reduced-motion: reduce){ .glow{animation:none;} .glow-l{transition-duration:.3s;} }
-  .moment{margin:10px 0 0;min-height:1.4em;font-size:17px;line-height:1.45;color:var(--ink);text-wrap:pretty;}
+  .moment{margin:10px 0 0;min-height:1.45em;font-size:17px;line-height:1.45;color:var(--ink);text-wrap:pretty;}
   .moment.calm-tone{font-weight:500;}
   /* inline text actions keep the line's rhythm; their 44px target is an invisible pad around the words */
   .btn-text.inline{position:relative;min-height:0;min-width:0;padding:0 2px;font-size:inherit;line-height:inherit;color:var(--ink);vertical-align:baseline;}
   .btn-text.inline::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:44px;translate:0 -50%;}
-  .btn-text.quiet{color:var(--ink-85);font-weight:500;}
-  .mini{margin:0 0 6px;font-size:15px;font-weight:500;color:var(--ink);letter-spacing:0;}   /* full ink: at 85% the night sky took it to 4.2:1 */
-  /* the open meal: one object, in place */
-  .open-meal{margin-top:20px;}
-  .mx{display:flex;flex-direction:column;}
-  .mx-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .mx-title{margin:0;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:22px;font-weight:500;letter-spacing:-.02em;text-align:left;cursor:pointer;min-height:44px;}
-  h2.mx-title{cursor:default;min-height:0;}
-  .mx-title:focus{outline:none;}
-  button.mx-title:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
-  .mx-meta{margin:0 0 4px;font-size:15px;line-height:1.4;color:var(--ink-85);}
-  .mx-foods{list-style:none;margin:0;padding:0;}
-  .fr{display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:12px;width:100%;min-height:52px;padding:4px 0;border:none;border-bottom:1px solid var(--ink-20);
-      background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
-  .fr .food-art{--art:28px;}
-  .fr-text{display:flex;flex-direction:column;min-width:0;}
-  .fr-name{font-size:17px;font-weight:500;line-height:1.25;}
-  .fr-sub{font-size:15px;color:var(--ink-85);line-height:1.3;}
-  .chev{width:10px;height:10px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;rotate:45deg;translate:0 -3px;transition:rotate var(--dur-2) var(--ease-out);opacity:.85;}
-  .fr[aria-expanded="true"] .chev{rotate:225deg;translate:0 3px;}
-  .fr:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
-  .fr-more{padding:4px 0 12px 40px;font-size:16px;line-height:1.5;}
-  .fr-more p{margin:6px 0 0;}
-  .fr-why{color:var(--ink-85);}
-  .fr-alts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-  .alt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 8px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;cursor:pointer;}
-  .alt .food-art{--art:24px;}
-  .suggest-list{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;}
-  .suggest-list:empty{display:none;}
-  .alt-card{display:flex;align-items:center;gap:12px;margin:10px 0 0;font-size:17px;font-weight:500;}
-  .alt-card .food-art{--art:28px;}
-  .alt-acts{display:flex;gap:8px 16px;margin-top:4px;}
-  /* row swipes: the row slides (transform), the word for what it will do shows behind it */
-  .mrow{position:relative;touch-action:pan-y;}
-  .swipe-hint{position:absolute;top:0;height:48px;display:flex;align-items:center;font-size:12px;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);opacity:0;pointer-events:none;}
-  .swipe-hint[data-side="left"]{left:0;}
-  .swipe-hint[data-side="right"]{right:52px;}
-  .mx-how{margin:12px 0 0;font-size:16px;line-height:1.5;color:var(--ink-85);}
-  .mx-acts{position:sticky;bottom:calc(16px + env(safe-area-inset-bottom));z-index:3;display:flex;align-items:stretch;width:100%;height:48px;margin-top:16px;
-           border-radius:999px;background:var(--ink);color:var(--on-ink);}
+  .btn-text.quiet{color:var(--ink-muted);font-weight:500;}
+  /* the meal now (or next): text only. It never scrolls the page; opened up, the block scrolls inside itself */
+  .now-meal{flex:1 1 auto;min-height:0;margin-top:22px;overflow:hidden;}
+  .now-meal.scrolls{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;}
+  .meal-title{margin:0;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
+  .meal-title:focus{outline:none;}
+  .meal-foods{list-style:none;margin:10px 0 0;padding:0;font-size:17px;line-height:1.5;}
+  .meal-foods .more-btn{margin-left:-2px;}
+  .meal-how{margin:10px 0 0;font-size:16px;line-height:1.5;color:var(--ink-muted);}
+  .meal-how .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .meal-also{margin:10px 0 0;font-size:16px;line-height:1.5;}
+  .meal-also b{font-weight:500;}
+  .offer-zone{flex:none;margin-top:14px;}
+  .offer-bar{display:flex;align-items:stretch;width:100%;height:48px;border-radius:999px;background:var(--ink);color:var(--on-ink);}
   /* the pill keeps its size in every state ("Mark as offered", "Offered · Undo", "Offered"), so nothing shifts */
   .offer-pill{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;height:48px;padding:0 20px;border-radius:999px;border:none;
-              background:none;color:inherit;font:inherit;font-size:17px;font-weight:500;cursor:pointer;
-              transition:transform var(--dur-1) var(--ease-out);}
-  .mx-acts .btn-text.undo{flex:none;min-height:48px;margin-left:-12px;padding:0 22px 0 0;color:inherit;border-radius:0 999px 999px 0;}
-  .mx-acts .btn-text.undo::before{content:"·";display:inline-block;margin-right:10px;text-decoration:none;}
-  .mx-acts:has(.undo) .offer-pill{justify-content:flex-end;padding-right:12px;}
-  .offer-pill i svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
-  .offer-pill:active{transform:scale(.97);}
-  .offer-pill:focus-visible, .outcome:focus-visible, .alt:focus-visible, .ring-btn:focus-visible, .mrow-btn:focus-visible, .also-btn:focus-visible,
-   .wd:focus-visible, .shop-line:focus-visible, .s-row:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-  .outcome{min-height:44px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;cursor:pointer;}
+              background:none;color:inherit;font:inherit;font-size:14px;font-weight:500;cursor:pointer;}
+  .offer-bar .btn-text.undo{flex:none;min-height:48px;margin-left:0;padding:0 22px 0 0;color:inherit;border-radius:0 999px 999px 0;font-size:14px;}
+  .offer-bar .btn-text.undo::before{content:"·";display:inline-block;margin-right:10px;text-decoration:none;}
+  .offer-bar:has(.undo) .offer-pill{justify-content:flex-end;padding-right:0;}   /* the two hit areas meet, never overlap */
+  .offer-pill:focus-visible, .outcome:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .outcome{flex:1 1 0;min-height:44px;padding:0 10px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
   .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
-  .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0 0;font-size:17px;}
-  .mx-links .btn-text.small{min-height:44px;padding:0;font-size:13px;}   /* button text: 13px uppercase, like every label */
-  .mx-links label{font-weight:500;}
-  .hold{display:inline-flex;align-items:center;gap:12px;min-height:48px;margin-top:20px;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:13px;
-        text-transform:uppercase;letter-spacing:var(--track-label);cursor:pointer;-webkit-touch-callout:none;}
-  .hold-ring{position:relative;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink);overflow:hidden;}
-  .hold-ring b{position:absolute;inset:0;border-radius:50%;background:var(--ink);transform:scale(0);}
-  .hold:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
-  #newWeekUndo{margin-top:4px;}
-  /* ---------- cook mode ----------
-     The home becomes one step at a time: the step in large type on the glow (dimmed to a calm brightness), the
-     step count and its timer on the moment line, then portions and what you'll need; Next is a big target in the
-     thumb zone, fixed at the bottom. The screen stays awake while cooking. */
-  .is-cooking :is(.captions, #openMeal, #nextSec, #alsoSec, #earlierSec, .below){display:none !important;}
-  .is-cooking .headline{font-size:clamp(26px, 7.4vw, 32px);line-height:1.25;}
-  .cook{margin-top:20px;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
-  .cook[hidden]{display:none;}
-  .cook-portions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .cook-portions .mini{margin:0 8px 0 0;}
-  .cook-portions button{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:500;cursor:pointer;}
-  .cook-portions button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
-  .cook-need{list-style:none;margin:16px 0 0;padding:0;}
-  .cook-need li{display:flex;align-items:center;gap:12px;min-height:40px;font-size:16px;border-bottom:1px solid var(--hairline);}
-  .cook-need .food-art{--art:24px;}
-  .cook-need b{font-weight:500;}
-  .cook-limit{margin:16px 0 0;font-size:15px;line-height:1.5;color:var(--ink-muted);}
-  .cook-next{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));z-index:5;transform:translateX(-50%);
-             width:min(var(--col), calc(100% - var(--pad-l) - var(--pad-r)));min-height:88px;border:none;border-radius:28px;background:var(--ink);color:var(--on-ink);
-             font:inherit;font-size:16px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);cursor:pointer;}
-  .cook-next:not(:disabled):active{transform:translateX(-50%) scale(.97);}
-  .cook-next:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
-  .cook-acts{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;}
-  /* a timer: a thin ring in the rings' style, its arc set once a second (never animated) */
-  .timer{display:inline-flex;align-items:center;gap:8px;vertical-align:middle;}
-  .timer svg{width:22px;height:22px;transform:rotate(-90deg);}
-  .timer circle{fill:none;stroke-width:2;}
-  .timer .t-bg{stroke:var(--hairline);}
-  .timer .t-fg{stroke:var(--ink);stroke-dasharray:100;stroke-linecap:round;}
+  .how-went{margin:6px 0 0;}
+  .foot-line{flex:none;display:flex;align-items:center;min-height:44px;margin:8px 0 0;padding-right:56px;font-size:15px;line-height:1.4;color:var(--ink-muted);}
+  .foot-line[hidden]{display:none;}
+  .is-milk .now-meal, .is-milk .offer-zone, .is-empty .now-meal, .is-empty .offer-zone{display:none;}
+
+  /* ---------- the other screens: a pinned header, native scroll, one primary pill ---------- */
+  .scr-head{flex:none;padding-top:calc(env(safe-area-inset-top) + 4px);touch-action:none;}
+  .scr-head .scr-col{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;}
+  .home-link{margin-left:-6px;}
+  .scr-title{flex-basis:100%;margin:2px 0 10px;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
+  .scr-title:focus{outline:none;}
+  .scr-sub{flex-basis:100%;margin:-6px 0 10px;font-size:15px;color:var(--ink-muted);}
+  .scr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:24px;}
+  .scr-pin{flex:none;padding:10px 0 calc(env(safe-area-inset-bottom) + 64px);}
+  .scr-foot{flex:none;height:calc(env(safe-area-inset-bottom) + 64px);}
+  .scr-pin .btn-ink{width:100%;}
+  .sec{margin-top:26px;}
+  .sec:first-child{margin-top:4px;}
+  .sec-h{margin:0 0 4px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
+  .sec-p{margin:6px 0 0;font-size:16px;line-height:1.5;}
+  .sec-p.muted, .quiet-line{color:var(--ink-muted);}
+  .quiet-line{margin:8px 0 0;font-size:15px;line-height:1.5;}
+  .row{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 0;border-bottom:1px solid var(--hairline);font-size:17px;line-height:1.35;}
+  .row .row-t{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .row .row-sub{font-size:15px;color:var(--ink-muted);}
+  .row .food-art{--art:24px;}
+  .row-btn{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:4px 0;border:none;border-bottom:1px solid var(--hairline);background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
+  .row-btn .row-t{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .row-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .state-word{flex:none;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);}
+  .chev{width:10px;height:10px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;rotate:45deg;translate:0 -3px;transition:rotate var(--dur-2) var(--ease-out);opacity:.85;}
+  [aria-expanded="true"] > .chev{rotate:225deg;translate:0 3px;}
+  .toggle{display:inline-flex;gap:2px;}
+  .toggle .btn-text{min-width:0;padding:0 6px;font-size:13px;opacity:.6;text-decoration:none;}
+  .toggle .btn-text[aria-pressed="true"]{opacity:1;text-decoration:underline;}
+  .toggle .sep{align-self:center;font-size:13px;color:var(--ink-muted);}
   .wake{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
   .wake i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;}
   .wake[aria-pressed="true"] i{background:currentColor;}
-  .undo-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
-  /* the ring: on every meal, always; filled once offered */
+  .undo-line{margin:6px 0 0;font-size:16px;color:var(--ink-muted);}
+  /* the done ring (prep tasks, To buy): 28px, a 1.5px ink line; done fills with ink and the check shows */
   .ring-btn{position:relative;flex:none;width:44px;height:44px;padding:0;border:none;border-radius:50%;background:none;color:var(--ink);cursor:pointer;}
-  /* 28px, a 1.5px ink line, transparent inside (the glow shows through); offered fills with ink and the
-     check draws in (a wipe moving off it: transform only, ~180ms) in the paper colour */
-  .ring-btn i{position:absolute;inset:8px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;overflow:hidden;transition:transform var(--dur-1) var(--ease-out);}
+  .ring-btn i{position:absolute;inset:8px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;overflow:hidden;}
   .ring-btn i::before{content:"";position:absolute;inset:-1px;border-radius:50%;background:var(--ink);transform:scale(0);transition:transform 160ms var(--ease-out);}
   .ring-btn svg{position:relative;width:16px;height:16px;fill:none;stroke:var(--bg);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
-  .ring-btn svg .wipe{fill:var(--ink);stroke:none;transform-box:fill-box;transition:transform 180ms var(--ease-out) 60ms;}
   .ring-btn[aria-pressed="true"] i::before{transform:scale(1);}
   .ring-btn[aria-pressed="true"] svg{opacity:1;}
-  .ring-btn[aria-pressed="true"] svg .wipe{transform:translateX(100%);}
-  
-  /* while you're at it */
-  .also{margin-top:24px;}
-  .also-row{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:12px;padding:6px 0;}
-  .also-row .food-art{--art:24px;}
-  .also-text{margin:0;font-size:17px;line-height:1.4;}
-  .also-note{display:block;font-size:15px;color:var(--ink-85);}
-  .also-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px 0 6px;border:none;border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:500;cursor:pointer;}
-  .also-btn i{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;}
-  .also-btn svg{width:14px;height:14px;fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
-  /* up next, earlier today: compact rows that open in place */
-  .rows{margin-top:24px;}
-  .rows[hidden], .also[hidden]{display:none;}
-  .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .mrow-btn{flex:1;display:flex;align-items:center;gap:12px;min-width:0;min-height:48px;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
-  .mrow-btn .food-art{--art:24px;}
-  .mrow-t{display:flex;flex-direction:column;}
-  .mrow-sub{font-size:15px;color:var(--ink-85);}
-  .mrow.is-earlier .mrow-btn{color:var(--ink-85);}
-  .mrow .undo-line{flex-basis:100%;margin:0 0 4px 36px;}
-  .mrow .outcomes{flex-basis:100%;margin:0 0 8px 36px;}
-  .rows .mx{margin:6px 0 10px;}
-  .is-milk .open-meal, .is-milk .also, .is-milk .rows, .is-milk .below, .is-empty .open-meal, .is-empty .rows, .is-empty .also, .is-empty .below{display:none;}
-  /* below the fold: fades up as it arrives */
-  .below{margin-top:36px;opacity:0;transform:translateY(16px);transition:opacity 500ms var(--ease-out), transform 500ms var(--ease-out);}
-  .below.in{opacity:1;transform:none;}
-  .label{margin:0 0 12px;font-size:var(--fs-title);font-weight:500;letter-spacing:-.02em;}
-  .strip{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));justify-items:center;}
-  .wd{display:flex;flex-direction:column;align-items:center;gap:2px;width:44px;min-height:44px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;cursor:pointer;border-radius:14px;}
-  .wd-l{font-size:14px;font-weight:500;}
-  .wd-n{font-size:15px;font-variant-numeric:tabular-nums;}
-  .ring{position:relative;width:28px;height:28px;margin-top:2px;}
-  .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
-  .ring circle{fill:none;stroke-width:3;}
-  .r-bg{stroke:var(--ink-20);}
-  .r-fg{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p, 0) * 100);}
-  .wd-dot{width:5px;height:5px;border-radius:50%;background:transparent;margin-top:2px;}
-  .wd.today .wd-dot{background:var(--ink);}
-  .var-line{margin:18px 0 6px;font-size:17px;}
-  .var-line .mini{display:inline;margin:0 6px 0 0;}
-  .vdots{display:flex;flex-wrap:wrap;gap:8px 16px;}
-  .vdot{display:inline-flex;align-items:center;gap:8px;font-size:15px;}
-  .vdot i{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink);}
-  .vdot.on i{background:var(--dot);}   /* the group's glow colour, filled once offered; the name always sits beside it */
-  .shop-line{display:inline-flex;align-items:center;gap:14px;min-height:56px;padding:4px 0;border:none;background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
-  .stack{display:inline-flex;}
-  .stack .st{display:block;margin-left:-10px;z-index:var(--z);}
-  .stack .st:first-child{margin-left:0;}
-  /* a food with no drawing: a hairline circle, never an emoji */
-  .food-none{display:inline-block;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-20);}
-  /* sheets: the one overlay (white, black ink, a visible ✕) */
-  .s-rows{display:flex;flex-direction:column;}
-  .s-row{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;min-height:52px;padding:8px 2px;border:none;border-bottom:1px solid var(--hairline);
-         background:none;color:var(--ink);font:inherit;font-size:17px;font-weight:500;text-align:left;cursor:pointer;}
-  .s-row:disabled{opacity:.4;cursor:default;}
-  .s-row-sub{font-size:15px;font-weight:400;color:var(--ink-muted);}
-  .s-hint, .s-note, .s-status{font-size:15px;line-height:1.5;color:var(--ink-muted);margin:12px 0 0;}
-  .s-status:empty{display:none;}
-  .s-note{margin-top:18px;}
-  .s-warn{font-size:17px;line-height:1.45;margin:0 0 16px;}
-  .s-empty{font-size:17px;color:var(--ink-muted);}
-  .s-sec{margin:20px 0 6px;font-size:15px;font-weight:500;color:var(--ink-muted);}
-  .s-meal, .s-item{display:flex;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid var(--hairline);}
-  .s-meal-t, .s-item-t{flex:1;margin:0;display:flex;flex-direction:column;}
-  .s-meal-t p{margin:0;}
-  .s-meal-h, .s-item-n{font-size:17px;font-weight:500;}
-  .s-meal-f, .s-item-sub{font-size:15px;color:var(--ink-muted);}
-  .s-add, .s-sentence{margin:14px 0 0;font-size:20px;font-weight:500;line-height:1.5;}
-  .s-sentence.small{font-size:17px;}
+  .ring-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .ring-btn:active{transform:none;}
+  .ring-btn:not(:disabled):active i{transform:scale(.97);}
+  /* Shuffle */
+  .sh-meal{padding:14px 0 12px;border-bottom:1px solid var(--hairline);}
+  .sh-meal:focus{outline:none;}
+  .sh-meal.is-target{scroll-margin-top:8px;}
+  .sh-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0;font-size:17px;font-weight:500;}
+  .sh-state{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
+  .sh-foods{list-style:none;margin:4px 0 0;padding:0;}
+  .sh-food{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 8px;min-height:44px;font-size:16px;}
+  .sh-food .alt-line{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;margin:0 0 6px;font-size:16px;}
+  .sh-acts{display:flex;flex-wrap:wrap;gap:0 16px;margin-top:2px;}
+  .sh-none{margin:4px 0 0;font-size:15px;color:var(--ink-muted);}
+  .sh-foot{margin:18px 0 0;}
+  /* Kitchen */
+  .group-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;padding:0;border:none;border-bottom:1px solid var(--hairline);background:none;color:var(--ink);font:inherit;font-size:17px;text-align:left;cursor:pointer;}
+  .group-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .group-list{padding-left:12px;}
+  .group-list[hidden]{display:none;}
+  .add-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:10px 0 0;font-size:17px;font-weight:500;}
+  .suggest-list{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;}
+  .suggest-list:empty{display:none;}
+  .alt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;}
+  .alt:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .storage-note{margin:10px 0 0;font-size:15px;line-height:1.5;color:var(--ink-muted);}
+  /* New week: the onboarding's sentences, inside the pager */
+  .nw .sent{font-size:clamp(26px, 7.6vw, 32px);text-align:left;margin-top:22px;}
+  .nw .sent:first-child{margin-top:6px;}
+  .nw .pills{justify-content:flex-start;margin-top:14px;}
+  .nw .onb-hint{text-align:left;}
+  .nw-date{position:relative;display:inline-block;}
+  .blank.date .blank-input{position:static;width:auto;text-align:left;min-width:8ch;}
+  .blank.date .blank-input::-webkit-calendar-picker-indicator{display:none;}
+  .nw-more{margin-top:26px;}
+  .nw-preview .sent{margin-top:4px;}
+  .wk-rows{list-style:none;margin:18px 0 0;padding:0;width:100%;text-align:left;}
+  .wk-row{display:grid;grid-template-columns:4.5ch 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--hairline);font-size:15px;line-height:1.45;}
+  .wk-name{font-weight:500;}
+  .onb .wk-rows{max-width:var(--col);}
+  .nw-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:20px;}
+  /* Profile */
+  .pf-name{flex-basis:100%;margin:2px 0 0;font-size:24px;font-weight:500;letter-spacing:var(--track-label);text-transform:uppercase;line-height:1.25;}
+  .pf-name:focus{outline:none;}
+  .pf-firsts .row img{width:44px;height:44px;border-radius:8px;object-fit:cover;}
+  .pf-photo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
   .s-seg{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:56px;border-bottom:1px solid var(--hairline);}
-  .s-seg-l{font-size:17px;font-weight:500;}
+  .s-seg-l{font-size:17px;}
   .s-seg-opts{display:flex;gap:8px;}
-  .s-seg-opts button{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:500;cursor:pointer;}
+  .s-seg-opts button{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;}
   .s-seg-opts button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
   .s-seg-opts button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .store-toggle{margin:0 0 8px;}
-  .s-staples{margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid var(--hairline);}
-  .s-staples .pills{justify-content:flex-start;margin-top:12px;}
-  .s-staples .s-sentence{margin-top:4px;}
-  .s-fold{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin-top:12px;padding:0;border:none;border-bottom:1px solid var(--hairline);background:none;color:var(--ink);font:inherit;cursor:pointer;}
-  .s-fold .s-sec{margin:0;}
-  .s-fold[aria-expanded="true"] .chev{rotate:225deg;translate:0 3px;}
-  .s-fold:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  #inStockList[hidden]{display:none;}
-  .s-person{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--hairline);}
-  .s-person p{margin:0;font-size:17px;}
-  .s-foot{margin-top:22px;}
+  .s-sentence{margin:14px 0 0;font-size:18px;font-weight:500;line-height:1.5;}
+  .s-person{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;min-height:48px;border-bottom:1px solid var(--hairline);font-size:17px;}
+  .s-person p{margin:0;}
+  .s-warn{margin:10px 0 0;font-size:16px;line-height:1.45;}
+  .s-status:empty{display:none;}
+  /* the position map: five dots laid out like the canvas, the current one filled; each dot is a link */
+  .map{position:absolute;right:max(20px, env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:5;width:44px;height:44px;
+       display:grid;grid-template-columns:repeat(2, 22px);grid-template-rows:repeat(4, 11px);}
+  .map a{position:relative;display:block;color:var(--ink);}
+  .map a::before{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:currentColor;opacity:.35;}
+  .map a[aria-current="page"]::before{opacity:1;}
+  .map a[hidden]{display:none;}
+  .map a:focus-visible{outline:2px solid var(--ink);outline-offset:0;border-radius:3px;}
+  .map .m-profile{grid-area:1 / 1;} .map .m-home{grid-area:2 / 1;} .map .m-shuffle{grid-area:2 / 2;} .map .m-kitchen{grid-area:3 / 1;} .map .m-week{grid-area:4 / 1;}
+  .is-onb .map{display:none;}
+  /* screens fade their content in, staggered, after arriving */
+  .arrive > *{animation:arrive 280ms var(--ease-out) both;}
+  @keyframes arrive{from{opacity:0;}}
+  @media (prefers-reduced-motion: reduce){ .chev, .ring-btn i::before{transition:none;} }
+
+  /* a food with no drawing: a hairline circle, never an emoji */
+  .food-none{display:inline-block;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-20);}
   /* the read-only snapshot */
   .snap{padding:calc(env(safe-area-inset-top) + 24px) 0 40px;}
   .snap-who{font-size:17px;color:var(--ink-85);margin:0;}
@@ -669,67 +604,9 @@ try{
   .snap-meal-h{margin:0 0 4px;font-size:17px;font-weight:500;}
   .snap-food{display:flex;align-items:center;gap:10px;margin:2px 0;font-size:17px;}
   .snap-updated, .snap-broken{margin-top:28px;font-size:17px;color:var(--ink-85);}
-  @media (prefers-reduced-motion: reduce){
-    .below{transform:none;transition:opacity 300ms linear;}
-    .chev, .ring-btn i, .ring-btn i::before, .ring-btn svg .wipe{transition:none;}
-  }
-
-  /* ---------- sheets ----------
-     The one overlay: a bottom sheet with a scrim. One <dialog> for every
-     detail; it rises from the bottom, opens at the medium detent (or shorter,
-     if its content is), drags up to large and down to dismiss, traps focus,
-     closes on ✕, Escape or a tap on the scrim, and sits on top of the
-     on-screen keyboard (--kb, from visualViewport) so an input is never hidden. */
-  .sheet{
-    position:fixed;inset:auto 0 var(--kb, 0px) 0;margin:0 auto;width:100%;max-width:calc(var(--col) + 40px);max-height:var(--sheet-max, 62dvh);
-    padding:0;border:none;border-radius:28px 28px 0 0;background:var(--sheet);color:var(--ink);
-    box-shadow:var(--shadow-sheet);overflow:hidden;
-  }
-  .sheet[open]{display:flex;flex-direction:column;}
-  .sheet::backdrop{background:var(--scrim);}
-  .sheet-grab{flex:0 0 auto;display:grid;place-items:center;height:24px;cursor:grab;touch-action:none;}
-  .sheet-grab i{width:40px;height:5px;border-radius:3px;background:var(--handle);}
-  .sheet-head{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:2px 16px 10px;touch-action:none;}
-  .sheet-title:focus{outline:none;}
-  .sheet-title{flex:1;min-width:0;margin:0;font-size:var(--fs-title);font-weight:500;letter-spacing:var(--track-title);color:var(--olive-900);}
-  .sheet-back, .sheet-close{
-    flex:0 0 auto;width:44px;height:44px;border:none;border-radius:50%;background:var(--olive-50);color:var(--olive-900);
-    display:grid;place-items:center;font-size:17px;cursor:pointer;transition:transform var(--dur-1) var(--ease-out);
-  }
-  .sheet-back:active, .sheet-close:active{transform:scale(.92);}
-  .sheet-back[hidden]{display:none;}
-  .sheet-back::before{content:"";width:9px;height:9px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;rotate:45deg;translate:2px 0;}
-  .sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
-              padding:4px var(--pad-r) calc(24px + env(safe-area-inset-bottom)) var(--pad-l);}
-  .kb-open .sheet-body{padding-bottom:24px;}   /* the keyboard covers the home indicator */
-  .sheet-head{padding-left:var(--pad-l);padding-right:calc(var(--pad-r) - 6px);}
-  /* the meal */
-
-  .ate{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px;}
-  .ate button{
-    border:none;border-radius:var(--r-pill);min-height:50px;padding:10px 6px;font:inherit;font-size:15px;font-weight:500;
-    background:var(--olive-50);color:var(--olive-900);box-shadow:inset 0 0 0 1.5px var(--olive-100);cursor:pointer;
-    transition:transform var(--dur-1) var(--ease-out);
-  }
-  .ate button:active{transform:scale(.95);}
-  .ate button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);box-shadow:none;}
-
-  /* a food: dot, name and grams, its chip and actions; the tip runs full width beneath */
-
-  /* the week */
-
-  /* variety */
-
-  /* settings */
-  /* shop */
-
-  .sheet-body > *{animation:none;}
-
-  /* small controls keep their size on screen but take a 44px tap */
-  .buy-chip, .chip button.x, .locked-rule, .suggest button, .have-chip{position:relative;}
-  .buy-chip::after, .chip button.x::after, .locked-rule::after, .suggest button::after{
-    content:"";position:absolute;left:50%;top:50%;width:max(100%, 44px);height:max(100%, 44px);translate:-50% -50%;
-  }
+  .is-snapshot{height:auto;overflow:auto;}
+  .is-snapshot .app{position:static;}
+  .is-snapshot .home-snap{max-width:calc(var(--col) + var(--pad-l) + var(--pad-r));margin:0 auto;padding:0 var(--pad-r) 0 var(--pad-l);}
 
   /* ---------- food art (foods.js → foodArt()): a drawing, or its emoji ---------- */
   .food-art{display:inline-block;width:var(--art);height:var(--art);flex:none;line-height:1;}
@@ -740,19 +617,6 @@ try{
   .food-art.masked{background-color:var(--art-color, var(--ink));
     -webkit-mask:var(--mask) center / calc(var(--scale, 1) * 100%) no-repeat;mask:var(--mask) center / calc(var(--scale, 1) * 100%) no-repeat;}
   .food-art.masked img{opacity:0;}
-
-  /* ---------- micro-interactions ---------- */
-  .burst{position:fixed;width:0;height:0;z-index:300;pointer-events:none;}
-  .bp{position:absolute;left:0;top:0;display:block;opacity:0;}
-  .bp.leaf{width:12px;height:7px;border-radius:12px 0 12px 0;background:var(--olive-500);}
-  .bp.dot{width:6px;height:6px;border-radius:50%;background:var(--grain);}
-  .bp.star{width:9px;height:9px;background:var(--fruit);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);}
-  /* every row answers a press at once, then springs back */
-
-  /* a sheet's rows and chips arrive in a short stagger (at most eight) */
-
-  .ate button[aria-pressed="true"]{animation:pop var(--dur-3) var(--spring);}
-  /* the bought tick pops and the strike draws */
 
   /* ---------- motion ---------- */
   @keyframes rise{from{transform:translateY(10px);}}
@@ -768,9 +632,7 @@ try{
   @keyframes band-in{from{transform:scaleX(0);}}
   @media (prefers-reduced-motion: reduce){
     .bg-img,
-    .item-row.just .have-chip, .just input[type=checkbox]:checked::before, .addform-open, .k-row.just,
-    .sheet-body.enter > *, .sheet-body.enter :is(.ms-row, .k-row, .vg-row, .chip, .dc-meal),
-    .ate button[aria-pressed="true"], .k-row.just input[type=checkbox]:checked::before{animation:none;}
+    .just input[type=checkbox]:checked::before, .arrive > *{animation:none;}
 
     .seg::before, .btn, .chip, .buy-chip, .row-fg, .r-fg, .hcard, .wd,
     .switch input, .switch input::before, input[type=checkbox]{transition:none;}
@@ -782,80 +644,59 @@ try{
   .btn-text.inline{display:inline-block;}
   .btn-text.inline + .btn-text.inline{margin-left:8px;}   /* two text actions in one line: 8px between their 44px pads */
   :is(button, a[href], [role="button"]):not(:disabled):active{transform:scale(.97);transition:transform 100ms var(--ease-out);}
-  .ring-btn:active{transform:none;}   /* the ring scales its circle instead (below), so its 44px pad doesn't move */
-  .ring-btn:not(:disabled):active i{transform:scale(.97);}
+  .ring-btn:not(:disabled):active, .map a:active{transform:none;}   /* the ring scales its circle instead, so its 44px pad doesn't move */
   /* last, so nothing above overrides it: a field is never under 16px (iOS zooms on focus below that) */
   .blank .blank-input{font-size:max(16px, 1em);}
   .pill-o.pill-edit{text-transform:none;letter-spacing:0;font-size:16px;}
 </style>
 </head>
 <body>
-<!-- the dark theme's background: the night sky (hidden in the light theme) -->
-<div class="bg" aria-hidden="true">
-  <i class="bg-img"></i><i class="bg-night"></i>
-</div>
-
 <div class="onb" id="onboarding" role="dialog" aria-modal="true" aria-labelledby="onbTitle" hidden>
   <div class="onb-top">
     <button type="button" class="onb-back" id="onbBack" aria-label="Back"></button>
     <div class="onb-dots" id="onbDots" aria-hidden="true"></div>
-    <button type="button" class="onb-close" id="onbClose" aria-label="Close" hidden>✕</button>
+    <button type="button" class="btn-text onb-close" id="onbClose" hidden>Close</button>
     <span class="onb-spacer" id="onbSpacer"></span>
   </div>
   <p class="sr-only" id="onbProgress" aria-live="polite"></p>
   <div class="onb-card" id="onbCard"></div>
 </div>
-<div class="container home" id="home">
-  <main class="lockscreen" id="lock">
-    <!-- two corners: who (opens Profile) and when -->
-    <header class="corners">
-      <button type="button" class="who-btn" id="profileBtn" data-f="top:me"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
-      <button type="button" class="when" id="whenBtn" data-f="top:when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></button>
-    </header>
-    <div class="hl">
-      <!-- the glow: one element at the top of the page, centred on the headline; it scrolls away with it -->
-      <div class="glow-wrap" aria-hidden="true"><div class="glow-pulse" id="glowPulse"><div class="glow"><i class="glow-l is-on"></i><i class="glow-l"></i><i class="glow-grain"></i></div></div></div>
-      <h1 class="headline" id="headline" tabindex="-1"></h1>
+<div class="app" id="app">
+  <!-- the backdrop pans at 0.3x of the camera: the night sky (dark) or one glow per screen (light) -->
+  <div class="backdrop" aria-hidden="true">
+    <div class="bg" id="bgSky"><i class="bg-img"></i><i class="bg-night"></i></div>
+    <div class="glow-plane" id="glowPlane"><div class="glow-pulse" id="glowPulse"><div class="glow">
+      <div class="glow-s home-on" data-screen="home"><i class="glow-l is-on"></i><i class="glow-l"></i></div>
+      <div class="glow-s" data-screen="shuffle"></div><div class="glow-s" data-screen="kitchen"></div>
+      <div class="glow-s" data-screen="week"></div><div class="glow-s" data-screen="profile"></div>
+      <i class="glow-grain"></i>
+    </div></div></div>
+  </div>
+  <div class="pager" id="pager">
+    <div class="camera" id="camera">
+      <!-- Home: offer. Light, contextual, never scrolls -->
+      <main class="screen scr-home" id="scr-home" data-screen="home">
+        <div class="scr-col home-in" id="home">
+          <header class="corners">
+            <button type="button" class="who-btn" id="profileBtn" data-f="top:me"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
+            <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
+          </header>
+          <h1 class="headline" id="headline" tabindex="-1"></h1>
+          <p class="moment" id="moment"></p>
+          <article class="now-meal" id="nowMeal"></article>
+          <div class="offer-zone" id="offerZone"></div>
+          <p class="foot-line" id="footLine"></p>
+        </div>
+      </main>
+      <section class="screen scrollable" id="scr-shuffle" data-screen="shuffle"></section>
+      <section class="screen scrollable" id="scr-kitchen" data-screen="kitchen"></section>
+      <section class="screen scrollable" id="scr-week" data-screen="week"></section>
+      <section class="screen scrollable" id="scr-profile" data-screen="profile"></section>
     </div>
-    <p class="moment" id="moment"></p>
-    <!-- the bottom of the poster: the stage (decorative) and the glow's food group (so colour is never the only signal) -->
-    <div class="captions">
-      <p class="cap-stage" aria-hidden="true"><span id="capStage"></span><span id="capLine"></span></p>
-      <p class="cap-glow" id="capGlow"></p>
-    </div>
-    <section class="open-meal" id="openMeal"></section>
-    <!-- cook mode: the headline is the step; this holds the portions, what you'll need and the thumb-zone Next -->
-    <section class="cook" id="cook" hidden></section>
-    <section class="rows" id="nextSec"><h2 class="mini" id="nextLabel"></h2><div id="nextList"></div></section>
-    <section class="also" id="alsoSec" hidden><h2 class="mini" id="alsoLabel"></h2><div id="alsoList"></div></section>
-    <section class="rows" id="earlierSec"><h2 class="mini" id="earlierLabel"></h2><div id="earlierList"></div></section>
-  </main>
-  <section class="below week-sec" id="weekSec" aria-labelledby="weekLabel">
-    <h2 class="label" id="weekLabel"></h2>
-    <div class="strip" id="weekStrip"></div>
-    <p class="var-line"><span class="mini" id="varLabel"></span> <span id="varText"></span></p>
-    <div class="vdots" id="vdots"></div>
-    <!-- something big: press and hold (a ring fills over a second), then a 5-second undo, never a dialog -->
-    <button type="button" class="hold" id="newWeekBtn" data-f="newweek"><i class="hold-ring" aria-hidden="true"><b></b></i><span id="newWeekLabel"></span></button>
-    <p class="undo-line" id="newWeekUndo" hidden></p>
-  </section>
-  <section class="below shop-sec" aria-labelledby="shopLabel">
-    <h2 class="label" id="shopLabel"></h2>
-    <button type="button" class="shop-line" id="shopLine" data-f="shop"><span class="stack" id="shopStack" aria-hidden="true"></span><span id="shopText"></span></button>
-  </section>
+  </div>
+  <!-- where you are, laid out like the canvas; every dot is a link (never gesture-only) -->
+  <nav class="map" id="map" aria-label="Screens"></nav>
 </div>
-
-
-
-<dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
-  <div class="sheet-grab" id="sheetGrab" aria-hidden="true"><i></i></div>
-  <header class="sheet-head" id="sheetHead">
-    <button type="button" class="sheet-back" id="sheetBack" aria-label="Back" hidden></button>
-    <h2 class="sheet-title" id="sheetTitle" tabindex="-1"></h2>
-    <button type="button" class="sheet-close" id="sheetClose" aria-label="Close">✕</button>
-  </header>
-  <div class="sheet-body" id="sheetBody"></div>
-</dialog>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
 
 <script src="theme.js"></script>
@@ -879,20 +720,6 @@ const CATS = {
 };
 
 const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const GROCERY_FILTERS = [
-  {key:"today", label:"Today",       meta:"For today"},
-  {key:"next3", label:"Next 3 days", meta:"For the next 3 days"},
-  {key:"week",  label:"Week",        meta:"For the rest of the week"}
-];
-/* ---------- default variety checklist (master foods per category) ---------- */
-const DEFAULT_VARIETY = {
-  protein:   ["Egg","Chicken","Turkey","Beef","Salmon","White fish","Lentils","Chickpeas","Tofu","Greek yogurt","Cottage cheese","Ricotta","Cheese"],
-  vegetable: ["Carrots","Sweet potato","Pumpkin","Zucchini","Green beans","Peas","Cauliflower","Potato","Cucumber","Tomato"],
-  fruit:     ["Banana","Pear","Apple","Strawberries","Blueberries","Raspberries","Mango","Peach","Kiwi","Melon"],
-  grain:     ["Oatmeal","Whole wheat toast","Whole wheat pasta","Rice","Quinoa","Potato","Sweet potato"],
-  fat:       ["Avocado","Salmon","Chia seeds","Peanut butter","Olive oil"]
-};
-
 /* ---------- feeding stages ----------
    One record per stage, and everything age-dependent reads from here: the
    meal slots generated, the texture label on each dish, portions, the
@@ -1109,23 +936,26 @@ function atTime(date, hm){
   const [h, m] = hhmm(hm) || [12, 0];
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
 }
+/* the plan a date falls in: the latest one that has started by then (a new week waits for its own start date) */
+function planOn(date){ return planRecOn(state, date); }
 function planDayIndex(date){
-  return state.plan ? state.plan.days.findIndex(d=>d.name===DAY_ORDER[date.getDay()]) : -1;
+  const p = planOn(date);
+  return p ? p.days.findIndex(d=>d.name===DAY_ORDER[date.getDay()]) : -1;
 }
-function mealStatus(m, start, t){
+function mealStatus(m, start, t, date){
   if(m.skipped) return "skipped";
-  if(mealOffered(m)) return "offered";
+  if(mealOffered(m, date)) return "offered";
   if(t < start) return "upcoming";
   return t - start < NOW_WINDOW_MIN*60000 ? "now" : "earlier";
 }
-/* a day's meals in time order: {m, k (index in the day), dayIdx, slot, time, start, status} */
+/* a day's meals in time order: {m, k (index in the day), dayIdx, plan, date, slot, time, start, status} */
 function mealsOn(date){
-  const dayIdx = planDayIndex(date);
+  const plan = planOn(date), dayIdx = planDayIndex(date);
   if(dayIdx < 0) return [];
   const t = now();
-  return state.plan.days[dayIdx].meals.map((m, k)=>({m, k, dayIdx, slot:m.slot}))
+  return plan.days[dayIdx].meals.map((m, k)=>({m, k, dayIdx, plan, date, slot:m.slot}))
     .filter(x=>x.m.items.length)
-    .map(x=>{ x.time = mealTime(x.slot, date); x.start = atTime(date, x.time); x.status = mealStatus(x.m, x.start, t); return x; })
+    .map(x=>{ x.time = mealTime(x.slot, date); x.start = atTime(date, x.time); x.status = mealStatus(x.m, x.start, t, date); return x; })
     .sort((a, b)=>a.start - b.start);
 }
 function tomorrowOf(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); }
@@ -1144,8 +974,8 @@ function fmtTime(d){ return (FMT.t = FMT.t || new Intl.DateTimeFormat(undefined,
 
 /* is this food new to them? (only once something has been offered, so a first week isn't all "new") */
 function isNewFood(item){
-  const ex = state.exposures || {};
-  return Object.keys(ex).length > 0 && !ex[foodKey(baseName(item))];
+  const known = knownFoods();
+  return known.size > 0 && !known.has(foodKey(baseName(item)));
 }
 const upper1 = t=>t.charAt(0).toUpperCase() + t.slice(1);
 /* "Lentils and sweet potato." */
@@ -1345,32 +1175,45 @@ function keepOutReason(name){
   if(allergyMatch(name, state.profile)) return `${name} is on their keep-out list, so we'll leave it off.`;
   return "";
 }
-/* Offered means "I put this in front of them". It counts the food as tried
-   (exposures, variety) and takes its portion from stock; undoing puts it back. */
-function setOffered(item, on){
-  const was = !!item.offered;
-  if(on && !was){
-    const k = foodKey(baseName(item));
-    state.exposures[k] = (state.exposures[k] || 0) + 1;
-  }else if(!on && was){
-    const k = foodKey(baseName(item));
-    if(state.exposures[k]) state.exposures[k]--;
-    if(!state.exposures[k]) delete state.exposures[k];
-  }
-  item.offered = !!on;
-  if(was!==item.offered) useStock(item);
+/* ---------- the offer log: what was put in front of them, and how it went ----------
+   Append-only: state.offers = [{id, at, date, mealId, itemId, foodId, outcome, firstOfFood, firstAllergen}].
+   The Offered tick writes one event per food (outcome null); the outcome row fills it in. Undo removes the
+   tick's own events. Any later change is a correction, a new event {id, at, corrects, outcome}, so history is
+   never edited silently. Everything else (variety, firsts, Loved it, the allergen record, what's new) is read
+   from the log; a week is just a view over it. */
+const OUTCOMES = ["loved","some","not_today"];
+let liveCache = null;
+/* the log with corrections applied: one record per offer, its outcome the latest word on it */
+function liveOffers(){
+  if(liveCache && liveCache.src===state.offers && liveCache.n===state.offers.length && liveCache.v===offersVersion) return liveCache.list;
+  const list = [], byId = {};
+  state.offers.forEach(e=>{
+    if(e.corrects){ const o = byId[e.corrects]; if(o) o.outcome = e.outcome; return; }
+    const c = Object.assign({}, e); byId[e.id] = c; list.push(c);
+  });
+  liveCache = {src:state.offers, n:state.offers.length, v:offersVersion, list};
+  return list;
 }
-function mealOffered(m){ return m.items.length > 0 && m.items.every(i=>i.offered); }
+let offersVersion = 0;
+function offersChanged(){ offersVersion++; }
+function offersOf(m, date){ const iso = isoOf(date || now()); return liveOffers().filter(e=>e.mealId===m.id && e.date===iso); }
+function itemOffered(m, item, date){ const iso = isoOf(date || now()); return liveOffers().some(e=>e.mealId===m.id && e.date===iso && e.itemId===item.id); }
+function mealOffered(m, date){ return m.items.length > 0 && m.items.every(i=>itemOffered(m, i, date)); }
+/* how it went for a meal on a date: the outcome its foods share (or the first one set), else null */
+function mealOutcome(m, date){ const o = offersOf(m, date).map(e=>e.outcome).filter(Boolean); return o[0] || null; }
+/* every food offered at least once, by food id */
+function knownFoods(){ return new Set(liveOffers().map(e=>e.foodId)); }
+function offerCount(foodId){ return liveOffers().filter(e=>e.foodId===foodId).length; }
 
 /* item: {id, name, qty, cats:[...], tex?} ; cats reference CATS keys, first = primary (used for grocery grouping).
    tex is the stage's texture for a generated dish ("mashed", "soft pieces"). */
-function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats, offered:false}; if(tex) i.tex = tex; return i; }
+function it(name, qty, cats, tex){ const i = {id:uid(), name, qty, cats}; if(tex) i.tex = tex; return i; }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 /* today as YYYY-MM-DD on the local clock (toISOString is UTC: wrong day after midnight in Europe) */
 function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function todayISO(){ return isoOf(now()); }
 
-function meal(label, icon, items, slot){ const m = {label, icon, items}; if(slot) m.slot = slot; return m; }
+function meal(label, icon, items, slot){ const m = {id:uid(), label, icon, items}; if(slot) m.slot = slot; return m; }
 
 function defaultPlan(){
   return {
@@ -1430,7 +1273,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 let state = loadState();
 
 function freshProfile(){
@@ -1445,29 +1288,45 @@ function freshProfile(){
           people:[],         // [{id, name, phone, role}]: on this device only, never in a link
           self:{phone:""},   // where notes to self go (optional)
           firstDay:null,     // the day onboarding finished: no late questions on day one
+          cookDays:7,        // "We'll cook on {n} days" (New week)
+          newFoods:null,     // "Try {n} new foods" (New week); null = the stage's default
           appearance:"auto"};  // auto (follows the system) · light · dark
 }
 function freshState(){
-  return {
+  return withPlanAccessors({
     schemaVersion: SCHEMA_VERSION,
-    plan: ensureSlots(defaultPlan()),
-    variety: JSON.parse(JSON.stringify(DEFAULT_VARIETY)),
-    manualCovered: {},   // { "protein::Salmon": true }
-    stock: {},           // what's at home: { "oatmeal": {name, g:number|null, plenty:bool} }
-    extras: [],          // non-food shopping: [{id, name, qty, checked}]
-    history: [],
-    timers: [],          // cook-mode timers: [{id, food, min, end (ms), step}]; a page can't ring, so they're end times
+    plans: [{startsOn:todayISO(), days:ensureSlots(defaultPlan()).days}],   // each week starts on its own date
+    offers: [],          // the offer log (see liveOffers)
+    pantry: [],          // what's at home: [{foodId, name, state:"plenty"|"low"|"out", updatedAt}]
+    freezer: [],         // [{foodId, name, portions, madeOn}]
     profile: freshProfile(),
-    exposures: {},       // how many times each food has been offered: {"banana": 3}
-    openCard: "meals",   // the one card that's open, or null
-    groceryFilter: "week", // "today" | "next3" | "week" (the rest of the planned week)
-    weekStarted: todayISO(),
-    foods: {},           // per food: {safety:"notyet"|"introduced"|"keepout", safetyOn, noReactionOn, preference}
+    allergyNotes: {},    // per allergen: {noReactionOn:"2026-10-22"}
+    firstPhotos: {},     // per food id: a small photo for Firsts, on this device only
+    kept: {},            // {"2026-10-23": [mealId]}: meals "Shuffle the day" leaves alone
+    hints: {},           // one-time gesture hints already seen: {shuffle:"2026-10-23"}
+    newToBuy: [],        // food ids a shuffle just put on the list (Home says so until Kitchen is opened)
     moment: {},          // {date, later:[keys]}: moment lines put away for today
     asked: {},           // late questions already asked: {mealTimes:"2026-10-22", …}
     prepped: {},         // {date, done:[suggestion ids]}
     shown: {}            // how often a suggestion has shown: {salt: 2, saltDay:"2026-10-22"}
-  };
+  });
+}
+/* state.plan is the plan running today and state.weekStarted its first day. They're views (not saved twice):
+   setting state.plan replaces the weeks with one starting on the current week's date. */
+function planRecOn(s, date){
+  const iso = isoOf(date || now());
+  let cur = null, first = null;
+  (s.plans || []).forEach(p=>{ if(p.startsOn <= iso && (!cur || p.startsOn >= cur.startsOn)) cur = p; if(!first || p.startsOn < first.startsOn) first = p; });
+  return cur || first;
+}
+function withPlanAccessors(s){
+  Object.defineProperty(s, "plan", {configurable:true, enumerable:false,
+    get(){ return planRecOn(s) || null; },
+    set(v){ const cur = planRecOn(s); s.plans = v && Array.isArray(v.days) ? [{startsOn:cur ? cur.startsOn : todayISO(), days:v.days}] : []; }});
+  Object.defineProperty(s, "weekStarted", {configurable:true, enumerable:false,
+    get(){ const p = planRecOn(s); return p ? p.startsOn : todayISO(); },
+    set(v){ const p = planRecOn(s); if(p && typeof v==="string") p.startsOn = v; }});
+  return s;
 }
 
 function loadState(){
@@ -1502,49 +1361,19 @@ function savedAgeMonths(saved){
 /* Saved states predate later features, so fill in anything the running code
    expects but an older save never wrote. Saved values always win. */
 function migrate(saved){
-  const s = Object.assign(freshState(), saved);
+  const s = Object.assign(freshState(), saved);   // an older save's plan and weekStarted go through the setters
+  if(!Array.isArray(s.plans)) s.plans = [];
+  s.plans = s.plans.filter(p=>p && Array.isArray(p.days) && p.days.length && typeof p.startsOn==="string" && !isNaN(localDate(p.startsOn)));
+  if(!s.plans.length) s.plans = [{startsOn:typeof saved.weekStarted==="string" && !isNaN(localDate(saved.weekStarted)) ? saved.weekStarted : todayISO(), days:defaultPlan().days}];
+  // every meal and food has an id: offers point at them
+  s.plans.forEach(p=>{ ensureSlots(p); p.days.forEach(d=>d.meals.forEach(m=>{ if(!m.id) m.id = uid(); m.items.forEach(i=>{ if(!i.id) i.id = uid(); }); })); });
 
-  if(!s.plan || !Array.isArray(s.plan.days) || s.plan.days.length===0) s.plan = defaultPlan();
-
-  // keep only categories this build knows about, and add any it's missing
-  const variety = {};
-  Object.keys(DEFAULT_VARIETY).forEach(cat=>{
-    const foods = s.variety && Array.isArray(s.variety[cat]) ? s.variety[cat] : null;
-    variety[cat] = foods ? foods.slice() : DEFAULT_VARIETY[cat].slice();
-  });
-  s.variety = variety;
-
-  if(!s.manualCovered || typeof s.manualCovered!=="object") s.manualCovered = {};
-  if(!Array.isArray(s.history)) s.history = [];
-  // stock and extras replace the stored grocery list (schema 5): extras keep
-  // their tick, and plan foods already ticked as bought count as at home
-  if(!s.stock || typeof s.stock!=="object" || Array.isArray(s.stock)) s.stock = {};
-  if(!Array.isArray(s.extras)) s.extras = [];
-  if(Array.isArray(saved.grocery) && !Array.isArray(saved.extras)){
-    saved.grocery.forEach(g=>{
-      if(!g || !g.name) return;
-      if(g.manual){ s.extras.push({id:g.id||uid(), name:g.name, qty:g.qty||"", checked:!!g.checked}); return; }
-      if(!g.checked) return;
-      const k = foodKey(g.name);
-      if(s.stock[k]) return;
-      const grams = (g.entries||[]).reduce((t,e)=>t+(gramsOf(e.qty)||0), 0);
-      s.stock[k] = {name:g.name, g: grams || null, plenty:false};
-    });
-  }
-  delete s.grocery;
-  if(!GROCERY_FILTERS.some(f=>f.key===s.groceryFilter)) s.groceryFilter = "week";
-
-  delete s.mascotPos;      // the floating mascot is gone
-
-  delete s.menuHintSeen;   // the mascot menu is gone
-  if(s.openCard!==null && !["meals","food","variety","plan"].includes(s.openCard)) s.openCard = "meals";
   // schema 6: a profile with a birth date replaces the stored age (always
   // months: 10, 12 or 18 before stages, 0-36 after), and the one "never
   // include" list becomes dislikes; anything a locked rule covers drops,
   // because it's locked now
   const prof = Object.assign(freshProfile(), saved.profile && typeof saved.profile==="object" ? saved.profile : {});
   if(!["auto","light","dark"].includes(prof.appearance)) prof.appearance = "auto";
-  s.timers = Array.isArray(s.timers) ? s.timers.filter(t=>t && t.end > Date.now() - 6*3600000) : [];   // a timer a few hours gone is forgotten
   if(!prof.birthDate || isNaN(localDate(prof.birthDate))){
     const age = savedAgeMonths(saved);
     prof.birthDate = birthDateFromMonths(age===null ? 10 : Math.min(AGE_MAX, Math.max(0, Math.round(age))));
@@ -1565,54 +1394,91 @@ function migrate(saved){
   prof.allergens = al;
   prof.priorities = (Array.isArray(prof.priorities) ? prof.priorities : []).filter(id=>PRIORITIES.some(p=>p.id===id)).slice(0,3);
   if(!saved.profile) prof.returning = true;   // an older save: their week is worth keeping
-  s.profile = prof;
-  delete s.createAge; delete s.ageYears; delete s.ageMonths; delete s.age;
-  delete s.excludedFoods;
-  if(!s.exposures || typeof s.exposures!=="object" || Array.isArray(s.exposures)) s.exposures = {};
-  // schema 8: offered replaces the old marks. A food that was marked in any way
-  // was put in front of them, so it's offered; how it went moves to the meal
-  // (ate some → "some", refused → "nottoday"; nothing counts against them)
-  s.plan.days.forEach(d=>d.meals.forEach(m=>{
-    const marks = m.items.map(i=>i.ate);   // legacy: the schema-7 mark
-    m.items.forEach(i=>{ i.offered = !!(i.offered || i.ate || i.eaten); delete i.ate; delete i.eaten; });   // legacy: old field names
-    if(!m.outcome && marks.length && marks.every(Boolean)){
-      m.outcome = marks.every(a=>a==="refused") ? "nottoday" : marks.some(a=>a==="some" || a==="refused") ? "some" : null;
-    }
-    if(!["loved","some","nottoday"].includes(m.outcome)) delete m.outcome;
-  }));
-  if(!s.foods || typeof s.foods!=="object" || Array.isArray(s.foods)) s.foods = {};
   prof.people = (Array.isArray(prof.people) ? prof.people : []).filter(x=>x && typeof x.name==="string" && x.name.trim())
     .map(x=>({id:x.id || uid(), name:x.name.trim(), phone:normPhone(x.phone), role:x.role || ""}));
   prof.self = {phone:normPhone(prof.self && prof.self.phone)};
-  if(!prof.firstDay) prof.firstDay = prof.onboarded ? (s.weekStarted || todayISO()) : null;
+  if(!prof.firstDay) prof.firstDay = prof.onboarded ? (saved.weekStarted || s.plans[0].startsOn || todayISO()) : null;
   if(prof.mealTimesConfirmed===undefined) prof.mealTimesConfirmed = Object.keys(prof.mealTimes || {}).length > 0;
-  ["day","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object") s[k] = {}; });
-  // schema 7: every meal knows its slot (older plans only had labels), and
-  // meal times are the family's own overrides of the stage's defaults
-  ensureSlots(s.plan);
+  prof.cookDays = Math.min(7, Math.max(1, Math.round(+prof.cookDays) || 7));
+  prof.newFoods = prof.newFoods===null || prof.newFoods===undefined ? null : Math.min(5, Math.max(0, Math.round(+prof.newFoods) || 0));
+  // schema 7: meal times are the family's own overrides of the stage's defaults
   const mt = {};
   Object.entries(prof.mealTimes || {}).forEach(([k,v])=>{ if(MEAL_SLOTS.some(ms=>ms.id===k) && hhmm(v)) mt[k] = fmtHHMM(hhmm(v)); });
   prof.mealTimes = mt;
   if(!(prof.timesToday && typeof prof.timesToday.date==="string" && prof.timesToday.times && typeof prof.timesToday.times==="object")) prof.timesToday = null;
+  s.profile = prof;
 
+  // what's at home. Schema 5 turned the grocery list into stock (grams) and extras; schema 9 keeps only a
+  // state per food (Plenty, Low, Out): anything with grams left, or no measure, is Plenty; an empty one is Out
+  const stamp = new Date().toISOString();
+  if(!Array.isArray(s.pantry)) s.pantry = [];
+  const putPantry = (name, st)=>{ const foodId = foodKey(baseName({name})); if(foodId && !s.pantry.some(p=>p.foodId===foodId)) s.pantry.push({foodId, name:upper1(baseName({name})), state:st, updatedAt:stamp}); };
+  if(Array.isArray(saved.grocery) && !Array.isArray(saved.extras)) saved.grocery.forEach(g=>{
+    if(!g || !g.name) return;
+    if(g.manual){ putPantry(g.name, g.checked ? "plenty" : "out"); return; }
+    if(g.checked) putPantry(g.name, "plenty");   // ticked as bought: at home
+  });
+  if(saved.stock && typeof saved.stock==="object" && !Array.isArray(saved.stock))
+    Object.entries(saved.stock).forEach(([k, x])=>{ if(x) putPantry(x.name || k, x.plenty || x.g===null || x.g > 0 ? "plenty" : "out"); });
+  if(Array.isArray(saved.extras)) saved.extras.forEach(x=>{ if(x && x.name) putPantry(x.name, x.checked ? "plenty" : "out"); });
+  s.pantry = s.pantry.filter(p=>p && typeof p.foodId==="string" && ["plenty","low","out"].includes(p.state))
+    .map(p=>({foodId:p.foodId, name:p.name || upper1(p.foodId), state:p.state, updatedAt:p.updatedAt || stamp}));
+  s.freezer = (Array.isArray(s.freezer) ? s.freezer : []).filter(f=>f && typeof f.foodId==="string" && +f.portions > 0)
+    .map(f=>({foodId:f.foodId, name:f.name || upper1(f.foodId), portions:Math.round(+f.portions), madeOn:f.madeOn || todayISO()}));
+
+  // schema 9: the offer log replaces item.offered, meal.outcome and the exposure counts. An older save has one
+  // week: every food marked in it becomes an event on its day (marked in any way = put in front of them; how it
+  // went comes from the meal: ate some → "some", refused → "not_today"). Offers counted before that week, and
+  // allergens introduced by them, become events the day before the week began.
+  ["allergyNotes","firstPhotos","kept","hints","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object" || Array.isArray(s[k])) s[k] = {}; });
+  if(!Array.isArray(s.newToBuy)) s.newToBuy = [];
+  if(!Array.isArray(saved.offers)){
+    s.offers = [];
+    const plan = s.plans[0], start = localDate(plan.startsOn);
+    const marked = [];
+    plan.days.forEach(d=>{
+      const pos = (DAY_ORDER.indexOf(d.name) - start.getDay() + 7) % 7;
+      const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + pos);
+      d.meals.forEach(m=>{
+        const marks = m.items.map(i=>i.ate);   // legacy: the schema-7 mark
+        let outcome = m.outcome==="nottoday" ? "not_today" : OUTCOMES.includes(m.outcome) ? m.outcome : null;
+        if(!outcome && marks.length && marks.every(Boolean)) outcome = marks.every(a=>a==="refused") ? "not_today" : marks.some(a=>a==="some" || a==="refused") ? "some" : null;
+        m.items.forEach(i=>{ if(i.offered || i.ate || i.eaten) marked.push({iso:isoOf(date), mealId:m.id, itemId:i.id, name:i.name, outcome}); });   // legacy: old field names
+        m.items.forEach(i=>{ delete i.offered; delete i.ate; delete i.eaten; delete i.took; });   // legacy: old field names
+        delete m.outcome; delete m.offeredAt;
+      });
+    });
+    const exp = saved.exposures && typeof saved.exposures==="object" ? saved.exposures : {};
+    const foods = saved.foods && typeof saved.foods==="object" ? saved.foods : {};
+    const inWeek = {};
+    marked.forEach(x=>{ const k = foodKey(baseName(x)); inWeek[k] = (inWeek[k] || 0) + 1; });
+    const before = isoOf(new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1));
+    const earlier = [];
+    Object.entries(exp).forEach(([k, n])=>{ const r = foods[k] || {}; for(let j = Math.max(0, (Math.round(+n) || 0) - (inWeek[k] || 0)); j > 0; j--) earlier.push({iso:r.firstOfferOn || r.safetyOn || before, mealId:"legacy", itemId:null, name:upper1(k), outcome:null}); });
+    Object.entries(foods).forEach(([k, r])=>{ if(r && r.safety==="introduced" && !exp[k] && !inWeek[k]) earlier.push({iso:r.safetyOn || before, mealId:"legacy", itemId:null, name:upper1(k), outcome:null}); });
+    const known = new Set(), introduced = new Set(Object.keys(al).filter(k=>al[k]==="ok"));
+    earlier.concat(marked).sort((a, b)=>a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0).forEach(x=>{
+      const foodId = foodKey(baseName(x)), als = allergensOf(x.name);
+      s.offers.push({id:uid(), at:x.iso + "T12:00:00", date:x.iso, mealId:x.mealId, itemId:x.itemId, foodId, outcome:x.outcome,
+                     firstOfFood:!known.has(foodId), firstAllergen:als.some(a=>!introduced.has(a))});
+      known.add(foodId); als.forEach(a=>introduced.add(a));
+    });
+    // a "no reaction noted" moves from the food to its allergens
+    Object.entries(foods).forEach(([k, r])=>{ if(r && r.noReactionOn) allergensOf(upper1(k)).forEach(a=>{ if(!s.allergyNotes[a]) s.allergyNotes[a] = {noReactionOn:r.noReactionOn}; }); });
+  }
+  s.offers = s.offers.filter(e=>e && typeof e.id==="string" && (e.corrects || (typeof e.date==="string" && typeof e.foodId==="string")));
+  ["stock","extras","grocery","exposures","foods","history","variety","manualCovered","openCard","groceryFilter","timers","day","mascotPos","menuHintSeen","createAge","ageYears","ageMonths","age","excludedFoods"].forEach(k=>{ delete s[k]; });
   s.schemaVersion = SCHEMA_VERSION;
   return s;
 }
 
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+/* false when the browser won't keep it (a full quota): the caller can take back what it just added */
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); return true; }catch(e){ return false; } }
 /* phone numbers keep only digits and a leading + ("+34 600-11 22" → "+346001122") */
 function normPhone(v){ const t = String(v || "").trim(); return (t.startsWith("+") ? "+" : "") + t.replace(/\D/g, ""); }
 
 
-/* ---------- view switching ---------- */
-let currentDay = 0;
-
-/* ---------- motion helpers ----------
-   Rows are rebuilt on every change, so a CSS transition never sees the
-   before state. Instead the one row that changed is marked (justChanged)
-   and plays its entrance once; a row on its way out slides off first and
-   the re-render waits for it. With reduced motion everything is instant. */
-let justChanged = null;
+/* ---------- motion: with reduced motion everything is instant ---------- */
 function calm(){ return matchMedia("(prefers-reduced-motion: reduce)").matches; }
 /* ---------- the on-screen keyboard ----------
    The visual viewport shrinks when the keyboard opens (the layout viewport
@@ -1663,30 +1529,6 @@ function dateForDay(idx){
   return new Date(t.getFullYear(), t.getMonth(), t.getDate() + (pos<0 ? 0 : pos));   // local calendar days, never 24h steps
 }
 
-/* A tiny celebration: six leaves and sparkles burst from a point and
-   settle (transform and opacity only, 600 ms, never in the way of a tap).
-   With reduced motion, nothing moves; the words carry the moment. */
-function burst(from){
-  if(calm() || !from || !from.getBoundingClientRect) return;
-  const r = from.getBoundingClientRect(), x = r.left + r.width/2, y = r.top + r.height/2;
-  const layer = document.createElement("div");
-  layer.className = "burst"; layer.setAttribute("aria-hidden", "true");
-  layer.style.left = x + "px"; layer.style.top = y + "px";
-  const shapes = ["leaf","dot","leaf","star","leaf","dot"];
-  shapes.forEach((sh, k)=>{
-    const p = document.createElement("i");
-    p.className = "bp " + sh;
-    layer.appendChild(p);
-    const a = (k/shapes.length)*Math.PI*2 - Math.PI/2 + (Math.random()-.5)*.5, d = 26 + Math.random()*18;
-    p.animate([
-      {transform:"translate(-50%,-50%) scale(.3) rotate(0deg)", opacity:0},
-      {transform:`translate(calc(-50% + ${Math.cos(a)*d*.6}px), calc(-50% + ${Math.sin(a)*d*.6}px)) scale(1) rotate(${k*40}deg)`, opacity:1, offset:.35},
-      {transform:`translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d + 8}px)) scale(.6) rotate(${k*70}deg)`, opacity:0}
-    ], {duration:620, easing:"cubic-bezier(.2,.8,.3,1)", fill:"forwards"});
-  });
-  document.body.appendChild(layer);
-  setTimeout(()=>layer.remove(), 700);
-}
 /* a light tap of the phone where it's supported (never on its own) */
 function haptic(){ try{ if(navigator.vibrate) navigator.vibrate(8); }catch(e){} }
 
@@ -1698,185 +1540,39 @@ function announce(text){
 }
 
 const SLOT_OF = {Breakfast:"breakfast", Snack:"snack", Lunch:"lunch", Dinner:"dinner"};
-/* a similar food for the same meal, still passing every safety check */
-function swapItem(m, k){
-  const item = m.items[k], months = planMonths(), st = stageFor(months);
-  const slot = SLOT_OF[m.label] || "lunch";
-  const taken = new Set(m.items.map(i=>i.name));
-  const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile));
-  if(!pool.length) return false;
-  const ctx = planContext(months, state.profile), dayCtx = {taken:new Set(), colours:new Set(), newCount:0};
-  const ws = pool.map(f=>weightFor(f, ctx, dayCtx));
-  let r = Math.random() * ws.reduce((a,b)=>a+b, 0), j = 0;
-  for(; j<ws.length-1; j++){ r -= ws[j]; if(r <= 0) break; }
-  if(item.offered){ setOffered(item, false); }   // put back what it took from stock
-  const fresh = dish(pool[j], st);
-  m.items[k] = fresh;
-  justChanged = fresh.id;
-  save();
-  return true;
-}
-
-/* ---------- GROCERY ---------- */
-/* the days a shopping window covers: today, the next three, or what's left
-   of the planned week (the calendar's band) */
-function windowDays(key){
-  const order = dayDisplayOrder();
-  const n = key==="today" ? 1 : key==="next3" ? 3 : Math.min(daysLeftInWeek(), order.length);
-  return new Set(order.slice(0, n).map(i=>state.plan.days[i].name));
-}
-/* ---------- KITCHEN: what to buy for the window, what's at home ----------
-   Only stock and extras are stored. What to buy is worked out on every
-   render: the plan's portions not yet offered, on the window's days, minus
-   what's at home. Quantities count when they're in grams ("50 g"); a food
-   with no gram amount is just needed, or covered once it's at home. */
+/* ---------- KITCHEN: what's at home, and what to pick up ----------
+   Stock is a state per food (Plenty, Low, Out), never grams. Needs come from the
+   plan: the foods of the meals still to come over the next three days that
+   haven't been offered. To buy = the needs that aren't at home (Plenty or Low). */
 function foodKey(name){ return String(name).trim().toLowerCase(); }
-function gramsOf(qty){
-  const m = String(qty||"").match(/^\s*(\d+(?:[.,]\d+)?)\s*g\b/i);
-  return m ? parseFloat(m[1].replace(",", ".")) : null;
+function foodIdOf(item){ return foodKey(baseName(item)); }
+function pantryOf(foodId){ return state.pantry.find(p=>p.foodId===foodId) || null; }
+function stockState(foodId){ const p = pantryOf(foodId); return p ? p.state : null; }
+function atHome(foodId){ const st = stockState(foodId); return st==="plenty" || st==="low"; }
+function setStock(foodId, name, st){
+  let p = pantryOf(foodId);
+  if(!st){ state.pantry = state.pantry.filter(x=>x!==p); return; }
+  if(!p){ p = {foodId, name:upper1(name), state:st, updatedAt:""}; state.pantry.push(p); }
+  p.state = st; p.updatedAt = new Date().toISOString();
 }
-function fmtG(g){
-  if(g < 1000) return Math.round(g) + " g";
-  return (Math.round(g/100)/10).toString().replace(/\.0$/, "") + " kg";
-}
-
-/* ---------- packs ----------
-   Nobody buys 40 g of oats: food comes in the sizes shops sell, so a
-   shortfall is rounded up to whole packs and a restock lasts a while.
-   g is what the pack gives in the plan's own grams (an egg counts 50 g, as
-   in the plan); label is how it reads on the list, short how it reads on a
-   meal. Typical Spanish supermarket sizes; dry pasta, rice and oats are
-   counted as weighed, the way the plan's portions are. */
-const PACKS = {
-  "egg":            {g:600,  label:"box of 12",         short:"12 eggs"},
-  "chicken":        {g:500,  label:"500 g tray",        short:"500 g tray"},
-  "turkey":         {g:400,  label:"400 g tray",        short:"400 g tray"},
-  "beef":           {g:500,  label:"500 g tray",        short:"500 g tray"},
-  "beef meatballs": {g:400,  label:"400 g pack",        short:"400 g pack"},
-  "salmon":         {g:250,  label:"2 fillets, 250 g",  short:"2 fillets"},
-  "white fish":     {g:400,  label:"400 g frozen bag",  short:"400 g bag"},
-  "lentils":        {g:400,  label:"400 g jar, cooked", short:"1 jar"},
-  "chickpeas":      {g:400,  label:"400 g jar, cooked", short:"1 jar"},
-  "tofu":           {g:400,  label:"400 g block",       short:"1 block"},
-  "greek yogurt":   {g:500,  label:"4-pot pack, 500 g",  short:"4 pots"},
-  "cottage cheese": {g:250,  label:"250 g tub",         short:"1 tub"},
-  "ricotta":        {g:250,  label:"250 g tub",         short:"1 tub"},
-  "cheese":         {g:200,  label:"200 g bag",         short:"200 g bag"},
-  "carrots":        {g:1000, label:"1 kg bag",          short:"1 kg"},
-  "sweet potato":   {g:1000, label:"1 kg",              short:"1 kg"},
-  "pumpkin":        {g:1000, label:"1 kg piece",        short:"1 kg"},
-  "butternut squash":{g:1000,label:"1 squash, ~1 kg",   short:"1 squash"},
-  "zucchini":       {g:600,  label:"2 courgettes",      short:"2 pieces"},
-  "green beans":    {g:1000, label:"1 kg frozen bag",   short:"1 kg"},
-  "peas":           {g:1000, label:"1 kg frozen bag",   short:"1 kg"},
-  "cauliflower":    {g:800,  label:"1 head",            short:"1 head"},
-  "potato":         {g:2000, label:"2 kg bag",          short:"2 kg"},
-  "spinach":        {g:750,  label:"750 g frozen bag",  short:"750 g bag"},
-  "beetroot":       {g:500,  label:"500 g cooked pack", short:"500 g pack"},
-  "cucumber":       {g:300,  label:"1 cucumber",        short:"1 piece"},
-  "tomato":         {g:1000, label:"1 kg",              short:"1 kg"},
-  "banana":         {g:1000, label:"bunch, ~1 kg",      short:"1 bunch"},
-  "pear":           {g:1000, label:"1 kg",              short:"1 kg"},
-  "apple":          {g:1000, label:"1 kg bag",          short:"1 kg"},
-  "apple purée":    {g:400,  label:"4-pouch pack, 400 g", short:"4 pouches"},
-  "peach":          {g:1000, label:"1 kg",              short:"1 kg"},
-  "plum":           {g:500,  label:"500 g",             short:"500 g"},
-  "mango":          {g:400,  label:"1 mango",           short:"1 mango"},
-  "melon":          {g:1500, label:"1 melon",           short:"1 melon"},
-  "kiwi":           {g:500,  label:"500 g, ~6 kiwis",   short:"500 g"},
-  "blueberries":    {g:125,  label:"125 g punnet",      short:"1 punnet"},
-  "strawberries":   {g:500,  label:"500 g punnet",      short:"1 punnet"},
-  "raspberries":    {g:125,  label:"125 g punnet",      short:"1 punnet"},
-  "grapes":         {g:500,  label:"500 g",             short:"500 g"},
-  "oatmeal":        {g:1000, label:"1 kg bag of oats",  short:"1 kg"},
-  "baby rice cereal":{g:300, label:"300 g box",         short:"1 box"},
-  "whole wheat toast":{g:450,label:"sliced loaf, 450 g",short:"1 loaf"},
-  "whole wheat pasta":{g:500,label:"500 g pack",        short:"500 g"},
-  "rice":           {g:1000, label:"1 kg bag",          short:"1 kg"},
-  "quinoa":         {g:500,  label:"500 g bag",         short:"500 g"},
-  "couscous":       {g:500,  label:"500 g bag",         short:"500 g"},
-  "avocado":        {g:300,  label:"2 avocados",        short:"2 pieces"},
-  "olive oil":      {g:900,  label:"1 l bottle",        short:"1 l"},
-  "chia seeds":     {g:250,  label:"250 g bag",         short:"250 g"},
-  "peanut butter":  {g:350,  label:"350 g jar",         short:"1 jar"},
-  "hummus":         {g:240,  label:"240 g tub",         short:"1 tub"}
-};
-const PACK_ALIAS = {"oats":"oatmeal", "pasta":"whole wheat pasta", "cucumber sticks":"cucumber",
-  "smooth peanut butter":"peanut butter"};
-/* "Carrots, soft-cooked" shops as carrots: the preparation after the comma doesn't change the pack */
-function packFor(name){
-  const base = foodKey(name).split(",")[0].trim();
-  return PACKS[PACK_ALIAS[base] || base] || null;
-}
-/* whole packs covering a shortfall in grams; a food with no known pack
-   rounds up to the next 100 g */
-function buyPacks(name, grams){
-  const p = packFor(name);
-  if(!p){ const g = Math.max(100, Math.ceil(grams/100)*100); return {g, label:fmtG(g), short:fmtG(g)}; }
-  const n = Math.max(1, Math.ceil((grams - 0.5) / p.g));
-  return {g:n*p.g, label:(n>1 ? n+" × " : "") + p.label, short:(n>1 ? n+" × " : "") + p.short};
-}
-
-function needOn(daySet){
-  const need = {};
-  state.plan.days.forEach(day=>{
-    if(daySet && !daySet.has(day.name)) return;
-    day.meals.forEach(m=>m.items.forEach(item=>{
-      if(item.offered) return;
-      const k = foodKey(item.name);
-      const n = need[k] || (need[k] = {key:k, name:item.name, cat:item.cats[0]||"other", g:0, days:[]});
-      n.g += gramsOf(item.qty) || 0;
-      if(!n.days.includes(day.name)) n.days.push(day.name);
-    }));
-  });
-  return need;
-}
-
-/* grams still to buy (0 = covered); null = needed, no amount to go on */
-function toBuy(n){
-  const st = state.stock[n.key];
-  if(st && (st.plenty || st.g===null)) return 0;
-  if(n.g===0) return st && st.g>0 ? 0 : null;
-  return Math.max(0, Math.ceil(n.g - (st ? st.g : 0)));
-}
-
-/* walks the plan from today: the first day this food falls short, and the
-   last day it's needed at all */
-function shortfall(key){
-  const st = state.stock[key];
-  const measured = !(st && (st.plenty || st.g===null));
-  let left = st && measured ? st.g : 0, short = null, last = null;
-  for(const idx of dayDisplayOrder()){
-    const day = state.plan.days[idx];
-    let g = 0;
-    day.meals.forEach(m=>m.items.forEach(i=>{ if(!i.offered && foodKey(i.name)===key) g += gramsOf(i.qty) || 0; }));
-    if(!g) continue;
-    last = day.name;
-    left -= g;
-    if(measured && !short && left < -0.5) short = day.name;
+const NEED_DAYS = 3;
+/* the plan's needs from now through the next three days, soonest first: {foodId, name, cat, date, label, start} */
+function needs(days){
+  const t = now(), out = {};
+  for(let k = 0; k < (days || NEED_DAYS); k++){
+    const date = new Date(t.getFullYear(), t.getMonth(), t.getDate() + k);
+    mealsOn(date).forEach(x=>{
+      if(x.status==="offered" || x.status==="earlier" || x.status==="skipped") return;
+      x.m.items.forEach(i=>{
+        if(itemOffered(x.m, i, date)) return;
+        const id = foodIdOf(i);
+        if(!out[id]) out[id] = {foodId:id, name:baseName(i), full:i.name, cat:i.cats[0] || "other", date, label:x.m.label, start:x.start};
+      });
+    });
   }
-  return {short, last};
+  return Object.values(out).sort((a, b)=>a.start - b.start);
 }
-
-function useStock(item){
-  const st = state.stock[foodKey(item.name)];
-  if(item.offered){
-    const g = gramsOf(item.qty);
-    if(!st || st.plenty || st.g===null || g===null){ delete item.took; return; }
-    item.took = Math.min(st.g, g);
-    st.g -= item.took;
-  }else{
-    if(st && st.g!==null && item.took) st.g += item.took;
-    delete item.took;
-  }
-}
-
-function addToStock(key, name, grams){
-  const st = state.stock[key];
-  if(grams===null) state.stock[key] = st || {name, g:null, plenty:false};
-  else state.stock[key] = {name, g:(st && st.g>0 ? st.g : 0) + grams, plenty:false};
-  save();
-}
+function toBuyList(days){ return needs(days).filter(n=>!atHome(n.foodId)); }
 
 /* ---------- CREATE: generate a week of age-appropriate menus ---------- */
 
@@ -1916,6 +1612,8 @@ function weightFor(f, ctx, day){
     if(ctx.known.has(key)) w *= 3;
     else if(day.newCount >= 1) w *= .05;   // one new taste a day is plenty
   }
+  // "Try {n} new foods": once the week has its n new foods, another new one only comes if nothing else fits
+  if(ctx.newLimit!==null && ctx.known.size && !ctx.known.has(key) && !ctx.newSeen.has(key) && ctx.newSeen.size >= ctx.newLimit) w *= .01;
   return w;
 }
 function makeDealer(foods, ctx){
@@ -1933,7 +1631,8 @@ function makeDealer(foods, ctx){
     day.taken.add(f.name);
     const m = metaOf(f.name);
     if(m.colour) day.colours.add(m.colour);
-    if(ctx.priorities.has("gentle") && !ctx.known.has(foodKey(f.name.split(",")[0]))) day.newCount++;
+    const fk = foodKey(f.name.split(",")[0]);
+    if(!ctx.known.has(fk)){ if(ctx.priorities.has("gentle")) day.newCount++; ctx.newSeen.add(fk); }
     return f;
   };
 }
@@ -1956,19 +1655,21 @@ function withStaples(foods){
 /* what generation knows about this household right now */
 function planContext(months, profile){
   const st = stageFor(months);
-  const atHome = new Set(Object.entries(state.stock || {})
-    .filter(([,x])=>x.plenty || x.g===null || x.g>0).map(([k])=>k.split(",")[0].trim()));
-  const known = new Set(Object.keys(state.exposures || {}));
-  (state.plan ? state.plan.days : []).forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{
-    if(i.offered) known.add(foodKey(baseName(i)));
-  })));
-  return {st, profile, priorities:new Set(profile.priorities || []), atHome, known,
+  const atHome = new Set(state.pantry.filter(p=>p.state==="plenty" || p.state==="low").map(p=>p.foodId));
+  const known = knownFoods();
+  const priorities = new Set(profile.priorities || []);
+  if((profile.cookDays || 7) <= 4) priorities.add("batch");   // fewer cooking days: dishes that keep
+  return {st, profile, priorities, atHome, known, newSeen:new Set(),
+          newLimit:known.size ? newFoodsFor(profile, st) : null,   // a first week is all new
           finger:["textures","family","nearfamily"].includes(st.id)};
 }
 
-/* null when the stage has no solids: there is no menu to make yet */
-function generateWeek(months, profile){
-  const ctx = planContext(months, profile);
+/* "Try {n} new foods": the family's number, or the stage's (more while first tastes are the point) */
+const NEW_FOODS_DEFAULT = {first:3, textures:3, family:2, nearfamily:2};
+function newFoodsFor(profile, st){ return profile.newFoods===null || profile.newFoods===undefined ? (NEW_FOODS_DEFAULT[st.id] || 2) : profile.newFoods; }
+/* null when the stage has no solids: there is no menu to make yet. opts.start: the week's first day (default today) */
+function generateWeek(months, profile, opts){
+  const ctx = planContext(months, profile), startDay = ((opts && opts.start) || now()).getDay();
   const st = ctx.st;
   if(!st.solids) return null;
   let foods = eligibleFoods(months, profile);
@@ -1991,7 +1692,9 @@ function generateWeek(months, profile){
 
   const week = {days};
   ensureIron(week, foods, st);
-  scheduleAllergens(week, foods, st, profile);
+  const startIdx = Math.max(0, days.findIndex(d=>d.name===DAY_ORDER[startDay]));
+  scheduleAllergens(week, foods, st, profile, startIdx);
+  cookOn(week, profile.cookDays || 7, startIdx);
   // after scheduling, so the repeat is the same dish (a first allergen on Monday is no longer first on Wednesday)
   // batch-cook: Monday's and Thursday's dinners come round again two days later
   if(ctx.priorities.has("batch")){
@@ -2017,14 +1720,33 @@ function generateWeek(months, profile){
 const ALLERGEN_SPACING_DAYS = 3;
 function introducedAllergens(profile){
   const done = new Set(Object.entries(profile.allergens || {}).filter(([,v])=>v==="ok").map(([k])=>k));
-  Object.entries(state.foods || {}).forEach(([k, r])=>{ if(r && r.safety==="introduced") allergensOf(upper1(k)).forEach(a=>done.add(a)); });
-  Object.keys(state.exposures || {}).forEach(k=>allergensOf(upper1(k)).forEach(a=>done.add(a)));
+  knownFoods().forEach(k=>allergensOf(upper1(k)).forEach(a=>done.add(a)));
   return done;
 }
+/* "We'll cook on {n} days": n cooking days spread through the week from its first day; on the others, lunch
+   and dinner are the last cooking day's, again (the dishes already passed every rule where they first came) */
+function cookOn(week, n, startIdx){
+  if(n >= 7) return;
+  const L = week.days.length, cooking = new Set(Array.from({length:n}, (_, k)=>Math.round(k * L / n)));
+  let src = null;
+  for(let pos = 0; pos < L; pos++){
+    const day = week.days[(startIdx + pos) % L];
+    if(cooking.has(pos)){ src = day; continue; }
+    if(!src) continue;
+    day.meals.forEach((m, k)=>{
+      if(m.slot!=="lunch" && m.slot!=="dinner") return;
+      const from = src.meals.find(x=>x.slot===m.slot);
+      if(!from || !from.items.length) return;
+      const copy = meal(from.label, from.icon, from.items.map(i=>it(i.name, i.qty, i.cats.slice(), i.tex)), from.slot);
+      copy.from = from.from || src.name;
+      day.meals[k] = copy;
+    });
+  }
+}
 function newAllergens(name, known){ return allergensOf(name).filter(a=>!known.has(a)); }
-function scheduleAllergens(week, foods, st, profile){
+function scheduleAllergens(week, foods, st, profile, startIdx){
   const known = introducedAllergens(profile), first = {};   // allergen → day position it first appears
-  const start = Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[now().getDay()]));
+  const start = startIdx!==undefined ? startIdx : Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[now().getDay()]));
   let lastNew = -Infinity;
   for(let pos = 0; pos < week.days.length; pos++){
     const day = week.days[(start + pos) % week.days.length];
@@ -2118,7 +1840,7 @@ function openOnboarding(step, opts){
   onb.replay = !!o.replay;
   onb.sub = null; onb.draft = null; onb.revealed = false; onb.adding = false;
   document.body.classList.add("onb-open");
-  document.querySelector(".container").inert = true;
+  document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
   el.hidden = false;
   document.getElementById("onbClose").hidden = !P.onboarded;   // a re-run can be left; a first run can't
@@ -2128,7 +1850,7 @@ function openOnboarding(step, opts){
 function closeOnboarding(){
   document.getElementById("onboarding").hidden = true;
   document.body.classList.remove("onb-open");
-  document.querySelector(".container").inert = false;
+  document.getElementById("app").inert = false; document.body.classList.remove("is-onb");
   clearInterval(welTimer); clearTimeout(onb.revealTimer);
   homeChanged();
 }
@@ -2204,7 +1926,8 @@ function renderOnb(){
   back.hidden = onb.step===0 && !onb.sub && !onb.single;
   back.setAttribute("aria-label", say("onb.back"));
   back.onclick = ()=> onb.sub ? goStep(onb.step) : onb.single && onb.step===onb.from ? closeOnboarding() : goStep(stepBefore(onb.step));
-  document.getElementById("onbClose").onclick = closeOnboarding;
+  const close = document.getElementById("onbClose");
+  close.textContent = say("onb.close"); close.onclick = closeOnboarding;
   const card = document.getElementById("onbCard");
   card.innerHTML = "";
   card.className = "onb-card bare";
@@ -2585,13 +2308,9 @@ function onbAtHome(card, P){
     pills.appendChild(b);
   });
   card.appendChild(pills);
+  // what's picked is at home: Plenty in the Kitchen (unless it's already marked)
   const stock = ()=>{
-    P.staples.forEach(food=>{
-      const k = foodKey(food);
-      if(state.stock[k] && (state.stock[k].plenty || state.stock[k].g===null || state.stock[k].g>0)) return;
-      const pack = packFor(food);
-      state.stock[k] = {name:food, g: pack ? pack.g : null, plenty:false};
-    });
+    P.staples.forEach(food=>{ const k = foodKey(baseName({name:food})); if(!stockState(k) || stockState(k)==="out") setStock(k, baseName({name:food}), "plenty"); });
     save();
   };
   onbCta(card, say("onb.atHome.cta"), ()=>{ stock(); nextStep(); }, {extra:[{label:say("onb.atHome.skip"), on:nextStep}]});
@@ -2661,11 +2380,8 @@ function onbReveal(card, P){
   const extra = [{label:say("onb.done.shuffle"), on:()=>{ onb.draft = generateWeek(planMonths(), P); renderOnb(); focusStep(); }}];
   if(P.returning || (P.onboarded && hasPlan())) extra.push({label:say("onb.done.keep"), on:finishOnboarding});
   onbCta(card, say("onb.done.apply"), ()=>{
-    if(P.onboarded && hasPlan()) state.history.push({weekOf:state.weekStarted});   // the week it replaces
-    state.plan = onb.draft;
-    state.weekStarted = todayISO();
+    startWeek(onb.draft, todayISO());   // nothing is lost: the offers stay in the log
     P.lastStage = stageNow().id;
-    currentDay = dayDisplayOrder()[0];
     onb.draft = null;
     finishOnboarding();
   }, {extra});
@@ -2676,23 +2392,26 @@ function weekFoods(week){
   week.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(hasArt(f)) count[f.id] = (count[f.id] || 0) + 1; })));
   return Object.keys(count).sort((a, b)=>count[b] - count[a]);
 }
-/* seven days from today, each with its meals' main foods as small drawings */
-function weekPreview(week){
-  const wrap = document.createElement("div");
-  wrap.className = "wk-prev";
-  const t = now(), start = Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[t.getDay()]));
-  const narrow = new Intl.DateTimeFormat(undefined, {weekday:"short"});
+/* a new week from a date: it starts then, and any week planned from that date on gives way to it */
+function startWeek(week, iso){
+  state.plans = state.plans.filter(p=>p.startsOn < iso).concat({startsOn:iso, days:week.days});
+  save();
+}
+/* seven rows from a start date: "Thu · lunch: lentils and pumpkin · dinner: …" (text only; New week uses it too) */
+function weekPreview(week, start){
+  const wrap = document.createElement("ol");
+  wrap.className = "wk-rows";
+  const t = start || now(), first = Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[t.getDay()]));
+  const short = new Intl.DateTimeFormat(undefined, {weekday:"short"});
   week.days.forEach((_, pos)=>{
-    const day = week.days[(start + pos) % week.days.length];
+    const day = week.days[(first + pos) % week.days.length];
     const date = new Date(t.getFullYear(), t.getMonth(), t.getDate() + pos);
-    const mains = day.meals.filter(m=>m.items.length).map(m=>m.items[0]);
-    const col = document.createElement("div");
-    col.className = "wk-day";
-    col.innerHTML = `<span class="wk-name">${narrow.format(date)}</span>` +
-      mains.slice(0, 3).map((i, k)=>`<span class="wk-art" style="--r:${[-6,5,-3][k]}deg">${foodArt(i.name, {size:28})}</span>`).join("");
-    col.setAttribute("aria-label", `${DAY_FULL(date)}: ${mains.map(baseName).join(", ")}`);
-    col.setAttribute("role", "group");
-    wrap.appendChild(col);
+    const meals = day.meals.filter(m=>m.items.length);
+    const li = document.createElement("li");
+    li.className = "wk-row";
+    li.innerHTML = `<span class="wk-name">${esc(short.format(date))}</span><span class="wk-meals">${esc(meals.map(m=>say("weekRow.meal", {meal:m.label.toLowerCase(), foods:listJoin(m.items.map(i=>lower1(baseName(i))))})).join(" · "))}</span>`;
+    li.setAttribute("aria-label", `${DAY_FULL(date)}: ${meals.map(m=>m.label + ", " + listJoin(m.items.map(i=>lower1(baseName(i))))).join("; ")}`);
+    wrap.appendChild(li);
   });
   return wrap;
 }

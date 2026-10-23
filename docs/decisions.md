@@ -15,6 +15,40 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Spatial app (23 Oct 2026, supersedes the scrolling Home)
+
+Chicho is now five full-screen views on a 2D canvas: **Profile** above Home, **Shuffle** to its right, **Kitchen** below it and **New week** below Kitchen. Home is where you offer; each other screen does one job and is one swipe away. The layout is one constant (`LAYOUT` in `home.js`); swipe directions, the arrow keys, the map and the parallax all derive from it. Where the sections further down describe the old Home (Up next, the week strip, the Shop line, Variety, sheets, row swipes, scrub, Tomorrow mode, press and hold, cook mode), this section wins.
+
+**Where the brief met earlier rules (the principles won):**
+
+| Brief or earlier rule | What I did | Why |
+|---|---|---|
+| Meal title "24px/600" | 24px at **500** | One face, two weights: the self-hosted JetBrains Mono has 400 and 500 only, and a synthesised 600 smears at 1×. |
+| "Keep the drawing-pad name from onboarding"; Profile "name ink", "Redraw" | Profile shows the **typed** name; Settings has "Edit spelling" only | Onboarding never had a drawing pad: the name step is a typed blank. Nothing was built that the brief didn't ask to build; tell me if you want the pad. |
+| Captions (stage, the glow's group in words) | Gone from Home | Not in the brief's Home list. The glow decorates; nothing functional depends on its colour. |
+| Cook mode, timers, portions | **Removed** | No screen owns cooking now, and Home lists only its five things. `state.timers` is dropped by the migration. It could come back as a mode of Shuffle or Kitchen. |
+| Row swipes, headline scrub, Tomorrow mode, press-and-hold new week, quick add, the staples shortcut, Keep screen on in the meal | Removed | Sideways swipes belong to the pager now. Shuffle's Today · Tomorrow toggle replaces Tomorrow mode, and New week replaces press and hold. Kitchen's "Add something" and At home replace quick add and staples. Wake Lock lives only in Kitchen's "In the store". |
+| The close button "✕" | A text **"Close"** | The brief allows only "·", "…", "/" and "—" as symbols. |
+| Onboarding's week preview (drawings in seven columns) vs New week's "same seven-row text preview" | Both show **seven text rows** (`weekPreview()`) | "The same" needed one form, and the text form is the one the brief names. |
+| A 44px position map with five links | The map is 44×44; each dot's target is 22×11 | The brief fixes the map's size and its five links. Every screen stays reachable by 44px controls (the Home control, the moment line, the corner name) and by keyboard. |
+
+**How I read the ambiguous parts:**
+
+- **Moment-line routes.** The line's text action goes to the screen. "{n} things to pick up." is one link. In "Out of {food}. Shuffle {meal}?", "Week done. Ready for the next?" and "{name} is {n} months. Update the week?", the question is the link. A planned food that's **Out** for a meal still to come today ranks above the shopping line, because a shop can't fix today. A shuffle that adds to the list says "{n} new things to pick up." until Kitchen is opened.
+- **Hints.** Each hint shows in place of the line it teaches, the first time that screen is useful. The Kitchen hint comes with the first shopping list, the Shuffle hint with the first missing food, and the Profile hint a week after the first offer. The hint itself is a link, "Later" dismisses it, and visiting the screen by any route marks it seen.
+- **The outcome row** now comes *after* the 5-second "Offered · Undo" (the brief's order). It turns into a quiet "Add how it went" after 20 seconds if ignored, and an answered meal shows nothing more. The offered meal stays on Home until the next meal boundary, as before.
+- **The offer log.** Ticking writes one event per food. The first answer fills in its outcome (the brief's "update that event"); a change of mind is a new correction event that points at it; Undo removes the tick's events. Variety, firsts, Loved it, Still warming up, the allergen record and "new food" are all read from the log.
+- **Weeks are dated.** `state.plans` is a list of `{startsOn, days}`; a date uses the latest plan that has started. "Love it" in New week adds a plan from the chosen date; nothing is archived or deleted, and a future start leaves the current week running until then. `state.plan` and `state.weekStarted` are views onto today's plan (they aren't saved twice).
+- **Stock is a state.** Plenty, Low or Out per food, never grams. **Low still counts as at home**, so it shows in Running low and isn't on To buy. To buy is the next three days' foods not yet offered, minus Plenty and Low. Old grams and ticks migrate to Plenty, empty ones to Out. Non-food "extras" no longer exist, so they migrate to At home (Out if unticked).
+- **"We'll cook on {n} days."** n cooking days spread through the week. On the other days, lunch and dinner repeat the last cooking day's (dishes that already passed every rule). Four days or fewer also lean on dishes that freeze.
+- **"Try {n} new foods."** A soft cap for the week. Once n new foods are in, another new one only comes if nothing known fits. The stage default is 3 for the two younger stages and 2 for the older two (**verify**). A first week is all new and isn't capped. Measured, it's a strong lean rather than a cap: with 0 the generator still averages about 4 new foods a week (6.4 with 5), because a slot with no known food left still needs something. Shuffle draws the rest of a meal from known foods once it has its one new food, so very early on, with few foods offered, it can more often say "No other option fits right now."
+- **Shuffle's rules.** It removes "not a fan" foods entirely (they're only softened in the weekly generator) and never brings a first allergen; first allergens only arrive through a new week. If no valid meal exists it says "No other option fits right now." and keeps the meal.
+- **Under 6 months** only Home and Profile exist, and the map shows two dots.
+- **Back** always returns Home: leaving Home pushes one entry; moving between other screens replaces it. A deep link adds Home beneath itself.
+- **Arrow keys navigate** (per the brief), so they don't scroll the scrolling screens; Space and Page Up/Down still do.
+- **Each screen's glow** sits on the 0.3x parallax plane where that screen's view lands, so it's centred when you arrive. The glows crossfade by distance as the camera pans.
+- **Firsts photos** are downscaled to 240px JPEGs and kept in localStorage. If the browser won't keep one, the screen says so.
+
 ## Phone first (Paper & Glow addendum)
 
 Chicho is designed, built and tested for 360–430px. Everything below supersedes the earlier desktop and wide-screen rules.
@@ -80,7 +114,7 @@ Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms,
 
 ## Check on a real iPhone
 
-Install to Home Screen (icon, name, opens standalone, offline after install); the status bar in both themes in standalone (`default`: dark text; the dark theme's light strip is the logged trade-off); safe areas (notch and home indicator, portrait and landscape: the corners, the sticky pill, sheet bottoms); the keyboard (onboarding fields and Next above it with no jump, the hidden field keeping the keyboard up between steps, sheet inputs above it, no zoom on focus); sheets (swipe down, drag to large, pull down from the top of the content); the share sheet (`navigator.share`) and SMS links (body prefill, the fallback when Messages doesn't open); copy; Keep screen on (stays awake, lets go when locked or switched away, comes back); the grain (fine, not blotchy, at 3×) and scroll performance with the glow breathing; `:active` press states; Appearance switching and theme colour; the favicon.
+The pager: swipes in all four directions on Home, the 24px edge zones against Safari's back swipe, `overscroll-behavior: none` (no page bounce), header-zone drags and the 48px pull at a scroll edge on Shuffle, Kitchen, New week and Profile, a sideways swipe that starts on a button, the spring's feel, the parallax and the glow crossfade at 3×, and Back from a deep link. Then: install to Home Screen (icon, name, opens standalone, offline after install); the status bar in both themes in standalone (`default`: dark text; the dark theme's light strip is the logged trade-off); safe areas (notch and home indicator, portrait and landscape: the corners, the sticky pill, sheet bottoms); the keyboard (onboarding fields and Next above it with no jump, the hidden field keeping the keyboard up between steps, sheet inputs above it, no zoom on focus); sheets (swipe down, drag to large, pull down from the top of the content); the share sheet (`navigator.share`) and SMS links (body prefill, the fallback when Messages doesn't open); copy; Keep screen on (stays awake, lets go when locked or switched away, comes back); the grain (fine, not blotchy, at 3×) and scroll performance with the glow breathing; `:active` press states; Appearance switching and theme colour; the favicon.
 
 ## How I read the ambiguous parts
 
@@ -109,7 +143,8 @@ Install to Home Screen (icon, name, opens standalone, offline after install); th
 - Starting with **one meal at 6 months** and adding breakfast at 7.
 - Default meal anchors per stage (08:00 / 10:30 / 12:30 / 16:00 / 19:00; dinner 18:30 at 9–11 months).
 - **Allergen introduction**: the nine common allergens, introduced **one at a time, at least `ALLERGEN_SPACING_DAYS = 3` days apart**, the first taste "small", and the calm note's wording ("Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.").
-- **One new ordinary food per meal** ("New today" shows one, and "Gentle new tastes" deals one a day).
+- **One new ordinary food per meal** (Shuffle keeps to it, and "Gentle new tastes" deals one a day), and the **weekly new-food defaults** (3 at 6–11 months, 2 after).
+- **Still warming up** never cites a number of exposures a food needs: that number needs a pediatric source before it appears anywhere.
 - Locked foods and their ages: honey and cow's milk as a drink under 12 months; whole nuts, whole grapes, hard raw chunks, added salt and sugar, unpasteurised foods throughout.
 - The **family-salt advice** ("Set aside {name}'s portion before adding salt"), shown at lunch/dinner from 12 months, at most three times.
 - Portion sizes per stage, textures per food, the 60-minute "now" window as a rhythm (not a rule).

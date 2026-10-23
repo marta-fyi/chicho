@@ -40,20 +40,20 @@ const ratio = (fg, bg) => { const a = lum(over(fg, bg)), b = lum(bg); return (Ma
     ok("the manifest says standalone, on the paper", await (await w.fetch("manifest.webmanifest")).json().then(m => m.display === "standalone" && m.theme_color === "#DCDDDD"));
     ok("color-scheme is 'light dark'", $('meta[name="color-scheme"]').content === "light dark");
     // Profile → Appearance
-    w.eval("openSheet('profile')"); await wait(300);
+    w.eval("go('profile')"); await wait(600);
     const seg = [...d.querySelectorAll(".s-seg-opts button")];
     ok("Profile has 'Appearance: Auto · Light · Dark'", $(".s-seg-l").textContent === "Appearance" && seg.map(b => b.textContent).join(" · ") === "Auto · Light · Dark" && seg[0].getAttribute("aria-pressed") === "true");
     ok("…each a 44px target", seg.every(b => b.getBoundingClientRect().height >= 44 && b.getBoundingClientRect().width >= 44));
     seg[2].click(); await wait(100);
     ok("Dark: the dark theme, stored on this device", d.documentElement.dataset.theme === "dark" && w.eval("state.profile.appearance") === "dark" && JSON.parse(w.localStorage.getItem("toddlerMealPlanner.v1")).profile.appearance === "dark");
     ok("…the night sky shows, the ink turns white", w.getComputedStyle($(".bg")).display === "block" && w.getComputedStyle($("#headline")).color === "rgb(255, 255, 255)");
-    ok("…the sheet takes the dark surface", w.getComputedStyle($("#sheet")).backgroundColor === "rgb(28, 35, 66)", w.getComputedStyle($("#sheet")).backgroundColor);
+    ok("…the Profile screen's text turns white too", w.getComputedStyle($("#t-profile")).color === "rgb(255, 255, 255)");
     ok("…both theme colours pin to the top of the night sky", metas().every(m => m.endsWith("=#3D4662")), metas());
     ok("…and the night-sky image is preloaded", !!d.getElementById("bgPreload"));
     // same layout: the headline sits in the same place in both themes
-    const darkTop = Math.round($("#headline").getBoundingClientRect().top);
+    const darkTop = Math.round($("#t-profile").getBoundingClientRect().top);
     [...d.querySelectorAll(".s-seg-opts button")][1].click(); await wait(100);
-    ok("Light again; the layout doesn't move between themes", d.documentElement.dataset.theme === "light" && Math.round($("#headline").getBoundingClientRect().top) === darkTop);
+    ok("Light again; the layout doesn't move between themes", d.documentElement.dataset.theme === "light" && Math.round($("#t-profile").getBoundingClientRect().top) === darkTop);
     [...d.querySelectorAll(".s-seg-opts button")][0].click(); await wait(100);
     ok("Auto again: each meta has its own colour back", metas().join() === "(prefers-color-scheme: light)=#DCDDDD,(prefers-color-scheme: dark)=#3D4662", metas());
     ok("Auto again follows the system", d.documentElement.dataset.theme === "light" && w.eval("state.profile.appearance") === "auto");

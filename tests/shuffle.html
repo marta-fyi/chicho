@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · shuffle tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Shuffle tests</h1>
+<p>The Shuffle screen (Thursday 22 October 2026, 12:10, an 18-month-old's week): Today · Tomorrow, a meal or the whole day at once with a 5-second Undo, Keep, per-food Change, the rules every shuffle keeps, and what it does to the Kitchen and Home. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x);
+    const $ = s => d.querySelector("#scr-shuffle " + s), $$ = s => [...d.querySelectorAll("#scr-shuffle " + s)];
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+       state.pantry = []; state.offers = []; offersChanged(); [19, 20, 21].forEach(n => mealsOn(new Date(2026, 9, n)).forEach(x => offerMeal(x.m, x.date, true))); state.hints = {kitchen: "2026-10-01", shuffle: "2026-10-01"}; save(); closeOnboarding(); go("shuffle", {quiet: true});`);
+    await wait(500);
+    const meals = () => E("mealsOn(now()).map(x => ({id: x.m.id, label: x.m.label, items: x.m.items.map(i => i.name)}))");
+    const byLabel = l => E(`mealsOn(now()).find(x => x.m.slot === "${l}").m`);
+    ok("Shuffle: a pinned 'Home' control, the title, 'Today · Tomorrow'", $(".home-link").textContent === "Home" && $("h1").textContent === "Shuffle" && $(".toggle").textContent === "Today·Tomorrow");
+    ok("…Today is chosen", $('[data-f="shuffle:day:0"]').getAttribute("aria-pressed") === "true" && $('[data-f="shuffle:day:1"]').getAttribute("aria-pressed") === "false");
+    ok("the day as a list: every meal, with its time and its foods as text", $$(".sh-meal").length === meals().length && /^Breakfast · around /.test($(".sh-meal .sh-h").textContent) && $$(".sh-food").length === meals().reduce((n, m) => n + m.items.length, 0));
+    ok("…a 'Shuffle' and a 'Keep' on each meal", $$(".sh-meal").every(b => b.querySelector('[data-f^="shuffle:"]') && b.querySelector('[data-f^="keep:"]')));
+    ok("the pinned primary pill: 'Shuffle the day'", $(".scr-pin .btn-ink").textContent === "Shuffle the day");
+    ok("…and 'Send tomorrow' at the foot", $('[data-f="shuffle:send"]').textContent === "Send tomorrow");
+
+    // an offered meal is locked
+    E(`offerMeal(mealsOn(now())[0].m, now(), true); save(); changed()`); await wait(30);
+    const bf = $$(".sh-meal")[0];
+    ok("an offered meal says 'Offered' and has no Shuffle, Keep or Change", /Offered/.test(bf.querySelector(".sh-h").textContent) && !bf.querySelector("button"));
+
+    // one meal: instant, with Undo
+    const lunch = byLabel("lunch"), before = lunch.items.map(i => i.name).join();
+    $(`[data-f="shuffle:${lunch.id}"]`).click(); await wait(40);
+    const after = byLabel("lunch").items.map(i => i.name).join();
+    ok("'Shuffle' changes the meal at once, no dialog", after !== before && !d.querySelector("dialog[open]"), [before, after]);
+    ok("…with 'Lunch shuffled. Undo'", /^Lunch shuffled\. Undo$/.test($(".undo-line").textContent), $(".undo-line").textContent);
+    $('[data-f="shuffle:undo"]').click(); await wait(40);
+    ok("Undo: back as it was", byLabel("lunch").items.map(i => i.name).join() === before);
+    $(`[data-f="shuffle:${lunch.id}"]`).click(); await wait(5200);
+    ok("the Undo goes after 5 seconds", !$('[data-f="shuffle:undo"]'));
+
+    // per-food Change: one alternative at a time
+    const item = byLabel("lunch").items[0];
+    $(`[data-f="change:${item.id}"]`).click(); await wait(30);
+    const alt = () => $(".alt-line span").textContent;
+    ok("'Change' shows one alternative: 'Instead: …'", $$(".alt-line").length === 1 && /^Instead: /.test(alt()), $$(".alt-line").length);
+    const a1 = alt();
+    $(`[data-f="alt:another:${item.id}"]`).click(); await wait(30);
+    ok("…'Another' cycles to the next", alt() !== a1, [a1, alt()]);
+    const chosen = alt().replace("Instead: ", "");
+    $(`[data-f="alt:keep:${item.id}"]`).click(); await wait(30);
+    ok("…'Keep' takes it, with an Undo", E(`baseName(mealsOn(now()).find(x => x.m.slot === "lunch").m.items[0])`) === chosen && /Undo$/.test($(".undo-line").textContent));
+    $('[data-f="shuffle:undo"]').click(); await wait(30);
+    ok("…and Undo puts the food back", byLabel("lunch").items[0].id === item.id);
+
+    // Keep → Kept; the day leaves kept and offered meals alone
+    const din = byLabel("dinner");
+    $(`[data-f="keep:${din.id}"]`).click(); await wait(30);
+    ok("'Keep' becomes 'Kept' (pressed) and that meal's Shuffle is off", $(`[data-f="keep:${din.id}"]`).textContent === "Kept" && $(`[data-f="keep:${din.id}"]`).getAttribute("aria-pressed") === "true" && $(`[data-f="shuffle:${din.id}"]`).disabled);
+    // everything at home, so whatever the shuffle brings is new on the list
+    E(`needs(3).forEach(n => setStock(n.foodId, n.name, "plenty")); state.newToBuy = []; save()`);
+    const snap = () => JSON.stringify(meals());
+    const m0 = meals();
+    $(".scr-pin .btn-ink").click(); await wait(40);
+    const m1 = meals();
+    ok("'Shuffle the day' changes the meals not kept or offered", m1.filter((m, k) => m.items.join() !== m0[k].items.join()).length >= 1);
+    ok("…but not the kept dinner or the offered breakfast", m1.find(m => m.id === din.id).items.join() === m0.find(m => m.id === din.id).items.join() && m1[0].items.join() === m0[0].items.join());
+    ok("…'The day is shuffled. Undo'", /^The day is shuffled\. Undo$/.test($(".undo-line").textContent));
+
+    // the Kitchen and Home follow
+    const fresh = E("state.newToBuy.length");
+    ok("what the shuffle brought that isn't at home is on To buy now", fresh > 0 && E("state.newToBuy.every(id => toBuyList().some(n => n.foodId === id))"), fresh);
+    E("go('home', {quiet: true})"); await wait(450);
+    ok("Home's moment line: '{n} new things to pick up.'", new RegExp("^" + fresh + " new things? to pick up\\.").test(d.getElementById("moment").textContent), d.getElementById("moment").textContent);
+    d.querySelector('#moment [data-f="moment:go"]').click(); await wait(450);
+    ok("…its text goes to the Kitchen, which takes the 'new' away", E("pg.cur") === "kitchen" && E("state.newToBuy.length") === 0);
+    E("go('shuffle', {quiet: true})"); await wait(450);
+    $('[data-f="shuffle:undo"]') && $('[data-f="shuffle:undo"]').click();
+
+    // nothing fits: one calm line, the meal stays
+    const real = w.freshMeal;
+    w.freshMeal = () => null;
+    const sn = byLabel("snack2"), keep = sn.items.map(i => i.name).join();
+    $(`[data-f="shuffle:${sn.id}"]`).click(); await wait(30);
+    ok("nothing fits: 'No other option fits right now.', and the meal stays", /No other option fits right now\./.test($(`[data-meal="${sn.id}"]`).textContent) && byLabel("snack2").items.map(i => i.name).join() === keep);
+    w.freshMeal = real;
+
+    // the rules every shuffle keeps
+    E(`state.profile.allergens = {egg: "ok", milk: "ok", wheat: "ok", fish: "ok"}; state.profile.avoid = [{name: "Kiwi", kind: "allergy"}, {name: "Banana", kind: "dislike"}]; save()`);
+    const bad = E(`(() => { const bad = [], known = knownFoods(), intro = introducedAllergens(state.profile), st = stageFor(planMonths());
+      for (let t = 0; t < 200; t++) { const x = mealsOn(now())[t % mealsOn(now()).length], items = freshMeal(x.m, now(), mealsOn(now()).map(y => y.m)); if (!items) continue;
+        items.forEach(i => { const f = FOOD_POOL.find(p => p.name === i.name);
+          if (!isAllowed(f, planMonths(), state.profile)) bad.push("gate " + i.name);
+          if (dislikeMatch(i.name, state.profile)) bad.push("not a fan " + i.name);
+          if (newAllergens(i.name, intro).length) bad.push("first allergen " + i.name);
+          if ((i.tex || null) !== textureFor(f, st)) bad.push("texture " + i.name); });
+        if (items.filter(i => !known.has(foodIdOf(i))).length > 1) bad.push("two new " + items.map(i => i.name).join("+"));
+      } return bad; })()`);
+    ok("200 shuffles: allergies and not-a-fans out, the locked rules, stage textures, no first allergen, at most one new food a meal", bad.length === 0, bad.slice(0, 5));
+    ok("…per-food alternatives keep the same rules", E(`mealsOn(now()).every(x => x.m.items.every((_, k) => alternatives(x.m, k, 8).every(f => isAllowed(f, planMonths(), state.profile) && !dislikeMatch(f.name, state.profile) && !newAllergens(f.name, introducedAllergens(state.profile)).length)))`));
+
+    // Tomorrow
+    $('[data-f="shuffle:day:1"]').click(); await wait(30);
+    const tm = E("mealsOn(tomorrowOf(now())).map(x => x.m.id)");
+    ok("'Tomorrow' shows tomorrow's meals", $('[data-f="shuffle:day:1"]').getAttribute("aria-pressed") === "true" && JSON.stringify($$(".sh-meal").map(b => b.dataset.meal)) === JSON.stringify(tm));
+    const t0 = E("JSON.stringify(mealsOn(tomorrowOf(now())).map(x => x.m.items.map(i => i.name)))"), today0 = E("JSON.stringify(mealsOn(now()).map(x => x.m.items.map(i => i.name)))");
+    $(".scr-pin .btn-ink").click(); await wait(30);
+    ok("…and 'Shuffle the day' shuffles tomorrow, not today", E("JSON.stringify(mealsOn(tomorrowOf(now())).map(x => x.m.items.map(i => i.name)))") !== t0 && E("JSON.stringify(mealsOn(now()).map(x => x.m.items.map(i => i.name)))") === today0);
+
+    // the moment line can send you to a meal
+    E(`go("home", {quiet: true})`); await wait(450);
+    const target = E("mealsOn(now()).find(x => x.m.slot === 'dinner').m.id");
+    E(`go("shuffle", {date: now(), mealId: "${target}", quiet: true})`); await wait(450);
+    ok("go('shuffle', {mealId}): Today, that meal focused", $('[data-f="shuffle:day:0"]').getAttribute("aria-pressed") === "true" && d.activeElement === $(`[data-meal="${target}"]`));
+
+    // Send tomorrow
+    let copied = null;
+    Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
+    Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
+    $('[data-f="shuffle:send"]').click(); await wait(80);
+    ok("'Send tomorrow' sends tomorrow's day (copied here)", copied === E("dayText(tomorrowOf(now()))"), copied && copied.slice(0, 40));
+    ok("no emoji or icon glyphs", !/\p{Extended_Pictographic}|✕|✓/u.test(d.getElementById("scr-shuffle").textContent));
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · shuffle";
+};
+</script>
+</body></html>

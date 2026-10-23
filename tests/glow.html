@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Glow tests</h1>
-<p>The light theme's poster: paper grain, one glow centred on the headline, its colour following the open meal's food group, a crossfade, one pulse when offered, the breath, 55% after 21:30, the default when there's no plan. Every line should be PASS.</p>
+<p>The light theme's backdrop: paper grain and one glow per screen. Home's follows the meal's food group (crossfading, one pulse when offered); Shuffle is Protein, Kitchen Veg, New week Fruit, Profile Grains, crossfading as the camera pans; the backdrop moves at 0.3x of the camera; the breath; 55% after 21:30; the default with no plan. In dark, no glow: the night sky pans instead. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -18,75 +18,93 @@ f.onload = async () => {
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)], R = el => el.getBoundingClientRect();
     const setup = (months, plan = true) => E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesConfirmed: true});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
-       state.plan = generateWeek(${Math.max(months, 6)}, state.profile); ${plan ? "" : "state.plan.days.forEach(d => d.meals.forEach(m => m.items = []));"} state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.foods = {}; save(); closeOnboarding(); homeChanged();`);
+       state.plan = generateWeek(${Math.max(months, 6)}, state.profile); ${plan ? "" : "state.plan.days.forEach(d => d.meals.forEach(m => m.items = []));"} state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+       state.offers = []; state.hints = {shuffle: "x", kitchen: "x", profile: "x"}; offersChanged(); save(); if (!document.getElementById("onboarding").hidden) closeOnboarding(); changed();`);
     setup(18); await wait(300);
-    const open = () => E("(() => { const t = refsOn(now()), k = picked ? picked.key : defaultOpen(t, refsOn(tomorrowOf(now()))).key; return t.concat(refsOn(tomorrowOf(now()))).find(x => x.key === k); })()");
+    const shown = () => E("homeRef().ref");
     ok("theme.js holds the five glow colours, Grains the reference's yellow and the default", E("Object.keys(GLOW).join()") === "grain,vegetable,fruit,protein,fat" && E("GLOW.grain.hex") === "#FFE56B" && E("GLOW_DEFAULT") === "grain");
     ok("the gradient is generated from the hex as rgba stops (no color-mix)", /^radial-gradient\(circle closest-side, rgba\(131,131,138,1\) 0\.0%/.test(E("glowGradient('#FFE56B')")) && !/color-mix/.test(E("glowGradient('#FFE56B')")));
     ok("…a grey nucleus that has become the full colour by a third of the radius", E("glowAt(.32, '#FFE56B').slice(0, 3).join()") === "255,229,107");
     ok("…and nothing at the edge", E("glowAt(1, '#FFE56B')[3]") === 0);
     const group = () => d.documentElement.dataset.glow;
-    ok("the glow is the open meal's main food group", group() === E("glowGroup(" + JSON.stringify(open().m.items[0].cats[0]) + ")"), [group(), open().m.items[0].cats[0]]);
-    const layers = $$(".glow-l"), on = () => layers.filter(l => l.classList.contains("is-on"));
-    ok("two stacked layers, one showing", layers.length === 2 && on().length === 1 && /radial-gradient/.test(on()[0].style.backgroundImage));
+    ok("Home's glow is the shown meal's main food group", group() === E("glowGroup(" + JSON.stringify(shown().m.items[0].cats[0]) + ")"), [group(), shown().m.items[0].cats[0]]);
+    const layers = $$('.glow-s[data-screen="home"] .glow-l'), on = () => layers.filter(l => l.classList.contains("is-on"));
+    ok("two stacked layers on Home, one showing", layers.length === 2 && on().length === 1 && /radial-gradient/.test(on()[0].style.backgroundImage));
     ok("…crossfading on opacity over 1.2s", w.getComputedStyle(layers[0]).transitionProperty === "opacity" && w.getComputedStyle(layers[0]).transitionDuration === "1.2s");
-    // open another meal with a different main group → the other layer takes over
     E(`(() => { const t = refsOn(now()); const other = t.find(x => glowGroup(x.m.items[0].cats[0]) !== document.documentElement.dataset.glow) || t[0];
-        other.m.items[0].cats = [document.documentElement.dataset.glow === "fruit" ? "vegetable" : "fruit"]; picked = {key: other.key, until: tomorrowOf(now())}; homeChanged(); })()`);
+        other.m.items[0].cats = [document.documentElement.dataset.glow === "fruit" ? "vegetable" : "fruit"]; picked = {key: other.key, until: tomorrowOf(now())}; changed(); })()`);
     await wait(50);
-    ok("opening a meal of another group crossfades to its colour", group() === glowGroupOf(open()) && on().length === 1, group());
-    function glowGroupOf(x) { return E("glowGroup(" + JSON.stringify(x.m.items[0].cats[0]) + ")"); }
+    ok("another meal of another group on Home crossfades to its colour", group() === E("glowGroup(" + JSON.stringify(shown().m.items[0].cats[0]) + ")") && on().length === 1, group());
     // the pulse
-    E("picked = null; homeChanged()"); await wait(30);
-    $("#openMeal .offer-pill").click(); await wait(30);
-    const pulsing = $("#glowPulse").getAnimations();
-    ok("marking a meal offered: one soft pulse (scale 1 → 1.05 → 1, 700ms)", (() => { const a = pulsing; return a.length === 1 && a[0].effect.getTiming().duration === 700 && a[0].effect.getKeyframes()[1].transform === "scale(1.05)"; })());
+    E("picked = null; changed()"); await wait(30);
+    $("#offerZone .offer-pill").click(); await wait(30);
+    const pulsing = $("#glowPulse").getAnimations().filter(a => !a.animationName);
+    ok("marking a meal offered: one soft pulse (scale 1 → 1.05 → 1, 700ms)", pulsing.length === 1 && pulsing[0].effect.getTiming().duration === 700 && pulsing[0].effect.getKeyframes()[1].transform === "scale(1.05)");
     await wait(800);
+    // each screen's own colour
+    const scr = k => $(`.glow-s[data-screen="${k}"]`);
+    const want = {shuffle: "protein", kitchen: "vegetable", week: "fruit", profile: "grain"};
+    for (const [k, g] of Object.entries(want))
+      ok(`${k}'s glow is ${g}'s colour`, /radial-gradient/.test(scr(k).style.backgroundImage) && scr(k).style.backgroundImage.replace(/\s/g, "").includes(E(`hexRGB(GLOW.${g}.hex).join()`)), scr(k).style.backgroundImage.slice(0, 120));
+    ok("on Home, only Home's glow shows", scr("home").style.opacity === "1" && Object.keys(want).every(k => scr(k).style.opacity === "0"));
+    for (const k of Object.keys(want)) {
+      E(`go("${k}", {quiet: true})`); await wait(500);
+      const shares = Object.fromEntries(["home", ...Object.keys(want)].map(s => [s, scr(s).style.opacity]));
+      ok(`on ${k}: its glow shows, the others don't`, shares[k] === "1" && Object.entries(shares).every(([s, v]) => s === k || v === "0"), shares);
+      // (the breath scales the layers' offsets by up to 5%, so allow for it)
+      const s = R(scr(k)), mid = [(s.left + s.right) / 2, (s.top + s.bottom) / 2], gy = parseFloat($("#glowPulse").style.getPropertyValue("--glow-y")), r = Math.abs(E(`LAYOUT.${k}[1]`));
+      ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) < 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
+      E(`go("home", {quiet: true})`); await wait(500);
+    }
+    // the parallax: the backdrop moves at 0.3x of the camera
+    E("applyCamera(.5, 0)");
+    const cam = new w.DOMMatrix(w.getComputedStyle($("#camera")).transform), plane = new w.DOMMatrix(w.getComputedStyle($("#glowPlane")).transform);
+    ok("half a screen to the right: the camera moves 195px, the backdrop 0.3x of that", Math.abs(cam.m41 + 195) < .5 && Math.abs(plane.m41 + 58.5) < .5, [cam.m41, plane.m41]);
+    ok("…and halfway, Home and Shuffle share the glow (a crossfade)", scr("home").style.opacity === "0.5" && scr("shuffle").style.opacity === "0.5");
+    E("applyCamera(0, 1)");
+    ok("down one screen: the backdrop moves 0.3 of a screen", Math.abs(new w.DOMMatrix(w.getComputedStyle($("#glowPlane")).transform).m42 + 844 * .3) < .5);
+    E("applyCamera(0, 0)");
+    ok("only transform and opacity animate on the camera and the backdrop", [$("#camera"), $("#glowPlane"), $("#bgSky")].every(el => w.getComputedStyle(el).transitionProperty === "all" ? w.getComputedStyle(el).transitionDuration === "0s" : true));
     // the breath
     const g = w.getComputedStyle($(".glow"));
     ok("the breath: 10s, ease-in-out, infinite", g.animationName === "breathe" && g.animationDuration === "10s" && g.animationIterationCount === "infinite" && g.animationTimingFunction === "ease-in-out");
     const css = [...d.styleSheets[0].cssRules].map(r => r.cssText).join("\n");
-    ok("…scale 1 → 1.05 and opacity .94 → 1, transform and opacity only", /@keyframes breathe \{\s*0%, 100% \{ transform: scale\(1\); opacity: 0\.94; \}\s*50% \{ transform: scale\(1\.05\); opacity: 1; \}/.test(css));
-    ok("…paused when the tab is hidden", /\.tab-hidden \.glow \{ animation-play-state: paused; \}/.test(css));
-    ok("…off under reduced motion", /prefers-reduced-motion: reduce[^]*?\.glow \{ animation: auto ease 0s 1 normal none running none; \}|prefers-reduced-motion: reduce[^]*?\.glow \{ animation: none; \}/.test(css));
-    d.documentElement.classList.add("tab-hidden");
-    ok("hidden: its animation is paused", w.getComputedStyle($(".glow")).animationPlayState === "paused");
-    d.documentElement.classList.remove("tab-hidden");
+    ok("…scale 1 → 1.05 and opacity .94 → 1", /@keyframes breathe \{\s*0%, 100% \{ transform: scale\(1\); opacity: 0\.94; \}\s*50% \{ transform: scale\(1\.05\); opacity: 1; \}/.test(css));
+    ok("…paused when the tab is hidden, off under reduced motion", /\.tab-hidden \.glow \{ animation-play-state: paused; \}/.test(css) && /prefers-reduced-motion: reduce[^]*?\.glow \{ animation: (none|auto ease 0s 1 normal none running none); \}/.test(css));
     // geometry
-    const wrap = $(".glow-wrap"), pulse = $("#glowPulse"), hl = $("#headline");
-    ok("one glow, ~150% of the column, square", Math.abs(R(pulse).width - 1.5 * R($(".lockscreen")).width) < 2 && Math.abs(R(pulse).width - R(pulse).height) < 1, [R(pulse).width, R($(".lockscreen")).width]);
-    ok("centred on the headline, both ways", Math.abs((R(pulse).left + R(pulse).width / 2) - (R(hl).left + R(hl).width / 2)) < 2 && Math.abs((R(pulse).top + R(pulse).height / 2) - (R(hl).top + R(hl).height / 2)) < 2,
+    const pulse = $("#glowPulse"), hl = $("#headline");
+    ok("one glow, ~150% of the column, square", Math.abs(R(pulse).width - 1.5 * R($("#home")).width + 1.5 * 40) < 3 && Math.abs(R(pulse).width - R(pulse).height) < 1, [R(pulse).width, R($("#home")).width]);
+    ok("centred on the headline, both ways", Math.abs((R(pulse).left + R(pulse).width / 2) - (R(hl).left + R(hl).width / 2)) < 3 && Math.abs((R(pulse).top + R(pulse).height / 2) - (R(hl).top + R(hl).height / 2)) < 3,
        [R(pulse).left + R(pulse).width / 2, R(hl).left + R(hl).width / 2, R(pulse).top + R(pulse).height / 2, R(hl).top + R(hl).height / 2]);
-    ok("the wrapper clips sideways, takes no taps and sits behind everything", w.getComputedStyle(wrap).overflowX === "clip" && w.getComputedStyle(wrap).pointerEvents === "none" && w.getComputedStyle(wrap).zIndex === "-1");
-    ok("no horizontal scroll from it", d.documentElement.scrollWidth <= d.documentElement.clientWidth);
-    w.scrollTo(0, 300); await wait(30);
-    ok("it scrolls away with the content (not fixed)", R(pulse).top < -100); w.scrollTo(0, 0);
-    // the grain
-    ok("the paper's grain is a static tile on the page", /img\/grain\.png/.test(w.getComputedStyle(d.documentElement).backgroundImage) && w.getComputedStyle(d.documentElement).backgroundSize === "128px 128px");
-    ok("…and layered over the glow's colour", /img\/grain\.png/.test(w.getComputedStyle($(".glow-grain")).backgroundImage));
-    ok("…never a live filter", ![".glow", ".glow-l", ".glow-grain", ".glow-wrap"].some(s => w.getComputedStyle($(s)).filter !== "none" || w.getComputedStyle($(s)).backdropFilter && w.getComputedStyle($(s)).backdropFilter !== "none"));
+    ok("the backdrop takes no taps and clips (no horizontal scroll)", w.getComputedStyle($(".backdrop")).pointerEvents === "none" && w.getComputedStyle($(".backdrop")).overflow === "hidden" && d.documentElement.scrollWidth <= d.documentElement.clientWidth);
+    ok("the paper's grain is a static tile on the page, layered over the glow too", /img\/grain\.png/.test(w.getComputedStyle(d.documentElement).backgroundImage) && /img\/grain\.png/.test(w.getComputedStyle($(".glow-grain")).backgroundImage));
+    ok("…never a live filter", ![".glow", ".glow-l", ".glow-grain", ".glow-plane"].some(s => w.getComputedStyle($(s)).filter !== "none"));
     // after 21:30
-    E("setClock(new Date(2026, 9, 22, 21, 45).getTime()); homeChanged()"); await wait(1400);
-    ok("after 21:30 the glow drops to 55%", d.documentElement.classList.contains("glow-dim") && w.getComputedStyle(wrap).opacity === "0.55");
-    E("setClock(new Date(2026, 9, 22, 12, 10).getTime()); homeChanged()"); await wait(30);
+    E("setClock(new Date(2026, 9, 22, 21, 45).getTime()); changed()"); await wait(1400);
+    ok("after 21:30 the glow drops to 55%", d.documentElement.classList.contains("glow-dim") && w.getComputedStyle(pulse).opacity === "0.55");
+    E("setClock(new Date(2026, 9, 22, 12, 10).getTime()); changed()"); await wait(30);
     ok("…and back by day", !d.documentElement.classList.contains("glow-dim"));
-    // the caption names the group, and changing group never moves the page
-    const top0 = Math.round(R($("#openMeal")).top), tops = [];
-    for (const g of ["grain", "vegetable", "fruit", "protein", "fat"]) { E(`glowKey = null; setGlow('${g}')`); tops.push(Math.round(R($("#openMeal")).top)); }
-    ok("every group's caption leaves the layout exactly where it was (no shift)", tops.every(t => t === top0), tops);
+    // changing colour never moves the page
+    const top0 = Math.round(R($("#nowMeal")).top), tops = [];
+    for (const gr of ["grain", "vegetable", "fruit", "protein", "fat"]) { E(`glowKey = null; setGlow('${gr}')`); tops.push(Math.round(R($("#nowMeal")).top)); }
+    ok("changing the glow's group never moves anything", tops.every(t => t === top0), tops);
     // the default
     setup(18, false); await wait(50);
     ok("no plan: the default (Grains)", group() === "grain");
     setup(4); await wait(50);
     ok("under 6 months: the default (Grains)", group() === "grain");
     ok("an unknown group falls back to the default", E("glowGroup('other')") === "grain" && E("glowGroup(undefined)") === "grain");
-    // dark: the night sky, no glow
-    d.documentElement.dataset.theme = "dark";
-    ok("dark theme: no glow over the night sky", w.getComputedStyle(wrap).display === "none");
-    d.documentElement.dataset.theme = "light";
-    // variety dots wear the glow colours, named
+    // dark: the night sky pans, no glow
     setup(18); await wait(50);
-    ok("variety dots: the five glow colours, each with its group name", $$(".vdot").map(v => v.style.getPropertyValue("--dot")).join() === E("GROUPS.map(c => GLOW[c].hex).join()") && $$(".vdot span").map(s => s.textContent).join(" · ") === "Protein · Veg · Fruit · Grains · Fats and dairy");
+    d.documentElement.dataset.theme = "dark";
+    ok("dark theme: no glow over the night sky", w.getComputedStyle($(".glow-plane")).display === "none" && w.getComputedStyle($("#bgSky")).display === "block");
+    E("applyCamera(0, 1)");
+    ok("…and the night sky moves at 0.3x of the camera", Math.abs(new w.DOMMatrix(w.getComputedStyle($("#bgSky")).transform).m42 + 844 * .3) < .5);
+    E("applyCamera(0, 0)");
+    const sky = R($("#bgSky"));
+    ok("…oversized, so its edges never show as it pans", sky.top < -844 * .3 && sky.left <= 0 && sky.right > 390 * 1.3 && sky.bottom > 844 * 1.6, [sky.top, sky.left, sky.right, sky.bottom]);
+    E("applyCamera(0, 0)");
+    d.documentElement.dataset.theme = "light";
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

@@ -12,7 +12,7 @@ const f = document.createElement("iframe");
 f.src = "../index.html?test";
 f.style.cssText = "width:390px;height:300px;border:1px solid #ccc";
 document.body.append(f);
-f.onload = () => {
+f.onload = async () => {
   try {
     const w = f.contentWindow, E = x => w.eval(x);
     // a blank week, then only the meals each case needs
@@ -91,13 +91,26 @@ f.onload = () => {
     E(`tMk([["Thursday", "lunch", [["Banana", "45 g"]]]], 10)`);
     ok("…and not before 12 months", !E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`).some(x => x.kind === "salt"));
 
-    // on the home: marking one saves it for the day and flags the later meal
+    // a later meal that's already offered isn't cooked for (the caller says so: suggestAlso reads only its arguments)
+    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Friday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {isOffered: m => m === state.plan.days.find(d => d.name === "Friday").meals[0]})`);
+    ok("seen.isOffered: an offered later meal gets no 'double'", !s.some(x => x.kind === "double"), s.map(x => x.kind));
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {max: 1})`);
+    ok("seen.max caps the lines (Home asks for one)", s.length === 1, s.length);
+
+    // Home: at most one "While you're at it" line, text only; Kitchen: the open prep tasks, each with a done ring
     E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "dinner", [["Carrots, soft-cooked", "45 g"]]]]); setClock(new Date(2026, 9, 22, 11, 0)); state.weekStarted = "2026-10-22"; state.prepped = {}; state.profile.lastStage = stageNow().id; closeOnboarding(); homeChanged();`);
-    const btn = f.contentDocument.querySelector(".also-btn");
-    ok("the open meal shows its suggestions with 'I'll do it'", !!btn && btn.textContent.includes("I'll do it"));
-    btn.click();
-    ok("marking it saves it for the day", E("state.prepped.date") === "2026-10-22" && E("state.prepped.done.length") === 1);
-    ok("…and the later meal's row says 'Carrots · prepped'", /Carrots · prepped/.test(f.contentDocument.getElementById("nextSec").textContent), f.contentDocument.getElementById("nextSec").textContent);
+    const d = f.contentDocument;
+    const alsoLines = [...d.querySelectorAll("#nowMeal .meal-also")];
+    ok("Home shows one 'While you're at it' line, and no button in it", alsoLines.length === 1 && /^While you're at it: /.test(alsoLines[0].textContent) && !alsoLines[0].querySelector("button"), alsoLines.map(x => x.textContent));
+    E(`go("kitchen", {quiet: true})`);
+    await new Promise(r => setTimeout(r, 450));
+    const ring = d.querySelector('#scr-kitchen [data-f^="prep:double:"]');
+    ok("Kitchen lists the open prep task under Freezer and prep, with a done ring", !!ring && ring.closest('[data-sec="freezer"]') && ring.getAttribute("aria-pressed") === "false");
+    ring.click();
+    await new Promise(r => setTimeout(r, 50));
+    ok("done: saved for the day, and it leaves the list", E("state.prepped.date") === "2026-10-22" && E("state.prepped.done.length") === 1 && !d.querySelector('#scr-kitchen [data-f^="prep:double:"]'));
+    ok("…and Home's line moves on to the next suggestion", !/Steam double/.test(d.getElementById("nowMeal").textContent));
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

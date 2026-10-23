@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Keyboard tests</h1>
-<p>Onboarding on a 390×844 phone with the keyboard open (a stand-in visualViewport 336px shorter): the field and Next stay above it with no jump, fields carry the phone keyboard hints, the birthday advances on its own, and no input is under 16px. Every line should be PASS.</p>
+<p>Onboarding (and the fields on Profile, Kitchen and New week) on a 390×844 phone with the keyboard open (a stand-in visualViewport 336px shorter): the field and Next stay above it with no jump, fields carry the phone keyboard hints, the birthday advances on its own, and no input is under 16px. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -60,10 +60,16 @@ f.onload = async () => {
       if (step === "keepout") { d.querySelector(".pill-add").click(); await wait(100); }
       d.querySelectorAll("#onboarding input").forEach(i => sizes.push([step, parseFloat(w.getComputedStyle(i).fontSize)]));
     }
-    E("closeOnboarding(); state.profile.onboarded = true; state.profile.birthDate = birthDateFromMonths(18); state.plan = generateWeek(18, state.profile); save(); openSheet('people')"); await wait(300);
-    d.querySelectorAll("#sheet input").forEach(i => sizes.push(["people", parseFloat(w.getComputedStyle(i).fontSize)]));
+    E("closeOnboarding(); state.profile.onboarded = true; state.profile.birthDate = birthDateFromMonths(18); state.plan = generateWeek(18, state.profile); save(); changed(); go('profile')"); await wait(600);
+    d.querySelectorAll("#scr-profile input").forEach(i => sizes.push(["profile", parseFloat(w.getComputedStyle(i).fontSize)]));
+    E("go('kitchen')"); await wait(600);
+    d.querySelector('[data-f="kitchen:add"]').click(); await wait(100);
+    d.querySelectorAll("#scr-kitchen input").forEach(i => sizes.push(["kitchen", parseFloat(w.getComputedStyle(i).fontSize)]));
+    E("go('week')"); await wait(600);
+    d.querySelectorAll("#scr-week input").forEach(i => sizes.push(["week", parseFloat(w.getComputedStyle(i).fontSize)]));
     ok("no input anywhere is under 16px (iOS zooms below that)", sizes.length > 6 && sizes.every(([, s]) => s >= 16), sizes.filter(([, s]) => s < 16));
-    ok("phone numbers use the tel keypad", [...d.querySelectorAll("#sheet input")].filter(i => /phone|number/i.test((d.querySelector(`label[for="${i.id}"]`) || {}).textContent || "")).every(i => i.inputMode === "tel"));
+    E("go('profile')"); await wait(600);
+    ok("phone numbers use the tel keypad", [...d.querySelectorAll("#scr-profile input")].filter(i => /phone|number/i.test((d.querySelector(`label[for="${i.id}"]`) || {}).textContent || "")).every(i => i.inputMode === "tel"));
     // the viewport never blocks zoom
     const vp = d.querySelector('meta[name="viewport"]').content;
     ok("the viewport has viewport-fit=cover and never blocks zoom", /viewport-fit=cover/.test(vp) && !/maximum-scale|user-scalable/.test(vp), vp);

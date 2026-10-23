@@ -87,12 +87,16 @@ f.onload = async () => {
     ok("…with drawings floating in", d.querySelectorAll(".rv-item").length > 0);
     await wait(2600);
     ok("it moves on by itself within 2.5 s", d.getElementById("onbTitle").textContent === "Lula's week.");
+    const rows = [...d.querySelectorAll("#onbCard .wk-rows .wk-row")];
+    ok("the week preview: seven rows of text, one a day, today first, no drawings", rows.length === 7 && !d.querySelector("#onbCard .wk-rows .food-art, #onbCard .wk-rows img") && rows[0].querySelector(".wk-name").textContent === E("new Intl.DateTimeFormat(undefined, {weekday: 'short'}).format(now())") && rows.every(r => /: /.test(r.querySelector(".wk-meals").textContent)), rows.map(r => r.textContent).slice(0, 2));
     ok("nothing is applied before the choice", JSON.stringify(E("state.plan")) === before);
     d.querySelectorAll("#onbCard .btn-text")[0].click(); await settle();
     ok("Shuffle makes another week, still not applied", JSON.stringify(E("state.plan")) === before && !!E("onb.draft"));
-    const draft = JSON.stringify(E("onb.draft"));
+    const draft = JSON.stringify(E("onb.draft.days"));
+    E(`state.offers.push({id: "keepme", at: "", date: "2026-10-01", mealId: "legacy", itemId: null, foodId: "banana", outcome: null, firstOfFood: true, firstAllergen: false}); offersChanged()`);
     next().click(); await settle();
-    ok("Love it applies that week and closes", JSON.stringify(E("state.plan")) === draft && d.getElementById("onboarding").hidden && E("state.profile.onboarded") === true);
+    ok("Love it applies that week (startWeek, from today) and closes", JSON.stringify(E("state.plan.days")) === draft && E("state.plan.startsOn") === E("todayISO()") && E("state.plans.length") === 1 && d.getElementById("onboarding").hidden && E("state.profile.onboarded") === true);
+    ok("…nothing from the log is lost", E("state.offers.some(e => e.id === 'keepme')"));
     ok("…its meals carry slots", E("state.plan.days.every(d => d.meals.every(m => m.slot))"));
 
     // the late steps open one at a time (from the profile sheet or a late question) and close after
@@ -105,6 +109,11 @@ f.onload = async () => {
     ok("a single step says Save", next().textContent === "Save");
     next().click(); await settle();
     ok("…and Save closes it", d.getElementById("onboarding").hidden);
+    E('openOnboarding("priorities", {single: true})'); await settle();
+    const close = d.getElementById("onbClose");
+    ok("a re-opened step has a text 'Close' (no icon glyph)", !close.hidden && close.textContent === "Close" && !/✕/.test(close.textContent));
+    close.click(); await settle();
+    ok("…and Close returns", d.getElementById("onboarding").hidden);
     E('openOnboarding("mealtimes", {single: true})'); await settle();
     ok("meal times, for the stage's meals", step() === "mealtimes" && [...d.querySelectorAll(".mt-row label")].map(l => l.textContent).join() === "Breakfast at,Lunch at,Dinner at", [...d.querySelectorAll(".mt-row label")].map(l => l.textContent).join());
     const lunch = d.getElementById("mt-lunch");

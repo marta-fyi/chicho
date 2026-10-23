@@ -1,39 +1,42 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Chicho · bullet tests</title>
-<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Line-art bullet tests</h1>
-<p>Each drawing is one file, drawn through mask-image and filled with the ink, so it serves both themes; an ink pill fills it with --on-ink; without masks it falls back to the image forced to the ink. Every line should be PASS.</p>
+<p>Home is text only, so it carries no bullets; the drawings stay where they already were outside it (onboarding's pills, the caretaker's snapshot). Each drawing is one file, drawn through mask-image and filled with the ink, so it serves both themes; an ink pill fills it with --on-ink; without masks it falls back to the image forced to the ink. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 localStorage.clear();
-const f = document.createElement("iframe");
-f.src = "../index.html?test&theme=light&now=2026-10-22T12:10";
-f.width = 390; f.height = 844;
-document.body.append(f);
-f.onload = async () => {
+const frame = src => new Promise(res => { const f = document.createElement("iframe"); f.src = src; f.width = 390; f.height = 844; f.onload = () => res(f); document.body.append(f); });
+(async () => {
   try {
+    const f = await frame("../index.html?test&theme=light&now=2026-10-22T12:10");
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
     E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
-       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`);
-    await wait(1200);
-    const art = $$("#openMeal .fr picture.food-art");
-    ok("the open meal's bullets switch to masks once loaded", art.length > 0 && art.every(p => p.classList.contains("masked")), art.map(p => p.className));
-    const p = art[0], cs = w.getComputedStyle(p), img = p.querySelector("img");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding(); changed();`);
+    await wait(600);
+    ok("Home carries no bullets, drawings or icons (text only)", !$("#home .food-art, #home picture, #home img, #home svg"));
+    ok("…nor do Shuffle and Kitchen's lists (they're text too)", (E("go('shuffle', {quiet: true})"), await wait(450), !$("#scr-shuffle .food-art")) && (E("go('kitchen', {quiet: true})"), await wait(450), !$("#scr-kitchen .food-art")));
+    E("go('home', {quiet: true})"); await wait(450);
+
+    // onboarding's pills keep their drawings, masked, and an ink pill fills its bullet with --on-ink
+    E("state.profile.allergens = {}; openOnboarding('keepout', {single: true})"); await wait(1200);
+    const masked = $$(".onb .pill-o picture.food-art");
+    ok("onboarding's allergen pills keep their bullets, switched to masks once loaded", masked.length > 0 && masked.every(p => p.classList.contains("masked")), masked.map(p => p.className));
+    const p = masked[0], cs = w.getComputedStyle(p), img = p.querySelector("img");
     ok("…the mask is the very file the image loaded (nothing loads twice)", (cs.webkitMaskImage || cs.maskImage).includes(img.currentSrc.split("/").pop()), [cs.webkitMaskImage || cs.maskImage, img.currentSrc]);
-    ok("…filled with --ink in the light theme", cs.backgroundColor === "rgb(18, 18, 18)", cs.backgroundColor);
     ok("…the image itself is transparent (it only carries alt, size and loading)", w.getComputedStyle(img).opacity === "0");
+    const pill = $$(".pill-o").find(b => b.querySelector("picture.masked") && !b.dataset.state);
+    ok("…filled with --ink in the light theme", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(18, 18, 18)", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor);
     d.documentElement.dataset.theme = "dark";
-    ok("dark theme: the same file, filled white", w.getComputedStyle(p).backgroundColor === "rgb(255, 255, 255)");
+    ok("dark theme: the same file, filled white", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(255, 255, 255)");
     d.documentElement.dataset.theme = "light";
-    // an ink-filled pill fills its bullet with --on-ink
-    E("openOnboarding('keepout', {single: true})"); await wait(1200);
-    const pill = $$(".pill-o").find(b => b.querySelector("picture.masked"));
-    pill.click(); await wait(20); if (pill.dataset.state !== "out") { pill.click(); await wait(50); }
-    ok("on an ink pill the bullet takes --on-ink", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(246, 246, 244)", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor);
+    pill.click(); await wait(50);
+    ok("on an ink pill the bullet takes --on-ink", pill.dataset.state === "out" && w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(246, 246, 244)", [pill.dataset.state, w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor]);
+    pill.click(); pill.click(); await wait(20);
     E("closeOnboarding()");
     // the fallback
     const probe = d.createElement("div");
@@ -44,12 +47,19 @@ f.onload = async () => {
     d.documentElement.dataset.theme = "dark";
     ok("…and in dark, brightness(0) invert(1)", w.getComputedStyle(fi).filter === "brightness(0) invert(1)");
     d.documentElement.dataset.theme = "light";
-    ok("bullets below the fold load lazily", $$("#nextList picture img, #alsoList picture img").every(i => i.loading === "lazy") && $$("#nextList picture img").length > 0);
     ok("no emoji, no tile: a food with no drawing is still a hairline circle", /food-none/.test(E("foodArt('Milk', {size: 28})")));
+    probe.remove();
+
+    // the caretaker's snapshot keeps its bullets
+    const url = (await w.snapshotURL()).url;
+    const s = await frame("../index.html?test&theme=light" + url.slice(url.indexOf("#")));
+    await wait(1500);
+    const sd = s.contentDocument, sp = [...sd.querySelectorAll(".snap-food picture.food-art")];
+    ok("the snapshot: each food with its bullet, masked once loaded", sd.querySelectorAll(".snap-food").length > 0 && sp.length > 0 && sp.every(p => p.classList.contains("masked")), [sd.querySelectorAll(".snap-food").length, sp.length, sp.map(p => p.className).slice(0, 3)]);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");
   document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · bullets";
-};
+})();
 </script>
 </body></html>

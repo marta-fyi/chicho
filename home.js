@@ -1,9 +1,9 @@
 /* ====================================================================
-   CHICHO HOME: a lock screen that lives in the browser.
-   Open it, read one line, close it. It answers one question (what does
-   {name} eat next?); everything else waits for a tap or a scroll.
-   Everything is a tap; nothing depends on hover. The only overlay is the
-   sheet; a meal never opens one, it expands in place.
+   CHICHO: a spatial app. Five full-screen views on a 2D canvas, reached
+   by swiping, by the position map's links, by the keyboard, or by the
+   moment line on Home. Home is where you offer; every other screen does
+   one job and is one swipe away. Gestures are shortcuts, never the only
+   path. Nothing responds to hover.
    ==================================================================== */
 const $ = id=>document.getElementById(id);
 const GROUPS = ["protein","vegetable","fruit","grain","fat"];
@@ -12,71 +12,104 @@ function setText(el, text){ if(el && el.textContent!==text) el.textContent = tex
 function hasPlan(){ return !!state.plan && state.plan.days.some(d=>d.meals.some(m=>m.items.length)); }
 function milkOnly(){ return ageNow() < 6 && !state.profile.exploreEarly; }
 function weekStart(){ const d = localDate(state.weekStarted); return isNaN(d) ? now() : d; }
-/* the plan's seven days, from the day it started (not Monday): {pos, date, dayIdx} */
-function weekDays(){
-  const s = weekStart();
-  return Array.from({length:7}, (_, pos)=>{ const date = new Date(s.getFullYear(), s.getMonth(), s.getDate() + pos); return {pos, date, dayIdx:planDayIndex(date)}; });
-}
-function weekDone(){ const s = weekStart(); return now() >= new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7); }
+function addDays(d, n){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+/* the running week's seven days, from the day it started (not Monday) */
+function weekDays(){ const s = weekStart(); return Array.from({length:7}, (_, pos)=>({pos, date:addDays(s, pos)})); }
+function weekDone(){ return now() >= addDays(weekStart(), 7); }
 const fmt = (o=>d=>new Intl.DateTimeFormat(undefined, o).format(d));
-const fmtWeekday = fmt({weekday:"long"}), fmtShortDay = fmt({weekday:"short"}), fmtDayMonth = fmt({day:"numeric", month:"long"});
+const fmtWeekday = fmt({weekday:"long"}), fmtDayMonth = fmt({day:"numeric", month:"long"}), fmtDayShort = fmt({day:"numeric", month:"short"});
 /* the top-right corner: "Thursday 22 Oct" over the time (the reader's own clock, no seconds) */
 function fmtCornerDate(d){
   const parts = new Intl.DateTimeFormat(undefined, {weekday:"long", day:"numeric", month:"short"}).formatToParts(d);
   const part = t=>(parts.find(p=>p.type===t) || {}).value || "";
   return `${part("weekday")} ${part("day")} ${part("month").replace(/\.$/, "")}`;
 }
-/* the date a plan day (by its weekday name) falls on, from today */
-function dateOfPlanDay(name){ return dateForDay(state.plan.days.findIndex(d=>d.name===name)); }
+/* days from today to a date (calendar days) */
+function daysFromToday(date){ return Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - new Date(now().getFullYear(), now().getMonth(), now().getDate())) / 86400000); }
+/* "today's", "tomorrow's", "Friday's" */
+function possDay(date){ const n = daysFromToday(date); return n===0 ? say("days.poss.today") : n===1 ? say("days.poss.tomorrow") : say("days.possDay", {weekday:fmtWeekday(date)}); }
+function textBtn(label, fn, cls){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn-text" + (cls ? " " + cls : ""); b.textContent = label;
+  b.addEventListener("click", fn);
+  return b;
+}
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text!==undefined) e.textContent = text; return e; }
+/* keep focus on the same control across a redraw (by its data-f key) */
+function focusMemo(){ const a = document.activeElement; return a && a.dataset && a.dataset.f ? a.dataset.f : null; }
+function focusRestore(k){ if(!k) return; const e = document.querySelector(`[data-f="${CSS.escape(k)}"]`); if(e) e.focus({preventScroll:true}); }
+function focusLater(f){ requestAnimationFrame(()=>focusRestore(f)); }
 
-/* ---------- offered: "I put this in front of {name}" ---------- */
-function foodRec(name){ const k = foodKey(baseName({name})); return state.foods[k] || (state.foods[k] = {}); }
-/* offering a meal offers each food; a food carrying an allergen is introduced the
-   first time it's offered (and un-introduced if that same offer is undone today) */
-function offerMeal(m, on){
-  const iso = todayISO();
-  m.items.forEach(i=>{
-    setOffered(i, on);
-    if(!allergensOf(i.name).length) return;
-    const r = foodRec(i.name);
-    if(on && r.safety!=="introduced" && r.safety!=="keepout"){ r.safety = "introduced"; r.safetyOn = iso; r.firstOfferOn = iso; }
-    if(!on && r.firstOfferOn===iso && !anyOfferedToday(i.name, m)){ r.safety = "notyet"; delete r.safetyOn; delete r.firstOfferOn; delete r.noReactionOn; }
+/* ---------- foods by id: the pool's own entry when there is one ---------- */
+const FOOD_INFO = {};
+function foodInfo(foodId){
+  if(FOOD_INFO[foodId]) return FOOD_INFO[foodId];
+  const f = FOOD_POOL.find(x=>foodKey(baseName(x))===foodId);
+  if(f) return (FOOD_INFO[foodId] = {name:f.name, label:baseName(f), cat:f.cats[0]});
+  for(const p of state.plans) for(const d of p.days) for(const m of d.meals) for(const i of m.items) if(foodIdOf(i)===foodId) return {name:i.name, label:baseName(i), cat:i.cats[0] || "other"};
+  return {name:upper1(foodId), label:upper1(foodId), cat:"other"};
+}
+
+/* ---------- offering: "I put this in front of {name}" ---------- */
+function offerMeal(m, date, on){
+  const iso = isoOf(date);
+  if(on){
+    if(mealOffered(m, date)) return;
+    const known = knownFoods(), intro = introducedAllergens(state.profile), at = now().toISOString();
+    m.items.forEach(i=>{
+      if(itemOffered(m, i, date)) return;
+      const foodId = foodIdOf(i), als = allergensOf(i.name);
+      state.offers.push({id:uid(), at, date:iso, mealId:m.id, itemId:i.id, foodId, outcome:null,
+                         firstOfFood:!known.has(foodId), firstAllergen:als.some(a=>!intro.has(a))});
+      known.add(foodId); als.forEach(a=>intro.add(a));
+    });
+  }else{
+    // Undo takes back the tick's own events (and any outcome given since)
+    const ids = new Set(state.offers.filter(e=>e.mealId===m.id && e.date===iso).map(e=>e.id));
+    state.offers = state.offers.filter(e=>!ids.has(e.id) && !ids.has(e.corrects));
+  }
+  offersChanged();
+}
+/* how it went: optional and equal. The first answer fills the events in; a change of mind is a new event */
+function setOutcome(m, date, v){
+  const next = mealOutcome(m, date)===v ? null : v, at = now().toISOString();
+  offersOf(m, date).forEach(e=>{
+    const raw = state.offers.find(x=>x.id===e.id);
+    if(raw.outcome===null && !state.offers.some(x=>x.corrects===e.id)) raw.outcome = next;
+    else state.offers.push({id:uid(), at, corrects:e.id, outcome:next});
   });
-  if(on) m.offeredAt = now().toISOString(); else { delete m.offeredAt; delete m.outcome; }
+  offersChanged();
 }
-function anyOfferedToday(name, except){
-  const d = state.plan.days[planDayIndex(now())];
-  return !!d && d.meals.some(m=>m!==except && m.items.some(i=>i.offered && i.name===name));
-}
-/* how it went: optional and equal; it's the food's preference, never its safety */
-function setOutcome(m, v){
-  m.outcome = m.outcome===v ? null : v;
-  if(!m.outcome) delete m.outcome;
-  if(m.outcome) m.items.forEach(i=>{ foodRec(i.name).preference = m.outcome; });
-}
-/* the foods of a group offered this week (variety counts every food offered at least once) */
-function offeredFoods(cat){
+/* the foods of a group offered between two dates (inclusive), by label */
+function offeredFoods(cat, fromISO, toISO){
   const out = new Set();
-  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ if(i.offered && i.cats[0]===cat) out.add(baseName(i)); })));
+  liveOffers().forEach(e=>{ if(e.date >= fromISO && e.date <= toISO && foodInfo(e.foodId).cat===cat) out.add(foodInfo(e.foodId).label); });
   return [...out];
 }
-/* allergens met before today: tried in onboarding, introduced on an earlier day, or offered earlier */
+/* allergens met before a day: tried before Chicho (onboarding), or carried by an earlier offer */
 function allergensKnownBefore(iso){
   const P = state.profile, known = new Set(Object.entries(P.allergens || {}).filter(([,v])=>v==="ok").map(([k])=>k));
-  Object.entries(state.foods || {}).forEach(([k, r])=>{ if(r && r.safety==="introduced" && r.safetyOn && r.safetyOn < iso) allergensOf(upper1(k)).forEach(a=>known.add(a)); });
+  liveOffers().forEach(e=>{ if(e.date < iso) allergensOf(foodInfo(e.foodId).name).forEach(a=>known.add(a)); });
   return known;
 }
 /* the common allergens meeting {name} for the first time today: [{id, label, foods}] */
 function firstAllergensToday(){
-  const iso = todayISO(), d = state.plan && state.plan.days[planDayIndex(now())];
-  if(!d) return [];
-  const known = allergensKnownBefore(iso), out = {};
-  d.meals.forEach(m=>m.items.forEach(i=>allergensOf(i.name).forEach(a=>{
+  const iso = todayISO(), known = allergensKnownBefore(iso), out = {};
+  mealsOn(now()).forEach(x=>x.m.items.forEach(i=>allergensOf(i.name).forEach(a=>{
     if(known.has(a)) return;
-    const al = ALLERGENS.find(x=>x.id===a);
+    const al = ALLERGENS.find(z=>z.id===a);
     (out[a] = out[a] || {id:a, label:al ? al.label.split(" /")[0] : a, foods:[]}).foods.push(i);
   })));
   return Object.values(out);
+}
+/* the allergen record, separate from preferences: notyet · introduced (on a date, maybe no reaction noted) · keepout */
+function allergenRecord(id){
+  const P = state.profile, note = state.allergyNotes[id] || {};
+  if(P.allergens[id]==="avoid") return {state:"keepout"};
+  const first = liveOffers().filter(e=>allergensOf(foodInfo(e.foodId).name).includes(id)).sort((a, b)=>a.date < b.date ? -1 : 1)[0];
+  if(first) return {state:"introduced", on:first.date, noReactionOn:note.noReactionOn || null};
+  if(P.allergens[id]==="ok") return {state:"introduced", on:null, noReactionOn:note.noReactionOn || null};
+  return {state:"notyet"};
 }
 
 /* ---------- the cooking layer ---------- */
@@ -94,14 +127,18 @@ function mealHow(m){
   if(m.items.length > 1 || cooked.length) lines.push(say("cook.serve", {texture:stageFor(planMonths()).textureShort || "soft pieces"}));
   return lines.slice(0, 2);
 }
-function mealMinutes(m){ return Math.max(5, Math.max(0, ...m.items.map(i=>cookOf(i.name).min)) + 5); }
-/* an ordinary new food (not a first allergen: those get the calm moment line) */
-function newFoodIn(m){
-  const firsts = new Set(firstAllergensToday().flatMap(a=>a.foods.map(f=>f.name)));
-  return m.items.find(i=>isNewFood(i) && !firsts.has(i.name)) || null;
+/* "Lentils · 40 g · mashed" */
+function foodLine(i){ return [baseName(i), i.qty, textureOf(i)].filter(Boolean).join(" · "); }
+/* a different way in, for a food that's still warming up: another texture, shape or pairing */
+function anotherWay(foodId){
+  const info = foodInfo(foodId), c = cookOf(info.name);
+  const loved = lovedFoods().filter(f=>f!==foodId)[0];
+  if(loved) return say("profile.way.pair", {food:lower1(foodInfo(loved).label)});
+  return say("profile.way." + (["steam","roast","boil","raw"].includes(c.method) ? c.method : "raw"));
 }
 
-/* ---------- the moment line: one line, picked by the first rule that applies ---------- */
+/* ---------- the moment line: one line, picked by the first rule that applies. It's also the router: its
+   text action goes to the screen that does the job ---------- */
 const QUIET_FROM_MIN = 21*60 + 30;   // after 21:30 only tomorrow's first meal, no actions
 const LATE_QUESTIONS = ["mealTimes","priorities","kitchen","people"];
 function momentLine(){
@@ -109,7 +146,9 @@ function momentLine(){
   const later = state.moment && state.moment.date===iso ? state.moment.later || [] : [];
   const open = key=>!later.includes(key);
   const L = (key, text, actions, tone)=>({key, text, actions:actions || [], tone:tone || "plain"});
-  const putAway = key=>()=>{ state.moment = {date:iso, later:later.concat(key)}; save(); homeChanged(); };
+  const putAway = key=>()=>{ state.moment = {date:iso, later:later.concat(key)}; save(); changed(); };
+  const hintSeen = k=>!!state.hints[k];
+  const hint = (k, text, fn)=>L("hint:" + k, "", [[text, fn], [say("moment.later"), ()=>{ state.hints[k] = iso; save(); changed(); }]]);
   if(months < 6 && !P.exploreEarly) return L("milk", say("moment.milk", {n:Math.max(1, 6 - months)}));
   const nx = nextMeal(), today = mealsOn(t);
   const tmFirst = mealsOn(tomorrowOf(t))[0];
@@ -120,19 +159,28 @@ function momentLine(){
     return L("quiet", f.length > 1 ? say("moment.quiet", {meal:tmFirst.m.label, food1:f[0], food2:f[1]}) : say("moment.quietOne", {meal:tmFirst.m.label, food1:f[0] || ""}));
   }
   if(st.solids && P.lastStage!==st.id && months===st.from && open("stage"))
-    return L("stage", say("moment.stage", {name, months}), [[say("moment.stageUpdate"), setNextWeek], [say("moment.later"), putAway("stage")]]);
+    return L("stage", say("moment.stage", {name, months}), [[say("moment.stageUpdate"), ()=>go("week")], [say("moment.later"), putAway("stage")]]);
   const firsts = firstAllergensToday();
   if(firsts.length) return L("allergen:" + firsts[0].id, say("moment.allergen", {allergen:firsts[0].label, name}),
-                              [[say("moment.allergenAction"), ()=>openSheet("allergen")]], "calm");
-  const todayDay = state.plan && state.plan.days[planDayIndex(t)];
-  if(!todayDay || !todayDay.meals.some(m=>m.items.length)) return L("noplan", say("moment.noPlan", {name}), [[say("moment.noPlanAction"), setNextWeek]]);
-  if(weekDone()) return L("weekdone", say("moment.weekDone"), [[say("moment.weekNext"), setNextWeek]]);
-  const list = shopList("next3"), n = list.length + state.extras.filter(x=>!x.checked).length;
-  const names = dayDisplayOrder().slice(0, 2).map(i=>state.plan.days[i].name);
-  const soon = list.some(x=>{ const s = shortfall(x.key).short; return s && names.includes(s); });
+                              [[say("moment.allergenAction"), ()=>go("profile", {section:"offplate"})]], "calm");
+  if(!today.length) return L("noplan", say("moment.noPlan", {name}), [[say("moment.noPlanAction"), ()=>go("week")]]);
+  if(weekDone()) return L("weekdone", say("moment.weekDone"), [[say("moment.weekNext"), ()=>go("week")]]);
+  // a planned food that's run out, for a meal still to come today: swap it on Shuffle
+  const miss = today.filter(x=>x.status==="upcoming" || x.status==="now").map(x=>({x, i:x.m.items.find(i=>stockState(foodIdOf(i))==="out")})).find(y=>y.i);
+  if(miss && open("missing")){
+    const target = ()=>go("shuffle", {date:miss.x.date, mealId:miss.x.m.id});
+    if(!hintSeen("shuffle")) return hint("shuffle", say("moment.hint.shuffle", {meal:miss.x.m.label.toLowerCase()}), target);
+    return L("missing", say("moment.missing", {food:lower1(baseName(miss.i))}), [[say("moment.missingAction", {meal:miss.x.m.label.toLowerCase()}), target], [say("moment.later"), putAway("missing")]]);
+  }
+  // things to pick up: soon, on shopping day, or new since a shuffle
+  const list = toBuyList(), n = list.length;
+  const fresh = state.newToBuy.filter(id=>list.some(x=>x.foodId===id)).length;
+  const soon = list.some(x=>Math.round((x.date - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000) <= 1);
   const shopDay = P.shopDay!==undefined && P.shopDay!==null && t.getDay()===P.shopDay;
-  if(n && (soon || shopDay) && t.getHours() < 19 && open("shop"))
-    return L("shop", say("moment.shop", {n}), [[say("moment.shopAction"), ()=>sendGroceries()], [say("moment.later"), putAway("shop")]]);
+  if(n && t.getHours() < 19 && open("shop")){
+    if(!hintSeen("kitchen")) return hint("kitchen", say("moment.hint.kitchen"), ()=>go("kitchen"));
+    if(soon || shopDay || fresh) return L("shop", "", [[fresh ? say("moment.shopNew", {n:fresh}) : say("moment.shop", {n}), ()=>go("kitchen")], [say("moment.later"), putAway("shop")]]);
+  }
   // day 2 (once), never when already installed: how to add Chicho to the Home Screen
   if(installLineDue(today)) return L("install", say("moment.install"), [[say("moment.later"), ()=>{ state.asked = Object.assign({}, state.asked, {installLater:iso}); putAway("install")(); }]]);
   const dayOver = !(nx && nx.when==="today");
@@ -144,8 +192,11 @@ function momentLine(){
   }
   const q = lateQuestion(today);
   if(q) return L("ask:" + q, say("moment.ask." + q, {name}), [[say("moment.set"), ()=>answerLate(q)], [say("moment.later"), ()=>{ markAsked(q, false); putAway("ask:" + q)(); }]]);
+  // after the first week of offers: how they're doing lives above
+  const firstOffer = liveOffers().reduce((a, e)=>!a || e.date < a ? e.date : a, null);
+  if(firstOffer && !hintSeen("profile") && isoOf(addDays(localDate(firstOffer), 7)) <= iso) return hint("profile", say("moment.hint.profile", {name}), ()=>go("profile"));
   // a daily food tip from today's foods (the same all day)
-  const food = todayDay.meals.flatMap(m=>m.items)[0];
+  const food = today.flatMap(x=>x.m.items)[0];
   return L("tip", say("cook.tips", {name, food:food ? lower1(baseName(food)) : "food"}, "tip"));
 }
 /* ---------- the install line ---------- */
@@ -167,9 +218,9 @@ function lateQuestion(today){
   if(!P.firstDay || P.firstDay >= iso) return null;
   if(today.some(x=>x.status==="now")) return null;
   if(A.day===iso) return A.today && !A[A.today] && !(state.moment.later || []).includes("ask:" + A.today) ? A.today : null;
-  const weekOld = isoOf(new Date(localDate(P.firstDay).getFullYear(), localDate(P.firstDay).getMonth(), localDate(P.firstDay).getDate() + 7)) <= iso;
+  const weekOld = isoOf(addDays(localDate(P.firstDay), 7)) <= iso;
   const want = {mealTimes:!P.mealTimesConfirmed && stageNow().solids, priorities:weekOld && !(P.priorities || []).length,
-                kitchen:shopList("next3").length > 0 && !Object.keys(state.stock || {}).length, people:!!A.shared && !P.people.length};
+                kitchen:toBuyList().length > 0 && !state.pantry.length, people:!!A.shared && !P.people.length};
   const q = LATE_QUESTIONS.find(k=>want[k] && !A[k]);
   if(!q) return null;
   state.asked = Object.assign({}, A, {day:iso, today:q});
@@ -182,19 +233,20 @@ function answerLate(q){
   if(q==="mealTimes") openOnboarding("mealtimes", {single:true});
   else if(q==="priorities") openOnboarding("priorities", {single:true});
   else if(q==="kitchen") openOnboarding("athome", {single:true});
-  else openSheet("people");
+  else go("profile", {section:"people"});
 }
 
 /* ---------- "While you're at it": cook ahead, using only foods already in the plan ----------
    Pure: reads only its arguments (and the stage table), so it can never suggest
-   anything the generator didn't already pass through the safety rules. */
+   anything the generator didn't already pass through the safety rules.
+   seen.isOffered(meal, date) says whether a later meal is already offered. */
 const LEAD = {defrost:8, soak:8};   // hours a lead-time step needs before the meal
 const SALT_MAX_SHOWINGS = 3;
 const COOK_AHEAD_METHODS = ["steam","roast","boil"];
 const LEGUMES = ["lentils","chickpeas"];
 function planMealsBetween(plan, profile, from, to){
   const out = [];
-  for(let d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d <= to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)){
+  for(let d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d <= to; d = addDays(d, 1)){
     const dayIdx = plan.days.findIndex(x=>x.name===DAY_ORDER[d.getDay()]);
     if(dayIdx < 0) continue;
     plan.days[dayIdx].meals.forEach((m, k)=>{
@@ -212,12 +264,12 @@ function whenWord(start, nowD){
   return days===0 ? say("also.when.today") : days===1 ? say("also.when.tomorrow") : say("also.when.later", {weekday:fmtWeekday(start)});
 }
 function suggestAlso(meal, plan, nowD, profile, pantry, seen){
-  const S = seen || {}, done = new Set(S.done || []), out = [];
+  const S = seen || {}, done = new Set(S.done || []), out = [], isOffered = S.isOffered || (()=>false);
   // two lines about the same food would repeat each other (the salt line is about the meal, not a food)
-  const add = s=>{ if(out.length < 2 && !done.has(s.id) && (s.kind==="salt" || !out.some(o=>o.food===s.food && o.kind!=="salt"))) out.push(s); };
+  const add = s=>{ if(out.length < (S.max || 2) && !done.has(s.id) && (s.kind==="salt" || !out.some(o=>o.food===s.food && o.kind!=="salt"))) out.push(s); };
   const ref = meal, m = ref.m, months = ageMonths(profile.birthDate, nowD) || 0;
   const name = profile.name || "";
-  const ahead = (h)=>planMealsBetween(plan, profile, ref.start, new Date(ref.start.getTime() + h*3600000)).filter(x=>!(x.dayIdx===ref.dayIdx && x.k===ref.k) && !x.m.items.every(i=>i.offered));
+  const ahead = h=>planMealsBetween(plan, profile, ref.start, new Date(ref.start.getTime() + h*3600000)).filter(x=>!(x.dayIdx===ref.dayIdx && x.k===ref.k) && !isOffered(x.m, x.date));
   const label = x=>x.m.label.toLowerCase();
   // 1. lead time: a later meal needs a frozen portion defrosted or dried legumes soaked, while there's still time
   ahead(36).forEach(x=>{
@@ -266,18 +318,347 @@ function suggestAlso(meal, plan, nowD, profile, pantry, seen){
     add({id:`salt:${isoOf(nowD)}`, kind:"salt", food:m.items[0] ? m.items[0].name : "", target:null, text:say("also.salt", {name})});
   return out;
 }
+function prepDone(){ const iso = todayISO(); return state.prepped && state.prepped.date===iso ? state.prepped.done || [] : []; }
+function alsoFor(ref, max){
+  const iso = todayISO();
+  const items = suggestAlso(ref, ref.plan || state.plan, now(), state.profile, {}, {done:prepDone(), salt:(state.shown && state.shown.salt) || 0, isOffered:mealOffered, max});
+  items.forEach(s=>{ if(s.kind==="salt" && state.shown.saltDay!==iso){ state.shown = Object.assign({}, state.shown, {salt:(state.shown.salt || 0) + 1, saltDay:iso}); save(); } });
+  return items;
+}
 
-/* ---------- the home ---------- */
+/* ====================================================================
+   THE CANVAS: one config constant. Swipe directions come from it, so the
+   layout changes in one place. [column, row]; Home is the origin.
+   ==================================================================== */
+const LAYOUT = {profile:[0,-1], home:[0,0], shuffle:[1,0], kitchen:[0,1], week:[0,2]};
+const SCREEN_GLOW = {shuffle:"protein", kitchen:"vegetable", week:"fruit", profile:"grain"};
+const EDGE = 24, HEADER_ZONE = 120, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, SETTLE_MS = 320, PULL_AT = 48;
+/* under 6 months only Home and Profile exist */
+function screensNow(){ return milkOnly() ? ["home","profile"] : Object.keys(LAYOUT); }
+function screenAt(c, r){ return screensNow().find(k=>LAYOUT[k][0]===c && LAYOUT[k][1]===r) || null; }
+/* the screen on one side of another: "right" is where a left swipe goes, "up" where a pull down goes */
+function neighbour(name, side){
+  const [c, r] = LAYOUT[name];
+  return side==="right" ? screenAt(c + 1, r) : side==="left" ? screenAt(c - 1, r) : side==="up" ? screenAt(c, r - 1) : screenAt(c, r + 1);
+}
+const pg = {cur:"home", x:0, y:0, drag:null, anim:null, opts:{}, justDragged:false};
+const screenEl = name=>$("scr-" + name);
+const cameraEl = $("camera"), pagerEl = $("pager");
+function size(){ return {W:pagerEl.clientWidth || innerWidth, H:pagerEl.clientHeight || innerHeight}; }
+const camT = (x, y, k)=>{ const {W, H} = size(); return `translate3d(${(-x * W * k).toFixed(2)}px, ${(-y * H * k).toFixed(2)}px, 0)`; };
+/* the glow of each screen, by how close the camera is to it (crossfading as it pans) */
+function glowShares(x, y){
+  const out = {};
+  Object.keys(LAYOUT).forEach(k=>{ const d = Math.max(Math.abs(x - LAYOUT[k][0]), Math.abs(y - LAYOUT[k][1])); out[k] = Math.max(0, Math.min(1, 1 - d)); });
+  return out;
+}
+function backdropParts(){ return [$("glowPlane"), $("bgSky")]; }
+function applyCamera(x, y){
+  cameraEl.style.transform = camT(x, y, 1);
+  const k = calm() ? 0 : PARALLAX;
+  backdropParts().forEach(p=>{ p.style.transform = camT(x, y, k); });
+  const g = glowShares(x, y);
+  document.querySelectorAll(".glow-s").forEach(l=>{ l.style.opacity = String(g[l.dataset.screen]); });
+}
+/* the camera eases to where it's going; with reduced motion, a 150ms crossfade instead of a slide */
+function settle(toX, toY, done){
+  const from = {x:pg.x, y:pg.y};
+  pg.x = toX; pg.y = toY;
+  if(pg.anim) pg.anim.forEach(a=>a.cancel());
+  pg.anim = null;
+  applyCamera(toX, toY);
+  if(calm() || (from.x===toX && from.y===toY)){
+    if(from.x!==toX || from.y!==toY) screenEl(pg.cur).animate([{opacity:0}, {opacity:1}], {duration:150, easing:"linear"});
+    done && done(); return;
+  }
+  const o = {duration:SETTLE_MS, easing:"cubic-bezier(.2,.9,.25,1)"};
+  const anims = [cameraEl.animate([{transform:camT(from.x, from.y, 1)}, {transform:camT(toX, toY, 1)}], o)];
+  backdropParts().forEach(p=>anims.push(p.animate([{transform:camT(from.x, from.y, PARALLAX)}, {transform:camT(toX, toY, PARALLAX)}], o)));
+  const g0 = glowShares(from.x, from.y), g1 = glowShares(toX, toY);
+  document.querySelectorAll(".glow-s").forEach(l=>{ const s = l.dataset.screen; if(g0[s]!==g1[s]) anims.push(l.animate([{opacity:g0[s]}, {opacity:g1[s]}], o)); });
+  pg.anim = anims;
+  anims[0].onfinish = ()=>{ if(pg.anim===anims) pg.anim = null; done && done(); };
+}
+/* screens sit on the grid; only the current one and its neighbours are rendered, the rest are emptied */
+function placeScreens(){
+  Object.keys(LAYOUT).forEach(k=>{ const e = screenEl(k); e.style.transform = `translate(${LAYOUT[k][0] * 100}%, ${LAYOUT[k][1] * 100}%)`; });
+}
+const mounted = new Set(["home"]);
+function wanted(){ const out = new Set([pg.cur]); ["left","right","up","down"].forEach(s=>{ const n = neighbour(pg.cur, s); if(n) out.add(n); }); return out; }
+function mountAround(){
+  const want = wanted();
+  want.forEach(k=>{ if(!mounted.has(k)){ mounted.add(k); renderScreen(k); } });
+  return want;
+}
+/* only the current screen is live: the others are inert and hidden from screen readers */
+function markCurrent(keep){
+  const want = wanted();
+  Object.keys(LAYOUT).forEach(k=>{
+    const e = screenEl(k), on = k===pg.cur;
+    e.inert = !on;
+    if(on) e.removeAttribute("aria-hidden"); else e.setAttribute("aria-hidden", "true");
+    e.classList.toggle("is-off", !want.has(k) && k!==keep);
+  });
+}
+/* after a move: the screens that are no longer neighbours are emptied */
+function unmountFar(){
+  markCurrent();
+  const want = wanted();
+  Object.keys(LAYOUT).forEach(k=>{ if(k!=="home" && !want.has(k) && mounted.has(k)){ mounted.delete(k); screenEl(k).innerHTML = ""; } });
+}
+function renderScreen(k){ if(k==="home") renderHome(); else SCREENS[k](); }
+/* re-render what's on the canvas after a change (keeping scroll and focus) */
+function changed(){
+  layoutSig = "";
+  renderHome();
+  // the screens that exist can change (a birthday under 6 months leaves only Home and Profile)
+  updateMap();
+  if(!screensNow().includes(pg.cur)){ go("home", {quiet:true}); return; }
+  if(!pg.anim){ mountAround(); unmountFar(); }
+  mounted.forEach(k=>{ if(k!=="home") refresh(k); });
+}
+function refresh(k){
+  if(!mounted.has(k) || k==="home") return;
+  const e = screenEl(k), body = e.querySelector(".scr-body"), top = body ? body.scrollTop : 0, f = focusMemo();
+  SCREENS[k]();
+  const nb = e.querySelector(".scr-body");
+  if(nb) nb.scrollTop = top;
+  focusRestore(f);
+}
+/* ---------- going somewhere ---------- */
+function go(name, opts){
+  opts = opts || {};
+  if(!screensNow().includes(name)) name = "home";
+  const from = pg.cur;
+  pg.opts = opts;
+  if(from==="kitchen" && name!=="kitchen" && kitchenUI.store) setStoreMode(false);   // leaving the store lets the screen sleep
+  if(name===from){ arrived(name, opts, false); settle(LAYOUT[name][0], LAYOUT[name][1]); return; }
+  if(name==="shuffle" && opts.date) shuffleUI.day = isoOf(opts.date)===todayISO() ? 0 : 1;
+  pg.cur = name;
+  mountAround();
+  if(mounted.has(name) && name!=="home") refresh(name);
+  route(from, name, opts.fromHistory);
+  markCurrent(from);
+  updateMap();
+  settle(LAYOUT[name][0], LAYOUT[name][1], ()=>{ unmountFar(); arrived(name, opts, true); });
+  if(!opts.quiet) haptic();
+}
+/* the screen has arrived: its heading takes focus, its hint is seen, its content fades in */
+function arrived(name, opts, moved){
+  if(name!=="home" && !state.hints[name]){ state.hints[name] = todayISO(); save(); if(momentKey && /^hint:/.test(momentKey)) renderHome(); }
+  if(name==="kitchen" && state.newToBuy.length){ state.newToBuy = []; save(); layoutSig = ""; renderHome(); }
+  const e = screenEl(name);
+  if(name==="shuffle" && opts.mealId){
+    const t = e.querySelector(`[data-meal="${CSS.escape(opts.mealId)}"]`);
+    if(t){ t.scrollIntoView({block:"start", behavior:"auto"}); t.focus({preventScroll:true}); }
+  }else if(name==="profile" && opts.section){
+    const t = e.querySelector(`[data-sec="${CSS.escape(opts.section)}"]`);
+    if(t){ t.scrollIntoView({block:"start", behavior:"auto"}); t.focus({preventScroll:true}); }
+  }else if(moved && !opts.keepFocus){
+    const h = e.querySelector("h1");
+    if(h) h.focus({preventScroll:true});
+  }
+  if(moved && !calm()){
+    const body = e.querySelector(".scr-body") || e.querySelector(".home-in");
+    if(body){ [...body.children].slice(0, 8).forEach((c, k)=>{ c.style.animationDelay = (k * 40) + "ms"; }); body.classList.add("arrive"); setTimeout(()=>body.classList.remove("arrive"), 700); }
+  }
+}
+/* ---------- routes: #home, #shuffle, #kitchen, #week, #profile. Leaving Home pushes one history entry;
+   moving between the others replaces it, so Back always comes home ---------- */
+function screenFromHash(){ const h = location.hash.replace(/^#/, ""); return LAYOUT[h] ? h : "home"; }
+function route(from, to, fromHistory){
+  if(fromHistory) return;
+  if(to==="home"){ if(history.state && history.state.chicho) history.back(); else history.replaceState(null, "", "#home"); }
+  else if(from==="home") history.pushState({chicho:1}, "", "#" + to);
+  else history.replaceState({chicho:1}, "", "#" + to);
+}
+addEventListener("popstate", ()=>{ if(SNAPSHOT) return; const to = screenFromHash(); if(to!==pg.cur) go(to, {fromHistory:true}); });
+/* ---------- the position map: five dots laid out like the canvas; each is a real link ---------- */
+function buildMap(){
+  const nav = $("map");
+  nav.innerHTML = "";
+  Object.keys(LAYOUT).forEach(k=>{
+    const a = document.createElement("a");
+    a.href = "#" + k; a.className = "m-" + k; a.dataset.f = "map:" + k;
+    a.innerHTML = `<span class="sr-only">${esc(say("screens." + k))}</span>`;
+    a.addEventListener("click", e=>{ e.preventDefault(); go(k, {keepFocus:false}); });
+    nav.appendChild(a);
+  });
+  updateMap();
+}
+function updateMap(){
+  const avail = screensNow();
+  [...$("map").children].forEach(a=>{
+    const k = a.className.replace("m-", "");
+    a.hidden = !avail.includes(k);
+    if(k===pg.cur) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+}
+
+/* ---------- gestures: one pager. The finger drives the camera 1:1; the axis locks after 10px; it commits past
+   35% of the screen or above 0.5 px/ms, otherwise it springs back; past the canvas it rubber-bands at 0.3x.
+   Starts within 24px of either side are left to the browser (Safari's back swipe). ---------- */
+function dragTarget(axis, d){ return neighbour(pg.cur, axis==="x" ? (d < 0 ? "right" : "left") : (d < 0 ? "down" : "up")); }
+function dragTo(axis, d){
+  const {W, H} = size(), [cx, cy] = LAYOUT[pg.cur];
+  let off = axis==="x" ? -d / W : -d / H;
+  if(!dragTarget(axis, d)) off *= RUBBER;
+  applyCamera(axis==="x" ? cx + off : cx, axis==="y" ? cy + off : cy);
+}
+function dragEnd(axis, d, v){
+  const {W, H} = size(), span = axis==="x" ? W : H, to = dragTarget(axis, d);
+  const commit = to && (Math.abs(d) > span * COMMIT_SHARE || (Math.abs(v) > COMMIT_SPEED && Math.sign(v)===Math.sign(d)));
+  // the camera is mid-drag: let settle() start from there
+  const [cx, cy] = LAYOUT[pg.cur];
+  let off = axis==="x" ? -d / W : -d / H;
+  if(!to) off *= RUBBER;
+  pg.x = axis==="x" ? cx + off : cx; pg.y = axis==="y" ? cy + off : cy;
+  if(commit) go(to);
+  else settle(cx, cy);
+}
+function velocity(samples){
+  const last = samples[samples.length - 1], first = samples.find(s=>last.t - s.t <= 100) || samples[0];
+  return last.t > first.t ? (last.d - first.d) / (last.t - first.t) : 0;
+}
+function onboardingOpen(){ const o = $("onboarding"); return o && !o.hidden; }
+pagerEl.addEventListener("pointerdown", e=>{
+  if(e.button > 0 || pg.anim || onboardingOpen()) return;
+  if(e.clientX < EDGE || e.clientX > innerWidth - EDGE) return;
+  const scr = screenEl(pg.cur), scrollable = pg.cur!=="home";
+  const inHeader = scrollable && e.clientY - scr.getBoundingClientRect().top < HEADER_ZONE;
+  const inField = e.target.closest("input, textarea, select");
+  pg.drag = {id:e.pointerId, x0:e.clientX, y0:e.clientY, axis:null, d:0, scrollable, inHeader, inField, samples:[]};
+});
+pagerEl.addEventListener("pointermove", e=>{
+  const g = pg.drag;
+  if(!g || e.pointerId!==g.id) return;
+  const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+  if(!g.axis){
+    if(Math.hypot(dx, dy) < AXIS_LOCK) return;
+    g.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    // on a scrolling screen, a vertical drag outside the header zone is the page's own scroll
+    if(g.axis==="y" && g.scrollable && !g.inHeader){ pg.drag = null; return; }
+    // inside the meal block when it scrolls: the block's
+    if(g.axis==="y" && e.target.closest && e.target.closest(".now-meal.scrolls")){ pg.drag = null; return; }
+    if(g.inField && g.axis==="x"){ pg.drag = null; return; }   // selecting text in a field
+    try{ pagerEl.setPointerCapture(g.id); }catch(_){}
+  }
+  g.d = g.axis==="x" ? dx : dy;
+  g.samples.push({t:e.timeStamp || performance.now(), d:g.d});
+  if(g.samples.length > 12) g.samples.shift();
+  dragTo(g.axis, g.d);
+  if(e.cancelable) e.preventDefault();
+});
+function pointerUp(e){
+  const g = pg.drag;
+  if(!g || e.pointerId!==g.id) return;
+  pg.drag = null;
+  if(!g.axis) return;
+  pg.justDragged = true; setTimeout(()=>{ pg.justDragged = false; }, 0);
+  if(e.type==="pointercancel"){ dragEnd(g.axis, 0, 0); return; }
+  dragEnd(g.axis, g.d, g.samples.length ? velocity(g.samples) : 0);
+}
+pagerEl.addEventListener("pointerup", pointerUp);
+pagerEl.addEventListener("pointercancel", pointerUp);
+/* a finished drag isn't also a tap */
+pagerEl.addEventListener("click", e=>{ if(pg.justDragged){ e.stopPropagation(); e.preventDefault(); pg.justDragged = false; } }, true);
+/* Scrolling screens: pulling past the top (or bottom) edge by 48px starts going to the screen above (or below).
+   Touch events, because a native vertical scroll cancels pointer events. */
+function watchPull(body){
+  let p = null;
+  body.addEventListener("touchstart", e=>{
+    if(e.touches.length!==1 || pg.anim) return;
+    const t = e.touches[0];
+    if(t.clientX < EDGE || t.clientX > innerWidth - EDGE) return;
+    p = {x0:t.clientX, y0:t.clientY, top:body.scrollTop <= 0, bottom:body.scrollTop + body.clientHeight >= body.scrollHeight - 1, active:false, d:0, samples:[]};
+  }, {passive:true});
+  body.addEventListener("touchmove", e=>{
+    if(!p) return;
+    const t = e.touches[0], dx = t.clientX - p.x0, dy = t.clientY - p.y0;
+    if(!p.active){
+      if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > AXIS_LOCK){ p = null; return; }
+      const atEdge = (dy > 0 && p.top) || (dy < 0 && p.bottom);
+      if(!atEdge){ if(Math.abs(dy) > AXIS_LOCK) p = null; return; }
+      if(e.cancelable) e.preventDefault();   // hold the page still through the resistance
+      if(Math.abs(dy) < PULL_AT) return;
+      p.active = true;
+    }
+    if(e.cancelable) e.preventDefault();
+    p.d = dy - Math.sign(dy) * PULL_AT;
+    p.samples.push({t:e.timeStamp || performance.now(), d:p.d});
+    if(p.samples.length > 12) p.samples.shift();
+    dragTo("y", p.d);
+  }, {passive:false});
+  const end = ()=>{ if(!p) return; const q = p; p = null; if(q.active) dragEnd("y", q.d, q.samples.length ? velocity(q.samples) : 0); };
+  body.addEventListener("touchend", end); body.addEventListener("touchcancel", end);
+}
+/* keys: arrows move through the canvas (not while typing); Home or Esc comes home */
+document.addEventListener("keydown", e=>{
+  if(SNAPSHOT || onboardingOpen() || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target, typing = t && (t.matches("input, textarea, select") || t.isContentEditable);
+  if(typing) return;
+  const side = {ArrowLeft:"left", ArrowRight:"right", ArrowUp:"up", ArrowDown:"down"}[e.key];
+  if(side){ const n = neighbour(pg.cur, side); e.preventDefault(); if(n) go(n, {quiet:true}); return; }
+  if((e.key==="Escape" || e.key==="Home") && pg.cur!=="home"){ e.preventDefault(); go("home", {quiet:true}); }
+});
+addEventListener("resize", ()=>{ if(SNAPSHOT) return; paintScreenGlows(); if(!pg.drag && !pg.anim) applyCamera(pg.x, pg.y); fitHome(); });
+
+/* ---------- a screen's frame: pinned header (Home control, title, tools), native scroll, an optional pinned pill ---------- */
+function frame(name, title, opts){
+  const o = opts || {}, e = screenEl(name);
+  e.innerHTML = "";
+  const head = el("header", "scr-head"), hc = el("div", "scr-col");
+  const home = textBtn(say("screens.home"), ()=>go("home"), "small home-link");
+  home.dataset.f = name + ":home";
+  hc.appendChild(home);
+  const tools = el("div", "scr-tools");
+  (o.tools || []).forEach(t=>tools.appendChild(t));
+  hc.appendChild(tools);
+  const h = el("h1", o.titleClass || "scr-title", title);
+  h.tabIndex = -1; h.id = "t-" + name;
+  hc.appendChild(h);
+  if(o.sub) hc.appendChild(el("p", "scr-sub", o.sub));
+  head.appendChild(hc);
+  const body = el("div", "scr-body"), col = el("div", "scr-col");
+  body.appendChild(col);
+  e.append(head, body);
+  e.setAttribute("aria-labelledby", h.id);
+  // the bottom edge belongs to the pinned pill (if any) and the map: content never scrolls under them
+  if(o.pin){ const pin = el("div", "scr-pin"), pc = el("div", "scr-col"); pc.appendChild(o.pin); pin.appendChild(pc); e.appendChild(pin); }
+  else e.appendChild(el("div", "scr-foot"));
+  watchPull(body);
+  return col;
+}
+function section(parent, key, title){
+  const s = el("section", "sec");
+  if(key){ s.dataset.sec = key; s.tabIndex = -1; }
+  if(title){ const h = el("h2", "sec-h", title); s.appendChild(h); }
+  parent.appendChild(s);
+  return s;
+}
+const RING = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg></i>`;
+function ring(on, label, fn, f){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "ring-btn"; if(f) b.dataset.f = f;
+  b.setAttribute("aria-pressed", String(!!on)); b.setAttribute("aria-label", label);
+  b.innerHTML = RING;
+  b.addEventListener("click", fn);
+  return b;
+}
+
+/* ====================================================================
+   HOME: offer. Light, contextual, never scrolls. The corner header, the
+   headline and moment line, the meal now (or next), the pill, one footer
+   line, and the map in the corner. Everything else lives one swipe away.
+   ==================================================================== */
 let homeKey = null, momentKey = null, picked = null, firstDraw = true, layoutSig = "";
 const undoUntil = {};    // meal key → ms when its "Offered · Undo" window ends
-const outcomeUntil = {}; // meal key → ms when its outcome row fades away (nothing waits for an answer)
-let OUTCOME_MS = 10000;  // how long "Loved it · Ate some · Not today" stays if ignored
+const outcomeUntil = {}; // meal key → ms when its outcome row turns into "Add how it went"
+let OUTCOME_MS = 20000;  // how long "Loved it · Ate some · Not today" stays if ignored
 const OUTCOME_AFTER_MS = 1600;   // …and after an answer, long enough to see it taken
-const outcomeRisen = new Set();
-const changeUndo = {};   // food id → {until, old, m, at}
-const openFood = new Set();
-function refsOn(date){ return mealsOn(date).map(x=>Object.assign(x, {date, key:isoOf(date) + "|" + x.k})); }
-/* the meal that's open by default: the now meal, otherwise the next */
+const homeUI = {allFoods:false, howOpen:false, key:null};
+function refsOn(date){ return mealsOn(date).map(x=>Object.assign(x, {key:isoOf(date) + "|" + x.m.id})); }
+/* the meal that's shown by default: the now meal, otherwise the next */
 function defaultOpen(today, tm){
   const n = today.find(x=>x.status==="now");
   if(n) return n;
@@ -290,544 +671,302 @@ function nextBoundary(today){
   const t = now(), edges = today.flatMap(x=>[x.start, new Date(x.start.getTime() + NOW_WINDOW_MIN*60000)]).filter(d=>d > t).sort((a, b)=>a - b);
   return edges[0] || tomorrowOf(t);
 }
-function homeChanged(){ layoutSig = ""; renderHome(); refreshSheetView(); }
+function homeChanged(){ changed(); }
+function homeRef(){
+  const t = now(), today = milkOnly() ? [] : refsOn(t), tm = milkOnly() ? [] : refsOn(tomorrowOf(t));
+  if(picked && t >= picked.until) picked = null;
+  const all = today.concat(tm);
+  if(picked && !all.some(x=>x.key===picked.key)) picked = null;
+  return {ref:picked ? all.find(x=>x.key===picked.key) : defaultOpen(today, tm), today, tm, all};
+}
 function renderHome(){
   if(!$("home") || SNAPSHOT) return;
   const P = state.profile, st = stageNow(), t = now();
   if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
   lastISO = todayISO();
-  if(picked && t >= picked.until) picked = null;
   setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
-  setText($("whoName"), P.name || say("home.profile"));
-  $("profileBtn").setAttribute("aria-label", say("home.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
-  setText($("clockDate"), fmtCornerDate(view.day ? tomorrowOf(t) : t));
-  $("whenBtn").setAttribute("aria-pressed", String(view.day===1));
-  $("whenBtn").setAttribute("aria-label", say(view.day ? "home.view.backToday" : "home.view.showTomorrow"));
+  setText($("whoName"), P.name || say("screens.profile"));
+  $("profileBtn").setAttribute("aria-label", say("screens.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
+  setText($("clockDate"), fmtCornerDate(t));
   setText($("clock"), fmtTime(t));
   $("clock").setAttribute("datetime", t.toISOString());
-  renderCaptions(st);
-  $("home").classList.toggle("is-cooking", cook.active);
-  $("cook").hidden = !cook.active;
-  if(cook.active){ document.documentElement.classList.add("glow-dim"); renderCook(); updateChrome(); return; }
   const calmState = milkOnly(), empty = !calmState && !hasPlan();
   $("home").classList.toggle("is-milk", calmState);
   $("home").classList.toggle("is-empty", empty);
   renderHeadline();
   renderMomentLine();
-  try{ renderMeals(); }catch(e){ setGlow(null); throw e; }
-  if(calmState || empty) setGlow(null);   // no plan, or under 6 months: the default glow
+  const {ref, today} = homeRef();
+  renderNowMeal(ref, today);
+  if(calmState || empty) setGlow(null);
   document.documentElement.classList.toggle("glow-dim", t.getHours()*60 + t.getMinutes() >= QUIET_FROM_MIN);
-  cookTick();
-  renderWeek();
-  renderShopLine();
   updateChrome();
-  if(firstDraw){ firstDraw = false; entrance(); try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
-}
-/* ---------- looking ahead: scrub through the day, or the whole of tomorrow ----------
-   view.day 1 re-skins the page to tomorrow's plan (tap or swipe the date); view.idx is a meal of that day
-   scrubbed to by swiping the headline sideways. Headline, open meal and glow follow; "Back to now" / "Back to
-   today" return, and so does the next meal boundary on its own. */
-const view = {day:0, idx:null, until:0};
-function viewActive(){ return view.day===1 || view.idx!==null; }
-function viewList(){ const t = now(); return milkOnly() ? [] : refsOn(view.day ? tomorrowOf(t) : t); }
-function viewRef(){
-  if(!viewActive()) return null;
-  const list = viewList();
-  if(!list.length) return null;
-  return list[Math.max(0, Math.min(list.length - 1, view.idx===null ? 0 : view.idx))];
-}
-function setView(day, idx){
-  view.day = day; view.idx = idx;
-  view.until = viewActive() ? nextBoundary(refsOn(now())).getTime() : 0;
-  picked = null; changing = null;
-  haptic(); homeChanged();
-  if(!calm()) $("openMeal").animate([{opacity:0}, {opacity:1}], {duration:260, easing:"ease-out"});
-}
-function backToNow(){ setView(0, null); focusLater("top:me"); }
-/* one sideways swipe on an element (not from the screen's edges, not a vertical drag) */
-function onSwipe(el, fn){
-  let x0 = null, y0 = 0;
-  el.addEventListener("pointerdown", e=>{ if(e.pointerType==="mouse" || e.clientX < SWIPE_EDGE || e.clientX > innerWidth - SWIPE_EDGE) return; x0 = e.clientX; y0 = e.clientY; });
-  const up = e=>{ if(x0===null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5){ el.dataset.swiped = "1"; fn(dx < 0 ? "left" : "right"); } };
-  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", ()=>{ x0 = null; });
-  el.addEventListener("click", e=>{ if(el.dataset.swiped){ delete el.dataset.swiped; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
-}
-function scrub(dir){
-  const list = viewList(), t = now();
-  if(!list.length) return;
-  let at = view.idx;
-  if(at===null){ const def = view.day ? list[0] : defaultOpen(list, refsOn(tomorrowOf(t))); at = list.indexOf(def); if(at < 0) at = list.length; }
-  const to = at + (dir==="left" ? 1 : -1);
-  if(to < 0 || to >= list.length) return;
-  setView(view.day, to);
+  if(firstDraw){ firstDraw = false; try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
 }
 function renderHeadline(){
-  const v = viewRef();
-  const h = v ? {key:`view:${view.day}:${v.key}`, headline:say(view.day ? "home.headline.tomorrow" : "home.headline.at", {meal:v.m.label, time:fmtTime(v.start)}), title:currentTitle || "Chicho"} : headlineNow();
-  const el = $("headline");
-  const changed = homeKey!==null && homeKey!==h.key;
-  if(changed && !calm()){
-    el.animate([{opacity:1}, {opacity:0}], {duration:140, fill:"forwards"}).onfinish = function(){ setText(el, h.headline); this.cancel(); el.animate([{opacity:0, transform:"translateY(6px)"}, {opacity:1, transform:"none"}], {duration:280, easing:"cubic-bezier(.2,.8,.2,1)"}); };
-  }else setText(el, h.headline);
-  if(changed && h.announce) announce(h.announce);
+  const h = headlineNow(), e = $("headline");
+  const changedNow = homeKey!==null && homeKey!==h.key;
+  if(changedNow && !calm()){
+    e.animate([{opacity:1}, {opacity:0}], {duration:140, fill:"forwards"}).onfinish = function(){ setText(e, h.headline); this.cancel(); e.animate([{opacity:0, transform:"translateY(6px)"}, {opacity:1, transform:"none"}], {duration:280, easing:"cubic-bezier(.2,.8,.2,1)"}); };
+  }else setText(e, h.headline);
+  if(changedNow && h.announce) announce(h.announce);
   homeKey = h.key;
   currentTitle = h.title;
 }
 function renderMomentLine(){
-  const m = viewActive() ? (view.day ? {key:"view:tomorrow", text:say("home.view.tomorrow") + " ·", actions:[[say("home.view.backToday"), backToNow]], tone:"plain"}
-                                     : {key:"view:scrub", text:"", actions:[[say("home.view.backNow"), backToNow]], tone:"plain"}) : momentLine();
-  const el = $("moment");
-  const sig = m.key + "|" + m.text;
+  const m = momentLine(), e = $("moment");
+  const sig = m.key + "|" + m.text + "|" + m.actions.map(a=>a[0]).join("|");
   if(sig===momentKey) return;
   momentKey = sig;
-  el.innerHTML = "";
-  el.classList.toggle("calm-tone", m.tone==="calm");
-  el.append(m.text);
-  m.actions.slice(0, 1).forEach(([label, fn])=>{ el.append(" "); el.appendChild(textBtn(label, fn, "inline")); });
+  e.innerHTML = "";
+  e.classList.toggle("calm-tone", m.tone==="calm");
+  if(m.text) e.append(m.text);
+  m.actions.slice(0, 1).forEach(([label, fn])=>{ if(m.text) e.append(" "); const b = textBtn(label, fn, "inline"); b.dataset.f = "moment:go"; e.appendChild(b); });
   // a second action (Later) is a quieter word after the first
-  m.actions.slice(1, 2).forEach(([label, fn])=>{ el.append(" "); el.appendChild(textBtn(label, fn, "inline quiet")); });
+  m.actions.slice(1, 2).forEach(([label, fn])=>{ e.append(" "); const b = textBtn(label, fn, "inline quiet"); b.dataset.f = "moment:later"; e.appendChild(b); });
 }
-function textBtn(label, fn, cls){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "btn-text" + (cls ? " " + cls : ""); b.textContent = label;
-  b.addEventListener("click", fn);
-  return b;
-}
-
-/* ---------- meals: one object, opened in place; one open at a time ---------- */
-function renderMeals(){
-  const t = now(), today = milkOnly() ? [] : refsOn(t), tm = milkOnly() ? [] : refsOn(tomorrowOf(t));
-  const vr = viewRef();
-  const def = vr || defaultOpen(today, tm);
-  const all = today.concat(tm);
-  if(picked && !all.some(x=>x.key===picked.key)) picked = null;
-  const openKey = picked ? picked.key : def ? def.key : null;
-  let earlier, upNext, nextLabel;
-  if(vr && view.day){
-    earlier = []; upNext = tm.filter(x=>x.key!==def.key); nextLabel = say("home.tomorrow");
-  }else if(def && today.includes(def)){
-    earlier = today.filter(x=>x.start < def.start);
-    upNext = today.filter(x=>x.start > def.start);
-    nextLabel = say("home.upNext");
-    if(!upNext.length){ upNext = tm; nextLabel = say("home.tomorrow"); }
-  }else{
-    earlier = today;
-    upNext = tm.filter(x=>!def || x.key!==def.key);
-    nextLabel = say("home.tomorrow");
-  }
-  const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : "") + (outcomeUntil[x.key] > Date.now() ? "o" : ""))].join("|")
-            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + Object.keys(addUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "") + "|v" + view.day + ":" + view.idx;
+/* the meal now (or next): title with the time, foods as plain lines, the how, one "While you're at it" line */
+const FOOD_LINES_MAX = 4;
+function renderNowMeal(ref, today){
+  const box = $("nowMeal"), zone = $("offerZone"), foot = $("footLine");
+  const sig = !ref ? "none" : [ref.key, ref.status, ref.time, ref.m.items.map(i=>i.id).join(","), mealOffered(ref.m, ref.date), mealOutcome(ref.m, ref.date),
+               undoUntil[ref.key] > Date.now(), outcomeUntil[ref.key] > Date.now(), homeUI.allFoods, homeUI.howOpen, prepDone().length, offersVersion].join("|");
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
-  const slot = $("openMeal");
-  slot.innerHTML = "";
-  if(def) slot.appendChild(mealView(def, def.key===openKey, true));
-  fillList($("earlierList"), earlier, openKey);
-  fillList($("nextList"), upNext, openKey);
-  $("earlierSec").hidden = !earlier.length;
-  $("nextSec").hidden = !upNext.length;
-  setText($("nextLabel"), nextLabel);
-  renderAlso(def);
+  box.innerHTML = ""; zone.innerHTML = "";
+  if(!ref){ foot.hidden = true; setGlow(null); return; }
+  if(homeUI.key!==ref.key){ homeUI.key = ref.key; homeUI.allFoods = false; homeUI.howOpen = false; }
+  const m = ref.m, tomorrow = isoOf(ref.date)!==todayISO();
+  const h = el("h2", "meal-title", say(tomorrow ? "home.mealTitleTomorrow" : "home.mealTitle", {meal:m.label, time:fmtTime(ref.start)}));
+  h.tabIndex = -1; h.dataset.f = "meal:title";
+  box.appendChild(h);
+  const ul = el("ul", "meal-foods");
+  const shown = homeUI.allFoods || m.items.length <= FOOD_LINES_MAX ? m.items : m.items.slice(0, FOOD_LINES_MAX - 1);
+  shown.forEach(i=>ul.appendChild(el("li", "", foodLine(i))));
+  if(shown.length < m.items.length){
+    const li = el("li");
+    const more = textBtn(say("home.andMore", {n:m.items.length - shown.length}), ()=>{ homeUI.allFoods = true; layoutSig = ""; renderHome(); focusLater("meal:title"); }, "inline more-btn");
+    more.dataset.f = "meal:more";
+    li.appendChild(more); ul.appendChild(li);
+  }
+  box.appendChild(ul);
+  const how = mealHow(m);
+  if(how.length){
+    const p = el("p", "meal-how"), span = el("span", homeUI.howOpen ? "" : "clamp", how.join(" "));
+    p.appendChild(span);
+    box.appendChild(p);
+    if(!homeUI.howOpen) requestAnimationFrame(()=>{
+      if(span.scrollHeight > span.clientHeight + 1 && !p.querySelector(".btn-text")){
+        const b = textBtn(say("home.more"), ()=>{ homeUI.howOpen = true; layoutSig = ""; renderHome(); }, "inline");
+        b.dataset.f = "meal:howmore";
+        p.append(" "); p.appendChild(b);
+        fitHome();
+      }
+    });
+  }
+  const also = !mealOffered(m, ref.date) ? alsoFor(ref, 1)[0] : null;
+  if(also){ const p = el("p", "meal-also"); p.innerHTML = `<b>${esc(say("home.also"))}:</b> ${esc(also.text)}`; box.appendChild(p); }
+  renderOfferZone(ref, zone);
+  // the footer line: the meal after this one
+  const after = homeAfter(ref, today);
+  foot.textContent = after ? say(isoOf(after.date)===todayISO() ? "home.next" : "home.nextTomorrow", {meal:after.m.label, time:fmtTime(after.start)}) : "";
+  foot.hidden = !after;
+  setGlow(m.items[0] ? m.items[0].cats[0] : null);
   focusRestore(focus);
-  const open = all.find(x=>x.key===openKey) || def;
-  setGlow(open && open.m.items[0] ? open.m.items[0].cats[0] : null);
+  fitHome();
 }
-/* the poster's bottom corners: the stage (name over its line), and the glow's food group in words */
-function renderCaptions(st){
-  setText($("capStage"), st.name);
-  setText($("capLine"), st.solids ? `${st.meals} · ${st.caption || st.textureShort}` : st.meals);
+function homeAfter(ref, today){
+  const tm = refsOn(tomorrowOf(now()));
+  const list = today.concat(tm).filter(x=>x.start > ref.start && x.key!==ref.key);
+  return list[0] || null;
 }
-/* ---------- the glow follows the open meal ---------- */
+/* "Mark as offered" → "Offered · Undo" for 5 s → how it went (optional, equal) → a quiet "Add how it went" */
+function renderOfferZone(ref, zone){
+  const m = ref.m, on = mealOffered(m, ref.date), undo = undoUntil[ref.key] > Date.now();
+  const bar = el("div", "offer-bar");
+  const pill = document.createElement("button");
+  pill.type = "button"; pill.className = "offer-pill"; pill.dataset.f = "offer";
+  pill.setAttribute("aria-pressed", String(on));
+  pill.textContent = on ? say("meal.offered") : say("meal.offer");
+  pill.addEventListener("click", ()=>toggleOffered(ref));
+  bar.appendChild(pill);
+  if(on && undo){
+    const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[ref.key]; delete outcomeUntil[ref.key]; offerMeal(m, ref.date, false); save(); announce(say("home.announce.unoffered", {meal:m.label})); picked = null; changed(); focusLater("offer"); }, "undo");
+    u.dataset.f = "undo";
+    bar.appendChild(u);
+  }
+  zone.appendChild(bar);
+  if(!on || undo) return;
+  if(outcomeUntil[ref.key] > Date.now()) zone.appendChild(outcomeRow(ref));
+  else if(!mealOutcome(m, ref.date)){
+    const p = el("p", "how-went");
+    const b = textBtn(say("meal.addHow"), ()=>{ showOutcome(ref.key, OUTCOME_MS); layoutSig = ""; renderHome(); focusLater(`out:${ref.key}:loved`); }, "inline quiet");
+    b.dataset.f = "howwent";
+    p.appendChild(b);
+    zone.appendChild(p);
+  }
+}
+function toggleOffered(ref){
+  const on = !mealOffered(ref.m, ref.date);
+  // offered, the meal stays on Home (Undo, then how it went) until the next boundary
+  if(on) picked = {key:ref.key, until:nextBoundary(refsOn(now()))};
+  offerMeal(ref.m, ref.date, on); save(); haptic();
+  if(on){
+    pulseGlow(); undoUntil[ref.key] = Date.now() + 5000;
+    setTimeout(()=>{ if(mealOffered(ref.m, ref.date)) showOutcome(ref.key, OUTCOME_MS); layoutSig = ""; renderHome(); }, 5050);
+    announce(say("home.announce.offered", {meal:ref.m.label}));
+  }else{ delete undoUntil[ref.key]; delete outcomeUntil[ref.key]; picked = null; announce(say("home.announce.unoffered", {meal:ref.m.label})); }
+  changed();
+}
+/* the outcome row: rises once, and gives way to "Add how it went" when ignored */
+const outcomeRisen = new Set();
+function showOutcome(key, ms){
+  outcomeUntil[key] = Date.now() + ms;
+  clearTimeout(showOutcome[key]);
+  showOutcome[key] = setTimeout(()=>{
+    const row = document.querySelector(`.outcomes[data-key="${CSS.escape(key)}"]`);
+    const done = ()=>{ delete outcomeUntil[key]; outcomeRisen.delete(key); layoutSig = ""; renderHome(); };
+    if(row && !calm()) row.animate([{opacity:1}, {opacity:0, transform:"translateY(-4px)"}], {duration:400, easing:"ease-in", fill:"forwards"}).onfinish = done;
+    else done();
+  }, ms);
+}
+function outcomeRow(ref){
+  const m = ref.m, g = el("div", "outcomes");
+  g.dataset.key = ref.key; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
+  const cur = mealOutcome(m, ref.date);
+  OUTCOMES.forEach(v=>{
+    const ob = document.createElement("button");
+    ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${ref.key}:${v}`;
+    ob.setAttribute("aria-pressed", String(cur===v));
+    ob.textContent = say("meal.outcome." + v);
+    ob.addEventListener("click", ()=>{ setOutcome(m, ref.date, v); save(); haptic(); showOutcome(ref.key, OUTCOME_AFTER_MS); changed(); });
+    g.appendChild(ob);
+  });
+  if(!outcomeRisen.has(ref.key)){ outcomeRisen.add(ref.key); if(!calm()) requestAnimationFrame(()=>g.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:260, easing:"cubic-bezier(.2,.8,.2,1)"})); }
+  return g;
+}
+/* it must never scroll the page: when the meal doesn't fit, the footer line goes first; anything still
+   over scrolls inside the meal block (never cropped) */
+function fitHome(){
+  const box = $("nowMeal"), foot = $("footLine");
+  if(!box || !box.firstChild || pg.cur!=="home" && !mounted.has("home")) return;
+  box.classList.remove("scrolls");
+  if(foot.textContent) foot.hidden = false;
+  if(box.scrollHeight > box.clientHeight + 1 && foot.textContent) foot.hidden = true;
+  if(box.scrollHeight > box.clientHeight + 1) box.classList.add("scrolls");
+  // the glow sits behind the headline
+  const hl = $("headline"), r = hl.getBoundingClientRect(), s = screenEl("home").getBoundingClientRect();
+  if(r.height){ const y = Math.round(r.top - s.top + r.height / 2) + "px"; if($("glowPulse").style.getPropertyValue("--glow-y")!==y){ $("glowPulse").style.setProperty("--glow-y", y); paintScreenGlows(); } }
+}
+/* ---------- the glow: Home's follows the meal's food group; each other screen has its own ---------- */
 let glowKey = null;
 function setGlow(cat){
   const group = glowGroup(cat);
   if(group===glowKey) return;
-  const layers = [...document.querySelectorAll(".glow-l")];
+  const layers = [...document.querySelectorAll('.glow-s[data-screen="home"] .glow-l')];
   if(!layers.length) return;
   const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
   if(glowKey===null) on.style.backgroundImage = glowGradient(GLOW[group].hex);
   else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
   glowKey = group;
   document.documentElement.dataset.glow = group;
-  setText($("capGlow"), say("home.groups." + group));
+}
+/* each screen's glow sits where the parallax plane is when that screen is in view, so it's centred there:
+   Home's behind the headline, the others' behind their pinned header (ink), never behind muted text */
+const SCREEN_GLOW_Y = 24;
+function paintScreenGlows(){
+  const {W, H} = size(), gy = parseFloat($("glowPulse").style.getPropertyValue("--glow-y")) || 160;
+  Object.keys(LAYOUT).forEach(k=>{
+    const l = document.querySelector(`.glow-s[data-screen="${k}"]`);
+    if(!l) return;
+    if(SCREEN_GLOW[k] && !l.style.backgroundImage) l.style.backgroundImage = glowGradient(GLOW[SCREEN_GLOW[k]].hex);
+    const dy = k==="home" ? 0 : SCREEN_GLOW_Y - gy;
+    l.style.translate = `${(LAYOUT[k][0] * PARALLAX * W).toFixed(1)}px ${(LAYOUT[k][1] * PARALLAX * H + dy).toFixed(1)}px`;
+  });
 }
 /* one soft pulse when a meal is offered: that's the whole reward */
 function pulseGlow(){
   const p = $("glowPulse");
   if(p && !calm() && document.documentElement.dataset.theme==="light") p.animate([{transform:"scale(1)"}, {transform:"scale(1.05)"}, {transform:"scale(1)"}], {duration:700, easing:"ease-in-out"});
 }
-function fillList(list, refs, openKey){ list.innerHTML = ""; refs.forEach(x=>list.appendChild(mealView(x, x.key===openKey, false))); }
-/* keep focus on the same control across a redraw (by its data-f key) */
-function focusMemo(){ const a = document.activeElement; return a && a.dataset && a.dataset.f ? a.dataset.f : null; }
-function focusRestore(k){ if(!k) return; const el = document.querySelector(`[data-f="${CSS.escape(k)}"]`); if(el) el.focus({preventScroll:true}); }
-function mealView(x, expanded, isDefault){ return expanded ? mealOpen(x, isDefault) : mealRow(x); }
-function whenLabel(x){
-  const tomorrow = isoOf(x.date)!==todayISO();
-  return say(tomorrow ? "home.tomorrowWhen" : "home.rowWhen", {meal:x.m.label, time:fmtTime(x.start)});
-}
-/* the offered ring: on every meal, always visible, a 44px target; the check sits under a wipe that slides off */
-const RING = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/><rect class="wipe" x="4" y="5" width="16" height="14"/></svg></i>`;
-function ringBtn(x, f){
-  const on = mealOffered(x.m);
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "ring-btn"; b.dataset.f = f;
-  b.setAttribute("aria-pressed", String(on));
-  b.setAttribute("aria-label", on ? say("meal.ringOn", {meal:x.m.label}) : say("meal.ringOff", {meal:x.m.label}));
-  b.innerHTML = RING;
-  b.addEventListener("click", e=>{ e.stopPropagation(); toggleOffered(x); });
-  return b;
-}
-function toggleOffered(x, fromPill){
-  const on = !mealOffered(x.m);
-  // offered from its own pill, the meal stays open (Undo, then how it went) until the next boundary
-  if(on && fromPill) picked = {key:x.key, until:nextBoundary(refsOn(now()))};
-  offerMeal(x.m, on); save(); haptic();
-  if(on){ pulseGlow(); undoUntil[x.key] = Date.now() + 5000; showOutcome(x.key, OUTCOME_MS); setTimeout(()=>{ homeChanged(); }, 5050); announce(say("home.announce.offered", {meal:x.m.label})); }
-  else { delete undoUntil[x.key]; delete outcomeUntil[x.key]; outcomeRisen.delete(x.key); announce(say("home.announce.unoffered", {meal:x.m.label})); }
-  homeChanged();
-}
-/* ---------- how it went, in the same motion ----------
-   Ticking a meal (pill, ring or swipe) brings the outcome row up inline; it fades away on its own if ignored,
-   and soon after an answer. Optional and equal, and nothing waits for it. */
-function showOutcome(key, ms){
-  outcomeUntil[key] = Date.now() + ms;
-  clearTimeout(showOutcome[key]);
-  showOutcome[key] = setTimeout(()=>{
-    const el = document.querySelector(`.outcomes[data-key="${CSS.escape(key)}"]`);
-    const done = ()=>{ delete outcomeUntil[key]; outcomeRisen.delete(key); homeChanged(); };
-    if(el && !calm()) el.animate([{opacity:1}, {opacity:0, transform:"translateY(-4px)"}], {duration:400, easing:"ease-in", fill:"forwards"}).onfinish = done;
-    else done();
-  }, ms);
-}
-function outcomeRow(x){
-  const m = x.m, g = document.createElement("div");
-  g.className = "outcomes"; g.dataset.key = x.key; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
-  ["loved","some","nottoday"].forEach(v=>{
-    const ob = document.createElement("button");
-    ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${x.key}:${v}`;
-    ob.setAttribute("aria-pressed", String(m.outcome===v));
-    ob.textContent = say("meal.outcome." + v);
-    ob.addEventListener("click", ()=>{ setOutcome(m, v); save(); haptic(); showOutcome(x.key, OUTCOME_AFTER_MS); homeChanged(); });
-    g.appendChild(ob);
-  });
-  // it rises once, when it first appears
-  if(!outcomeRisen.has(x.key)){ outcomeRisen.add(x.key); if(!calm()) requestAnimationFrame(()=>g.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:260, easing:"cubic-bezier(.2,.8,.2,1)"})); }
-  return g;
-}
-/* a compact row: bullet, "{Meal} · around {time}", its ring; a tap opens it in place */
-function mealRow(x){
-  const row = document.createElement("div");
-  row.className = "mrow" + (x.status==="earlier" ? " is-earlier" : "") + (mealOffered(x.m) ? " is-offered" : "");
-  row.dataset.key = x.key;
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "mrow-btn"; b.dataset.f = "row:" + x.key;
-  b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-controls", "mx-" + cssId(x.key));
-  const prepped = (x.m.prepped || [])[0];
-  b.innerHTML = `${foodArt(x.m.items[0].name, {size:24, lazy:true})}<span class="mrow-t">${esc(whenLabel(x))}${prepped ? `<span class="mrow-sub">${esc(say("home.prepped", {food:baseName({name:prepped})}))}</span>` : ""}</span>`;
-  b.addEventListener("click", ()=>{ picked = {key:x.key, until:nextBoundary(refsOn(now()))}; homeChanged(); focusLater("title:" + x.key); });
-  row.appendChild(b);
-  row.appendChild(ringBtn(x, "ring:" + x.key));
-  if(undoUntil[x.key] > Date.now()) row.appendChild(undoLine(x));
-  if(mealOffered(x.m) && outcomeUntil[x.key] > Date.now()) row.appendChild(outcomeRow(x));
-  swipeRow(row, b, x);
-  return row;
-}
-/* Swipe a row: right marks it offered (the undo line follows), left opens it on Change for its main food.
-   A shortcut, never the only way: the ring and the row's tap stay. A swipe that starts within 24px of either
-   screen edge is left to the browser (Safari's back swipe); vertical drags stay the page's scroll. */
-const SWIPE_EDGE = 24, SWIPE_AT = 72;
-function swipeRow(row, b, x){
-  let x0 = null, y0 = 0, dx = 0, sideways = false, id = null;
-  const hint = document.createElement("span");
-  hint.className = "swipe-hint"; hint.setAttribute("aria-hidden", "true");
-  row.prepend(hint);
-  const end = ()=>{
-    if(x0===null) return;
-    x0 = null;
-    b.style.transform = ""; hint.style.opacity = "";
-    if(!sideways) return;
-    if(dx > SWIPE_AT && !mealOffered(x.m)) toggleOffered(x);
-    else if(dx < -SWIPE_AT && x.m.items[0]){ picked = {key:x.key, until:nextBoundary(refsOn(now()))}; openFood.add(x.m.items[0].id); changing = {id:x.m.items[0].id, i:0}; haptic(); homeChanged(); focusLater("keep:" + x.m.items[0].id); }
-    else if(!calm()) b.animate([{transform:`translateX(${dx}px)`}, {transform:"none"}], {duration:180, easing:"ease-out"});
-  };
-  b.addEventListener("pointerdown", e=>{
-    if(e.pointerType==="mouse" || e.clientX < SWIPE_EDGE || e.clientX > innerWidth - SWIPE_EDGE) return;
-    x0 = e.clientX; y0 = e.clientY; dx = 0; sideways = false; id = e.pointerId;
-  });
-  b.addEventListener("pointermove", e=>{
-    if(x0===null || e.pointerId!==id) return;
-    dx = e.clientX - x0;
-    if(!sideways){ if(Math.abs(e.clientY - y0) > 10){ x0 = null; return; } if(Math.abs(dx) < 10) return; sideways = true; b.setPointerCapture(id); }
-    const d = Math.max(-120, Math.min(120, dx));
-    b.style.transform = `translateX(${d}px)`;
-    hint.textContent = d > 0 ? say("meal.offered") : say("meal.change");
-    hint.dataset.side = d > 0 ? "left" : "right";
-    hint.style.opacity = String(Math.min(1, Math.abs(d) / SWIPE_AT));
-  });
-  b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
-  // a finished swipe isn't also a tap
-  b.addEventListener("click", e=>{ if(sideways){ e.stopImmediatePropagation(); e.preventDefault(); sideways = false; } }, true);
-}
-function cssId(k){ return k.replace(/[^a-z0-9]/gi, "-"); }
-function focusLater(f){ requestAnimationFrame(()=>{ const el = document.querySelector(`[data-f="${CSS.escape(f)}"]`); if(el) el.focus({preventScroll:true}); }); }
-function undoLine(x){
-  const p = document.createElement("p");
-  p.className = "undo-line";
-  p.append(say("meal.offered") + " · ");
-  const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[x.key]; offerMeal(x.m, false); save(); announce(say("home.announce.unoffered", {meal:x.m.label})); homeChanged(); }, "inline");
-  u.dataset.f = "undo:" + x.key;
-  p.appendChild(u);
-  return p;
-}
-/* the open meal: title, meta, a row per food (expanding to its tip, Change and why), how, Offered */
-function mealOpen(x, isDefault){
-  const m = x.m, st = stageFor(planMonths());
-  const a = document.createElement("article");
-  a.className = "mx"; a.id = "mx-" + cssId(x.key); a.dataset.key = x.key;
-  const head = document.createElement("div");
-  head.className = "mx-head";
-  const title = document.createElement(isDefault ? "h2" : "button");
-  title.className = "mx-title";
-  title.dataset.f = "title:" + x.key;
-  title.textContent = isoOf(x.date)===todayISO() || view.day ? m.label : say("home.tomorrowWhen", {meal:m.label, time:fmtTime(x.start)}).split(" · ")[0];
-  if(!isDefault){
-    title.type = "button"; title.setAttribute("aria-expanded", "true"); title.setAttribute("aria-controls", a.id);
-    title.addEventListener("click", ()=>{ picked = null; homeChanged(); });
-  }else title.tabIndex = -1;
-  head.appendChild(title);
-  if(!isDefault || x.status==="earlier") head.appendChild(ringBtn(x, "ring:" + x.key));
-  else if(wakeSupported() && !view.day) head.appendChild(wakeToggle());   // the open meal's head has room: cooking happens here
-  a.appendChild(head);
-  const fresh = newFoodIn(m);
-  const meta = document.createElement("p");
-  meta.className = "mx-meta";
-  meta.textContent = say("home.around", {time:fmtTime(x.start)}) + " · " + say("meal.meta", {n:mealMinutes(m), texture:st.textureShort || textureOf(m.items[0])})
-                   + (fresh ? " · " + say("meal.newToday", {food:lower1(baseName(fresh))}) : "");
-  a.appendChild(meta);
-  const ul = document.createElement("ul"), rest = document.createElement("ul");
-  ul.className = rest.className = "mx-foods";
-  m.items.forEach((item, k)=>{
-    const li = document.createElement("li");
-    const id = "fr-" + item.id, isOpen = openFood.has(item.id) || addUndo[item.id] && addUndo[item.id].until > Date.now();
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "fr"; b.dataset.f = "fr:" + item.id;
-    b.setAttribute("aria-expanded", String(isOpen)); b.setAttribute("aria-controls", id);
-    b.innerHTML = `${foodArt(item.name, {size:28})}<span class="fr-text"><span class="fr-name">${esc(baseName(item))}</span><span class="fr-sub">${esc(say("meal.amount", {amount:item.qty || "", texture:textureOf(item)}).replace(/^ · /, ""))}</span></span><i class="chev" aria-hidden="true"></i>`;
-    b.addEventListener("click", ()=>{ isOpen ? openFood.delete(item.id) : openFood.add(item.id); homeChanged(); });
-    li.appendChild(b);
-    const more = document.createElement("div");
-    more.className = "fr-more"; more.id = id; more.hidden = !isOpen;
-    if(isOpen){
-      const tip = prepTip(item);
-      if(tip) more.insertAdjacentHTML("beforeend", `<p class="fr-tip">${esc(tip)}</p>`);
-      const why = whyFor(item);
-      if(why) more.insertAdjacentHTML("beforeend", `<p class="fr-why">${esc(say("meal.why", {why:lower1(why)}))}</p>`);
-      const au = addUndo[item.id];
-      if(au && au.until > Date.now()){
-        const p = document.createElement("p");
-        p.className = "undo-line";
-        p.append(say("meal.added", {food:baseName(item)}) + " ");
-        p.appendChild(textBtn(say("meal.undo"), ()=>{ const j = m.items.indexOf(item); if(j >= 0){ setOffered(item, false); m.items.splice(j, 1); } delete addUndo[item.id]; save(); homeChanged(); focusLater("add:" + x.key); }, "inline"));
-        more.appendChild(p);
-      }
-      const cu = changeUndo[item.id];
-      if(cu && cu.until > Date.now()){
-        const p = document.createElement("p");
-        p.className = "undo-line";
-        p.append(say("meal.changed", {food:lower1(baseName(item))}) + " ");
-        p.appendChild(textBtn(say("meal.undo"), ()=>{ const j = m.items.indexOf(item); if(j >= 0){ if(item.offered) setOffered(item, false); m.items[j] = cu.old; openFood.delete(item.id); openFood.add(cu.old.id); } delete changeUndo[item.id]; save(); homeChanged(); }, "inline"));
-        more.appendChild(p);
-      }else if(changing && changing.id===item.id){
-        // one alternative at a time: Another cycles it (a crossfade), Keep takes it
-        const opts = alternatives(m, k, 8);
-        const box = document.createElement("div");
-        box.className = "fr-alts";
-        if(!opts.length){ box.textContent = say("meal.noChange"); more.appendChild(box); }
-        else{
-          const f = opts[changing.i % opts.length];
-          const card = document.createElement("p");
-          card.className = "alt-card"; card.setAttribute("aria-live", "polite");
-          card.innerHTML = `${foodArt(f.name, {size:28})}<span>${esc(f.name.split(",")[0])}</span>`;
-          box.appendChild(card);
-          const acts = document.createElement("div");
-          acts.className = "alt-acts";
-          if(opts.length > 1){
-            const another = textBtn(say("meal.another"), ()=>{ changing.i++; changing.fade = true; homeChanged(); focusLater("another:" + item.id); }, "small");
-            another.dataset.f = "another:" + item.id;
-            acts.appendChild(another);
-          }
-          const keep = textBtn(say("meal.keep"), ()=>{
-            const at = m.items.indexOf(item), old = item;
-            if(old.offered) setOffered(old, false);
-            const fresh_ = dish(f, st);
-            if(old.offered) setOffered(fresh_, true);
-            m.items[at] = fresh_;
-            openFood.delete(old.id); openFood.add(fresh_.id); changing = null;
-            changeUndo[fresh_.id] = {until:Date.now() + 5000, old};
-            setTimeout(()=>{ delete changeUndo[fresh_.id]; homeChanged(); }, 5050);
-            save(); haptic(); homeChanged(); focusLater("fr:" + fresh_.id);
-            announce(say("meal.changed", {food:lower1(f.name.split(",")[0])}));
-          }, "small");
-          keep.dataset.f = "keep:" + item.id;
-          acts.appendChild(keep);
-          box.appendChild(acts);
-          more.appendChild(box);
-          if(changing.fade && !calm()){ changing.fade = false; card.animate([{opacity:0, transform:"translateY(4px)"}, {opacity:1, transform:"none"}], {duration:220, easing:"ease-out"}); }
-        }
-      }else{
-        const c = textBtn(say("meal.change"), ()=>{ changing = {id:item.id, i:0}; homeChanged(); focusLater("keep:" + item.id); }, "small");
-        c.dataset.f = "change:" + item.id;
-        c.setAttribute("aria-label", say("meal.changeTo", {food:baseName(item)}));
-        more.appendChild(c);
-      }
-    }
-    li.appendChild(more);
-    (k < 2 ? ul : rest).appendChild(li);
-  });
-  a.appendChild(ul);
-  // the pill sticks inside a zone that starts after the first two foods, so stuck at the bottom edge it can
-  // never cover the meal's title or its first two rows, at any screen height
-  const zone = document.createElement("div");
-  zone.className = "mx-zone";
-  if(rest.children.length) zone.appendChild(rest);
-  a.appendChild(zone);
-  const how = mealHow(m);
-  if(how.length) zone.insertAdjacentHTML("beforeend", `<p class="mx-how">${how.map(esc).join(" ")}</p>`);
-  // Mark as offered → "Offered · Undo" for 5 s → "Offered" + how it went
-  const acts = document.createElement("div");
-  acts.className = "mx-acts";
-  const on = mealOffered(m), undo = undoUntil[x.key] > Date.now();
-  const pill = document.createElement("button");
-  pill.type = "button"; pill.className = "offer-pill"; pill.dataset.f = "offer:" + x.key;
-  pill.setAttribute("aria-pressed", String(on));
-  pill.innerHTML = on ? `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg></i>${esc(say("meal.offered"))}` : esc(say("meal.offer"));
-  pill.addEventListener("click", ()=>toggleOffered(x, true));
-  acts.appendChild(pill);
-  if(on && undo){
-    const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[x.key]; offerMeal(m, false); save(); announce(say("home.announce.unoffered", {meal:m.label})); homeChanged(); focusLater("offer:" + x.key); }, "undo");
-    u.dataset.f = "undo:" + x.key;
-    acts.appendChild(u);
-  }
-  zone.appendChild(acts);
-  if(on && outcomeUntil[x.key] > Date.now()) a.appendChild(outcomeRow(x));
-  const links = document.createElement("p");
-  links.className = "mx-links";
-  if(addingTo===x.key){
-    // one field; suggestions follow what's typed ("ban" → Banana), each with its bullet; one tap adds it, offered
-    const add = v=>{
-      addingTo = null;
-      if(v){
-        const pool = FOOD_POOL.find(f=>foodOf(f.name) && foodOf(f.name)===foodOf(v)) || FOOD_POOL.find(f=>f.name===v);
-        const item = it(pool ? pool.name : upper1(v), pool ? portionFor(pool, st) : "", pool ? pool.cats.slice() : ["other"], pool ? textureFor(pool, st) : undefined);
-        if(lockedRule(item.name, ageNow()) || allergyMatch(item.name, state.profile)){ announce(keepOutReason(item.name)); homeChanged(); return; }
-        m.items.push(item);
-        setOffered(item, true);   // what's added was offered: that's why it's being added
-        addUndo[item.id] = {until:Date.now() + 5000, key:x.key};
-        setTimeout(()=>{ delete addUndo[item.id]; homeChanged(); }, 5050);
-        save(); haptic(); announce(say("meal.added", {food:baseName(item)}));
-      }
-      homeChanged(); focusLater("add:" + x.key);
-    };
-    const list = document.createElement("div");
-    list.className = "suggest-list"; list.setAttribute("aria-live", "polite");
-    const fill = q=>{
-      list.innerHTML = "";
-      suggestFoods(q, m).forEach(f=>{
-        const sb = document.createElement("button");
-        sb.type = "button"; sb.className = "alt"; sb.dataset.f = "sug:" + f.name;
-        sb.innerHTML = `${foodArt(f.name, {size:24})}<span>${esc(f.name.split(",")[0])}</span>`;
-        sb.addEventListener("click", ()=>add(f.name));
-        list.appendChild(sb);
-      });
-    };
-    const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const first = list.querySelector("button"); add(first && b.input.value.trim().length >= 2 ? first.dataset.f.slice(4) : b.input.value.trim()); }});
-    b.input.dataset.f = "adding:" + x.key;
-    b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); addingTo = null; homeChanged(); focusLater("add:" + x.key); } });
-    const parts = say("meal.alsoOffered").split("{blank}");
-    const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-    links.append(l, " ", b.el, list);
-    requestAnimationFrame(()=>b.input.focus());
-  }else{
-    const add = textBtn(say("meal.addOther"), ()=>{ addingTo = x.key; homeChanged(); }, "small");
-    add.dataset.f = "add:" + x.key;
-    links.appendChild(add);
-    links.append(" ");
-    const sd = textBtn(say("meal.send"), ()=>openSheet("send", {date:x.date}), "small");
-    sd.dataset.f = "send:" + x.key;
-    links.appendChild(sd);
-    if(isoOf(x.date)===todayISO() && !view.day){ const ck = textBtn(say("cookMode.start"), ()=>startCooking(x), "small"); ck.dataset.f = "cook:" + x.key; links.appendChild(ck); }
 
+/* ====================================================================
+   SHUFFLE: change the menu. Today or tomorrow, a meal at a time or the
+   whole day, every change at once with a 5-second Undo, never a dialog.
+   ==================================================================== */
+const shuffleUI = {day:0, changing:null, undo:null, note:null};
+function shuffleDate(){ return addDays(now(), shuffleUI.day); }
+function keptOn(iso){ return state.kept[iso] || []; }
+function isKept(m, date){ return keptOn(isoOf(date)).includes(m.id); }
+function setKept(m, date, on){ const iso = isoOf(date), k = keptOn(iso).filter(id=>id!==m.id); state.kept[iso] = on ? k.concat(m.id) : k; if(!state.kept[iso].length) delete state.kept[iso]; }
+/* the rules every shuffle keeps: allergies and "not a fan" out, the locked rules and stage textures, no first
+   allergen, at most one new food in the meal, the priorities (and what's at home, when that's one of them) */
+function shufflePool(){
+  const months = planMonths(), P = state.profile, intro = introducedAllergens(P);
+  return eligibleFoods(months, P).filter(f=>!dislikeMatch(f.name, P) && newAllergens(f.name, intro).length===0);
+}
+function freshMeal(m, date, dayMeals){
+  const months = planMonths(), st = stageFor(months), P = state.profile;
+  const ms = MEAL_SLOTS.find(x=>x.id===m.slot) || MEAL_SLOTS.find(x=>x.slot===(SLOT_OF[m.label] || "lunch"));
+  if(!ms) return null;
+  const cats = st.perMeal ? ms.cats.slice(0, st.perMeal) : ms.cats;
+  const foods = shufflePool(), known = knownFoods(), now_ = m.items.map(i=>i.name).sort().join("|");
+  const ctx = planContext(months, P); ctx.newLimit = null;
+  const others = new Set(dayMeals.filter(x=>x!==m).flatMap(x=>x.items.map(i=>i.name)));
+  for(let k = 0; k < 16; k++){
+    const day = {taken:new Set(others), colours:new Set(), newCount:0};
+    // once the meal has its one new food, the rest come from foods they've met
+    const isNew = f=>known.size > 0 && !known.has(foodKey(baseName(f)));
+    const picks = [];
+    cats.forEach(c=>{ const pool = picks.some(isNew) ? foods.filter(f=>!isNew(f)) : foods; const f = makeDealer(pool, ctx)(c, ms.slot, day); if(f) picks.push(f); });
+    if(picks.length < cats.length) continue;
+    if(picks.map(f=>f.name).sort().join("|")===now_) continue;
+    return picks.map(f=>dish(f, st));
   }
-  a.appendChild(links);
-  // arrow keys move through the open meal's controls
-  a.addEventListener("keydown", e=>{
-    if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
-    if(e.target.tagName==="INPUT") return;
-    const els = [...a.querySelectorAll("button:not([disabled]), input")].filter(z=>z.offsetParent);
-    const i = els.indexOf(document.activeElement);
-    if(i < 0) return;
-    e.preventDefault();
-    const j = Math.max(0, Math.min(els.length - 1, i + (e.key==="ArrowDown" ? 1 : -1)));
-    els[j].focus();
-  });
-  return a;
+  return null;
 }
-let addingTo = null, changing = null;
-const addUndo = {};   // food id → {until, key}: "Banana added. Undo" for 5 seconds
-/* foods that match what's typed, safe for {name} (the generator's gate, allergies out), not already in the meal:
-   names and aliases that start with it first, drawn ones first, at most four */
-function suggestFoods(q, m){
-  const t = String(q || "").trim().toLowerCase();
-  if(t.length < 2) return [];
-  const months = planMonths(), have = new Set(m.items.map(i=>i.name));
-  const words = f=>{ const e = foodOf(f.name); return [f.name, ...(e ? [e.label, ...(e.aliases || [])] : [])].map(w=>w.toLowerCase()); };
-  const score = f=>{ const w = words(f); return w.some(x=>x.startsWith(t)) ? 0 : w.some(x=>x.split(/[ ,]+/).some(p=>p.startsWith(t))) ? 1 : 9; };
-  return FOOD_POOL.filter(f=>!have.has(f.name) && isAllowed(f, months, state.profile) && !allergyMatch(f.name, state.profile) && score(f) < 9)
-    .sort((a, b)=>score(a) - score(b) || (hasArt(foodOf(b.name)) ? 1 : 0) - (hasArt(foodOf(a.name)) ? 1 : 0) || a.name.localeCompare(b.name))
-    .slice(0, 4);
-}   // changing: {id (the food being changed), i (which alternative shows)}
-/* ---------- Keep screen on: the Screen Wake Lock, while cooking ----------
-   Off by default; only where the browser has it. It lets go when the page is hidden or left, and after
-   60 minutes (then the toggle turns off); it comes back only if it was left on and the page is visible again. */
-const WAKE_MAX_MS = 60 * 60000;
-const wake = {on:false, lock:null, until:0, timer:0};
-function wakeSupported(){ return "wakeLock" in navigator && !!navigator.wakeLock; }
-async function wakeAcquire(){
-  if(!wake.on || document.hidden || wake.lock) return;
-  try{ wake.lock = await navigator.wakeLock.request("screen"); wake.lock.addEventListener("release", ()=>{ wake.lock = null; }); }
-  catch(e){ wake.on = false; homeChanged(); }
+function dayMealsOf(date){ return mealsOn(date).map(x=>x.m); }
+function noteToBuy(fn){
+  const before = new Set(toBuyList().map(n=>n.foodId));
+  fn();
+  const added = toBuyList().map(n=>n.foodId).filter(id=>!before.has(id));
+  state.newToBuy = [...new Set(state.newToBuy.concat(added))];
+  return added;
 }
-function wakeRelease(){ const l = wake.lock; wake.lock = null; if(l) try{ l.release(); }catch(e){} }
-function wakeSet(on){
-  wake.on = on; clearTimeout(wake.timer);
-  if(on){ wake.until = Date.now() + WAKE_MAX_MS; wake.timer = setTimeout(()=>wakeSet(false), WAKE_MAX_MS); wakeAcquire(); announce(say("meal.wakeOn")); }
-  else { wakeRelease(); announce(say("meal.wakeOff")); }
-  homeChanged();
+function shuffleOne(x){
+  const old = x.m.items, date = shuffleDate();
+  const items = freshMeal(x.m, date, dayMealsOf(date));
+  if(!items){ shuffleUI.note = {mealId:x.m.id, text:say("shuffle.none")}; announce(say("shuffle.none")); refresh("shuffle"); return; }
+  const added = noteToBuy(()=>{ x.m.items = items; });
+  save(); haptic();
+  setUndo(say("shuffle.didMeal", {meal:x.m.label}), ()=>{ x.m.items = old; state.newToBuy = state.newToBuy.filter(id=>!added.includes(id)); });
+  announce(say("shuffle.didMeal", {meal:x.m.label}));
+  changed();
 }
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden) wakeRelease();
-  else if(wake.on && Date.now() < wake.until) wakeAcquire();
-  else if(wake.on) wakeSet(false);
-});
-addEventListener("pagehide", wakeRelease);
-function wakeToggle(){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "btn-text small wake"; b.dataset.f = "wake";
-  b.setAttribute("aria-pressed", String(wake.on));
-  b.innerHTML = `<i aria-hidden="true"></i>${esc(say("meal.wake"))}`;
-  b.addEventListener("click", ()=>wakeSet(!wake.on));
-  return b;
+function shuffleDay(){
+  const date = shuffleDate(), refs = mealsOn(date).filter(x=>!mealOffered(x.m, date) && !isKept(x.m, date));
+  const olds = [];
+  const added = noteToBuy(()=>refs.forEach(x=>{ const items = freshMeal(x.m, date, dayMealsOf(date)); if(items){ olds.push([x.m, x.m.items]); x.m.items = items; } }));
+  if(!olds.length){ shuffleUI.note = {mealId:"day", text:say("shuffle.none")}; announce(say("shuffle.none")); refresh("shuffle"); return; }
+  save(); haptic();
+  setUndo(say("shuffle.didDay"), ()=>{ olds.forEach(([m, items])=>{ m.items = items; }); state.newToBuy = state.newToBuy.filter(id=>!added.includes(id)); });
+  announce(say("shuffle.didDay"));
+  changed();
 }
-/* safe alternatives from the same food group for this meal (drawn ones first), in a stable order */
+function setUndo(text, restore){
+  clearTimeout(shuffleUI.undo && shuffleUI.undo.timer);
+  shuffleUI.note = null;
+  shuffleUI.undo = {text, restore, timer:setTimeout(()=>{ shuffleUI.undo = null; refresh("shuffle"); }, 5000)};
+}
+/* safe alternatives for one food (same group and slot), drawn ones first, in a stable order: no first allergen,
+   nothing they're not a fan of, and a new food only if the meal has no other */
 function alternatives(m, k, n){
   const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
-  const taken = new Set(m.items.map(i=>i.name));
-  const known = introducedAllergens(state.profile);
-  const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile)
-                                  && newAllergens(f.name, known).length===0);   // a swap never brings a first allergen
-  return shuffledFor(pool.filter(f=>hasArt(foodOf(f.name)) && !dislikeMatch(f.name, state.profile)), item.id).concat(shuffledFor(pool.filter(f=>!hasArt(foodOf(f.name))), item.id))
-    .filter((f, i, a)=>a.indexOf(f)===i).slice(0, n || 3);
+  const taken = new Set(m.items.map(i=>i.name)), known = knownFoods();
+  const otherNew = known.size && m.items.some((i, j)=>j!==k && !known.has(foodIdOf(i)));
+  const pool = shufflePool().filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile)
+                                      && !(otherNew && !known.has(foodKey(baseName(f)))));
+  return shuffledFor(pool.filter(f=>hasArt(foodOf(f.name))), item.id).concat(shuffledFor(pool.filter(f=>!hasArt(foodOf(f.name))), item.id)).slice(0, n || 3);
 }
 /* the same order for the same key, so options don't jump between redraws */
 function shuffledFor(arr, key){
@@ -836,697 +975,585 @@ function shuffledFor(arr, key){
   for(let i=a.length-1; i>0; i--){ h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; const j = h % (i+1); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
-/* "While you're at it": at most two lines, for the open meal */
-function renderAlso(def){
-  const sec = $("alsoSec"), list = $("alsoList");
-  list.innerHTML = "";
-  if(!def || milkOnly()){ sec.hidden = true; return; }
-  const iso = todayISO();
-  const prepped = state.prepped && state.prepped.date===iso ? state.prepped.done || [] : [];
-  const seen = {done:prepped, salt:(state.shown && state.shown.salt) || 0};
-  const items = suggestAlso(def, state.plan, now(), state.profile, state.stock, seen);
-  sec.hidden = !items.length;
-  items.forEach(s=>{
-    if(s.kind==="salt" && state.shown.saltDay!==iso){ state.shown = Object.assign({}, state.shown, {salt:(state.shown.salt || 0) + 1, saltDay:iso}); save(); }
-    const row = document.createElement("div");
-    row.className = "also-row";
-    row.innerHTML = `${foodArt(s.food, {size:24, lazy:true})}<p class="also-text">${esc(s.text)}${s.note ? `<span class="also-note">${esc(s.note)}</span>` : ""}</p>`;
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "also-btn"; b.dataset.f = "also:" + s.id;
-    b.setAttribute("aria-pressed", "false");
-    b.innerHTML = `<i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9"/></svg></i><span>${esc(say("also.doIt"))}</span>`;
-    b.addEventListener("click", ()=>{
-      state.prepped = {date:iso, done:prepped.concat(s.id)};
-      if(s.target){ const tm = state.plan.days[s.target.dayIdx].meals[s.target.k]; tm.prepped = (tm.prepped || []).filter(f=>f!==s.food).concat(s.food); }
-      save(); haptic(); announce(say("also.done")); homeChanged();
-    });
-    row.appendChild(b);
-    list.appendChild(row);
+function renderShuffle(){
+  const date = shuffleDate();
+  const tg = el("span", "toggle");
+  tg.setAttribute("role", "group"); tg.setAttribute("aria-label", say("shuffle.whichDay"));
+  [0, 1].forEach((d, k)=>{
+    if(k) tg.appendChild(el("span", "sep", "·"));
+    const b = textBtn(say(d ? "days.Tomorrow" : "days.Today"), ()=>{ shuffleUI.day = d; shuffleUI.changing = null; shuffleUI.note = null; refresh("shuffle"); focusLater("shuffle:day:" + d); }, "small");
+    b.dataset.f = "shuffle:day:" + d; b.setAttribute("aria-pressed", String(shuffleUI.day===d));
+    tg.appendChild(b);
   });
+  const pill = document.createElement("button");
+  pill.type = "button"; pill.className = "btn-ink"; pill.dataset.f = "shuffle:day"; pill.textContent = say("shuffle.day");
+  pill.addEventListener("click", shuffleDay);
+  const col = frame("shuffle", say("screens.shuffle"), {tools:[tg], pin:pill});
+  const live = el("p", "undo-line"); live.setAttribute("aria-live", "polite");
+  if(shuffleUI.undo){
+    live.append(shuffleUI.undo.text + " ");
+    const u = textBtn(say("meal.undo"), ()=>{ const r = shuffleUI.undo; clearTimeout(r.timer); shuffleUI.undo = null; r.restore(); save(); announce(say("shuffle.undone")); changed(); }, "inline");
+    u.dataset.f = "shuffle:undo";
+    live.appendChild(u);
+  }else if(shuffleUI.note && shuffleUI.note.mealId==="day") live.textContent = shuffleUI.note.text;
+  col.appendChild(live);
+  const refs = mealsOn(date);
+  if(!refs.length) col.appendChild(el("p", "quiet-line", say("shuffle.nothing")));
+  refs.forEach(x=>col.appendChild(shuffleMealEl(x, date)));
+  const foot = el("p", "sh-foot");
+  const send = textBtn(say("shuffle.sendTomorrow"), ()=>sendDay(tomorrowOf(now()), state.profile.people[0]), "small");
+  send.dataset.f = "shuffle:send";
+  foot.appendChild(send);
+  col.appendChild(foot);
+  pill.disabled = !refs.some(x=>!mealOffered(x.m, date) && !isKept(x.m, date));
 }
-
-/* ---------- below the fold: this week, and the shop line ---------- */
-const ringDone = {};
-function renderWeek(){
-  const strip = $("weekStrip"), iso = todayISO(), days = weekDays();
-  if(strip.children.length!==7){
-    strip.innerHTML = "";
-    days.forEach((_, k)=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "wd"; b.dataset.f = "wd:" + k;
-      b.innerHTML = `<span class="wd-l"></span><span class="wd-n"></span><span class="ring"><svg viewBox="0 0 40 40" aria-hidden="true"><circle class="r-bg" cx="20" cy="20" r="16" pathLength="100"/><circle class="r-fg" cx="20" cy="20" r="16" pathLength="100"/></svg></span><i class="wd-dot" aria-hidden="true"></i>`;
-      b.addEventListener("click", ()=>openSheet("day", {pos:k}));
-      strip.appendChild(b);
-    });
-  }
-  days.forEach((x, k)=>{
-    const b = strip.children[k], day = state.plan.days[x.dayIdx];
-    const meals = day ? day.meals.filter(m=>m.items.length) : [];
-    const offered = meals.filter(mealOffered).length, p = meals.length ? offered/meals.length : 0;
-    const isToday = isoOf(x.date)===iso;
-    b.classList.toggle("today", isToday);
-    setText(b.querySelector(".wd-l"), fmtShortDay(x.date));
-    setText(b.querySelector(".wd-n"), String(x.date.getDate()));
-    b.querySelector(".r-fg").style.setProperty("--p", p.toFixed(3));
-    const full = meals.length > 0 && offered===meals.length;
-    if(full && ringDone[k]===false && !calm()) b.querySelector(".ring").animate([{transform:"scale(1)"}, {transform:"scale(1.12)"}, {transform:"scale(1)"}], {duration:520, easing:"cubic-bezier(.32,1.25,.5,1)"});
-    ringDone[k] = full;
-    b.setAttribute("aria-label", `${fmtWeekday(x.date)} ${fmtDayMonth(x.date)}${isToday ? " (today)" : ""}: ${offered} of ${meals.length}`);
+function shuffleMealEl(x, date){
+  const m = x.m, offered = mealOffered(m, date), kept = isKept(m, date);
+  const box = el("div", "sh-meal");
+  box.dataset.meal = m.id; box.tabIndex = -1;
+  const h = el("p", "sh-h");
+  h.append(el("span", "", say("home.rowWhen", {meal:m.label, time:fmtTime(x.start)})));
+  if(offered) h.append(el("span", "sh-state", say("meal.offered")));
+  else if(kept) h.append(el("span", "sh-state", say("shuffle.kept")));
+  box.appendChild(h);
+  const ul = el("ul", "sh-foods");
+  m.items.forEach((item, k)=>{
+    const li = el("li", "sh-food");
+    li.appendChild(el("span", "", foodLine(item)));
+    if(!offered){
+      const c = shuffleUI.changing;
+      if(c && c.mealId===m.id && c.itemId===item.id){
+        const opts = alternatives(m, k, 8), line = el("p", "alt-line");
+        line.setAttribute("aria-live", "polite");
+        if(!opts.length) line.textContent = say("shuffle.none");
+        else{
+          const f = opts[c.i % opts.length];
+          line.append(el("span", "", say("shuffle.instead", {food:baseName(f)})));
+          if(opts.length > 1){ const an = textBtn(say("meal.another"), ()=>{ c.i++; refresh("shuffle"); focusLater("alt:another:" + item.id); }, "small"); an.dataset.f = "alt:another:" + item.id; line.appendChild(an); }
+          const keep = textBtn(say("meal.keep"), ()=>{
+            const st = stageFor(planMonths()), fresh = dish(f, st), at = m.items.indexOf(item);
+            const added = noteToBuy(()=>{ m.items[at] = fresh; });
+            shuffleUI.changing = null;
+            setUndo(say("meal.changed", {food:lower1(baseName(f))}), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = item; state.newToBuy = state.newToBuy.filter(id=>!added.includes(id)); });
+            save(); haptic(); announce(say("meal.changed", {food:lower1(baseName(f))})); changed(); focusLater("change:" + fresh.id);
+          }, "small");
+          keep.dataset.f = "alt:keep:" + item.id;
+          line.appendChild(keep);
+        }
+        li.appendChild(line);
+      }else{
+        const ch = textBtn(say("meal.change"), ()=>{ shuffleUI.changing = {mealId:m.id, itemId:item.id, i:0}; refresh("shuffle"); focusLater("alt:keep:" + item.id); }, "small");
+        ch.dataset.f = "change:" + item.id; ch.setAttribute("aria-label", say("meal.changeTo", {food:baseName(item)}));
+        li.appendChild(ch);
+      }
+    }
+    ul.appendChild(li);
   });
-  // variety lives here, with the week: five dots, filled once a group has been offered
-  const dots = $("vdots");
-  if(!dots.children.length) GROUPS.forEach(cat=>dots.insertAdjacentHTML("beforeend", `<span class="vdot" data-cat="${cat}" style="--dot:${GLOW[cat].hex}"><i aria-hidden="true"></i><span>${esc(say("home.groups." + cat))}</span></span>`));
-  let on = 0;
-  [...dots.children].forEach(d=>{ const t = offeredFoods(d.dataset.cat).length > 0; if(t) on++; d.classList.toggle("on", t); d.setAttribute("aria-label", say("home.groups." + d.dataset.cat) + (t ? ": offered" : ": not yet")); d.setAttribute("role", "img"); });
-  setText($("varText"), (on===GROUPS.length ? say("home.variety.all") : say("home.variety.some")));
-}
-/* what to pick up for a window (soonest-needed first) */
-function shopList(win){
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
-  const first = n=>Math.min(...n.days.map(d=>order.indexOf(d)));
-  return Object.values(needOn(windowDays(win || "next3")))
-    .filter(n=>{ const a = toBuy(n); return a===null || a>0; })
-    .sort((a, b)=>first(a) - first(b));
-}
-function renderShopLine(){
-  const need = shopList("next3"), n = need.length + state.extras.filter(x=>!x.checked).length;
-  setText($("shopText"), say("home.shop", {n}));
-  const stack = need.slice(0, Math.min(4, n));
-  const sig = stack.map(x=>x.key).join();
-  if($("shopStack").dataset.sig!==sig){
-    $("shopStack").dataset.sig = sig;
-    $("shopStack").innerHTML = stack.map((x, k)=>`<span class="st" style="--z:${4-k}">${foodArt(x.name, {size:28, lazy:true})}</span>`).join("");
-  }
-}
-function entrance(){
-  if(calm()) return;
-  [$("profileBtn"), $("clock").parentNode, $("headline"), $("moment"), $("openMeal")].forEach((el, k)=>el && el.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}],
-    {duration:420, delay:k*70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}));
-}
-/* below-the-fold sections fade up as they come into view. A passive scroll check, not an IntersectionObserver:
-   while the glow breathes, an observer makes the browser recompute intersections every frame (measured: ~110ms
-   of main thread a second at 4× CPU, against ~1ms this way). It stops listening once both have arrived. */
-function watchFold(){
-  const pending = new Set(document.querySelectorAll(".below"));
-  const check = ()=>{
-    pending.forEach(s=>{ if(s.getBoundingClientRect().top < innerHeight * .92){ s.classList.add("in"); pending.delete(s); } });
-    if(!pending.size){ removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); }
-  };
-  let queued = false;
-  const onScroll = ()=>{ if(queued) return; queued = true; requestAnimationFrame(()=>{ queued = false; check(); }); };
-  addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll, {passive:true});
-  check();
-}
-
-/* ====================================================================
-   COOK MODE: one step at a time, large type, a big Next in the thumb zone.
-   The screen stays awake (Wake Lock, where there is one) and the glow dims.
-   Timers are honest: a page can't ring when it's backgrounded or the phone
-   is locked, so a timer is an end time (kept in state.timers, so it
-   survives a reload), shown as a thin ring, in the tab title, and as
-   "Time's up" when Chicho is looked at again. Reliable alerts would need
-   web push through the installed app and a small backend.
-   ==================================================================== */
-const cook = {active:false, key:null, step:0, portions:1, wakeWas:false};
-let cookTimer = 0;
-/* the steps: each cooked food, longest first (with its minutes, for a timer), then any raw ones, then serve */
-function cookSteps(m){
-  const texture = stageFor(planMonths()).textureShort || "soft pieces";
-  const foods = m.items.slice().sort((a, b)=>cookOf(b.name).min - cookOf(a.name).min);
-  return foods.map(i=>({text:foodHow(i), min:cookOf(i.name).min, food:baseName(i), id:i.id}))
-    .concat({text:say("cookMode.finished", {texture}), min:0, food:"", id:"serve"});
-}
-/* "35 g" × 2 → "70 g"; anything that isn't a number stays as it is */
-function scaleQty(q, n){ return String(q || "").replace(/^(\d+(?:[.,]\d+)?)/, v=>String(Math.round(parseFloat(v.replace(",", ".")) * n))); }
-function cookRef(){ return refsOn(now()).concat(refsOn(tomorrowOf(now()))).find(x=>x.key===cook.key) || null; }
-function startCooking(x){
-  Object.assign(cook, {active:true, key:x.key, step:0, portions:1, wakeWas:wake.on});
-  if(wakeSupported() && !wake.on) wakeSet(true);
-  homeChanged(); $("headline").focus({preventScroll:true}); scrollTo(0, 0);
-}
-function stopCooking(){
-  if(!cook.active) return;
-  cook.active = false;
-  if(wake.on && !cook.wakeWas) wakeSet(false);
-  homeChanged(); focusLater("cook:" + cook.key);
-}
-function cookGo(d){
-  const x = cookRef(); if(!x) return stopCooking();
-  const steps = cookSteps(x.m), to = cook.step + d;
-  if(to >= steps.length){ stopCooking(); return; }
-  cook.step = Math.max(0, to); haptic(); renderCook();
-  if(!calm()) $("headline").animate([{opacity:0, transform:`translateX(${d > 0 ? 16 : -16}px)`}, {opacity:1, transform:"none"}], {duration:240, easing:"cubic-bezier(.2,.8,.2,1)"});
-}
-/* timers: {id, food, min, end} */
-function timers(){ return state.timers || (state.timers = []); }
-function startTimer(step){
-  timers().push({id:uid(), food:step.food, min:step.min, end:Date.now() + step.min * 60000, step:step.id});
-  save(); haptic(); renderCook(); cookTick();
-}
-function fmtLeft(ms){ const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
-/* once a second while a timer runs and the page is visible: the ring, the time left, the tab title */
-function cookTick(){
-  clearTimeout(cookTimer);
-  const running = timers().filter(t=>t.end > Date.now());
-  if(cook.active) renderCookLine();
-  const first = running.sort((a, b)=>a.end - b.end)[0];
-  document.title = first ? say("cookMode.timerLeft", {food:first.food, time:fmtLeft(first.end - Date.now())}) : currentTitle;
-  if(first && !document.hidden) cookTimer = setTimeout(cookTick, 1000 - (Date.now() % 1000) + 20);
-}
-document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) cookTick(); });
-function timerEl(t){
-  const left = t.end - Date.now(), p = Math.max(0, Math.min(1, left / (t.min * 60000)));
-  const span = document.createElement("span");
-  span.className = "timer";
-  span.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="t-bg" cx="12" cy="12" r="10" pathLength="100"/><circle class="t-fg" cx="12" cy="12" r="10" pathLength="100" style="stroke-dashoffset:${(100 - p * 100).toFixed(1)}"/></svg>`;
-  span.append(left > 0 ? fmtLeft(left) : say("cookMode.timerUp", {food:t.food}));
-  return span;
-}
-/* the moment line in cook mode: "Step 2 of 4", then this step's timer (or the button to start one) */
-function renderCookLine(){
-  const x = cookRef(); if(!x) return;
-  const steps = cookSteps(x.m), st = steps[Math.min(cook.step, steps.length - 1)], el = $("moment");
-  el.innerHTML = ""; momentKey = null;
-  el.append(say("cookMode.step", {n:cook.step + 1, total:steps.length}));
-  if(!st.min) return;
-  const t = timers().filter(z=>z.step===st.id).sort((a, b)=>b.end - a.end)[0];
-  el.append(" · ");
-  if(t) el.appendChild(timerEl(t));
-  else{ const b = textBtn(say("cookMode.timer", {min:st.min}), ()=>startTimer(st), "inline"); b.dataset.f = "timer:" + st.id; el.appendChild(b); }
-}
-function renderCook(){
-  const x = cookRef(), box = $("cook");
-  if(!x){ stopCooking(); return; }
-  const steps = cookSteps(x.m), st = steps[Math.min(cook.step, steps.length - 1)], last = cook.step >= steps.length - 1;
-  setText($("headline"), st.text);
-  homeKey = "cook:" + cook.step;
-  renderCookLine();
-  const f = focusMemo();
-  box.innerHTML = "";
-  const por = document.createElement("div");
-  por.className = "cook-portions"; por.setAttribute("role", "group"); por.setAttribute("aria-labelledby", "cookPortions");
-  por.innerHTML = `<span class="mini" id="cookPortions">${esc(say("cookMode.portionsLabel"))}</span>`;
-  [1, 2, 4].forEach(n=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = String(n); b.dataset.f = "portions:" + n;
-    b.setAttribute("aria-pressed", String(cook.portions===n)); b.setAttribute("aria-label", say("cookMode.portions", {n}));
-    b.addEventListener("click", ()=>{ cook.portions = n; haptic(); renderCook(); });
-    por.appendChild(b);
-  });
-  box.appendChild(por);
-  box.insertAdjacentHTML("beforeend", `<h2 class="mini" style="margin-top:20px">${esc(say("cookMode.need"))}</h2>`);
-  const ul = document.createElement("ul");
-  ul.className = "cook-need";
-  x.m.items.forEach(i=>ul.insertAdjacentHTML("beforeend", `<li>${foodArt(i.name, {size:24})}<span><b>${esc(baseName(i))}</b> · ${esc(scaleQty(i.qty, cook.portions))}</span></li>`));
   box.appendChild(ul);
-  if(steps.some(z=>z.min)) box.insertAdjacentHTML("beforeend", `<p class="cook-limit">${esc(say("cookMode.limit"))}</p>`);
-  const acts = document.createElement("p");
-  acts.className = "cook-acts";
-  if(cook.step > 0){ const bk = textBtn(say("cookMode.back"), ()=>cookGo(-1), "small"); bk.dataset.f = "cook:back"; acts.appendChild(bk); }
-  const stop = textBtn(say("cookMode.stop"), stopCooking, "small"); stop.dataset.f = "cook:stop";
-  acts.appendChild(stop);
-  box.appendChild(acts);
-  const next = document.createElement("button");
-  next.type = "button"; next.className = "cook-next"; next.id = "cookNext"; next.dataset.f = "cook:next";
-  next.textContent = last ? say("cookMode.done") : say("cookMode.next");
-  next.addEventListener("click", ()=>cookGo(1));
-  box.appendChild(next);
-  focusRestore(f);
+  if(!offered){
+    const acts = el("div", "sh-acts");
+    const sh = textBtn(say("shuffle.meal"), ()=>shuffleOne(x), "small");
+    sh.dataset.f = "shuffle:" + m.id; sh.disabled = kept;
+    sh.setAttribute("aria-label", say("shuffle.mealLabel", {meal:m.label}));
+    const kp = textBtn(kept ? say("shuffle.kept") : say("meal.keep"), ()=>{ setKept(m, date, !kept); save(); haptic(); refresh("shuffle"); focusLater("keep:" + m.id); }, "small");
+    kp.dataset.f = "keep:" + m.id; kp.setAttribute("aria-pressed", String(kept));
+    kp.setAttribute("aria-label", say("shuffle.keepLabel", {meal:m.label}));
+    acts.append(sh, kp);
+    box.appendChild(acts);
+  }
+  if(shuffleUI.note && shuffleUI.note.mealId===m.id){ const p = el("p", "sh-none", shuffleUI.note.text); p.setAttribute("role", "status"); box.appendChild(p); }
+  return box;
 }
-/* ---------- Start a new week: press and hold ----------
-   A big action gets a deliberate gesture instead of a dialog: hold for a second while the ring fills (pointer,
-   or Space/Enter held), let go early and nothing happens. Then "New week set. Undo" for 5 seconds. */
-const HOLD_MS = 1000;
-let holdAnim = null, weekUndo = null;
-function holdStart(){
-  if(holdAnim) return;
-  const disc = document.querySelector("#newWeekBtn .hold-ring b");
-  holdAnim = disc.animate([{transform:"scale(0)"}, {transform:"scale(1)"}], {duration:HOLD_MS, easing:"linear", fill:"forwards"});
-  holdAnim.onfinish = ()=>{ holdAnim.cancel(); holdAnim = null; startNewWeek(); };
-}
-function holdCancel(){
-  if(!holdAnim) return;
-  const a = holdAnim; holdAnim = null; a.onfinish = null;
-  if(calm()){ a.cancel(); return; }
-  a.pause(); const p = a.effect.getComputedTiming().progress || 0; a.cancel();
-  document.querySelector("#newWeekBtn .hold-ring b").animate([{transform:`scale(${p})`}, {transform:"scale(0)"}], {duration:160, easing:"ease-out"});
-}
-function startNewWeek(){
-  const P = state.profile, old = {plan:state.plan, weekStarted:state.weekStarted, lastStage:P.lastStage, history:state.history.slice()};
-  if(hasPlan()) state.history.push({weekOf:state.weekStarted});
-  state.plan = generateWeek(planMonths(), P);
-  state.weekStarted = todayISO(); P.lastStage = stageNow().id; currentDay = dayDisplayOrder()[0];
-  picked = null; save(); haptic(); pulseGlow();
-  clearTimeout(weekUndo && weekUndo.timer);
-  weekUndo = {old, timer:setTimeout(()=>{ weekUndo = null; renderWeekUndo(); }, 5000)};
-  announce(say("week.newSet")); homeChanged(); renderWeekUndo();
-}
-function renderWeekUndo(){
-  const p = $("newWeekUndo");
-  p.hidden = !weekUndo; p.innerHTML = "";
-  if(!weekUndo) return;
-  p.append(say("week.newSet") + " ");
-  const u = textBtn(say("meal.undo"), ()=>{
-    const o = weekUndo.old; clearTimeout(weekUndo.timer); weekUndo = null;
-    Object.assign(state, {plan:o.plan, weekStarted:o.weekStarted, history:o.history}); state.profile.lastStage = o.lastStage;
-    save(); announce(say("week.restored")); homeChanged(); renderWeekUndo(); focusLater("newweek");
-  }, "inline");
-  u.dataset.f = "undo:newweek";
-  p.appendChild(u);
-}
-/* a new week: the reveal, then "Love it" applies it */
-function setNextWeek(){ closeSheet(true); openOnboarding("reveal", {single:true}); }
 
 /* ====================================================================
-   SHEETS: the one overlay. A bottom sheet with a scrim, a drag handle and
-   two detents (medium, large). Opens on tap (or Enter/Space), has a visible
-   44px ✕, closes on Esc, a tap on the scrim or a swipe down, traps focus
-   and gives focus back to what opened it. It rides on top of the keyboard.
+   KITCHEN: stock, shopping, prep. What to pick up for the next three
+   days, what's running low, what's at home (Plenty, Low, Out, never
+   grams), the freezer and the prep "While you're at it" left open.
    ==================================================================== */
-const sheetEl = $("sheet"), sheetBody = $("sheetBody");
-let sheetStack = [], sheetOpener = null, detent = "medium";
-/* the safe-area top, read once from a probe (env() isn't readable from JS) */
-const safeTop = (()=>{ let v = null; return ()=>{ if(v===null){ const p = document.createElement("div"); p.style.cssText = "position:fixed;top:0;height:env(safe-area-inset-top);visibility:hidden"; document.body.appendChild(p); v = p.offsetHeight; p.remove(); } return v; }; })();
-/* medium: 62% of what's visible; large: everything below the status bar. With the keyboard up, large. */
-function sheetMax(d, kb){
-  const h = viewportNow().height;
-  return Math.round(d==="large" || kb > 80 ? h - safeTop() - 10 : h * .62);
+const kitchenUI = {open:{}, adding:false, store:false, wakeOurs:false};
+const STOCK_NEXT = {plenty:"low", low:"out", out:"plenty"};
+const KITCHEN_GROUPS = ["grain","vegetable","fruit","protein","fat","other"];
+function groupOfFood(foodId){ const c = foodInfo(foodId).cat; return KITCHEN_GROUPS.includes(c) ? c : "other"; }
+function groupName(c){ return c==="other" ? say("kitchen.other") : say("home.groups." + c); }
+function setStoreMode(on){
+  kitchenUI.store = on;
+  if(on){ if(wakeSupported() && !wake.on){ kitchenUI.wakeOurs = true; wakeSet(true); } }
+  else if(kitchenUI.wakeOurs){ kitchenUI.wakeOurs = false; if(wake.on) wakeSet(false); }
+  haptic(); refresh("kitchen");
 }
-function applyDetent(kb){ sheetEl.style.setProperty("--sheet-max", sheetMax(detent, kb===undefined ? parseInt(getComputedStyle(document.documentElement).getPropertyValue("--kb")) || 0 : kb) + "px"); sheetEl.dataset.detent = detent; }
-function setDetent(d){
-  if(d===detent) return;
-  const before = sheetEl.getBoundingClientRect().top;
-  detent = d; applyDetent();
-  const after = sheetEl.getBoundingClientRect().top;
-  if(!calm() && before!==after) sheetEl.animate([{transform:`translateY(${before - after}px)`}, {transform:"none"}], {duration:240, easing:"cubic-bezier(.2,.8,.2,1)"});
-}
-kbListeners.push(kb=>{
-  if(!sheetEl.open) return;
-  applyDetent(kb);
-  // the field being typed in stays in view above the keyboard
-  const a = document.activeElement;
-  if(kb > 80 && a && sheetEl.contains(a) && a.matches("input, textarea")) requestAnimationFrame(()=>a.scrollIntoView({block:"nearest", behavior:calm() ? "auto" : "smooth"}));
-});
-function openSheet(kind, arg){
-  if(sheetEl.open){ sheetStack.push({kind, arg}); renderSheetView(); return; }
-  sheetOpener = document.activeElement;
-  sheetStack = [{kind, arg}];
-  detent = "medium"; applyDetent();
-  renderSheetView();
-  sheetEl.showModal();
-  $("sheetTitle").focus({preventScroll:true});
-  sheetEl.style.transform = "";
-  sheetEl.animate(calm() ? [{opacity:0}, {opacity:1}] : [{opacity:0, transform:"translateY(40px)"}, {opacity:1, transform:"none"}],
-                  {duration:220, easing:"cubic-bezier(.2,.8,.2,1)"});
-}
-function closeSheet(instant){
-  if(!sheetEl.open) return;
-  if(shopMode.store) setStoreMode(false);   // leaving the shop leaves the store: the screen may sleep again
-  const done = ()=>{ sheetEl.close(); sheetStack = []; sheetEl.style.transform = ""; if(sheetOpener && document.contains(sheetOpener)) sheetOpener.focus({preventScroll:true}); };
-  if(instant===true || calm()){ done(); return; }
-  const a = sheetEl.animate([{opacity:1, transform:sheetEl.style.transform || "none"}, {opacity:0, transform:"translateY(30%)"}], {duration:150, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
-  a.onfinish = ()=>{ done(); a.cancel(); };
-}
-function backSheet(){ if(sheetStack.length < 2) return closeSheet(); sheetStack.pop(); renderSheetView(); }
-function refreshSheetView(){ if(sheetEl.open) renderSheetView(true); }
-function renderSheetView(keep){
-  const top = sheetStack[sheetStack.length - 1];
-  if(!top) return;
-  $("sheetBack").hidden = sheetStack.length < 2;
-  const f = keep ? focusMemo() : null, scroll = sheetBody.scrollTop;
-  sheetBody.innerHTML = "";
-  SHEETS[top.kind](sheetBody, top.arg || {});
-  if(keep){ sheetBody.scrollTop = scroll; focusRestore(f); }
-}
-function sheetTitle(t){ setText($("sheetTitle"), t); }
-sheetEl.addEventListener("cancel", e=>{ e.preventDefault(); closeSheet(); });
-sheetEl.addEventListener("click", e=>{
-  if(e.target!==sheetEl) return;
-  const r = sheetEl.getBoundingClientRect();
-  if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) closeSheet();
-});
-/* focus stays inside: Tab from the last control comes back to the first, and the other way */
-sheetEl.addEventListener("keydown", e=>{
-  if(e.key!=="Tab") return;
-  const els = [...sheetEl.querySelectorAll("button:not([disabled]):not([hidden]), input:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")].filter(z=>z.offsetParent || z===document.activeElement);
-  if(!els.length) return;
-  const first = els[0], last = els[els.length - 1];
-  if(e.shiftKey && (document.activeElement===first || !sheetEl.contains(document.activeElement) || document.activeElement===$("sheetTitle"))){ e.preventDefault(); last.focus(); }
-  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
-});
-$("sheetClose").addEventListener("click", ()=>closeSheet());
-$("sheetBack").addEventListener("click", backSheet);
-/* drag: up on the handle or header goes large; down goes back to medium, then away.
-   From the content, a pull down when it's scrolled to the top does the same. */
-function dragEnd(dy){
-  sheetEl.style.transform = "";
-  if(dy < -50) setDetent("large");
-  else if(dy > 90 && detent==="large" && sheetBody.scrollHeight > sheetMax("medium") - 80) setDetent("medium");
-  else if(dy > 90) closeSheet();
-  else if(dy > 0 && !calm()) sheetEl.animate([{transform:`translateY(${dy}px)`}, {transform:"none"}], {duration:180, easing:"cubic-bezier(.2,.8,.2,1)"});
-}
-const dragTo = dy=>{ sheetEl.style.transform = `translateY(${dy > 0 ? dy : dy * .25}px)`; };
-(()=>{
-  let y0 = null, dy = 0;
-  [$("sheetGrab"), $("sheetHead")].forEach(h=>{
-    h.addEventListener("pointerdown", e=>{ if(e.target.closest("button")) return; y0 = e.clientY; dy = 0; h.setPointerCapture(e.pointerId); });
-    h.addEventListener("pointermove", e=>{ if(y0===null) return; dy = e.clientY - y0; dragTo(dy); });
-    const up = ()=>{ if(y0===null) return; y0 = null; dragEnd(dy); };
-    h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+function renderKitchen(){
+  const tg = document.createElement("button");
+  tg.type = "button"; tg.className = "btn-text small wake"; tg.dataset.f = "instore";
+  tg.setAttribute("aria-pressed", String(kitchenUI.store));
+  tg.innerHTML = `<i aria-hidden="true"></i>${esc(say("kitchen.inStore"))}`;
+  tg.addEventListener("click", ()=>setStoreMode(!kitchenUI.store));
+  const col = frame("kitchen", say("screens.kitchen"), {tools:[tg]});
+  // 1. To buy
+  const buy = section(col, "tobuy", say("kitchen.toBuy")), list = toBuyList();
+  if(!list.length) buy.appendChild(el("p", "quiet-line", say("kitchen.nothingToBuy")));
+  const buyRow = n=>{
+    const r = el("div", "row");
+    const t = el("p", "row-t"); t.style.margin = "0";
+    t.textContent = say("kitchen.forMeal", {food:n.name, day:possDay(n.date), meal:n.label.toLowerCase()});
+    r.appendChild(t);
+    r.appendChild(ring(false, say("kitchen.bought", {food:n.name}), ()=>{ setStock(n.foodId, n.name, "plenty"); save(); haptic(); announce(say("kitchen.bought", {food:n.name})); changed(); }, "buy:" + n.foodId));
+    return r;
+  };
+  if(kitchenUI.store) KITCHEN_GROUPS.forEach(c=>{
+    const rows = list.filter(n=>(KITCHEN_GROUPS.includes(n.cat) ? n.cat : "other")===c);
+    if(!rows.length) return;
+    buy.appendChild(el("h3", "sec-h", groupName(c))).style.marginTop = "14px";
+    rows.forEach(n=>buy.appendChild(buyRow(n)));
   });
-  let t0 = null, tdy = 0;
-  sheetBody.addEventListener("touchstart", e=>{ t0 = sheetBody.scrollTop <= 0 ? e.touches[0].clientY : null; tdy = 0; }, {passive:true});
-  sheetBody.addEventListener("touchmove", e=>{
-    if(t0===null) return;
-    tdy = e.touches[0].clientY - t0;
-    if(tdy > 0 && sheetBody.scrollTop <= 0){ e.preventDefault(); dragTo(tdy); } else if(tdy < 0) t0 = null;
-  }, {passive:false});
-  sheetBody.addEventListener("touchend", ()=>{ if(t0===null) return; t0 = null; if(tdy > 0) dragEnd(tdy); });
-})();
-function sheetRow(label, sub, fn, f){
+  else list.forEach(n=>buy.appendChild(buyRow(n)));
+  if(list.length){
+    const p = el("p", "quiet-line");
+    const s = textBtn(say("kitchen.send"), ()=>sendGroceries(), "small");
+    s.dataset.f = "kitchen:send";
+    p.appendChild(s); buy.appendChild(p);
+  }
+  // 2. Running low
+  const low = state.pantry.filter(p=>p.state==="low");
+  if(low.length){
+    const sec = section(col, "low", say("kitchen.low"));
+    low.forEach(p=>sec.appendChild(stockRow(p)));
+  }
+  // 3. At home, by food group, each opened in place
+  const home = section(col, "athome", say("kitchen.atHome"));
+  KITCHEN_GROUPS.forEach(c=>{
+    const items = state.pantry.filter(p=>groupOfFood(p.foodId)===c);
+    if(c==="other" && !items.length) return;
+    const open = !!kitchenUI.open[c], id = "grp-" + c;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "group-btn"; b.dataset.f = "group:" + c;
+    b.setAttribute("aria-expanded", String(open)); b.setAttribute("aria-controls", id);
+    b.innerHTML = `<span>${esc(groupName(c))}</span><i class="chev" aria-hidden="true"></i>`;
+    b.addEventListener("click", ()=>{ kitchenUI.open[c] = !open; refresh("kitchen"); });
+    home.appendChild(b);
+    const box = el("div", "group-list"); box.id = id; box.hidden = !open;
+    if(open){
+      if(!items.length) box.appendChild(el("p", "quiet-line", say("kitchen.groupEmpty")));
+      items.forEach(p=>box.appendChild(stockRow(p)));
+    }
+    home.appendChild(box);
+  });
+  home.appendChild(addSomething());
+  // 4. Freezer and prep
+  const fz = section(col, "freezer", say("kitchen.freezer"));
+  state.freezer.forEach(f=>{
+    const r = el("div", "row");
+    r.appendChild(el("p", "row-t", say("kitchen.portions", {food:f.name, n:f.portions, date:fmtDayShort(localDate(f.madeOn))}))).style.margin = "0";
+    const use = textBtn(say("kitchen.useOne"), ()=>{ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); save(); haptic(); refresh("kitchen"); }, "small");
+    use.dataset.f = "useone:" + f.foodId; use.setAttribute("aria-label", say("kitchen.useOneOf", {food:f.name}));
+    r.appendChild(use);
+    fz.appendChild(r);
+  });
+  const tasks = prepTasks();
+  tasks.forEach(s=>{
+    const r = el("div", "row");
+    const t = el("p", "row-t"); t.style.margin = "0"; t.textContent = s.text;
+    r.appendChild(t);
+    r.appendChild(ring(false, say("kitchen.prepDone", {task:s.text}), ()=>donePrep(s), "prep:" + s.id));
+    fz.appendChild(r);
+  });
+  if(!state.freezer.length && !tasks.length) fz.appendChild(el("p", "quiet-line", say("kitchen.freezerEmpty")));
+  if(state.freezer.length || tasks.some(s=>s.kind==="freeze" || s.kind==="defrost")) fz.appendChild(el("p", "storage-note", say("storage")));
+}
+/* a pantry line: its name and its state in words; a tap moves it on (Plenty → Low → Out → Plenty) */
+function stockRow(p){
   const b = document.createElement("button");
-  b.type = "button"; b.className = "s-row"; if(f) b.dataset.f = f;
-  b.innerHTML = `<span class="s-row-t">${esc(label)}</span>${sub ? `<span class="s-row-sub">${esc(sub)}</span>` : ""}`;
-  b.addEventListener("click", fn);
+  b.type = "button"; b.className = "row-btn"; b.dataset.f = "stock:" + p.foodId;
+  b.innerHTML = `<span class="row-t">${esc(p.name)}</span><span class="state-word">${esc(say("kitchen.state." + p.state))}</span>`;
+  b.setAttribute("aria-label", say("kitchen.stockLabel", {food:p.name, state:say("kitchen.state." + p.state), next:say("kitchen.state." + STOCK_NEXT[p.state])}));
+  b.addEventListener("click", ()=>{ setStock(p.foodId, p.name, STOCK_NEXT[p.state]); save(); haptic(); announce(p.name + ": " + say("kitchen.state." + STOCK_NEXT[p.state])); changed(); focusLater("stock:" + p.foodId); });
   return b;
 }
-function sheetRing(on, label, fn, f){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "ring-btn"; if(f) b.dataset.f = f;
-  b.setAttribute("aria-pressed", String(!!on)); b.setAttribute("aria-label", label);
-  b.innerHTML = RING;
-  b.addEventListener("click", fn);
-  return b;
-}
-/* ---------- the staples shortcut ----------
-   At the first shopping list, one sentence: "Already in the kitchen…" with the staples on this list as pills.
-   A tap puts it in stock at its usual pack size, so it comes off the list. It's asked on that first day only,
-   and "That's all" puts it away at once. */
-function staplesAsk(body, need){
-  const A = state.asked || {}, iso = todayISO();
-  if(A.staplesDone || (A.staplesShop && A.staplesShop!==iso)) return;
-  const onList = new Set(need.map(n=>n.key));
-  const opts = STAPLES.filter(([, food])=>onList.has(foodKey(food)) || state.profile.staples.includes(food) && staplesPicked.has(food));
-  if(!opts.length) return;
-  if(!A.staplesShop){ state.asked = Object.assign({}, A, {staplesShop:iso}); save(); }
-  const box = document.createElement("div");
-  box.className = "s-staples";
-  box.innerHTML = `<p class="s-sentence">${esc(say("shopSheet.staples"))}</p><p class="s-hint">${esc(say("shopSheet.staplesHint"))}</p>`;
-  const pills = document.createElement("div");
-  pills.className = "pills";
-  opts.forEach(([label, food])=>{
-    const b = pillBtn(label, food);
-    b.dataset.f = "staple:" + food;
-    b.setAttribute("aria-pressed", String(staplesPicked.has(food)));
-    b.addEventListener("click", ()=>{
-      const k = foodKey(food);
-      if(staplesPicked.has(food)){ staplesPicked.delete(food); delete state.stock[k]; state.profile.staples = state.profile.staples.filter(x=>x!==food); }
-      else{ staplesPicked.add(food); const pack = packFor(food); state.stock[k] = {name:food, g:pack ? pack.g : null, plenty:false}; if(!state.profile.staples.includes(food)) state.profile.staples.push(food); }
-      save(); haptic(); announce(say(staplesPicked.has(food) ? "shopSheet.stapleHave" : "shopSheet.stapleNeed", {food:label})); homeChanged();
+/* "Add something": one field, suggestions as it's typed, one tap puts it at home */
+function addSomething(){
+  const wrap = el("div", "add-line");
+  if(!kitchenUI.adding){
+    const b = textBtn(say("kitchen.add"), ()=>{ kitchenUI.adding = true; refresh("kitchen"); focusLater("kitchen:adding"); }, "small");
+    b.dataset.f = "kitchen:add";
+    wrap.appendChild(b);
+    return wrap;
+  }
+  const put = name=>{
+    kitchenUI.adding = false;
+    if(name){ const id = foodKey(baseName({name})); setStock(id, baseName({name}), "plenty"); kitchenUI.open[groupOfFood(id)] = true; save(); haptic(); announce(say("kitchen.added", {food:baseName({name})})); }
+    changed(); focusLater("kitchen:add");
+  };
+  const list = el("div", "suggest-list"); list.setAttribute("aria-live", "polite");
+  const fill = q=>{
+    list.innerHTML = "";
+    const t = String(q || "").trim().toLowerCase();
+    if(t.length < 2) return;
+    FOOD_POOL.filter(f=>f.name.toLowerCase().split(/[ ,]+/).some(w=>w.startsWith(t)) && !pantryOf(foodKey(baseName(f)))).slice(0, 4).forEach(f=>{
+      const sb = document.createElement("button");
+      sb.type = "button"; sb.className = "alt"; sb.dataset.f = "sug:" + f.name; sb.textContent = baseName(f);
+      sb.addEventListener("click", ()=>put(f.name));
+      list.appendChild(sb);
     });
+  };
+  const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const first = list.querySelector("button"); put(first ? first.dataset.f.slice(4) : b.input.value.trim()); }});
+  b.input.dataset.f = "kitchen:adding";
+  b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); kitchenUI.adding = false; refresh("kitchen"); focusLater("kitchen:add"); } });
+  const parts = say("kitchen.addSentence").split("{blank}");
+  const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
+  wrap.append(l, b.el, list);
+  return wrap;
+}
+/* the prep left open: "While you're at it" for the meals still to come today and tomorrow */
+function prepTasks(){
+  const t = now(), refs = refsOn(t).concat(refsOn(tomorrowOf(t))).filter(x=>x.status==="upcoming" || x.status==="now");
+  const seen = new Set(), out = [];
+  refs.forEach(x=>alsoFor(x, 3).forEach(s=>{ if(s.kind==="salt" || seen.has(s.id)) return; seen.add(s.id); out.push(s); }));
+  return out;
+}
+function donePrep(s){
+  state.prepped = {date:todayISO(), done:prepDone().concat(s.id)};
+  const id = foodKey(baseName({name:s.food}));
+  if(s.kind==="freeze"){ const f = state.freezer.find(z=>z.foodId===id && z.madeOn===todayISO()); if(f) f.portions += 2; else state.freezer.push({foodId:id, name:baseName({name:s.food}), portions:2, madeOn:todayISO()}); }
+  if(s.kind==="defrost"){ const f = state.freezer.find(z=>z.foodId===id); if(f){ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); } }
+  save(); haptic(); announce(say("also.done")); changed();
+}
+
+/* ---------- Keep the screen on: the Screen Wake Lock, while shopping in the store ----------
+   Only where the browser has it. It lets go when the page is hidden or left, and after 60 minutes;
+   it comes back only if it was left on and the page is visible again. */
+const WAKE_MAX_MS = 60 * 60000;
+const wake = {on:false, lock:null, until:0, timer:0};
+function wakeSupported(){ return "wakeLock" in navigator && !!navigator.wakeLock; }
+async function wakeAcquire(){
+  if(!wake.on || document.hidden || wake.lock) return;
+  try{ wake.lock = await navigator.wakeLock.request("screen"); wake.lock.addEventListener("release", ()=>{ wake.lock = null; }); }
+  catch(e){ wake.on = false; }
+}
+function wakeRelease(){ const l = wake.lock; wake.lock = null; if(l) try{ l.release(); }catch(e){} }
+function wakeSet(on){
+  wake.on = on; clearTimeout(wake.timer);
+  if(on){ wake.until = Date.now() + WAKE_MAX_MS; wake.timer = setTimeout(()=>{ wakeSet(false); kitchenUI.store = false; refresh("kitchen"); }, WAKE_MAX_MS); wakeAcquire(); }
+  else wakeRelease();
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) wakeRelease();
+  else if(wake.on && Date.now() < wake.until) wakeAcquire();
+  else if(wake.on) wakeSet(false);
+});
+addEventListener("pagehide", wakeRelease);
+
+/* ====================================================================
+   NEW WEEK: start the next one. The onboarding's sentences, inside the
+   pager. Nothing is archived or lost: the offers stay in the log and
+   the new plan simply starts on its date.
+   ==================================================================== */
+const nwUI = {start:null, more:false, draft:null};
+function nwDefaultStart(){
+  // the day after the current week ends; if that's already past, today
+  const end = addDays(weekStart(), 7);
+  return isoOf(end > now() ? end : now());
+}
+function renderWeek(){
+  const P = state.profile, st = stageFor(planMonths());
+  if(!nwUI.start || nwUI.start < todayISO()) nwUI.start = nwDefaultStart();
+  const pill = document.createElement("button");
+  pill.type = "button"; pill.className = "btn-ink"; pill.dataset.f = nwUI.draft ? "nw:love" : "nw:set";
+  pill.textContent = nwUI.draft ? say("onb.done.apply") : say("newWeek.set");
+  pill.addEventListener("click", ()=>nwUI.draft ? applyNewWeek() : setTable());
+  const col = frame("week", say("screens.week"), {pin:pill});
+  col.classList.add("nw");
+  if(nwUI.draft){
+    const h = el("p", "sent", say("onb.done.title", {name:P.name || ""}));
+    col.appendChild(h);
+    col.appendChild(el("p", "quiet-line", say("newWeek.from", {date:fmtWeekday(localDate(nwUI.start)) + " " + fmtDayMonth(localDate(nwUI.start))})));
+    col.appendChild(weekPreview(nwUI.draft, localDate(nwUI.start)));
+    const acts = el("p", "nw-acts");
+    const sh = textBtn(say("onb.done.shuffle"), ()=>{ setTable(); focusLater("nw:shuffle"); }, "small"); sh.dataset.f = "nw:shuffle";
+    const back = textBtn(say("newWeek.back"), ()=>{ nwUI.draft = null; refresh("week"); focusLater("nw:set"); }, "small"); back.dataset.f = "nw:back";
+    acts.append(sh, back);
+    col.appendChild(acts);
+    return;
+  }
+  // "Next week starts ____."
+  const date = el("span", "blank date"); date.dataset.state = "ok";
+  const di = document.createElement("input");
+  di.type = "date"; di.className = "blank-input"; di.id = "nwDate"; di.value = nwUI.start; di.min = todayISO(); di.dataset.f = "nw:date";
+  di.addEventListener("change", ()=>{ if(di.value && di.value >= todayISO()){ nwUI.start = di.value; } else di.value = nwUI.start; });
+  date.appendChild(di);
+  col.appendChild(nwSentence(say("newWeek.starts"), {blank:{el:date, input:di}}));
+  // "We'll cook on ____ days."
+  const cook = blank({value:String(P.cookDays || 7), min:1, maxLength:1, inputmode:"numeric",
+    onInput:v=>{ const n = +v; const ok = /^[1-7]$/.test(v); cook.set(ok ? "ok" : "hint"); cookHint.textContent = ok || !v ? "" : say("newWeek.cookHint"); if(ok){ P.cookDays = n; save(); } }});
+  cook.set("ok"); cook.input.dataset.f = "nw:cook";
+  col.appendChild(nwSentence(say("newWeek.cook"), {blank:cook}));
+  const cookHint = hint(); cookHint.classList.add("nw-hint"); col.appendChild(cookHint);
+  // "This week, we're most into ____."
+  col.appendChild(el("p", "sent", say("newWeek.into")));
+  const pills = el("div", "pills");
+  PRIORITIES.forEach(pr=>{
+    const b = pillBtn(pr.label);
+    b.dataset.f = "nw:pr:" + pr.id;
+    const on = P.priorities.includes(pr.id);
+    b.setAttribute("aria-pressed", String(on)); b.disabled = !on && P.priorities.length >= 3;
+    b.addEventListener("click", ()=>{ P.priorities = on ? P.priorities.filter(x=>x!==pr.id) : P.priorities.concat(pr.id).slice(0, 3); save(); haptic(); refresh("week"); });
     pills.appendChild(b);
   });
-  box.appendChild(pills);
-  const done = textBtn(say("shopSheet.staplesDone"), ()=>{ state.asked = Object.assign({}, state.asked, {staplesDone:iso}); save(); refreshSheetView(); focusLater("instore"); }, "small");
-  done.dataset.f = "staples:done";
-  box.appendChild(done);
-  body.appendChild(box);
-}
-const staplesPicked = new Set();
-/* shopping in the store: grouped by food group, the screen awake while the sheet is open */
-const shopMode = {store:false, stockOpen:false, wakeOurs:false};
-function setStoreMode(on){
-  shopMode.store = on;
-  if(on){ setDetent("large"); if(wakeSupported() && !wake.on){ shopMode.wakeOurs = true; wakeSet(true); } }
-  else if(shopMode.wakeOurs){ shopMode.wakeOurs = false; if(wake.on) wakeSet(false); }
-  haptic(); refreshSheetView();
-}
-let sessionBought = {};   // key → grams added this session, so an untick can take exactly that back
-const SHEETS = {
-  /* a day of the week: its meals, offered or planned; future days can change their main food */
-  day(body, {pos}){
-    const x = weekDays()[pos], d = state.plan.days[x.dayIdx], iso = todayISO(), future = isoOf(x.date) > iso;
-    sheetTitle(say("day.title", {weekday:fmtWeekday(x.date), date:fmtDayMonth(x.date)}));
-    const meals = d ? d.meals.map((m, k)=>({m, k})).filter(y=>y.m.items.length) : [];
-    if(!meals.length){ body.insertAdjacentHTML("beforeend", `<p class="s-empty">${esc(say("day.nothing"))}</p>`); return; }
-    meals.forEach(({m, k})=>{
-      const row = document.createElement("div");
-      row.className = "s-meal";
-      const at = atTime(x.date, mealTime(m.slot, x.date));
-      row.innerHTML = `${foodArt(m.items[0].name, {size:28})}<div class="s-meal-t"><p class="s-meal-h">${esc(say("home.rowWhen", {meal:m.label, time:fmtTime(at)}))}</p><p class="s-meal-f">${esc(foodsLine(m))}</p></div>`;
-      if(future && !mealOffered(m)){
-        const c = textBtn(say("day.change"), ()=>{ const old = m.items[0]; if(swapItem(m, 0)){ const fresh = m.items[0]; homeChanged(); announce(say("meal.changed", {food:lower1(baseName(fresh))}));
-          const u = document.createElement("p"); u.className = "undo-line"; u.append(say("meal.changed", {food:lower1(baseName(fresh))}) + " ");
-          u.appendChild(textBtn(say("meal.undo"), ()=>{ const j = m.items.indexOf(fresh); if(j >= 0) m.items[j] = old; save(); homeChanged(); }, "inline"));
-          const slotEl = sheetBody.querySelectorAll(".s-meal")[meals.findIndex(y=>y.m===m)]; if(slotEl) slotEl.after(u); setTimeout(()=>u.remove(), 5000); } }, "small");
-        c.dataset.f = `dchange:${pos}:${k}`;
-        row.appendChild(c);
-      }
-      row.appendChild(sheetRing(mealOffered(m), mealOffered(m) ? say("meal.ringOn", {meal:m.label}) : say("meal.ringOff", {meal:m.label}),
-        ()=>{ offerMeal(m, !mealOffered(m)); save(); haptic(); homeChanged(); }, `dring:${pos}:${k}`));
-      body.appendChild(row);
-    });
-  },
-  /* shop: what to pick up, soonest first; a ring means bought, and it settles into In stock */
-  shop(body){
-    sheetTitle(say("shopSheet.title"));
-    const need = shopList("week"), order = dayDisplayOrder().map(i=>state.plan.days[i].name), store = shopMode.store;
-    // In the store: sorted by food group, the screen kept awake, the sheet at its large detent
-    const tg = document.createElement("button");
-    tg.type = "button"; tg.className = "btn-text small wake store-toggle"; tg.dataset.f = "instore";
-    tg.setAttribute("aria-pressed", String(store));
-    tg.innerHTML = `<i aria-hidden="true"></i>${esc(say("shopSheet.inStore"))}`;
-    tg.addEventListener("click", ()=>setStoreMode(!shopMode.store));
-    body.appendChild(tg);
-    staplesAsk(body, need);
-    if(!need.length && !state.extras.some(x=>!x.checked)) body.insertAdjacentHTML("beforeend", `<p class="s-empty">${esc(say("shopSheet.none"))}</p>`);
-    const word = name=>{ const k = order.indexOf(name); return k===0 ? say("shopSheet.today") : k===1 ? say("shopSheet.tomorrow") : fmtWeekday(dateOfPlanDay(name)); };
-    const needRow = n=>{
-      const {short} = shortfall(n.key), st = state.stock[n.key];
-      const first = n.days.slice().sort((a, b)=>order.indexOf(a) - order.indexOf(b))[0];
-      const when = st && st.g > 0 && short ? say("shopSheet.runsOut", {weekday:word(short)}) : say("shopSheet.forDay", {weekday:word(first)});
-      const row = document.createElement("div");
-      row.className = "s-item";
-      row.innerHTML = `${foodArt(n.name, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(baseName(n))}</span><span class="s-item-sub">${esc(when)}</span></p>`;
-      row.appendChild(sheetRing(false, say("shopSheet.bought", {food:baseName(n)}), ()=>{
-        const amt = toBuy(n), g = amt===null ? null : buyPacks(n.name, amt).g;
-        addToStock(n.key, n.name, g); sessionBought[n.key] = g; haptic(); announce(say("shopSheet.bought", {food:baseName(n)})); homeChanged();
-      }, "buy:" + n.key));
-      return row;
-    };
-    const extraRow = x=>{
-      const row = document.createElement("div");
-      row.className = "s-item";
-      row.innerHTML = `${foodArt(null, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(x.name)}</span><span class="s-item-sub">${esc(x.qty || "")}</span></p>`;
-      row.appendChild(sheetRing(false, say("shopSheet.bought", {food:x.name}), ()=>{ x.checked = true; save(); haptic(); homeChanged(); }, "extra:" + x.id));
-      return row;
-    };
-    const extras = state.extras.filter(x=>!x.checked);
-    if(store){
-      // by food group, in the same order as Variety; anything else last
-      GROUPS.concat("other").forEach(cat=>{
-        const rows = need.filter(n=>(GROUPS.includes(n.cat) ? n.cat : "other")===cat);
-        if(cat==="other" && extras.length) rows.push(...extras.map(x=>({extra:x})));
-        if(!rows.length) return;
-        body.insertAdjacentHTML("beforeend", `<h3 class="s-sec">${esc(cat==="other" ? say("shopSheet.other") : say("home.groups." + cat))}</h3>`);
-        rows.forEach(r=>body.appendChild(r.extra ? extraRow(r.extra) : needRow(r)));
-      });
-    }else{
-      need.forEach(n=>body.appendChild(needRow(n)));
-      extras.forEach(x=>body.appendChild(extraRow(x)));
-    }
-    // also pick up: something that isn't on the plan
-    const p = document.createElement("p");
-    p.className = "s-add";
-    const b = blank({min:8, maxLength:40, onEnter:()=>{ const v = b.input.value.trim(); if(!v) return; state.extras.push({id:uid(), name:upper1(v), qty:"", checked:false}); save(); homeChanged(); focusLater("also-get"); }});
-    b.input.dataset.f = "also-get";
-    const parts = say("shopSheet.alsoGet").split("{blank}");
-    const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-    p.append(l, " ", b.el);
-    body.appendChild(p);
-    // in stock: this week's foods that are at home, and anything ticked off; folded away until asked for
-    const stocked = Object.values(needOn(windowDays("week"))).filter(n=>toBuy(n)===0);
-    const ticked = state.extras.filter(x=>x.checked);
-    if(stocked.length || ticked.length){
-      const fold = document.createElement("button");
-      fold.type = "button"; fold.className = "s-fold"; fold.dataset.f = "instock";
-      fold.setAttribute("aria-expanded", String(shopMode.stockOpen)); fold.setAttribute("aria-controls", "inStockList");
-      fold.innerHTML = `<span class="s-sec">${esc(say("shopSheet.inStock"))} · ${stocked.length + ticked.length}</span><i class="chev" aria-hidden="true"></i>`;
-      fold.addEventListener("click", ()=>{ shopMode.stockOpen = !shopMode.stockOpen; refreshSheetView(); });
-      body.appendChild(fold);
-      const box = document.createElement("div");
-      box.id = "inStockList"; box.hidden = !shopMode.stockOpen;
-      stocked.forEach(n=>{
-        const row = document.createElement("div");
-        row.className = "s-item";
-        row.innerHTML = `${foodArt(n.name, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(baseName(n))}</span></p>`;
-        row.appendChild(sheetRing(true, say("shopSheet.notBought", {food:baseName(n)}), ()=>{
-          const g = sessionBought[n.key], st = state.stock[n.key];
-          if(g && st && st.g!==null) st.g = Math.max(0, st.g - g); else delete state.stock[n.key];
-          delete sessionBought[n.key]; save(); haptic(); homeChanged();
-        }, "unbuy:" + n.key));
-        box.appendChild(row);
-      });
-      ticked.forEach(x=>{
-        const row = document.createElement("div");
-        row.className = "s-item";
-        row.innerHTML = `${foodArt(null, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(x.name)}</span></p>`;
-        row.appendChild(sheetRing(true, say("shopSheet.notBought", {food:x.name}), ()=>{ x.checked = false; save(); homeChanged(); }, "unextra:" + x.id));
-        box.appendChild(row);
-      });
-      body.appendChild(box);
-    }
-    const foot = document.createElement("button");
-    foot.type = "button"; foot.className = "btn-ink s-foot"; foot.textContent = say("shopSheet.send");
-    foot.addEventListener("click", ()=>sendGroceries());
-    body.appendChild(foot);
-  },
-  /* send: text first, opened in Messages or the share sheet, never sent for you */
-  send(body, arg){
-    sheetTitle(say("send.title"));
-    const P = state.profile, t = now(), name = P.name || "";
-    const status = document.createElement("p");
-    status.className = "s-status"; status.setAttribute("aria-live", "polite");
-    if(sendAsk==="self"){
-      const p = document.createElement("p");
-      p.className = "s-sentence";
-      const b = blank({min:10, maxLength:20, inputmode:"tel", autocomplete:"tel", onEnter:()=>{ P.self = {phone:normPhone(b.input.value)}; save(); sendAsk = null; refreshSheetView(); sendGroceries(); }});
-      const parts = say("send.selfAsk").split("{blank}");
-      const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-      p.append(l, " ", b.el, parts[1] || "");
-      body.appendChild(p);
-      body.insertAdjacentHTML("beforeend", `<p class="s-hint">${esc(say("people.phoneHint"))} ${esc(say("people.selfHint"))}</p>`);
-      body.appendChild(textBtn(say("send.selfSkip"), ()=>{ state.asked = Object.assign({}, state.asked, {selfNumber:todayISO()}); save(); sendAsk = null; refreshSheetView(); sendGroceries(true); }, "small"));
-      requestAnimationFrame(()=>b.input.focus());
-      return;
-    }
-    if(sendAsk==="link"){
-      body.insertAdjacentHTML("beforeend", `<p class="s-warn">${esc(say("send.linkWarn", {name}))}</p>`);
-      const go = document.createElement("button");
-      go.type = "button"; go.className = "btn-ink"; go.textContent = say("send.linkOk");
-      go.addEventListener("click", ()=>{ state.asked = Object.assign({}, state.asked, {linkWarned:todayISO()}); save(); sendAsk = null; sendWeekLink(status); });
-      body.appendChild(go);
-      body.appendChild(status);
-      return;
-    }
-    const list = document.createElement("div");
-    list.className = "s-rows";
-    list.appendChild(sheetRow(say("send.groceries"), "", ()=>sendGroceries(), "s:groceries"));
-    P.people.forEach(p=>{
-      list.appendChild(sheetRow(say("send.tomorrowTo", {person:p.name}), "", ()=>sendDay(tomorrowOf(t), p, status), "s:tm:" + p.id));
-      if(t.getHours() < 14) list.appendChild(sheetRow(say("send.todayTo", {person:p.name}), "", ()=>sendDay(t, p, status), "s:td:" + p.id));
-    });
-    if(!P.people.length) list.appendChild(sheetRow(say("send.tomorrowAny"), "", ()=>sendDay(tomorrowOf(t), null, status), "s:tm"));
-    list.appendChild(sheetRow(say("send.weekLink"), "", ()=>{ if(!(state.asked || {}).linkWarned){ sendAsk = "link"; refreshSheetView(); } else sendWeekLink(status); }, "s:link"));
-    list.appendChild(sheetRow(say("send.copy"), "", async ()=>{ await copyText(weekText()); status.textContent = say("send.copied"); announce(say("home.announce.copied")); markShared(); }, "s:copy"));
-    list.appendChild(sheetRow(say("send.more"), "", ()=>deliver({text:dayText(arg.date || t)}, status), "s:more"));
-    body.appendChild(list);
-    body.insertAdjacentHTML("beforeend", `<p class="s-hint">${esc(say("send.explain"))}</p>`);
-    body.appendChild(status);
-  },
-  /* the profile: everything asked late lives here too */
-  profile(body){
-    const P = state.profile;
-    sheetTitle(P.name || say("profileSheet.title"));
-    if(P.birthDate) body.insertAdjacentHTML("beforeend", `<p class="s-hint">${esc(ageLabel(ageNow()) + " · " + stageNow().name)}</p>`);
-    const list = document.createElement("div");
-    list.className = "s-rows";
-    [["birthday", ()=>{ closeSheet(true); openOnboarding("name", {through:"birthday"}); }],
-     ["offPlate", ()=>{ closeSheet(true); openOnboarding("keepout", {single:true}); }],
-     ["priorities", ()=>{ closeSheet(true); openOnboarding("priorities", {single:true}); }],
-     ["mealTimes", ()=>{ closeSheet(true); openOnboarding("mealtimes", {single:true}); }],
-     ["people", ()=>openSheet("people")],
-     ["replay", ()=>{ closeSheet(true); openOnboarding("welcome", {replay:true}); }]].forEach(([k, fn])=>{
-      const r = sheetRow(say("profileSheet." + k), "", fn, "p:" + k);
-      if(k==="mealTimes" && planMonths() < 6) r.disabled = true;
-      list.appendChild(r);
-    });
-    body.appendChild(list);
-    // Appearance: Auto follows the system; Light and Dark stay put (stored on this device)
-    const seg = document.createElement("div");
-    seg.className = "s-seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-labelledby", "segAppearance");
-    seg.innerHTML = `<span class="s-seg-l" id="segAppearance">${esc(say("profileSheet.appearance"))}</span><span class="s-seg-opts"></span>`;
-    ["auto","light","dark"].forEach(v=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.dataset.f = "appearance:" + v; b.textContent = say("profileSheet.appearanceOpts." + v);
-      b.setAttribute("aria-pressed", String((P.appearance || "auto")===v));
-      b.addEventListener("click", ()=>{ P.appearance = v; save(); applyTheme(v); updateChrome(); haptic(); refreshSheetView(); });
-      seg.lastChild.appendChild(b);
-    });
-    body.appendChild(seg);
-  },
-  /* people: notes to self, and who else looks after {name}; numbers stay on this device */
-  people(body){
-    const P = state.profile, name = P.name || "";
-    sheetTitle(say("people.title"));
-    const self = document.createElement("p");
-    self.className = "s-sentence";
-    const sb = blank({min:10, maxLength:20, inputmode:"tel", autocomplete:"tel", value:P.self.phone || "", onEnter:()=>{}, onInput:v=>{ P.self = {phone:normPhone(v)}; save(); }});
-    const sp = say("people.self").split("{blank}");
-    const sl = document.createElement("label"); sl.htmlFor = sb.input.id; sl.textContent = sp[0].trim();
-    self.append(sl, " ", sb.el, sp[1] || "");
-    body.appendChild(self);
-    body.insertAdjacentHTML("beforeend", `<p class="s-hint">${esc(say("people.selfHint"))}</p>`);
-    P.people.forEach(p=>{
-      const row = document.createElement("div");
-      row.className = "s-person";
-      row.innerHTML = `<p><b>${esc(p.name)}</b>${p.phone ? ` · ${esc(p.phone)}` : ""}</p>`;
-      row.appendChild(textBtn(say("people.remove", {person:p.name}).split(" ")[0], ()=>{ P.people = P.people.filter(q=>q!==p); save(); refreshSheetView(); }, "small"));
-      row.lastChild.setAttribute("aria-label", say("people.remove", {person:p.name}));
-      body.appendChild(row);
-    });
-    const add = document.createElement("div");
-    add.className = "s-add-person";
-    const nb = blank({min:6, maxLength:30, autocomplete:"off"});
-    const pb = blank({min:10, maxLength:20, inputmode:"tel", autocomplete:"off"});
-    const ap = say("people.add", {name}).split("{blank}");
-    const p1 = document.createElement("p"); p1.className = "s-sentence";
-    const l1 = document.createElement("label"); l1.htmlFor = nb.input.id; l1.textContent = ap[0].trim();
-    p1.append(l1, " ", nb.el, ap[1] || "");
-    const pp = say("people.phone").split("{blank}");
-    const p2 = document.createElement("p"); p2.className = "s-sentence small";
-    const l2 = document.createElement("label"); l2.htmlFor = pb.input.id; l2.textContent = pp[0].trim();
-    p2.append(l2, " ", pb.el);
-    const saveBtn = document.createElement("button");
-    saveBtn.type = "button"; saveBtn.className = "btn-ink"; saveBtn.textContent = say("people.save");
-    const commit = ()=>{ const n = nb.input.value.trim(); if(!n) return; P.people.push({id:uid(), name:upper1(n), phone:normPhone(pb.input.value), role:""}); markAsked("people", true); save(); refreshSheetView(); };
-    saveBtn.addEventListener("click", commit);
-    nb.input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); pb.input.focus(); } });
-    pb.input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
-    add.append(p1, p2);
-    add.insertAdjacentHTML("beforeend", `<p class="s-hint">${esc(say("people.phoneHint"))} ${esc(say("people.stays"))}</p>`);
-    add.appendChild(saveBtn);
-    body.appendChild(add);
-  },
-  /* the allergen note: plain and calm, never playful */
-  allergen(body){
-    sheetTitle(say("allergenNote.title"));
-    firstAllergensToday().forEach(a=>{
-      const sec = document.createElement("div");
-      sec.className = "s-allergen";
-      sec.insertAdjacentHTML("beforeend", `<h3 class="s-sec">${esc(a.label)}</h3>`);
-      a.foods.forEach(i=>{
-        const r = foodRec(i.name);
-        const status = r.safety==="introduced" ? (r.noReactionOn ? say("allergenNote.noReaction", {date:fmtDayMonth(localDate(r.noReactionOn))}) : say("allergenNote.introduced", {date:fmtDayMonth(localDate(r.safetyOn))})) : say("allergenNote.notYet");
-        const row = document.createElement("div");
-        row.className = "s-item";
-        row.innerHTML = `${foodArt(i.name, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(baseName(i))}</span><span class="s-item-sub">${esc(status)}</span></p>`;
-        if(r.safety==="introduced" && !r.noReactionOn) row.appendChild(textBtn(say("allergenNote.markNoReaction"), ()=>{ r.noReactionOn = todayISO(); save(); refreshSheetView(); }, "small"));
-        sec.appendChild(row);
-      });
-      body.appendChild(sec);
-    });
-    body.insertAdjacentHTML("beforeend", `<p class="s-note">${esc(say("allergenNote.note"))}</p>`);
+  col.appendChild(pills);
+  // "Try ____ new foods."
+  const nf = blank({value:String(newFoodsFor(P, st)), min:1, maxLength:1, inputmode:"numeric",
+    onInput:v=>{ const ok = /^[0-5]$/.test(v); nf.set(ok ? "ok" : "hint"); if(ok){ P.newFoods = +v; save(); } nfHint.textContent = !ok && v ? say("newWeek.newHint") : allergenRuleLine(ok ? +v : newFoodsFor(P, st)); }});
+  nf.set("ok"); nf.input.dataset.f = "nw:new";
+  col.appendChild(nwSentence(say("newWeek.newFoods"), {blank:nf}));
+  const nfHint = hint(); nfHint.textContent = allergenRuleLine(newFoodsFor(P, st)); col.appendChild(nfHint);
+  // More: read-only summaries, with links into Profile (and the Kitchen)
+  const more = el("div", "nw-more");
+  const mb = document.createElement("button");
+  mb.type = "button"; mb.className = "group-btn"; mb.dataset.f = "nw:more";
+  mb.setAttribute("aria-expanded", String(nwUI.more)); mb.setAttribute("aria-controls", "nwMore");
+  mb.innerHTML = `<span>${esc(say("newWeek.more"))}</span><i class="chev" aria-hidden="true"></i>`;
+  mb.addEventListener("click", ()=>{ nwUI.more = !nwUI.more; refresh("week"); });
+  more.appendChild(mb);
+  const box = el("div"); box.id = "nwMore"; box.hidden = !nwUI.more;
+  if(nwUI.more){
+    const line = (text, label, fn, f)=>{ const p = el("p", "sec-p", text + " "); const b = textBtn(label, fn, "inline"); b.dataset.f = f; p.appendChild(b); box.appendChild(p); };
+    const off = offPlateWords();
+    line(off.length ? say("newWeek.offPlate", {list:listJoin(off)}) : say("newWeek.offPlateNone"), say("newWeek.seeProfile"), ()=>go("profile", {section:"offplate"}), "nw:offplate");
+    const home = state.pantry.filter(p=>p.state!=="out").map(p=>lower1(p.name));
+    line(home.length ? say("newWeek.atHome", {list:listJoin(home.slice(0, 8))}) : say("newWeek.atHomeNone"), say("newWeek.seeKitchen"), ()=>go("kitchen"), "nw:athome");
+    const again = warmingUp().map(w=>lower1(foodInfo(w.foodId).label));
+    line(again.length ? say("newWeek.again", {list:listJoin(again.slice(0, 6))}) : say("newWeek.againNone"), say("newWeek.seeProfile"), ()=>go("profile", {section:"warming"}), "nw:again");
   }
-};
-let sendAsk = null;
+  more.appendChild(box);
+  col.appendChild(more);
+}
+/* the allergen rule, said once beside "Try {n} new foods" */
+function nwSentence(text, slots){
+  const h = sentence(text, slots), p = el("p", "sent");
+  while(h.firstChild) p.appendChild(h.firstChild);
+  return p;
+}
+function allergenRuleLine(n){
+  const intro = introducedAllergens(state.profile);
+  const waiting = ALLERGENS.filter(a=>!intro.has(a.id) && state.profile.allergens[a.id]!=="avoid");
+  return n > 0 && waiting.length ? say("newWeek.allergenRule", {n:ALLERGEN_SPACING_DAYS}) : "";
+}
+function setTable(){
+  const start = localDate(nwUI.start);
+  nwUI.draft = generateWeek(planMonths(), state.profile, {start});
+  haptic(); refresh("week"); focusLater(nwUI.draft ? "nw:love" : "nw:set");
+}
+function applyNewWeek(){
+  if(!nwUI.draft) return;
+  startWeek(nwUI.draft, nwUI.start);
+  if(nwUI.start <= todayISO()) state.profile.lastStage = stageNow().id;
+  nwUI.draft = null; nwUI.start = null;
+  save(); haptic(); pulseGlow(); announce(say("newWeek.done")); picked = null;
+  changed(); go("home");
+}
+
+/* ====================================================================
+   PROFILE: know {name}. How the week is going, what they love, what's
+   still warming up, what stays off the plate, their firsts, settings.
+   Plain text lists; no percentages, scores or counts as pressure.
+   ==================================================================== */
+const pfUI = {linkAsk:false, status:""};
+/* foods whose offers were mostly "Loved it" */
+function lovedFoods(){
+  const by = {};
+  liveOffers().forEach(e=>{ if(!e.outcome) return; const r = by[e.foodId] = by[e.foodId] || {loved:0, all:0}; r.all++; if(e.outcome==="loved") r.loved++; });
+  return Object.keys(by).filter(k=>by[k].loved * 2 > by[k].all);
+}
+/* offered at least twice, answered "Not today" or "Ate some", and not (yet) loved */
+function warmingUp(){
+  const loved = new Set(lovedFoods()), by = {};
+  liveOffers().forEach(e=>{ const r = by[e.foodId] = by[e.foodId] || {n:0, cool:0}; r.n++; if(e.outcome==="not_today" || e.outcome==="some") r.cool++; });
+  return Object.keys(by).filter(k=>by[k].n >= 2 && by[k].cool > 0 && !loved.has(k)).map(k=>({foodId:k, n:by[k].n}));
+}
+/* at most four, then "and 3 more" */
+function shortList(a){ return a.length <= 4 ? listJoin(a) : a.slice(0, 4).join(", ") + " " + say("home.andMore", {n:a.length - 4}); }
+function offPlateWords(){
+  const P = state.profile;
+  return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...P.avoid.map(a=>lower1(a.name))];
+}
+function renderProfile(){
+  const P = state.profile;
+  const col = frame("profile", P.name || say("screens.profile"), {titleClass:"pf-name", sub:P.birthDate ? ageLabel(ageNow()) + " · " + stageNow().name : ""});
+  const iso0 = state.weekStarted, iso6 = isoOf(addDays(weekStart(), 6));
+  // How it's going (this week)
+  if(hasPlan()){
+    const sec = section(col, "going", say("profile.going"));
+    const planned = {};
+    weekDays().forEach(({date})=>mealsOn(date).forEach(x=>x.m.items.forEach(i=>{ const c = i.cats[0]; (planned[c] = planned[c] || new Set()).add(baseName(i)); })));
+    GROUPS.forEach(c=>{
+      const got = offeredFoods(c, iso0, iso6).map(lower1);
+      const waiting = [...(planned[c] || [])].filter(f=>!got.includes(lower1(f))).map(lower1);
+      const text = say("profile.groupLine", {group:say("home.groups." + c), foods:got.length ? listJoin(got) : say("profile.nothingYet")})
+                 + (waiting.length ? " " + say("profile.waiting", {foods:shortList(waiting)}) : "");
+      sec.appendChild(el("p", "sec-p", text));
+    });
+  }
+  // Loved it
+  const lov = section(col, "loved", say("profile.loved")), loved = lovedFoods();
+  lov.appendChild(el("p", loved.length ? "sec-p" : "quiet-line", loved.length ? upper1(listJoin(loved.map(k=>lower1(foodInfo(k).label)))) + "." : say("profile.lovedNone")));
+  // Still warming up
+  const warm = section(col, "warming", say("profile.warming")), wl = warmingUp();
+  if(!wl.length) warm.appendChild(el("p", "quiet-line", say("profile.warmingNone")));
+  wl.forEach(w=>{
+    const r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
+    t.textContent = say("profile.offeredTimes", {food:foodInfo(w.foodId).label, n:w.n});
+    t.appendChild(el("span", "row-sub", anotherWay(w.foodId)));
+    r.appendChild(t); warm.appendChild(r);
+  });
+  // Off the plate: preferences, then the allergen records (kept apart)
+  const off = section(col, "offplate", say("profile.offPlate"));
+  const allergies = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label.split(" /")[0]), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>a.name)];
+  const notFan = P.avoid.filter(a=>a.kind==="dislike").map(a=>a.name);
+  off.appendChild(el("p", "sec-p", allergies.length ? say("profile.allergies", {list:listJoin(allergies.map(lower1))}) : say("profile.allergiesNone")));
+  if(notFan.length) off.appendChild(el("p", "sec-p", say("profile.notFan", {list:listJoin(notFan.map(lower1))})));
+  off.appendChild(el("p", "sec-p muted", lockedLine(ageNow())));
+  off.appendChild(el("h3", "sec-h", say("profile.allergenRecord"))).style.marginTop = "16px";
+  ALLERGENS.forEach(a=>{
+    const rec = allergenRecord(a.id), r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
+    t.textContent = a.label.split(" /")[0];
+    const word = rec.state==="keepout" ? say("allergenNote.keepOut") : rec.state==="notyet" ? say("allergenNote.notYet")
+               : rec.noReactionOn ? say("allergenNote.noReaction", {date:fmtDayMonth(localDate(rec.noReactionOn))})
+               : rec.on ? say("allergenNote.introduced", {date:fmtDayMonth(localDate(rec.on))}) : say("allergenNote.introducedBefore");
+    t.appendChild(el("span", "row-sub", word));
+    r.appendChild(t);
+    if(rec.state==="introduced" && !rec.noReactionOn && rec.on){
+      const b = textBtn(say("allergenNote.markNoReaction"), ()=>{ state.allergyNotes[a.id] = {noReactionOn:todayISO()}; save(); haptic(); refresh("profile"); focusLater("noreact:" + a.id); }, "small");
+      b.dataset.f = "noreact:" + a.id; b.setAttribute("aria-label", say("allergenNote.markFor", {allergen:a.label.split(" /")[0]}));
+      r.appendChild(b);
+    }
+    off.appendChild(r);
+  });
+  off.appendChild(el("p", "quiet-line", say("allergenNote.note")));
+  const editOff = textBtn(say("profile.edit"), ()=>openOnboarding("keepout", {single:true}), "small"); editOff.dataset.f = "edit:offplate";
+  off.appendChild(editOff);
+  // Firsts: a quiet journal
+  const fs = section(col, "firsts", say("profile.firsts"));
+  fs.classList.add("pf-firsts");
+  const firsts = liveOffers().filter(e=>e.firstOfFood).sort((a, b)=>a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  if(!firsts.length) fs.appendChild(el("p", "quiet-line", say("profile.firstsNone")));
+  firsts.slice(0, 30).forEach(e=>{
+    const r = el("div", "row"), photo = state.firstPhotos[e.foodId];
+    if(photo){ const img = document.createElement("img"); img.src = photo; img.alt = say("profile.photoOf", {food:foodInfo(e.foodId).label}); r.appendChild(img); }
+    r.appendChild(el("p", "row-t", say("profile.first", {food:lower1(foodInfo(e.foodId).label), date:fmtDayShort(localDate(e.date))}))).style.margin = "0";
+    const b = textBtn(photo ? say("profile.removePhoto") : say("profile.addPhoto"), ()=>photo ? (delete state.firstPhotos[e.foodId], save(), refresh("profile")) : pickPhoto(e.foodId), "small");
+    b.dataset.f = "photo:" + e.foodId;
+    r.appendChild(b);
+    fs.appendChild(r);
+  });
+  // Settings
+  const set = section(col, "settings", say("profile.settings"));
+  const row = (label, sub, fn, f, disabled)=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "row-btn"; b.dataset.f = f; b.disabled = !!disabled;
+    b.innerHTML = `<span class="row-t"><span>${esc(label)}</span>${sub ? `<span class="row-sub">${esc(sub)}</span>` : ""}</span>`;
+    b.addEventListener("click", fn);
+    set.appendChild(b);
+  };
+  row(say("profile.name"), say("profile.editSpelling"), ()=>openOnboarding("name", {single:true}), "set:name");
+  row(say("profile.birthday"), P.birthDate ? fmtDayMonth(localDate(P.birthDate)) + " " + localDate(P.birthDate).getFullYear() : "", ()=>openOnboarding("birthday", {single:true}), "set:birthday");
+  row(say("profile.mealTimes"), "", ()=>openOnboarding("mealtimes", {single:true}), "set:mealtimes", planMonths() < 6);
+  row(say("profile.priorities"), P.priorities.length ? listJoin(P.priorities.map(id=>lower1((PRIORITIES.find(p=>p.id===id) || {}).label || id))) : "", ()=>openOnboarding("priorities", {single:true}), "set:priorities");
+  row(say("profile.basics"), "", ()=>openOnboarding("athome", {single:true}), "set:basics");
+  // Appearance: Auto follows the system; Light and Dark stay put (stored on this device)
+  const seg = el("div", "s-seg");
+  seg.setAttribute("role", "group"); seg.setAttribute("aria-labelledby", "segAppearance");
+  seg.innerHTML = `<span class="s-seg-l" id="segAppearance">${esc(say("profile.appearance"))}</span><span class="s-seg-opts"></span>`;
+  ["auto","light","dark"].forEach(v=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.f = "appearance:" + v; b.textContent = say("profile.appearanceOpts." + v);
+    b.setAttribute("aria-pressed", String((P.appearance || "auto")===v));
+    b.addEventListener("click", ()=>{ P.appearance = v; save(); applyTheme(v); updateChrome(); haptic(); refresh("profile"); });
+    seg.lastChild.appendChild(b);
+  });
+  set.appendChild(seg);
+  row(say("profile.replay"), "", ()=>openOnboarding("welcome", {replay:true}), "set:replay");
+  renderCaregivers(col);
+}
+/* caregivers: notes to self, the people who look after {name}, and the week as a link; numbers stay here */
+function renderCaregivers(col){
+  const P = state.profile, name = P.name || "", t = now();
+  const sec = section(col, "people", say("profile.caregivers"));
+  const status = el("p", "quiet-line s-status", pfUI.status); status.setAttribute("aria-live", "polite");
+  const self = el("p", "s-sentence");
+  const sb = blank({min:10, maxLength:20, inputmode:"tel", autocomplete:"tel", value:P.self.phone || "", onInput:v=>{ P.self = {phone:normPhone(v)}; save(); }});
+  sb.input.dataset.f = "pf:self";
+  const sp = say("people.self").split("{blank}");
+  const sl = document.createElement("label"); sl.htmlFor = sb.input.id; sl.textContent = sp[0].trim();
+  self.append(sl, " ", sb.el, sp[1] || "");
+  sec.appendChild(self);
+  sec.appendChild(el("p", "quiet-line", say("people.selfHint")));
+  P.people.forEach(p=>{
+    const r = el("div", "s-person");
+    r.appendChild(el("p", "", p.name + (p.phone ? " · " + p.phone : "")));
+    const acts = el("span", "sh-acts");
+    const st = textBtn(say("people.sendTomorrow"), ()=>sendDay(tomorrowOf(t), p, status), "small"); st.dataset.f = "pf:send:" + p.id;
+    st.setAttribute("aria-label", say("send.tomorrowTo", {person:p.name}));
+    const rm = textBtn(say("people.removeShort"), ()=>{ P.people = P.people.filter(q=>q!==p); save(); refresh("profile"); focusLater("pf:addname"); }, "small"); rm.dataset.f = "pf:rm:" + p.id;
+    rm.setAttribute("aria-label", say("people.remove", {person:p.name}));
+    acts.append(st, rm); r.appendChild(acts);
+    sec.appendChild(r);
+  });
+  const nb = blank({min:6, maxLength:30, autocomplete:"off"}), pb = blank({min:10, maxLength:20, inputmode:"tel", autocomplete:"off"});
+  nb.input.dataset.f = "pf:addname"; pb.input.dataset.f = "pf:addphone";
+  const ap = say("people.add", {name}).split("{blank}");
+  const p1 = el("p", "s-sentence"); const l1 = document.createElement("label"); l1.htmlFor = nb.input.id; l1.textContent = ap[0].trim();
+  p1.append(l1, " ", nb.el, ap[1] || "");
+  const pp = say("people.phone").split("{blank}");
+  const p2 = el("p", "s-sentence"); const l2 = document.createElement("label"); l2.htmlFor = pb.input.id; l2.textContent = pp[0].trim();
+  p2.append(l2, " ", pb.el);
+  const commit = ()=>{ const n = nb.input.value.trim(); if(!n) return; P.people.push({id:uid(), name:upper1(n), phone:normPhone(pb.input.value), role:""}); markAsked("people", true); save(); refresh("profile"); focusLater("pf:addname"); };
+  nb.input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); pb.input.focus(); } });
+  pb.input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
+  const saveBtn = textBtn(say("people.save"), commit, "small"); saveBtn.dataset.f = "pf:save";
+  const saveRow = el("div", "sh-acts"); saveRow.appendChild(saveBtn);   // its own line: never touching the link below
+  sec.append(p1, p2, el("p", "quiet-line", say("people.phoneHint") + " " + say("people.stays")), saveRow);
+  // the week as a link: it carries allergies and the menu, so it says so first
+  if(pfUI.linkAsk){
+    sec.appendChild(el("p", "s-warn", say("send.linkWarn", {name})));
+    const ok = textBtn(say("send.linkOk"), ()=>{ state.asked = Object.assign({}, state.asked, {linkWarned:todayISO()}); save(); pfUI.linkAsk = false; sendWeekLink(status); refresh("profile"); }, "small");
+    ok.dataset.f = "pf:linkok";
+    sec.appendChild(ok);
+  }else{
+    const lk = textBtn(say("send.weekLink"), ()=>{ if(!(state.asked || {}).linkWarned){ pfUI.linkAsk = true; refresh("profile"); focusLater("pf:linkok"); } else sendWeekLink(status); }, "small");
+    lk.dataset.f = "pf:link";
+    sec.appendChild(lk);
+  }
+  sec.appendChild(status);
+}
+/* a small photo for a first, kept on this device only (downscaled so it fits in local storage) */
+function pickPhoto(foodId){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*"; inp.className = "pf-photo";
+  inp.addEventListener("change", ()=>{
+    const f = inp.files && inp.files[0];
+    inp.remove();
+    if(!f) return;
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = ()=>{
+      const S = 240, k = Math.min(1, S / Math.max(img.width, img.height)), c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      state.firstPhotos[foodId] = c.toDataURL("image/jpeg", .7);
+      if(save()===false){ delete state.firstPhotos[foodId]; announce(say("profile.photoTooBig")); }
+      refresh("profile");
+    };
+    img.src = url;
+  });
+  document.body.appendChild(inp);
+  inp.click();
+}
+const SCREENS = {shuffle:renderShuffle, kitchen:renderKitchen, week:renderWeek, profile:renderProfile};
 
 /* ====================================================================
    SHARING: text first. "Opens Messages" and nothing more is promised.
    ==================================================================== */
 /* iOS and macOS take sms:{n}&body=, Android sms:{n}?body= (docs/decisions.md) */
 function platform(ua, touch){
-  const u = ua || navigator.userAgent, t = touch===undefined ? navigator.maxTouchPoints : touch;
+  const u = ua || navigator.userAgent;
   if(/Android/i.test(u)) return "android";
   if(/iPhone|iPad|iPod/i.test(u) || (/Macintosh/i.test(u))) return "apple";
   return "other";
@@ -1547,37 +1574,32 @@ async function copyText(text){
 }
 function markShared(){ state.asked = Object.assign({}, state.asked, {shared:state.asked.shared || todayISO()}); save(); }
 /* a number → Messages (falling back to the share sheet, then copying); no number → share sheet, then copy */
-async function deliver({text, url, phone}, status){
+async function deliver({text, phone}, status){
   markShared();
-  const full = text;   // the link, when there is one, is already inside the text
   if(phone){
     let left = false;
     const away = ()=>{ if(document.hidden) left = true; };
     document.addEventListener("visibilitychange", away);
-    location.href = smsHref(phone, full);
+    location.href = smsHref(phone, text);
     await new Promise(r=>setTimeout(r, 1400));
     document.removeEventListener("visibilitychange", away);
     if(left || !document.hasFocus()) return "sms";
   }
   if(navigator.share){
-    try{ await navigator.share({text:full}); return "shared"; }
+    try{ await navigator.share({text}); return "shared"; }
     catch(e){ if(e && e.name==="AbortError") return "cancelled"; }
   }
-  await copyText(full);
+  await copyText(text);
   if(status) status.textContent = say("send.copied");
+  pfUI.status = "";
   announce(say("home.announce.copied"));
   return "copied";
 }
-function sendGroceries(skipAsk){
-  const P = state.profile;
-  if(!P.self.phone && !skipAsk && !(state.asked || {}).selfNumber){ sendAsk = "self"; sheetEl.open ? (sheetStack = [{kind:"send", arg:{}}], renderSheetView()) : openSheet("send"); return; }
-  deliver({text:groceriesText(), phone:P.self.phone}, sheetEl.open ? sheetBody.querySelector(".s-status") : null);
-}
+function sendGroceries(){ deliver({text:groceriesText(), phone:state.profile.self.phone}); }
 function sendDay(date, person, status){ deliver({text:dayText(date), phone:person && person.phone}, status); }
 async function sendWeekLink(status){
   const {url, short} = await snapshotURL();
-  if(sheetEl.open && short && status) status.textContent = say("send.linkShort");
-  await deliver({text:weekText(url), url}, status);
+  await deliver({text:weekText(url)}, status);
   if(short && status) status.textContent = say("send.linkShort");
 }
 
@@ -1589,14 +1611,8 @@ function allergyList(){
 function lockedList(){ return LOCKED_RULES.filter(r=>!r.until || ageNow() < r.until).map(r=>lower1(r.label)); }
 function groceriesText(){
   const P = state.profile, t = now(), C = "share.groceries.";
-  const order = dayDisplayOrder().map(i=>state.plan.days[i].name);
   const lines = [say(C + "head", {name:P.name || "", date:fmtDayMonth(t)}), say(C + "updated", {time:fmtTime(t)})];
-  shopList("week").forEach(n=>{
-    const {short} = shortfall(n.key), first = n.days.slice().sort((a, b)=>order.indexOf(a) - order.indexOf(b))[0];
-    const by = short || first, within = order.indexOf(by) >= 0 && order.indexOf(by) < 3;
-    lines.push(say(C + "item", {item:baseName(n)}) + (within ? say(C + "by", {weekday:fmtWeekday(dateOfPlanDay(by))}) : ""));
-  });
-  state.extras.filter(x=>!x.checked).forEach(x=>lines.push(say(C + "item", {item:x.name})));
+  toBuyList().forEach(n=>lines.push(say(C + "item", {item:n.name}) + say(C + "by", {weekday:fmtWeekday(n.date)})));
   return lines.join("\n") + "\n";
 }
 function dayText(date, link){
@@ -1607,8 +1623,6 @@ function dayText(date, link){
   const refs = mealsOn(date);
   refs.forEach(x=>lines.push(say(C + "meal", {time:fmtTime(x.start), meal:x.m.label,
     foods:x.m.items.map(i=>say(C + (i.qty ? "food" : "foodPlain"), {food:lower1(baseName(i)), amount:i.qty || "", texture:textureOf(i)}).trim()).join(", ")})));
-  const fresh = refs.map(x=>newFoodIn(x.m)).find(Boolean);
-  if(fresh) lines.push(say(C + "newToday", {food:lower1(baseName(fresh))}));
   if(link) lines.push(say(C + "full", {link}));
   return lines.join("\n");
 }
@@ -1628,7 +1642,7 @@ function weekText(link){
    THE CARETAKER LINK: a read-only snapshot in the URL fragment (never sent
    to the server). Versioned; gzip + base64url, with a plain fallback.
    Holds age in months (not the birth date), allergies, dislikes, locked
-   items and the meals. Never phone numbers, never other people's names.
+   items and the meals. Never offers, stock, phone numbers or other names.
    ==================================================================== */
 const LINK_CAP = 1800;
 const b64url = bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -1673,11 +1687,10 @@ async function snapshotURL(){
 /* the read-only view: allergies first, then the days; no ticks, no editing, nothing saved */
 const SNAPSHOT = /^#\/s\//.test(location.hash);
 async function renderSnapshot(){
-  const root = $("home"), o = await decodePayload(location.hash.slice(4));
+  const root = $("app"), o = await decodePayload(location.hash.slice(4));
   document.body.classList.add("is-snapshot");
   root.innerHTML = "";
-  const main = document.createElement("main");
-  main.className = "snap";
+  const main = el("main", "snap home-snap");
   if(!o){ main.innerHTML = `<p class="snap-broken">${esc(say("snap.broken"))}</p>`; root.appendChild(main); document.title = "Chicho"; return; }
   document.title = say("snap.title", {name:o.n});
   const months = o.m===1 ? "1 month" : o.m + " months";
@@ -1685,8 +1698,7 @@ async function renderSnapshot(){
   main.insertAdjacentHTML("beforeend", `<h1 class="snap-avoid">${esc(o.a.length ? say("snap.avoid", {list:listJoin(o.a)}) : say("snap.avoidNone"))} ${esc(o.k.length ? say("snap.notYet", {list:listJoin(o.k)}) : "")}</h1>`);
   o.days.forEach(d=>{
     const date = localDate(d.w);
-    const sec = document.createElement("section");
-    sec.className = "snap-day";
+    const sec = el("section", "snap-day");
     sec.insertAdjacentHTML("beforeend", `<h2>${esc(fmtWeekday(date) + " " + fmtDayMonth(date))}</h2>`);
     d.ml.forEach(m=>{
       const at = atTime(date, m.t);
@@ -1759,8 +1771,7 @@ function faviconLegible(src){
 let clockTimer = 0, lastISO = null;
 function tick(){
   if(SNAPSHOT) return;
-  if(viewActive() && Date.now() >= view.until){ view.day = 0; view.idx = null; layoutSig = ""; }   // the next boundary brings it back to now
-  if(todayISO()!==lastISO){ picked = null; homeChanged(); return; }   // midnight: a new day, its own plan
+  if(todayISO()!==lastISO){ picked = null; changed(); return; }   // midnight: a new day, its own plan
   renderHome();
 }
 function scheduleTick(){
@@ -1777,33 +1788,28 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
     // the viewer's own Chicho data is never touched
     save = function(){};
     try{ const set = Storage.prototype.setItem; Storage.prototype.setItem = function(k, v){ if(this===localStorage) return; return set.call(this, k, v); }; }catch(e){}
-    document.querySelector(".corners") && document.querySelector(".corners").remove();
     renderSnapshot();
     return;
   }
-  setText($("alsoLabel"), say("home.also"));
-  setText($("earlierLabel"), say("home.earlier"));
-  setText($("weekLabel"), say("home.week"));
-  setText($("shopLabel"), say("shopSheet.title"));
-  setText($("varLabel"), say("home.variety.label"));
-  $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
-  $("whenBtn").addEventListener("click", ()=>setView(view.day ? 0 : 1, null));
-  document.addEventListener("keydown", e=>{ if(e.key==="Escape" && cook.active && !sheetEl.open){ e.preventDefault(); stopCooking(); } });
-  const nw = $("newWeekBtn");
-  setText($("newWeekLabel"), say("week.hold"));
-  nw.setAttribute("aria-label", say("week.holdLabel"));
-  nw.addEventListener("pointerdown", e=>{ if(e.button===0) holdStart(); });
-  ["pointerup", "pointerleave", "pointercancel"].forEach(ev=>nw.addEventListener(ev, holdCancel));
-  nw.addEventListener("contextmenu", e=>e.preventDefault());   // a long press is ours, not the browser's menu
-  nw.addEventListener("keydown", e=>{ if((e.key===" " || e.key==="Enter") && !e.repeat){ e.preventDefault(); holdStart(); } else if(e.key===" " || e.key==="Enter") e.preventDefault(); });
-  nw.addEventListener("keyup", e=>{ if(e.key===" " || e.key==="Enter") holdCancel(); });
-  onSwipe($("whenBtn"), dir=>setView(dir==="left" ? 1 : 0, null));
-  onSwipe(document.querySelector(".hl"), dir=>cook.active ? cookGo(dir==="left" ? 1 : -1) : scrub(dir));
-  $("shopLine").addEventListener("click", ()=>openSheet("shop"));
-  currentDay = dayDisplayOrder()[0];
-  document.addEventListener("themechange", ()=>{ updateChrome(); });
+  document.body.classList.add("is-app");
+  // the kept-meal notes for days gone by go
+  Object.keys(state.kept).forEach(iso=>{ if(iso < todayISO()) delete state.kept[iso]; });
+  $("profileBtn").addEventListener("click", ()=>go("profile"));
+  placeScreens();
+  buildMap();
+  paintScreenGlows();
+  document.addEventListener("themechange", ()=>{ updateChrome(); applyCamera(pg.x, pg.y); });
+  // a deep link (or a reload) opens on its screen, with Home one Back away
+  const start = screenFromHash();
+  pg.cur = screensNow().includes(start) ? start : "home";
+  if(pg.cur!=="home"){ history.replaceState(null, "", "#home"); history.pushState({chicho:1}, "", "#" + pg.cur); }
+  else if(location.hash && location.hash!=="#home") history.replaceState(null, "", "#home");
+  pg.x = LAYOUT[pg.cur][0]; pg.y = LAYOUT[pg.cur][1];
   renderHome();
-  watchFold();
+  mountAround();
+  unmountFar();
+  applyCamera(pg.x, pg.y);
+  updateMap();
   scheduleTick();
   ["visibilitychange", "focus", "pageshow"].forEach(ev=>addEventListener(ev, ()=>{ if(!document.hidden) tick(); scheduleTick(); }));
   if(!state.profile.onboarded) openOnboarding();
@@ -1812,10 +1818,10 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
     (window.requestIdleCallback || (f=>setTimeout(f, 1500)))(()=>navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(warmArt).catch(()=>{}));
   }
 })();
-/* after the first paint, quietly fetch this week's drawings at the sizes this screen uses */
+/* after the first paint, quietly fetch this week's drawings at the sizes the screens use */
 function warmArt(){
   const ids = new Set(HERO_FOODS);
-  state.plan.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(f) ids.add(f.id); })));
+  (state.plan ? state.plan.days : []).forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(f) ids.add(f.id); })));
   const urls = [...ids].map(id=>FOOD_BY_ID[id]).filter(hasArt).flatMap(f=>[f.files.w64, f.files.w192]);
   let k = 0;
   const next = ()=>{ if(k >= urls.length) return; const batch = urls.slice(k, k += 6); Promise.all(batch.map(u=>fetch(u).catch(()=>{}))).then(()=>(window.requestIdleCallback || setTimeout)(next)); };

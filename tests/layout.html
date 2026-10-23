@@ -3,15 +3,17 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
 <body>
 <h1>Layout tests</h1>
-<p>A phone, at the widths that matter (Thursday 22 October 2026, 12:10, an 18-month-old's day): the fold budget at 390×844 and 375×667, no horizontal scroll from 320px, 44px targets, the sticky pill, and the same centred 430px column in landscape. Safe-area insets are 0 inside an iframe; the real-iPhone list covers them. Every line should be PASS.</p>
+<p>Home never scrolls: at 375×667, 390×844 and 430×932 (Thursday 22 October 2026, 12:10, an 18-month-old's day), with a three-food lunch and a six-food one. The fallbacks, in order: at most four food lines with "and {n} more" opening inline; the how clamped to two lines with "More"; the footer line goes before anything functional is cropped; an expansion may scroll the meal block inside itself, never the page. Also: no horizontal scroll from 320px, 44px targets, the same centred column in landscape. Safe-area insets are 0 inside an iframe; the real-iPhone list covers them. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const load = (W, H) => new Promise(res => {
+const SIX = `(() => { const m = state.plan.days[planDayIndex(now())].meals.find(m => m.slot === "lunch"); const st = stageNow();
+  m.items = ["Lentils", "Sweet potato", "Carrots, soft-cooked", "Rice, soft-cooked", "Spinach, cooked", "Avocado"].map(n => dish(FOOD_POOL.find(f => f.name === n), st)); })()`;
+const load = (W, H, extra) => new Promise(res => {
   const f = document.createElement("iframe");
   f.width = W; f.height = H;
-  f.src = "../index.html?test&now=2026-10-22T12:10";
+  f.src = "../index.html?test&theme=light&now=2026-10-22T12:10";
   document.body.append(f);
   f.onload = async () => {
     // a classic scrollbar (macOS with a mouse attached) narrows the viewport: widen the frame so the page really is W wide
@@ -19,61 +21,81 @@ const load = (W, H) => new Promise(res => {
     if (sb > 0 && !f.dataset.wide) { f.dataset.wide = "1"; f.width = W + sb; await wait(100); f.contentWindow.eval("kbSync()"); }
     f.contentWindow.eval(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
-      state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`);
-    await wait(700);
+      state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+      state.offers = []; state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01", profile: "2026-10-01"}; offersChanged(); ${extra || ""} save(); closeOnboarding(); changed();`);
+    await wait(600);
     res(f);
   };
 });
 const R = el => el.getBoundingClientRect();
-/* fully on screen, and not under the stuck "Mark as offered" pill */
-const visible = (doc, el, H) => { if (!el) return false; const r = R(el), pill = doc.querySelector("#openMeal .mx-acts"); const p = pill ? R(pill) : {top: H};
-  return r.height > 0 && r.top >= 0 && r.bottom <= H && (r.bottom <= p.top + 1 || r.top >= p.bottom - 1); };
-const HEADER = ["#profileBtn", "#clockDate", "#clock"];
+/* the page doesn't scroll, every Home part is inside the screen, and the meal block crops nothing (or scrolls inside) */
+const fit = (d, W, H) => {
+  const box = d.getElementById("nowMeal"), foot = d.getElementById("footLine"), zone = d.getElementById("offerZone");
+  const parts = ["#profileBtn", "#clock", "#headline", "#moment", "#nowMeal .meal-title", "#offerZone .offer-bar"].map(s => d.querySelector(s));
+  return {
+    pageScroll: d.documentElement.scrollHeight - H, bodyScroll: d.body.scrollHeight - d.body.clientHeight, hScroll: d.documentElement.scrollWidth - d.documentElement.clientWidth,
+    inside: parts.every(e => e && R(e).top >= 0 && R(e).bottom <= H + .5 && R(e).right <= W + .5),
+    footInside: foot.hidden || R(foot).bottom <= H + .5,
+    cropped: box.scrollHeight > box.clientHeight + 1 && !box.classList.contains("scrolls"),
+    overflowing: box.scrollHeight > box.clientHeight + 1, scrolls: box.classList.contains("scrolls"), footHidden: foot.hidden,
+    titleShown: R(d.querySelector("#nowMeal .meal-title")).bottom <= R(box).bottom + .5,
+    zoneBelowMeal: R(zone).top >= R(box).bottom - .5
+  };
+};
 (async () => {
   try {
     localStorage.clear();
-    // 390×844: header, headline, moment line, the open meal's title and its first two food rows; "Up next" peeks
-    let f = await load(390, 844), d = f.contentDocument;
-    ok("390×844: the corner header sits in the two top corners", Math.round(R(d.getElementById("profileBtn")).left) === 20 && Math.round(R(d.getElementById("clock")).right) === d.documentElement.clientWidth - 20, [R(d.getElementById("profileBtn")).left, R(d.getElementById("clock")).right, d.documentElement.clientWidth]);
-    [...HEADER, "#headline", "#moment"].forEach(sel => ok(`390×844: ${sel} is above the fold`, visible(d, d.querySelector(sel), 844), Math.round(R(d.querySelector(sel)).bottom)));
-    ok("390×844: the open meal's title is above the fold", visible(d, d.querySelector("#openMeal .mx-title"), 844), Math.round(R(d.querySelector("#openMeal .mx-title")).bottom));
-    const rows = [...d.querySelectorAll("#openMeal .fr")];
-    ok("390×844: its first two food rows are above the fold, clear of the pill", rows.length >= 2 && rows.slice(0, 2).every(r => visible(d, r, 844)), rows.slice(0, 2).map(r => Math.round(R(r).bottom)));
-    const next = d.querySelector("#nextSec");
-    ok("390×844: 'Up next' peeks at the bottom edge (the scroll hint): its label shows", !next.hidden && R(d.getElementById("nextLabel")).bottom <= 844 && R(next).top > 400, Math.round(R(d.getElementById("nextLabel")).bottom));
-    ok("there is no 'more' chevron", !d.querySelector(".more, #moreBtn"));
-    const pill = d.querySelector("#openMeal .mx-acts"), mx = d.querySelector("#openMeal .mx");
-    ok("the pill is sticky at the bottom of the open meal, full width of the column", getComputedStyle(pill).position === "sticky" && Math.abs(R(pill).width - R(mx).width) < 1 && R(pill).height >= 44, [getComputedStyle(pill).position, R(pill).width, R(mx).width]);
-    ok("…and stays inside its container", R(pill).bottom <= R(mx).bottom + 1 && R(pill).top >= R(mx).top);
-    const zone = d.querySelector("#openMeal .mx-zone");
-    ok("…its sticky zone starts after the first two foods, so it can never cover them or the title", !!zone && zone.contains(pill) && R(zone).top >= R(rows[1]).bottom - 1);
-    const w = f.contentWindow;
-    w.scrollTo(0, 2000); await wait(50);
-    ok("…it scrolls away with its container", R(pill).bottom < 0 || R(pill).bottom <= R(mx).bottom + 1);
-    w.scrollTo(0, 0);
-    const targets = [...d.querySelectorAll("#home button")].filter(b => b.offsetParent && R(b).top < 844 && !b.classList.contains("inline"));
-    ok("390×844: every control on the first screen is at least 44×44", targets.every(b => R(b).height >= 44 && R(b).width >= 44), targets.filter(b => R(b).height < 44 || R(b).width < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)));
-    ok("headline is clamp(32px, 9.5vw, 40px): 37px at 390", Math.abs(parseFloat(getComputedStyle(d.getElementById("headline")).fontSize) - 37.05) < .5, getComputedStyle(d.getElementById("headline")).fontSize);
-    const strip = d.getElementById("weekStrip");
-    ok("the week strip: 7 days, each a 44px target", strip.children.length === 7 && [...strip.children].every(b => R(b).width >= 44 && R(b).height >= 44), [...strip.children].map(b => Math.round(R(b).width)));
-    // 375×667: at least the headline, the open meal's title and its first food row
-    f = await load(375, 667); d = f.contentDocument;
-    ok("375×667: headline above the fold", visible(d, d.getElementById("headline"), 667), Math.round(R(d.getElementById("headline")).bottom));
-    ok("375×667: the open meal's title above the fold", visible(d, d.querySelector("#openMeal .mx-title"), 667), Math.round(R(d.querySelector("#openMeal .mx-title")).bottom));
-    ok("375×667: its first food row above the fold, clear of the pill", visible(d, d.querySelector("#openMeal .fr"), 667), Math.round(R(d.querySelector("#openMeal .fr")).bottom));
-    // no horizontal scroll from 320 up
-    for (const [W, H] of [[320, 568], [350, 700], [375, 667], [430, 932]]) {
-      f = await load(W, H); d = f.contentDocument;
-      const de = d.documentElement, wide = [...d.querySelectorAll("#home *")].filter(e => e.offsetParent && R(e).right > de.clientWidth + .5 && !e.closest(".glow-wrap"));
-      ok(`${W}px: no horizontal scroll`, de.scrollWidth <= de.clientWidth && !wide.length, [de.scrollWidth, de.clientWidth, wide.slice(0, 4).map(e => e.className)]);
-      ok(`${W}px: 20px side padding`, Math.round(R(d.querySelector(".lockscreen")).left) === 20, R(d.querySelector(".lockscreen")).left);
+    for (const [W, H] of [[375, 667], [390, 844], [430, 932]]) {
+      // a three-food lunch
+      let f = await load(W, H), d = f.contentDocument, w = f.contentWindow, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+      let r = fit(d, W, H);
+      ok(`${W}×${H}: Home doesn't scroll (page or body), no horizontal scroll`, r.pageScroll <= 0 && r.bodyScroll <= 0 && r.hScroll <= 0, r);
+      ok(`${W}×${H}: header, headline, moment line, the meal's title and the pill are all on screen`, r.inside && r.titleShown && r.zoneBelowMeal, r);
+      ok(`${W}×${H}: nothing in the meal is cropped`, !r.cropped && r.footInside, r);
+      if (W >= 390) ok(`${W}×${H}: a three-food lunch fits whole, with its footer line`, !r.overflowing && !r.footHidden, r);
+      ok(`${W}×${H}: the how is clamped to two lines`, (() => { const c = $("#nowMeal .meal-how .clamp"); return !c || Math.round(R(c).height / parseFloat(w.getComputedStyle(c).lineHeight)) <= 2; })());
+      const clamp = $("#nowMeal .meal-how .clamp"), more = $('#nowMeal [data-f="meal:howmore"]');
+      ok(`${W}×${H}: …with 'More' exactly when it's longer than that`, !clamp || (clamp.scrollHeight > clamp.clientHeight + 1) === !!more, [clamp && clamp.scrollHeight, clamp && clamp.clientHeight, !!more]);
+      ok(`${W}×${H}: the map sits in the bottom-right corner, clear of the pill`, (() => { const m = R($("#map")), p = R($("#offerZone .offer-bar")); return Math.round(W - m.right) === 20 && m.bottom <= H && m.top >= p.bottom - .5; })(), [R($("#map")).right, R($("#map")).top, R($("#offerZone .offer-bar")).bottom]);
+      const targets = $$("#home button").filter(b => b.offsetParent && !b.classList.contains("inline"));
+      ok(`${W}×${H}: every control on Home is at least 44×44`, targets.every(b => R(b).height >= 44 && R(b).width >= 44), targets.filter(b => R(b).height < 44 || R(b).width < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)));
+      f.remove();
+
+      // a six-food lunch: four lines at most, "and 3 more" opens inline
+      f = await load(W, H, SIX + ";"); d = f.contentDocument; w = f.contentWindow;
+      const $2 = s => d.querySelector(s), $$2 = s => [...d.querySelectorAll(s)];
+      const li = $$2("#nowMeal .meal-foods li");
+      ok(`${W}×${H}, six foods: at most four food lines, the last 'and 3 more'`, li.length === 4 && li[3].textContent === "and 3 more" && !!li[3].querySelector("button"), li.map(l => l.textContent));
+      r = fit(d, W, H);
+      ok(`${W}×${H}, six foods: still no scroll, nothing cropped, the pill on screen`, r.pageScroll <= 0 && r.inside && !r.cropped && r.footInside, r);
+      ok(`${W}×${H}, six foods: the footer line only goes when the meal doesn't fit`, r.footHidden === (d.getElementById("footLine").textContent && (() => { d.getElementById("footLine").hidden = false; const box = d.getElementById("nowMeal"); box.classList.remove("scrolls"); const over = box.scrollHeight > box.clientHeight + 1; w.eval("fitHome()"); return over; })()), r);
+      $2('#nowMeal [data-f="meal:more"]').click(); await wait(80);
+      ok(`${W}×${H}, six foods: 'and 3 more' opens all six inline`, $$2("#nowMeal .meal-foods li").length === 6);
+      const howMore = $2('#nowMeal [data-f="meal:howmore"]');
+      if (howMore) { howMore.click(); await wait(80); }
+      ok(`${W}×${H}: 'More' opens the how inline`, !$2("#nowMeal .meal-how .clamp"));
+      r = fit(d, W, H);
+      ok(`${W}×${H}, all open: the page still doesn't scroll and the pill stays on screen`, r.pageScroll <= 0 && r.bodyScroll <= 0 && r.inside, r);
+      ok(`${W}×${H}, all open: overflow scrolls inside the meal block, never cropped`, !r.cropped && (!r.overflowing || r.scrolls), r);
+      ok(`${W}×${H}, all open: the footer line went first`, !r.overflowing || r.footHidden, r);
+      // the outcome row (below the pill) never pushes anything off screen either
+      w.eval("toggleOffered(homeRef().ref); showOutcome(homeRef().ref.key, 60000); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); await wait(120);
+      r = fit(d, W, H);
+      ok(`${W}×${H}, with the outcome row: still no scroll, the row on screen, nothing cropped`, r.pageScroll <= 0 && !r.cropped && $$2(".outcome").length === 3 && $$2(".outcome").every(b => R(b).bottom <= H + .5), r);
+      f.remove();
     }
-    ok("350px column: the week strip fits", Math.round(R(f.contentDocument.getElementById("weekStrip")).width) <= 390);
-    // landscape: the same layout, a centred 430px column
+
+    // no horizontal scroll from 320px
+    let f = await load(320, 640), d = f.contentDocument;
+    ok("320×640: no horizontal scroll, no page scroll", d.documentElement.scrollWidth <= d.documentElement.clientWidth && d.documentElement.scrollHeight <= 640, [d.documentElement.scrollWidth, d.documentElement.scrollHeight]);
+    ok("320×640: the outcome pills fit side by side", (() => { f.contentWindow.eval("toggleOffered(homeRef().ref); showOutcome(homeRef().ref.key, 60000); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); const o = [...d.querySelectorAll(".outcome")]; return o.length === 3 && o.every(b => R(b).right <= d.documentElement.clientWidth - 19); })());
+    f.remove();
+    // landscape: the same centred column
     f = await load(844, 390); d = f.contentDocument;
-    const col = R(d.querySelector(".lockscreen"));
-    ok("landscape 844×390: the same column, 430px, centred", Math.round(col.width) === 430 && Math.abs((col.left + col.width / 2) - d.documentElement.clientWidth / 2) < 2, [col.width, col.left]);
+    const col = R(d.getElementById("home"));
+    ok("landscape: Home is the centred 430px column", Math.abs(col.width - 470) < 1 && Math.abs(col.left - (844 - col.width) / 2) < 1, [col.width, col.left]);
     ok("landscape: no horizontal scroll", d.documentElement.scrollWidth <= d.documentElement.clientWidth);
+    f.remove();
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");
