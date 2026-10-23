@@ -1,6 +1,7 @@
 // The build: `node tools/check.mjs`. Nothing ships unless this passes.
 // 1. lint: no hover anywhere (no :hover, no @media (hover…), no hover-based listeners)
-// 2. voice: none of the banned words in the app's source (lines marked "legacy:" convert old saves and may name old fields)
+// 2. voice: none of the banned words in the app's source (lines marked "legacy:" convert old saves and may name old fields),
+//    and no exclamation marks in the copy
 //    and colour: no colour outside the token block (light and dark share every component)
 // 3. every tests/*.html page, in headless Chrome over the DevTools protocol, must end with "ALL PASS"
 // No dependencies: Node's http server and fetch, and the Chrome already on this Mac.
@@ -24,6 +25,11 @@ for (const f of SOURCES) {
     if (BANNED.test(line) && !/legacy:/.test(line)) fails.push(`voice ${f}:${i + 1}  "${line.match(BANNED)[0]}": ${line.trim().slice(0, 90)}`);
   });
 }
+
+// 2a. the voice is dry and warm: no exclamation marks in any of the copy (every string literal in content.js)
+readFileSync(join(root, "content.js"), "utf8").split("\n").forEach((line, i) => {
+  for (const m of line.matchAll(/"((?:[^"\\]|\\.)*)"/g)) if (m[1].includes("!")) fails.push(`voice content.js:${i + 1}  an exclamation mark: "${m[1].slice(0, 80)}"`);
+});
 
 // 2b. colour: every colour is a token. After the token block in index.html's <style>, no hex, rgb() or hsl().
 {
