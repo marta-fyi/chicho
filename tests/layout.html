@@ -31,14 +31,15 @@ const R = el => el.getBoundingClientRect();
 /* the page doesn't scroll, every Home part is inside the screen, and the meal block crops nothing (or scrolls inside) */
 const fit = (d, W, H) => {
   const box = d.getElementById("nowMeal"), foot = d.getElementById("footLine"), zone = d.getElementById("offerZone");
-  const parts = ["#profileBtn", "#clock", "#headline", "#moment", "#nowMeal .meal-title", "#offerZone .offer-bar"].map(s => d.querySelector(s));
+  const parts = ["#profileBtn", "#clock", "#headline", "#moment", "#nowMeal .meal-foods li", "#offerZone .offer-bar"].map(s => d.querySelector(s));
   return {
     pageScroll: d.documentElement.scrollHeight - H, bodyScroll: d.body.scrollHeight - d.body.clientHeight, hScroll: d.documentElement.scrollWidth - d.documentElement.clientWidth,
     inside: parts.every(e => e && R(e).top >= 0 && R(e).bottom <= H + .5 && R(e).right <= W + .5),
     footInside: foot.hidden || R(foot).bottom <= H + .5,
     cropped: box.scrollHeight > box.clientHeight + 1 && !box.classList.contains("scrolls"),
     overflowing: box.scrollHeight > box.clientHeight + 1, scrolls: box.classList.contains("scrolls"), footHidden: foot.hidden,
-    titleShown: R(d.querySelector("#nowMeal .meal-title")).bottom <= R(box).bottom + .5,
+    titleShown: !d.querySelector("#nowMeal .meal-title") && R(d.querySelector("#nowMeal .meal-foods li")).bottom <= R(box).bottom + .5,
+    oneLine: [...d.querySelectorAll("#nowMeal .meal-foods li")].every(li => li.scrollWidth <= li.clientWidth + 1 && R(li).height <= parseFloat(getComputedStyle(li).lineHeight) + 1),
     zoneBelowMeal: R(zone).top >= R(box).bottom - .5
   };
 };
@@ -50,7 +51,8 @@ const fit = (d, W, H) => {
       let f = await load(W, H), d = f.contentDocument, w = f.contentWindow, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
       let r = fit(d, W, H);
       ok(`${W}×${H}: Home doesn't scroll (page or body), no horizontal scroll`, r.pageScroll <= 0 && r.bodyScroll <= 0 && r.hScroll <= 0, r);
-      ok(`${W}×${H}: header, headline, moment line, the meal's title and the pill are all on screen`, r.inside && r.titleShown && r.zoneBelowMeal, r);
+      ok(`${W}×${H}: header, headline (the meal's only title), moment line, its first food and the pill are all on screen`, r.inside && r.titleShown && r.zoneBelowMeal, r);
+      ok(`${W}×${H}: each part of the dish is one line, none cut off (texture, then amount, give way)`, r.oneLine, r);
       ok(`${W}×${H}: nothing in the meal is cropped`, !r.cropped && r.footInside, r);
       if (W >= 390) ok(`${W}×${H}: a three-food lunch fits whole, with its footer line`, !r.overflowing && !r.footHidden, r);
       ok(`${W}×${H}: the how is clamped to two lines`, (() => { const c = $("#nowMeal .meal-how .clamp"); return !c || Math.round(R(c).height / parseFloat(w.getComputedStyle(c).lineHeight)) <= 2; })());

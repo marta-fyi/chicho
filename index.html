@@ -325,6 +325,16 @@ try{
   .blank.time .blank-input{position:static;width:auto;text-align:left;}
   .pill-edit .blank .blank-input{text-align:left;}
   /* the stage, following the birthday as it's typed */
+  /* the drawing pad: a hairline baseline on the paper; the ink is the theme's ink */
+  .pad-wrap{position:relative;width:100%;margin-top:22px;color:var(--ink);}
+  .pad{display:block;width:100%;height:150px;border-bottom:1.5px solid var(--hairline);touch-action:none;cursor:crosshair;}
+  .pad-clear{position:absolute;right:-6px;top:-6px;}
+  .pad-clear[hidden]{display:none;}
+  .sent.spell{margin-top:22px;font-size:clamp(22px, 6.4vw, 26px);}
+  .name-ink{display:block;height:34px;width:auto;max-width:min(60vw, 240px);color:var(--ink);}
+  .pf-ink{display:block;height:56px;width:auto;max-width:100%;color:var(--ink);}
+  .pf-name:has(.pf-ink){margin-bottom:10px;}
+  .pf-name + .scr-sub{margin-top:0;}
   .stage-say{margin-top:28px;min-height:84px;}
   .stage-name{margin:0;font-size:30px;font-weight:500;letter-spacing:-.025em;line-height:1.15;color:var(--ink);}
   .stage-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
@@ -439,6 +449,7 @@ try{
   .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .who-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
   .who-age, .when-date{font-size:13px;line-height:1.4;color:var(--ink-muted);}
+  .who-name.has-ink{text-decoration:none;}
   .who-name{font-size:20px;font-weight:500;line-height:1.3;text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
   .who-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
   .when{display:flex;flex-direction:column;align-items:flex-end;margin:0;padding:2px 0;text-align:right;font-variant-numeric:tabular-nums;}
@@ -452,11 +463,13 @@ try{
   .btn-text.inline::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:44px;translate:0 -50%;}
   .btn-text.quiet{color:var(--ink-muted);font-weight:500;}
   /* the meal now (or next): text only. It never scrolls the page; opened up, the block scrolls inside itself */
-  .now-meal{flex:1 1 auto;min-height:0;margin-top:22px;overflow:hidden;}
+  .now-meal{flex:1 1 auto;min-height:0;margin-top:18px;overflow:hidden;}
   .now-meal.scrolls{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;}
   .meal-title{margin:0;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
   .meal-title:focus{outline:none;}
   .meal-foods{list-style:none;margin:10px 0 0;padding:0;font-size:17px;line-height:1.5;}
+  .meal-foods li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .meal-foods .more-li, .meal-foods li:has(.more-btn){overflow:visible;}
   .meal-foods .more-btn{margin-left:-2px;}
   .meal-how{margin:10px 0 0;font-size:16px;line-height:1.5;color:var(--ink-muted);}
   .meal-how .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
@@ -468,7 +481,7 @@ try{
   .offer-pill{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;height:48px;padding:0 20px;border-radius:999px;border:none;
               background:none;color:inherit;font:inherit;font-size:14px;font-weight:500;cursor:pointer;}
   .offer-bar .btn-text.undo{flex:none;min-height:48px;margin-left:0;padding:0 22px 0 0;color:inherit;border-radius:0 999px 999px 0;font-size:14px;}
-  .offer-bar .btn-text.undo::before{content:"·";display:inline-block;margin-right:10px;text-decoration:none;}
+  .offer-bar .btn-text.undo::before{content:"·";display:inline-block;margin:0 10px 0 8px;text-decoration:none;}
   .offer-bar:has(.undo) .offer-pill{justify-content:flex-end;padding-right:0;}   /* the two hit areas meet, never overlap */
   .offer-pill:focus-visible, .outcome:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
@@ -532,6 +545,8 @@ try{
   .sh-state{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
   .sh-foods{list-style:none;margin:4px 0 0;padding:0;}
   .sh-food{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 8px;min-height:44px;font-size:16px;}
+  .sh-food-t{display:flex;flex-direction:column;min-width:0;padding:6px 0;}
+  .sh-alert{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
   .sh-food .alt-line{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;margin:0 0 6px;font-size:16px;}
   .sh-acts{display:flex;flex-wrap:wrap;gap:0 16px;margin-top:2px;}
   .sh-none{margin:4px 0 0;font-size:15px;color:var(--ink-muted);}
@@ -1288,6 +1303,7 @@ function freshProfile(){
           people:[],         // [{id, name, phone, role}]: on this device only, never in a link
           self:{phone:""},   // where notes to self go (optional)
           firstDay:null,     // the day onboarding finished: no late questions on day one
+          ink:null,          // the name as drawn on the pad: {w, h, strokes:[[x, y, x, y…]]}, on this device only
           cookDays:7,        // "We'll cook on {n} days" (New week)
           newFoods:null,     // "Try {n} new foods" (New week); null = the stage's default
           appearance:"auto"};  // auto (follows the system) · light · dark
@@ -1302,7 +1318,6 @@ function freshState(){
     profile: freshProfile(),
     allergyNotes: {},    // per allergen: {noReactionOn:"2026-10-22"}
     firstPhotos: {},     // per food id: a small photo for Firsts, on this device only
-    kept: {},            // {"2026-10-23": [mealId]}: meals "Shuffle the day" leaves alone
     hints: {},           // one-time gesture hints already seen: {shuffle:"2026-10-23"}
     newToBuy: [],        // food ids a shuffle just put on the list (Home says so until Kitchen is opened)
     moment: {},          // {date, later:[keys]}: moment lines put away for today
@@ -1374,6 +1389,7 @@ function migrate(saved){
   // because it's locked now
   const prof = Object.assign(freshProfile(), saved.profile && typeof saved.profile==="object" ? saved.profile : {});
   if(!["auto","light","dark"].includes(prof.appearance)) prof.appearance = "auto";
+  if(!(prof.ink && Array.isArray(prof.ink.strokes) && prof.ink.strokes.length && prof.ink.strokes.every(st=>Array.isArray(st) && st.length >= 2))) prof.ink = null;
   if(!prof.birthDate || isNaN(localDate(prof.birthDate))){
     const age = savedAgeMonths(saved);
     prof.birthDate = birthDateFromMonths(age===null ? 10 : Math.min(AGE_MAX, Math.max(0, Math.round(age))));
@@ -1430,7 +1446,7 @@ function migrate(saved){
   // week: every food marked in it becomes an event on its day (marked in any way = put in front of them; how it
   // went comes from the meal: ate some → "some", refused → "not_today"). Offers counted before that week, and
   // allergens introduced by them, become events the day before the week began.
-  ["allergyNotes","firstPhotos","kept","hints","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object" || Array.isArray(s[k])) s[k] = {}; });
+  ["allergyNotes","firstPhotos","hints","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object" || Array.isArray(s[k])) s[k] = {}; });
   if(!Array.isArray(s.newToBuy)) s.newToBuy = [];
   if(!Array.isArray(saved.offers)){
     s.offers = [];
@@ -1467,7 +1483,7 @@ function migrate(saved){
     Object.entries(foods).forEach(([k, r])=>{ if(r && r.noReactionOn) allergensOf(upper1(k)).forEach(a=>{ if(!s.allergyNotes[a]) s.allergyNotes[a] = {noReactionOn:r.noReactionOn}; }); });
   }
   s.offers = s.offers.filter(e=>e && typeof e.id==="string" && (e.corrects || (typeof e.date==="string" && typeof e.foodId==="string")));
-  ["stock","extras","grocery","exposures","foods","history","variety","manualCovered","openCard","groceryFilter","timers","day","mascotPos","menuHintSeen","createAge","ageYears","ageMonths","age","excludedFoods"].forEach(k=>{ delete s[k]; });
+  ["kept","stock","extras","grocery","exposures","foods","history","variety","manualCovered","openCard","groceryFilter","timers","day","mascotPos","menuHintSeen","createAge","ageYears","ageMonths","age","excludedFoods"].forEach(k=>{ delete s[k]; });
   s.schemaVersion = SCHEMA_VERSION;
   return s;
 }
@@ -1868,7 +1884,7 @@ function focusStep(){
   const f = card.querySelector(".blank-input:not([type=time])");
   const title = card.querySelector("#onbTitle");
   document.getElementById("onboarding").classList.toggle("has-field", !!card.querySelector(".blank-input"));
-  if(f){ f.focus({preventScroll:true}); keepInView(); }
+  if(f && !card.querySelector(".pad")){ f.focus({preventScroll:true}); keepInView(); }
   else if(title){ title.tabIndex = -1; title.focus({preventScroll:true}); }
 }
 /* the field being typed in and the Next button stay above the keyboard; one smooth scroll, never a jump */
@@ -1888,7 +1904,7 @@ kbListeners.push(()=>requestAnimationFrame(keepInView));
 /* iOS only opens the keyboard for a focus inside a tap. The next step's field doesn't exist yet when Next is
    tapped, so a hidden field takes the focus during the tap, and the real one takes it over after the swap. */
 function holdKeyboard(n){
-  if(!["name","birthday"].includes(ONB_STEPS[n])) return;
+  if(ONB_STEPS[n]!=="birthday") return;   // the name step starts on the pad, not the keyboard
   let p = document.getElementById("kbProxy");
   if(!p){ p = document.createElement("input"); p.id = "kbProxy"; p.className = "kb-proxy"; p.setAttribute("aria-hidden", "true"); p.tabIndex = -1; document.body.appendChild(p); }
   p.inputMode = ONB_STEPS[n]==="birthday" ? "numeric" : "text";
@@ -2075,15 +2091,79 @@ function welcomeCycle(card, heroes){
   }, 3000);
 }
 
-/* 2. name: "Their name is ____." */
+/* 2. name: "Write their name." on a drawing pad (the ink is how the name shows in Chicho), then "Spelled ____."
+   for the words that say it. The ink never leaves the device. */
 function onbName(card, P){
   let next;
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.name.draw");
+  card.append(h, line(say("onb.name.drawLine")), inkPad(P));
   const b = blank({value:P.name || "", min:4, maxLength:30, autocomplete:"given-name", autocapitalize:"words", enterkeyhint:"next",
     onInput:v=>{ P.name = v.trim(); save(); b.set(P.name ? "ok" : ""); next.ready(!!P.name); },
     onEnter:()=>{ if(P.name) nextStep(); }});
   b.set(P.name ? "ok" : "");
-  card.appendChild(sentence(say("onb.name.sentence"), {blank:b}));
+  const sp = sentence(say("onb.name.spell"), {blank:b}), p = document.createElement("p");
+  p.className = "sent spell";
+  while(sp.firstChild) p.appendChild(sp.firstChild);
+  card.appendChild(p);
   next = onbCta(card, say("onb.name.cta"), ()=>{ if(P.name) nextStep(); }, {ready:!!P.name});
+}
+/* the pad: a finger (or pen, or mouse) writes; strokes are kept as points, drawn smooth, saved on every lift */
+function inkPad(P){
+  const wrap = document.createElement("div");
+  wrap.className = "pad-wrap";
+  const c = document.createElement("canvas");
+  c.className = "pad"; c.setAttribute("role", "img"); c.setAttribute("aria-label", say("onb.name.pad"));
+  const clear = document.createElement("button");
+  clear.type = "button"; clear.className = "btn-text small pad-clear"; clear.textContent = say("onb.name.clear");
+  wrap.append(c, clear);
+  let strokes = P.ink && Array.isArray(P.ink.strokes) ? P.ink.strokes.map(s=>s.slice()) : [], cur = null, W = 0, H = 0, from = P.ink ? P.ink.w : 0;
+  const size = ()=>{
+    const r = c.getBoundingClientRect(), d = Math.min(3, devicePixelRatio || 1);
+    if(!r.width) return false;
+    if(from && W===0 && r.width!==from){ const k = r.width / from; strokes = strokes.map(s=>s.map(v=>v * k)); }
+    W = r.width; H = r.height; c.width = Math.round(W * d); c.height = Math.round(H * d);
+    c.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
+    return true;
+  };
+  const draw = ()=>{
+    const x = c.getContext("2d");
+    x.clearRect(0, 0, W, H);
+    x.strokeStyle = x.fillStyle = getComputedStyle(wrap).color; x.lineWidth = INK_WIDTH; x.lineCap = x.lineJoin = "round";
+    strokes.concat(cur ? [cur] : []).forEach(s=>{ x.beginPath(); inkPath(s, (cmd, ...a)=>x[cmd](...a)); x.stroke(); });
+    clear.hidden = !strokes.length;
+  };
+  const keep = ()=>{ P.ink = strokes.length ? {w:Math.round(W), h:Math.round(H), strokes:strokes.map(s=>s.map(v=>Math.round(v * 10) / 10))} : null; save(); };
+  const pt = e=>{ const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  c.addEventListener("pointerdown", e=>{ if(!W && !size()) return; e.preventDefault(); try{ c.setPointerCapture(e.pointerId); }catch(_){} cur = pt(e); draw(); });
+  c.addEventListener("pointermove", e=>{
+    if(!cur) return;
+    const [x, y] = pt(e), n = cur.length;
+    if(Math.hypot(x - cur[n - 2], y - cur[n - 1]) < 1.5) return;
+    cur.push(x, y); draw();
+  });
+  const up = ()=>{ if(!cur) return; strokes.push(cur); cur = null; draw(); keep(); haptic(); };
+  c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+  clear.addEventListener("click", ()=>{ strokes = []; draw(); keep(); c.focus && c.focus(); });
+  requestAnimationFrame(()=>{ if(size()) draw(); });
+  return wrap;
+}
+/* one stroke as smooth curves through the midpoints of its points; a single point is a dot */
+const INK_WIDTH = 4;
+function inkPath(s, op){
+  if(s.length < 4){ op("moveTo", s[0], s[1]); op("lineTo", s[0] + .01, s[1]); return; }
+  op("moveTo", s[0], s[1]);
+  for(let i = 2; i < s.length - 2; i += 2) op("quadraticCurveTo", s[i], s[i + 1], (s[i] + s[i + 2]) / 2, (s[i + 1] + s[i + 3]) / 2);
+  op("lineTo", s[s.length - 2], s[s.length - 1]);
+}
+/* the name as drawn, an SVG cropped to the ink, in currentColor (both themes); "" when there's no ink */
+function inkSVG(ink, cls){
+  if(!ink || !Array.isArray(ink.strokes) || !ink.strokes.length) return "";
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  ink.strokes.forEach(s=>{ for(let i = 0; i < s.length; i += 2){ x0 = Math.min(x0, s[i]); x1 = Math.max(x1, s[i]); y0 = Math.min(y0, s[i + 1]); y1 = Math.max(y1, s[i + 1]); } });
+  const pad = INK_WIDTH, f = v=>(Math.round(v * 10) / 10);
+  const d = ink.strokes.map(s=>{ let out = ""; inkPath(s, (cmd, ...a)=>{ out += ({moveTo:"M", lineTo:"L", quadraticCurveTo:"Q"})[cmd] + a.map(f).join(" ") + " "; }); return out; }).join("");
+  return `<svg class="${cls || "name-ink"}" viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false"><path d="${d.trim()}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 /* 3. birthday: "{name} arrived on __ / ____ / ____." The stage follows along below. */

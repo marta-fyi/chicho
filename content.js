@@ -135,9 +135,10 @@ const CONTENT = {
 
   /* ---------- Shuffle: change the menu ---------- */
   shuffle:{
-    whichDay:"Which day", day:"Shuffle the day", meal:"Shuffle", mealLabel:"Shuffle {meal}", kept:"Kept", keepLabel:"Keep {meal} as it is",
-    none:"No other option fits right now.", didMeal:"{meal} shuffled.", didDay:"The day is shuffled.", undone:"Back as it was.",
-    instead:"Instead: {food}", nothing:"Nothing planned for this day.", sendTomorrow:"Send tomorrow"
+    meal:"Shuffle this meal", none:"No other option fits right now.", didMeal:"{meal} shuffled.", undone:"Back as it was.",
+    instead:"Instead: {food}", nothing:"Nothing planned yet.", sendTomorrow:"Send tomorrow",
+    offered:"Offered. It stays as it is.", how:"How", low:"Running low", notHome:"Not at home",
+    missing:"What's missing is on the list in the"
   },
   /* ---------- Kitchen: stock, shopping, prep ---------- */
   kitchen:{
@@ -173,7 +174,7 @@ const CONTENT = {
     firsts:"Firsts", first:"First {food} · {date}", firstsNone:"Firsts show up here as they happen.",
     addPhoto:"Add photo", removePhoto:"Remove photo", photoOf:"A photo of {food}", photoTooBig:"That photo is too big to keep on this device.",
     settings:"Settings", name:"Name", editSpelling:"Edit spelling", birthday:"Birthday", mealTimes:"Meal times", priorities:"Priorities",
-    basics:"Kitchen basics", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay welcome"
+    basics:"Kitchen basics", redraw:"Redraw", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay welcome"
   },
   allergenNote:{
     note:"Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.",
@@ -236,7 +237,8 @@ const CONTENT = {
       line:"Tell us about them. We'll take care of the week.",
       cta:"Begin"
     },
-    name:{sentence:"Their name is {blank}.", cta:"Next"},
+    name:{draw:"Write their name.", drawLine:"With a finger, the way you'd write it for them. It stays on this phone.",
+          spell:"Spelled {blank}.", clear:"Clear", pad:"Drawing pad for their name", cta:"Next"},
     birthday:{
       sentence:"{name} arrived on {day} / {month} / {year}.",
       line:"We'll grow the menu with them.",

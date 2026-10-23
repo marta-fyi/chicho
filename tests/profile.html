@@ -73,12 +73,21 @@ f.onload = async () => {
     $('[data-f="photo:banana"]').click(); await wait(30);
     ok("…and 'Remove photo' takes it away", !E("state.firstPhotos.banana") && !$('[data-sec="firsts"] img'));
 
+    // the drawn name heads Profile (read aloud by its spelling); no ink, the typed name
+    ok("no ink: Profile's title is the typed name", d.getElementById("t-profile").textContent === "Lula" && !d.querySelector("#t-profile svg"));
+    E(`state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 70, 20, 70, 100]]}; save(); refresh("profile")`); await wait(30);
+    ok("ink: Profile's title is the drawing, with the name for screen readers", !!d.querySelector("#t-profile svg.pf-ink path") && d.querySelector("#t-profile .sr-only").textContent === "Lula");
+    E(`state.profile.ink = null; save(); refresh("profile")`); await wait(30);
     // settings reopen the onboarding's sentences, with a text Close that comes back here
     const rows = [...sec("settings").querySelectorAll(".row-btn")].map(b => b.querySelector(".row-t span").textContent);
-    ok("Settings: name, birthday, meal times, priorities, kitchen basics, replay", JSON.stringify(rows) === JSON.stringify(["Name", "Birthday", "Meal times", "Priorities", "Kitchen basics", "Replay welcome"]), rows);
-    ok("…Name offers 'Edit spelling' (no drawing pad: docs/decisions.md)", /Edit spelling/.test($('[data-f="set:name"]').textContent));
+    ok("Settings: birthday, meal times, priorities, kitchen basics, replay as rows", JSON.stringify(rows) === JSON.stringify(["Birthday", "Meal times", "Priorities", "Kitchen basics", "Replay welcome"]), rows);
+    const nameRow = sec("settings").firstElementChild.nextElementSibling;
+    ok("…led by 'Name · Lula' with 'Redraw' and 'Edit spelling'", nameRow.classList.contains("s-person") && /^Name · Lula/.test(nameRow.textContent) && $('[data-f="set:redraw"]').textContent === "Redraw" && $('[data-f="set:name"]').textContent === "Edit spelling", nameRow.textContent);
+    $('[data-f="set:redraw"]').click(); await wait(400);
+    ok("Redraw opens the name step on its drawing pad", !d.getElementById("onboarding").hidden && d.getElementById("onbTitle").textContent === "Write their name." && !!d.querySelector("#onbCard .pad"));
+    d.getElementById("onbClose").click(); await wait(100);
     $('[data-f="set:name"]').click(); await wait(400);
-    ok("Name opens the name sentence", !d.getElementById("onboarding").hidden && /Their name is/.test(d.getElementById("onbTitle").textContent));
+    ok("Edit spelling opens the same step, its spelling field focused", d.getElementById("onbTitle").textContent === "Write their name." && d.activeElement === d.querySelector("#onbCard .blank-input"));
     ok("…with a text 'Close'", !d.getElementById("onbClose").hidden && d.getElementById("onbClose").textContent === "Close");
     d.getElementById("onbClose").click(); await wait(100);
     ok("…Close comes back to Profile", d.getElementById("onboarding").hidden && E("pg.cur") === "profile");

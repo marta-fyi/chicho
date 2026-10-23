@@ -58,7 +58,7 @@ f.onload = async () => {
     const words = s => s.replace(/\{[^}]+\}/g, "X").split(/\s+/).filter(w => /\w/.test(w)).length;
     const banned = /little one|lovely|gentle questions|get started|\bplan\b|\btrack|\bmanage|\boptimi[sz]e/i;
     const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
-    const onbHeads = [C.onb.welcome.title, C.onb.name.sentence, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
+    const onbHeads = [C.onb.welcome.title, C.onb.name.draw, C.onb.birthday.sentence, C.onb.keepOut.title, C.onb.priorities.title,
       C.onb.atHome.title, C.onb.mealTimes.title, C.onb.reveal.title, C.onb.done.title, C.onb.restful.title];
     const headlines = [...flat(C.home.headline), ...onbHeads];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));

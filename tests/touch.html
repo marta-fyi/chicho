@@ -46,11 +46,13 @@ f.onload = async () => {
     };
     audit("home");
     // after offering: the pill with its Undo, then the outcome row
-    $("#offerZone .offer-pill").click(); await wait(100);
+    $("#offerZone .offer-pill").click(); await wait(600);   // the outcome row rises in at once: measure it settled
     audit("home");
     E("const k = homeRef().ref.key; undoUntil[k] = 0; showOutcome(k, 20000); layoutSig = ''; renderHome()"); await wait(100);
     ok("the outcome row: three equal 44px pills", $$(".outcome").length === 3 && $$(".outcome").every(b => b.getBoundingClientRect().height >= 44) && new Set($$(".outcome").map(b => Math.round(b.getBoundingClientRect().width))).size === 1, $$(".outcome").map(b => Math.round(b.getBoundingClientRect().width)));
     audit("home");
+    // Shuffle shows the meal on Home: take the offer back so its foods can change
+    E("const r0 = homeRef().ref; offerMeal(r0.m, r0.date, false); picked = null; Object.keys(outcomeUntil).forEach(k => delete outcomeUntil[k]); save(); changed()"); await wait(50);
     for (const name of ["shuffle", "kitchen", "week", "profile"]) {
       E(`go('${name}')`); await wait(500);
       if (name === "kitchen") { E("kitchenUI.open.grain = true; setStock('oatmeal', 'Oatmeal', 'plenty'); refresh('kitchen')"); await wait(50); }

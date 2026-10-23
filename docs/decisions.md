@@ -24,13 +24,20 @@ Chicho is now five full-screen views on a 2D canvas: **Profile** above Home, **S
 | Brief or earlier rule | What I did | Why |
 |---|---|---|
 | Meal title "24px/600" | 24px at **500** | One face, two weights: the self-hosted JetBrains Mono has 400 and 500 only, and a synthesised 600 smears at 1×. |
-| "Keep the drawing-pad name from onboarding"; Profile "name ink", "Redraw" | Profile shows the **typed** name; Settings has "Edit spelling" only | Onboarding never had a drawing pad: the name step is a typed blank. Nothing was built that the brief didn't ask to build; tell me if you want the pad. |
 | Captions (stage, the glow's group in words) | Gone from Home | Not in the brief's Home list. The glow decorates; nothing functional depends on its colour. |
 | Cook mode, timers, portions | **Removed** | No screen owns cooking now, and Home lists only its five things. `state.timers` is dropped by the migration. It could come back as a mode of Shuffle or Kitchen. |
 | Row swipes, headline scrub, Tomorrow mode, press-and-hold new week, quick add, the staples shortcut, Keep screen on in the meal | Removed | Sideways swipes belong to the pager now. Shuffle's Today · Tomorrow toggle replaces Tomorrow mode, and New week replaces press and hold. Kitchen's "Add something" and At home replace quick add and staples. Wake Lock lives only in Kitchen's "In the store". |
 | The close button "✕" | A text **"Close"** | The brief allows only "·", "…", "/" and "—" as symbols. |
 | Onboarding's week preview (drawings in seven columns) vs New week's "same seven-row text preview" | Both show **seven text rows** (`weekPreview()`) | "The same" needed one form, and the text form is the one the brief names. |
 | A 44px position map with five links | The map is 44×44; each dot's target is 22×11 | The brief fixes the map's size and its five links. Every screen stays reachable by 44px controls (the Home control, the moment line, the corner name) and by keyboard. |
+
+**Marta's first look (23 Oct 2026), applied:**
+
+- **One title.** The headline names the meal, so Home no longer repeats it under the moment line ("Breakfast tomorrow" was there twice). A small title appears only if the meal shown isn't the headline's. While an offered meal stays on Home until the next boundary, the headline stays with it.
+- **Each part of the dish, one line.** A food that doesn't fit as "Name · amount · texture" drops the texture, then the amount. The full line is still in its title and on Shuffle.
+- **How it went, at once.** Tapping Offered brings "Loved it · Ate some · Not today" up straight away, each a beat after the last. Undo still sits in the bar for 5 seconds, and the row still gives way to "Add how it went" after 20.
+- **Shuffle is the details of one meal**: the one on Home, or the one the moment line points at. Change the whole meal ("Shuffle this meal") or one food at a time. Each food says "Running low" or "Not at home" (words, never red), and anything missing points to the Kitchen. Below that come the full how and up to two "While you're at it" lines. The day list, Today · Tomorrow, Keep/Kept and "Shuffle the day" are gone, and the migration drops `state.kept`.
+- **The drawing pad.** The name step is now "Write their name." on a pad (finger, pen or mouse; smooth strokes; Clear), then "Spelled ____." for the words that say it. The ink (`profile.ink`, points only, on this device only) is the name in the corner header and on Profile, drawn as an SVG in the ink colour of either theme and read aloud by its spelling. Settings has "Redraw" and "Edit spelling". With no ink, the typed name shows, as before. The step opens on the pad, not the keyboard.
 
 **How I read the ambiguous parts:**
 

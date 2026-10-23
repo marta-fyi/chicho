@@ -37,12 +37,11 @@ f.onload = async () => {
     ok("a moment line under it", $("#moment").textContent.length > 0);
 
     // the meal now: text only
-    const title = $("#nowMeal .meal-title");
-    ok("the meal: 'Lunch · around 12:30'", title.textContent === `Lunch · around ${E("fmtTime(new Date(2026, 9, 22, 12, 30))")}`, title.textContent);
-    const ts = getComputedStyle(title);
-    ok("…24px, weight 500 (the face has 400 and 500; the brief's 600 is a logged conflict)", ts.fontSize === "24px" && ts.fontWeight === "500", [ts.fontSize, ts.fontWeight]);
+    ok("the headline is the meal's only title: no second 'Lunch · around' title", !$("#nowMeal .meal-title"));
+    ok("…the meal block is named for screen readers: 'Lunch · around 12:30'", $("#nowMeal").getAttribute("aria-label") === `Lunch · around ${E("fmtTime(new Date(2026, 9, 22, 12, 30))")}`, $("#nowMeal").getAttribute("aria-label"));
     const lines = $$("#nowMeal .meal-foods li");
-    ok("foods as plain lines: 'Name · qty · texture'", lines.length === lunch().items.length && lines.every((li, k) => li.textContent === [E(`baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`), lunch().items[k].qty, E(`textureOf(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`)].filter(Boolean).join(" · ")), lines.map(l => l.textContent));
+    ok("each part of the dish is one line (no wrapping)", lines.every(li => getComputedStyle(li).whiteSpace === "nowrap" && Math.round(li.getBoundingClientRect().height) <= Math.ceil(parseFloat(getComputedStyle(li).lineHeight)) + 1), lines.map(l => l.getBoundingClientRect().height));
+    ok("foods as plain lines: 'Name · qty · texture' (the full line in its title when it had to shorten)", lines.length === lunch().items.length && lines.every((li, k) => (li.title || li.textContent) === [E(`baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`), lunch().items[k].qty, E(`textureOf(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[${k}])`)].filter(Boolean).join(" · ")), lines.map(l => l.textContent));
     ok("…no list markers", getComputedStyle($("#nowMeal .meal-foods")).listStyleType === "none");
     const how = $("#nowMeal .meal-how");
     ok("the how: at most two lines", !!how && how.querySelector(".clamp") && (() => { const c = how.querySelector(".clamp"); return Math.round(c.getBoundingClientRect().height / parseFloat(getComputedStyle(c).lineHeight)) <= 2; })());
@@ -59,18 +58,20 @@ f.onload = async () => {
     pill().click(); await wait(30);
     ok("tap: lunch is offered", lunchOffered() === true);
     ok("…'Offered · Undo' for 5 seconds", pill().textContent === "Offered" && pill().getAttribute("aria-pressed") === "true" && $("#offerZone .btn-text.undo") && $("#offerZone .btn-text.undo").textContent === "Undo");
-    ok("…no outcome row yet (it comes after the Undo window)", !$(".outcomes"));
-    ok("…the meal stays on Home", $("#nowMeal .meal-title").textContent.startsWith("Lunch"));
+    ok("…and at once, how it went: Loved it · Ate some · Not today under the bar", $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    ok("…the meal stays on Home, still titled by the headline (no second title)", /^Lunch/.test($("#nowMeal").getAttribute("aria-label")) && !$("#nowMeal .meal-title"));
     await wait(400);
     ok("…announced politely: 'Lunch offered'", d.getElementById("liveStatus").textContent === "Lunch offered", d.getElementById("liveStatus").textContent);
-    ok("…the headline moves on", /^Snack around/.test($("#headline").textContent), $("#headline").textContent);
+    ok("…the headline stays with the offered meal until the next boundary", $("#headline").textContent === "Lunch in 20 minutes.", $("#headline").textContent);
+    ok("…the footer names what comes after it", /^Next: Snack/.test($("#footLine").textContent), $("#footLine").textContent);
     $("#offerZone .btn-text.undo").click(); await wait(30);
     ok("Undo: not offered again", lunchOffered() === false && pill().textContent === "Mark as offered" && E("state.offers.length") === 0);
+    E("OUTCOME_MS = 7500");
     pill().click(); await wait(5250);
-    ok("after 5 seconds: 'Offered', and the outcome row inline", pill().textContent === "Offered" && !$("#offerZone .undo") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    ok("after 5 seconds: 'Offered' (the Undo is gone), the outcome row still inline", pill().textContent === "Offered" && !$("#offerZone .undo") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
     const ob = $$(".outcome").map(b => b.getBoundingClientRect().width);
     ok("…equal weight: three text pills the same width", Math.max(...ob) - Math.min(...ob) < 1.5 && new Set($$(".outcome").map(b => getComputedStyle(b).fontWeight + getComputedStyle(b).borderTopWidth)).size === 1, ob);
-    await wait(2000);
+    await wait(2700);
     ok("ignored: it gives way to a quiet 'Add how it went'", !$(".outcomes") && $("#offerZone .how-went .btn-text") && $("#offerZone .how-went .btn-text").textContent === "Add how it went" && $("#offerZone .how-went .btn-text").classList.contains("quiet"));
     $("#offerZone .how-went .btn-text").click(); await wait(40);
     ok("'Add how it went' brings the row back", $$(".outcome").length === 3);
@@ -85,7 +86,15 @@ f.onload = async () => {
     E("setClock(new Date(2026, 9, 22, 19, 30)); picked = null; changed()"); await wait(400);
     ok("at dinner: the footer is tomorrow's first meal", $("#footLine").textContent === `Tomorrow: Breakfast around ${E("fmtTime(new Date(2026, 9, 23, 8, 0))")}.`, $("#footLine").textContent);
     E("setClock(new Date(2026, 9, 22, 20, 30)); picked = null; changed()"); await wait(400);
-    ok("after dinner: tomorrow's breakfast, titled as tomorrow", /^Breakfast tomorrow · around/.test($("#nowMeal .meal-title").textContent), $("#nowMeal .meal-title").textContent);
+    ok("after dinner: tomorrow's breakfast; the headline says so and the meal has no second title", /^Breakfast tomorrow around/.test($("#headline").textContent) && !$("#nowMeal .meal-title") && /^Breakfast tomorrow · around/.test($("#nowMeal").getAttribute("aria-label")), [$("#headline").textContent, $("#nowMeal").getAttribute("aria-label")]);
+
+    // the drawn name: the ink is the corner's name (read aloud by its spelling); no ink, the typed name
+    E("state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 70, 20, 70, 100], [100, 20, 100, 100]]}; save(); changed()"); await wait(50);
+    ok("ink: the corner shows the drawing as an SVG, not underlined", !!$("#whoName svg.name-ink path") && $("#whoName").classList.contains("has-ink") && !/underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
+    ok("…with the name for screen readers", $("#whoName .sr-only") && $("#whoName .sr-only").textContent === "Lula");
+    ok("…cropped to the ink, in currentColor", /^-?[\d.]+ -?[\d.]+ [\d.]+ [\d.]+$/.test($("#whoName svg").getAttribute("viewBox")) && $("#whoName path").getAttribute("stroke") === "currentColor");
+    E("state.profile.ink = null; save(); changed()"); await wait(50);
+    ok("no ink: the typed name again", !$("#whoName svg") && $("#whoName").textContent === "Lula");
 
     // the corner name goes to Profile
     E("setClock(new Date(2026, 9, 22, 12, 10)); changed()");

@@ -62,7 +62,8 @@ const CHECKS = () => {
     header: [R($("#profileBtn")).top >= 0 && R($("#profileBtn")).left >= 0, R($("#clock")).right <= W],
     small: targets.filter(b => R(b).width < 44 || R(b).height < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)),
     clash: [meet(bar, map) && "pill/map", !foot.hidden && meet(words, map) && "footer/map", !foot.hidden && meet(foot, bar) && "footer/pill"].filter(Boolean),
-    first: ["#headline", "#moment", ".meal-title", ".meal-foods li", ".offer-bar"].filter(s => !on($(s)))
+    first: ["#headline", "#moment", "#nowMeal .meal-foods li", ".offer-bar"].filter(s => !on($(s))),
+    wrapped: [...document.querySelectorAll("#nowMeal .meal-foods li")].filter(li => li.getBoundingClientRect().height > parseFloat(getComputedStyle(li).lineHeight) + 1).length
   };
 };
 
@@ -87,7 +88,8 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
       ok(`${tag}: the corner header is inside the screen`, c.header.every(Boolean), c.header);
       ok(`${tag}: every tap target on Home is at least 44×44`, c.small.length === 0, c.small);
       ok(`${tag}: the pill, footer and map keep clear of each other`, c.clash.length === 0, c.clash);
-      if (portrait) ok(`${tag}: headline, moment line, meal title, first food and the pill on screen`, c.first.length === 0, c.first);
+      ok(`${tag}: each part of the dish is one line`, c.wrapped === 0, c.wrapped);
+      if (portrait) ok(`${tag}: headline (the meal's title), moment line, first food and the pill on screen`, c.first.length === 0, c.first);
       if (!args.has("--quick")) {
         const full = engine === "webkit" && slug === "14";
         const shot = async what => page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-${what}.jpg`), type: "jpeg", quality: 80, animations: "disabled", scale: "css"});
@@ -103,10 +105,10 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           await page.evaluate("const r = homeRef().ref; offerMeal(r.m, r.date, false); picked = null; save(); changed()"); await page.waitForTimeout(300);
           // a mid-swipe: halfway to the Kitchen (the backdrop at 0.3x)
           await page.evaluate("applyCamera(0, .5)"); await page.waitForTimeout(150); await shot("swipe-half"); await page.evaluate("applyCamera(0, 0)");
-          // Shuffle: one-at-a-time Change, and Tomorrow
-          await go("shuffle", "document.querySelector('[data-f^=\"change:\"]').click()"); await shot("shuffle-change");
-          await page.evaluate("shuffleUI.changing = null; shuffleUI.day = 1; refresh('shuffle')"); await page.waitForTimeout(200); await shot("shuffle-tomorrow");
-          await page.evaluate("shuffleUI.day = 0; refresh('shuffle')");
+          // Shuffle: the meal's stock said per food, then one-at-a-time Change
+          await go("shuffle", "const m = shuffleRef().m; setStock(foodIdOf(m.items[0]), baseName(m.items[0]), 'plenty'); setStock(foodIdOf(m.items[1]), baseName(m.items[1]), 'low'); save(); changed()"); await shot("shuffle-stock");
+          await page.evaluate("document.querySelector('#scr-shuffle [data-f^=\"change:\"]').click()"); await page.waitForTimeout(200); await shot("shuffle-change");
+          await page.evaluate("shuffleUI.changing = null; state.pantry = []; save(); changed()");
           // Kitchen: stock in its states, a group open, In the store, the freezer
           await go("kitchen", "const n = toBuyList(); setStock(n[0].foodId, n[0].name, 'plenty'); setStock(n[1].foodId, n[1].name, 'low'); setStock('rice', 'Rice', 'out'); state.freezer = [{foodId: 'lentils', name: 'Lentils', portions: 2, madeOn: '2026-10-20'}]; kitchenUI.open.grain = true; kitchenUI.open.vegetable = true; save(); changed()");
           await shot("kitchen-stock");

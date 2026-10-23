@@ -77,13 +77,14 @@ f.onload = async () => {
     ok("a week later: 'Week done. Ready for the next?'", M().text === "Week done." && actions(M())[0] === "Ready for the next?", M());
     ok("…'Ready for the next?' goes to New week", await goTo(M().actions[0][1]) === "week"); await home();
 
-    // 6. a planned food that's run out, for a meal still to come today: Shuffle, scrolled to that meal
+    // 6. a planned food that's run out, for a meal still to come today: Shuffle, on that meal
     const outDinner = `(() => { const x = mealsOn(now()).find(x => x.slot === "dinner"); setStock(foodIdOf(x.m.items[0]), baseName(x.m.items[0]), "out"); dinnerId = x.m.id; dinnerFood = lower1(baseName(x.m.items[0])); })();`;
     setup(18, at(15, 0), outDinner);
     m = M();
     ok("out of a planned food: 'Out of {food}. Shuffle dinner?'", m.key === "missing" && m.text === `Out of ${E("dinnerFood")}.` && JSON.stringify(actions(m)) === JSON.stringify(["Shuffle dinner?", "Later"]), m);
     ok("…goes to Shuffle", await goTo(m.actions[0][1]) === "shuffle");
-    ok("…scrolled to that meal, which takes focus", d.activeElement && d.activeElement.dataset.meal === E("dinnerId"), [d.activeElement && d.activeElement.outerHTML.slice(0, 60), E("dinnerId"), E("pg.cur")]);
+    ok("…opened on that meal: its details, titled for it", E("shuffleRef().m.id") === E("dinnerId") && /^Dinner · around/.test(d.getElementById("t-shuffle").textContent) && d.activeElement === d.getElementById("t-shuffle"), [E("shuffleRef().m.id"), E("dinnerId"), d.getElementById("t-shuffle").textContent]);
+    ok("…where the food that ran out says 'Not at home'", [...d.querySelectorAll("#scr-shuffle .sh-food")].some(li => li.textContent.toLowerCase().startsWith(E("dinnerFood")) && /Not at home/.test(li.querySelector(".sh-alert") ? li.querySelector(".sh-alert").textContent : "")));
     await home();
     setup(18, at(15, 0), outDinner + `state.hints = {kitchen: "2026-10-01", profile: "2026-10-01"};`);
     m = M();

@@ -26,11 +26,27 @@ f.onload = async () => {
     ok("a first run opens on the welcome", step() === "welcome" && !d.getElementById("onboarding").hidden);
     next().click(); await settle();
 
-    // name: the sentence labels its blank, Next waits for a value
+    // name: write it on the pad, then the spelling; Next waits for the spelling
     ok("step 2 is the name", step() === "name");
+    ok("'Write their name.' is the step's title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent === "Write their name." && d.activeElement === d.getElementById("onbTitle"));
+    const pad = d.querySelector("#onbCard canvas.pad"), clear = d.querySelector("#onbCard .pad-clear");
+    ok("a drawing pad, named for screen readers, with no browser panning on it", !!pad && pad.getAttribute("aria-label") === "Drawing pad for their name" && getComputedStyle(pad).touchAction === "none");
+    ok("…'Clear' waits until there's ink", clear.hidden);
+    const pr = pad.getBoundingClientRect();
+    const stroke = pts => { const p = (t, [x, y]) => pad.dispatchEvent(new w.PointerEvent(t, {bubbles: true, cancelable: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientX: pr.left + x, clientY: pr.top + y}));
+      p("pointerdown", pts[0]); pts.slice(1).forEach(q => p("pointermove", q)); p("pointerup", pts[pts.length - 1]); };
+    stroke([[20, 120], [20, 30], [50, 80], [80, 30], [80, 120]]);
+    stroke([[110, 30], [110, 120]]);
+    const ink = E("state.profile.ink");
+    ok("writing saves the ink: two strokes of points, on this device", ink && ink.strokes.length === 2 && ink.strokes[0].length >= 10 && ink.w > 0 && ink.h > 0, ink && ink.strokes.map(s => s.length));
+    ok("…and 'Clear' appears", !clear.hidden);
+    clear.click();
+    ok("'Clear' empties the pad and the ink", E("state.profile.ink") === null && clear.hidden);
+    stroke([[20, 120], [20, 30], [50, 80], [80, 30], [80, 120]]);
+    ok("…and it can be written again", E("state.profile.ink.strokes.length") === 1);
     const nameIn = d.querySelector(".blank-input");
-    ok("the blank is labelled by the sentence ('Their name is')", d.querySelector(`label[for="${nameIn.id}"]`).textContent === "Their name is");
-    ok("the blank has focus and no placeholder", d.activeElement === nameIn && !nameIn.placeholder);
+    ok("then 'Spelled ____.', a paragraph whose words label the blank", d.querySelector(".sent.spell") && d.querySelector(".sent.spell").tagName === "P" && d.querySelector(`label[for="${nameIn.id}"]`).textContent === "Spelled");
+    ok("the blank has no placeholder", !nameIn.placeholder);
     ok("Next waits (hidden from the tab order) until there's a name", next().classList.contains("wait") && next().tabIndex === -1);
     type(nameIn, "Lula");
     ok("…and appears once there is one", !next().classList.contains("wait"));

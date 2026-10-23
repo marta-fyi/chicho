@@ -433,7 +433,7 @@ function go(name, opts){
   pg.opts = opts;
   if(from==="kitchen" && name!=="kitchen" && kitchenUI.store) setStoreMode(false);   // leaving the store lets the screen sleep
   if(name===from){ arrived(name, opts, false); settle(LAYOUT[name][0], LAYOUT[name][1]); return; }
-  if(name==="shuffle" && opts.date) shuffleUI.day = isoOf(opts.date)===todayISO() ? 0 : 1;
+  if(name==="shuffle" && name!==from){ shuffleUI.target = opts.mealId ? {iso:isoOf(opts.date || now()), mealId:opts.mealId} : null; shuffleUI.changing = null; shuffleUI.note = null; }
   pg.cur = name;
   mountAround();
   if(mounted.has(name) && name!=="home") refresh(name);
@@ -448,10 +448,7 @@ function arrived(name, opts, moved){
   if(name!=="home" && !state.hints[name]){ state.hints[name] = todayISO(); save(); if(momentKey && /^hint:/.test(momentKey)) renderHome(); }
   if(name==="kitchen" && state.newToBuy.length){ state.newToBuy = []; save(); layoutSig = ""; renderHome(); }
   const e = screenEl(name);
-  if(name==="shuffle" && opts.mealId){
-    const t = e.querySelector(`[data-meal="${CSS.escape(opts.mealId)}"]`);
-    if(t){ t.scrollIntoView({block:"start", behavior:"auto"}); t.focus({preventScroll:true}); }
-  }else if(name==="profile" && opts.section){
+  if(name==="profile" && opts.section){
     const t = e.querySelector(`[data-sec="${CSS.escape(opts.section)}"]`);
     if(t){ t.scrollIntoView({block:"start", behavior:"auto"}); t.focus({preventScroll:true}); }
   }else if(moved && !opts.keepFocus){
@@ -685,7 +682,7 @@ function renderHome(){
   if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
   lastISO = todayISO();
   setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
-  setText($("whoName"), P.name || say("screens.profile"));
+  renderWhoName(P);
   $("profileBtn").setAttribute("aria-label", say("screens.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
   setText($("clockDate"), fmtCornerDate(t));
   setText($("clock"), fmtTime(t));
@@ -693,14 +690,25 @@ function renderHome(){
   const calmState = milkOnly(), empty = !calmState && !hasPlan();
   $("home").classList.toggle("is-milk", calmState);
   $("home").classList.toggle("is-empty", empty);
-  renderHeadline();
-  renderMomentLine();
   const {ref, today} = homeRef();
+  // while an offered meal stays on Home (until the next boundary), the headline stays with it
+  if(!(picked && ref && picked.key===ref.key && homeKey!==null)) renderHeadline();
+  renderMomentLine();
   renderNowMeal(ref, today);
   if(calmState || empty) setGlow(null);
   document.documentElement.classList.toggle("glow-dim", t.getHours()*60 + t.getMinutes() >= QUIET_FROM_MIN);
   updateChrome();
   if(firstDraw){ firstDraw = false; try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
+}
+/* the corner's name: the drawn one when there is ink (read aloud by its spelling), else the typed one */
+let whoSig = null;
+function renderWhoName(P){
+  const svg = inkSVG(P.ink), sig = (P.name || "") + "|" + svg.length + "|" + (P.ink ? P.ink.strokes.length : 0), e = $("whoName");
+  if(sig===whoSig) return;
+  whoSig = sig;
+  e.classList.toggle("has-ink", !!svg);
+  if(svg) e.innerHTML = svg + `<span class="sr-only">${esc(P.name || say("screens.profile"))}</span>`;
+  else e.textContent = P.name || say("screens.profile");
 }
 function renderHeadline(){
   const h = headlineNow(), e = $("headline");
@@ -724,7 +732,9 @@ function renderMomentLine(){
   // a second action (Later) is a quieter word after the first
   m.actions.slice(1, 2).forEach(([label, fn])=>{ e.append(" "); const b = textBtn(label, fn, "inline quiet"); b.dataset.f = "moment:later"; e.appendChild(b); });
 }
-/* the meal now (or next): title with the time, foods as plain lines, the how, one "While you're at it" line */
+/* the meal now (or next): the headline is its title; its foods as plain lines, one line each; the how; one
+   "While you're at it" line. A small title shows only when the meal isn't the headline's (an offered meal
+   that stays until the next boundary while the headline moves on) */
 const FOOD_LINES_MAX = 4;
 function renderNowMeal(ref, today){
   const box = $("nowMeal"), zone = $("offerZone"), foot = $("footLine");
@@ -737,19 +747,24 @@ function renderNowMeal(ref, today){
   if(!ref){ foot.hidden = true; setGlow(null); return; }
   if(homeUI.key!==ref.key){ homeUI.key = ref.key; homeUI.allFoods = false; homeUI.howOpen = false; }
   const m = ref.m, tomorrow = isoOf(ref.date)!==todayISO();
-  const h = el("h2", "meal-title", say(tomorrow ? "home.mealTitleTomorrow" : "home.mealTitle", {meal:m.label, time:fmtTime(ref.start)}));
-  h.tabIndex = -1; h.dataset.f = "meal:title";
-  box.appendChild(h);
+  const head = picked && picked.key===ref.key ? ref : headlineNow().next;
+  if(!head || head.m!==m || isoOf(head.start)!==isoOf(ref.start)){
+    const h = el("h2", "meal-title", say(tomorrow ? "home.mealTitleTomorrow" : "home.mealTitle", {meal:m.label, time:fmtTime(ref.start)}));
+    h.tabIndex = -1; h.dataset.f = "meal:title";
+    box.appendChild(h);
+  }
+  box.setAttribute("aria-label", say(tomorrow ? "home.mealTitleTomorrow" : "home.mealTitle", {meal:m.label, time:fmtTime(ref.start)}));
   const ul = el("ul", "meal-foods");
   const shown = homeUI.allFoods || m.items.length <= FOOD_LINES_MAX ? m.items : m.items.slice(0, FOOD_LINES_MAX - 1);
-  shown.forEach(i=>ul.appendChild(el("li", "", foodLine(i))));
+  shown.forEach(i=>{ const li = el("li", "", foodLine(i)); li.dataset.item = i.id; ul.appendChild(li); });
   if(shown.length < m.items.length){
     const li = el("li");
-    const more = textBtn(say("home.andMore", {n:m.items.length - shown.length}), ()=>{ homeUI.allFoods = true; layoutSig = ""; renderHome(); focusLater("meal:title"); }, "inline more-btn");
+    const more = textBtn(say("home.andMore", {n:m.items.length - shown.length}), ()=>{ homeUI.allFoods = true; layoutSig = ""; renderHome(); focusLater("meal:more"); }, "inline more-btn");
     more.dataset.f = "meal:more";
     li.appendChild(more); ul.appendChild(li);
   }
   box.appendChild(ul);
+  oneLine(ul, m);
   const how = mealHow(m);
   if(how.length){
     const p = el("p", "meal-how"), span = el("span", homeUI.howOpen ? "" : "clamp", how.join(" "));
@@ -775,12 +790,23 @@ function renderNowMeal(ref, today){
   focusRestore(focus);
   fitHome();
 }
+/* each part of the dish is one line: when "Name · qty · texture" doesn't fit, the texture goes, then the amount */
+function oneLine(ul, m){
+  [...ul.querySelectorAll("li[data-item]")].forEach(li=>{
+    const i = m.items.find(x=>x.id===li.dataset.item);
+    if(!i || li.scrollWidth <= li.clientWidth + 1) return;
+    li.textContent = [baseName(i), i.qty].filter(Boolean).join(" · ");
+    if(li.scrollWidth > li.clientWidth + 1) li.textContent = baseName(i);
+    li.title = foodLine(i);
+  });
+}
 function homeAfter(ref, today){
   const tm = refsOn(tomorrowOf(now()));
   const list = today.concat(tm).filter(x=>x.start > ref.start && x.key!==ref.key);
   return list[0] || null;
 }
-/* "Mark as offered" → "Offered · Undo" for 5 s → how it went (optional, equal) → a quiet "Add how it went" */
+/* "Mark as offered" → at once "Offered · Undo" (5 s) and how it went rising under it (optional, equal) → after
+   20 s if ignored, a quiet "Add how it went" */
 function renderOfferZone(ref, zone){
   const m = ref.m, on = mealOffered(m, ref.date), undo = undoUntil[ref.key] > Date.now();
   const bar = el("div", "offer-bar");
@@ -796,8 +822,9 @@ function renderOfferZone(ref, zone){
     bar.appendChild(u);
   }
   zone.appendChild(bar);
-  if(!on || undo) return;
+  if(!on) return;
   if(outcomeUntil[ref.key] > Date.now()) zone.appendChild(outcomeRow(ref));
+  else if(undo) return;
   else if(!mealOutcome(m, ref.date)){
     const p = el("p", "how-went");
     const b = textBtn(say("meal.addHow"), ()=>{ showOutcome(ref.key, OUTCOME_MS); layoutSig = ""; renderHome(); focusLater(`out:${ref.key}:loved`); }, "inline quiet");
@@ -812,8 +839,8 @@ function toggleOffered(ref){
   if(on) picked = {key:ref.key, until:nextBoundary(refsOn(now()))};
   offerMeal(ref.m, ref.date, on); save(); haptic();
   if(on){
-    pulseGlow(); undoUntil[ref.key] = Date.now() + 5000;
-    setTimeout(()=>{ if(mealOffered(ref.m, ref.date)) showOutcome(ref.key, OUTCOME_MS); layoutSig = ""; renderHome(); }, 5050);
+    pulseGlow(); undoUntil[ref.key] = Date.now() + 5000; showOutcome(ref.key, OUTCOME_MS);
+    setTimeout(()=>{ layoutSig = ""; renderHome(); }, 5050);
     announce(say("home.announce.offered", {meal:ref.m.label}));
   }else{ delete undoUntil[ref.key]; delete outcomeUntil[ref.key]; picked = null; announce(say("home.announce.unoffered", {meal:ref.m.label})); }
   changed();
@@ -842,7 +869,8 @@ function outcomeRow(ref){
     ob.addEventListener("click", ()=>{ setOutcome(m, ref.date, v); save(); haptic(); showOutcome(ref.key, OUTCOME_AFTER_MS); changed(); });
     g.appendChild(ob);
   });
-  if(!outcomeRisen.has(ref.key)){ outcomeRisen.add(ref.key); if(!calm()) requestAnimationFrame(()=>g.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:260, easing:"cubic-bezier(.2,.8,.2,1)"})); }
+  // it rises once, its three answers a beat apart
+  if(!outcomeRisen.has(ref.key)){ outcomeRisen.add(ref.key); if(!calm()) requestAnimationFrame(()=>[...g.children].forEach((b, k)=>b.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}], {duration:320, delay:k * 60, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}))); }
   return g;
 }
 /* it must never scroll the page: when the meal doesn't fit, the footer line goes first; anything still
@@ -891,14 +919,12 @@ function pulseGlow(){
 }
 
 /* ====================================================================
-   SHUFFLE: change the menu. Today or tomorrow, a meal at a time or the
-   whole day, every change at once with a 5-second Undo, never a dialog.
+   SHUFFLE: the details of one meal (the one on Home, or the one the
+   moment line points at). Change the whole meal or one food at a time,
+   every change at once with a 5-second Undo, never a dialog; each food
+   says when it's running low or isn't at home.
    ==================================================================== */
-const shuffleUI = {day:0, changing:null, undo:null, note:null};
-function shuffleDate(){ return addDays(now(), shuffleUI.day); }
-function keptOn(iso){ return state.kept[iso] || []; }
-function isKept(m, date){ return keptOn(isoOf(date)).includes(m.id); }
-function setKept(m, date, on){ const iso = isoOf(date), k = keptOn(iso).filter(id=>id!==m.id); state.kept[iso] = on ? k.concat(m.id) : k; if(!state.kept[iso].length) delete state.kept[iso]; }
+const shuffleUI = {target:null, changing:null, undo:null, note:null};
 /* the rules every shuffle keeps: allergies and "not a fan" out, the locked rules and stage textures, no first
    allergen, at most one new food in the meal, the priorities (and what's at home, when that's one of them) */
 function shufflePool(){
@@ -933,24 +959,20 @@ function noteToBuy(fn){
   state.newToBuy = [...new Set(state.newToBuy.concat(added))];
   return added;
 }
+/* the meal on show: the one asked for (the moment line's), else the one on Home */
+function shuffleRef(){
+  const t = shuffleUI.target;
+  if(t){ const x = refsOn(localDate(t.iso)).find(r=>r.m.id===t.mealId); if(x) return x; }
+  return homeRef().ref;
+}
 function shuffleOne(x){
-  const old = x.m.items, date = shuffleDate();
-  const items = freshMeal(x.m, date, dayMealsOf(date));
-  if(!items){ shuffleUI.note = {mealId:x.m.id, text:say("shuffle.none")}; announce(say("shuffle.none")); refresh("shuffle"); return; }
+  const old = x.m.items;
+  const items = freshMeal(x.m, x.date, dayMealsOf(x.date));
+  if(!items){ shuffleUI.note = say("shuffle.none"); announce(say("shuffle.none")); refresh("shuffle"); return; }
   const added = noteToBuy(()=>{ x.m.items = items; });
   save(); haptic();
   setUndo(say("shuffle.didMeal", {meal:x.m.label}), ()=>{ x.m.items = old; state.newToBuy = state.newToBuy.filter(id=>!added.includes(id)); });
   announce(say("shuffle.didMeal", {meal:x.m.label}));
-  changed();
-}
-function shuffleDay(){
-  const date = shuffleDate(), refs = mealsOn(date).filter(x=>!mealOffered(x.m, date) && !isKept(x.m, date));
-  const olds = [];
-  const added = noteToBuy(()=>refs.forEach(x=>{ const items = freshMeal(x.m, date, dayMealsOf(date)); if(items){ olds.push([x.m, x.m.items]); x.m.items = items; } }));
-  if(!olds.length){ shuffleUI.note = {mealId:"day", text:say("shuffle.none")}; announce(say("shuffle.none")); refresh("shuffle"); return; }
-  save(); haptic();
-  setUndo(say("shuffle.didDay"), ()=>{ olds.forEach(([m, items])=>{ m.items = items; }); state.newToBuy = state.newToBuy.filter(id=>!added.includes(id)); });
-  announce(say("shuffle.didDay"));
   changed();
 }
 function setUndo(text, restore){
@@ -975,54 +997,44 @@ function shuffledFor(arr, key){
   for(let i=a.length-1; i>0; i--){ h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; const j = h % (i+1); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
+/* a food's stock, said only when it matters: running low, or not at home */
+function stockAlert(item){
+  const st = stockState(foodIdOf(item));
+  return st==="low" ? say("shuffle.low") : st==="plenty" ? "" : say("shuffle.notHome");
+}
 function renderShuffle(){
-  const date = shuffleDate();
-  const tg = el("span", "toggle");
-  tg.setAttribute("role", "group"); tg.setAttribute("aria-label", say("shuffle.whichDay"));
-  [0, 1].forEach((d, k)=>{
-    if(k) tg.appendChild(el("span", "sep", "·"));
-    const b = textBtn(say(d ? "days.Tomorrow" : "days.Today"), ()=>{ shuffleUI.day = d; shuffleUI.changing = null; shuffleUI.note = null; refresh("shuffle"); focusLater("shuffle:day:" + d); }, "small");
-    b.dataset.f = "shuffle:day:" + d; b.setAttribute("aria-pressed", String(shuffleUI.day===d));
-    tg.appendChild(b);
-  });
+  const x = shuffleRef();
   const pill = document.createElement("button");
-  pill.type = "button"; pill.className = "btn-ink"; pill.dataset.f = "shuffle:day"; pill.textContent = say("shuffle.day");
-  pill.addEventListener("click", shuffleDay);
-  const col = frame("shuffle", say("screens.shuffle"), {tools:[tg], pin:pill});
+  pill.type = "button"; pill.className = "btn-ink"; pill.dataset.f = "shuffle:meal"; pill.textContent = say("shuffle.meal");
+  const title = x ? say(isoOf(x.date)===todayISO() ? "home.mealTitle" : "home.mealTitleTomorrow", {meal:x.m.label, time:fmtTime(x.start)}) : say("screens.shuffle");
+  const col = frame("shuffle", title, {pin:pill});
+  if(!x){ pill.disabled = true; col.appendChild(el("p", "quiet-line", say("shuffle.nothing"))); return; }
+  const m = x.m, offered = mealOffered(m, x.date);
+  pill.disabled = offered;
+  pill.addEventListener("click", ()=>shuffleOne(x));
+  col.dataset.meal = m.id;
   const live = el("p", "undo-line"); live.setAttribute("aria-live", "polite");
   if(shuffleUI.undo){
     live.append(shuffleUI.undo.text + " ");
     const u = textBtn(say("meal.undo"), ()=>{ const r = shuffleUI.undo; clearTimeout(r.timer); shuffleUI.undo = null; r.restore(); save(); announce(say("shuffle.undone")); changed(); }, "inline");
     u.dataset.f = "shuffle:undo";
     live.appendChild(u);
-  }else if(shuffleUI.note && shuffleUI.note.mealId==="day") live.textContent = shuffleUI.note.text;
+  }else if(shuffleUI.note) live.textContent = shuffleUI.note;
+  else if(offered) live.textContent = say("shuffle.offered");
   col.appendChild(live);
-  const refs = mealsOn(date);
-  if(!refs.length) col.appendChild(el("p", "quiet-line", say("shuffle.nothing")));
-  refs.forEach(x=>col.appendChild(shuffleMealEl(x, date)));
-  const foot = el("p", "sh-foot");
-  const send = textBtn(say("shuffle.sendTomorrow"), ()=>sendDay(tomorrowOf(now()), state.profile.people[0]), "small");
-  send.dataset.f = "shuffle:send";
-  foot.appendChild(send);
-  col.appendChild(foot);
-  pill.disabled = !refs.some(x=>!mealOffered(x.m, date) && !isKept(x.m, date));
-}
-function shuffleMealEl(x, date){
-  const m = x.m, offered = mealOffered(m, date), kept = isKept(m, date);
-  const box = el("div", "sh-meal");
-  box.dataset.meal = m.id; box.tabIndex = -1;
-  const h = el("p", "sh-h");
-  h.append(el("span", "", say("home.rowWhen", {meal:m.label, time:fmtTime(x.start)})));
-  if(offered) h.append(el("span", "sh-state", say("meal.offered")));
-  else if(kept) h.append(el("span", "sh-state", say("shuffle.kept")));
-  box.appendChild(h);
+  // the foods: each on its line, its stock said when it matters, and Change (one alternative at a time)
   const ul = el("ul", "sh-foods");
+  let missing = false;
   m.items.forEach((item, k)=>{
     const li = el("li", "sh-food");
-    li.appendChild(el("span", "", foodLine(item)));
+    const t = el("span", "sh-food-t");
+    t.appendChild(el("span", "", foodLine(item)));
+    const alert = stockAlert(item);
+    if(alert){ if(alert===say("shuffle.notHome")) missing = true; t.appendChild(el("span", "sh-alert", alert)); }
+    li.appendChild(t);
     if(!offered){
       const c = shuffleUI.changing;
-      if(c && c.mealId===m.id && c.itemId===item.id){
+      if(c && c.itemId===item.id){
         const opts = alternatives(m, k, 8), line = el("p", "alt-line");
         line.setAttribute("aria-live", "polite");
         if(!opts.length) line.textContent = say("shuffle.none");
@@ -1042,27 +1054,29 @@ function shuffleMealEl(x, date){
         }
         li.appendChild(line);
       }else{
-        const ch = textBtn(say("meal.change"), ()=>{ shuffleUI.changing = {mealId:m.id, itemId:item.id, i:0}; refresh("shuffle"); focusLater("alt:keep:" + item.id); }, "small");
+        const ch = textBtn(say("meal.change"), ()=>{ shuffleUI.changing = {itemId:item.id, i:0}; refresh("shuffle"); focusLater("alt:keep:" + item.id); }, "small");
         ch.dataset.f = "change:" + item.id; ch.setAttribute("aria-label", say("meal.changeTo", {food:baseName(item)}));
         li.appendChild(ch);
       }
     }
     ul.appendChild(li);
   });
-  box.appendChild(ul);
-  if(!offered){
-    const acts = el("div", "sh-acts");
-    const sh = textBtn(say("shuffle.meal"), ()=>shuffleOne(x), "small");
-    sh.dataset.f = "shuffle:" + m.id; sh.disabled = kept;
-    sh.setAttribute("aria-label", say("shuffle.mealLabel", {meal:m.label}));
-    const kp = textBtn(kept ? say("shuffle.kept") : say("meal.keep"), ()=>{ setKept(m, date, !kept); save(); haptic(); refresh("shuffle"); focusLater("keep:" + m.id); }, "small");
-    kp.dataset.f = "keep:" + m.id; kp.setAttribute("aria-pressed", String(kept));
-    kp.setAttribute("aria-label", say("shuffle.keepLabel", {meal:m.label}));
-    acts.append(sh, kp);
-    box.appendChild(acts);
+  col.appendChild(ul);
+  if(missing){
+    const p = el("p", "quiet-line", say("shuffle.missing") + " ");
+    const b = textBtn(say("screens.kitchen"), ()=>go("kitchen"), "inline"); b.dataset.f = "shuffle:kitchen";
+    p.appendChild(b); p.append("."); col.appendChild(p);
   }
-  if(shuffleUI.note && shuffleUI.note.mealId===m.id){ const p = el("p", "sh-none", shuffleUI.note.text); p.setAttribute("role", "status"); box.appendChild(p); }
-  return box;
+  // how, in full, and what to do while the pan's out
+  const how = mealHow(m);
+  if(how.length){ const sec = section(col, "how", say("shuffle.how")); sec.appendChild(el("p", "sec-p", how.join(" "))); }
+  const also = offered ? [] : alsoFor(x, 2);
+  if(also.length){ const sec = section(col, "also", say("home.also")); also.forEach(a=>sec.appendChild(el("p", "sec-p", a.text))); }
+  const foot = el("p", "sh-foot");
+  const send = textBtn(say("shuffle.sendTomorrow"), ()=>sendDay(tomorrowOf(now()), state.profile.people[0]), "small");
+  send.dataset.f = "shuffle:send";
+  foot.appendChild(send);
+  col.appendChild(foot);
 }
 
 /* ====================================================================
@@ -1377,6 +1391,8 @@ function offPlateWords(){
 function renderProfile(){
   const P = state.profile;
   const col = frame("profile", P.name || say("screens.profile"), {titleClass:"pf-name", sub:P.birthDate ? ageLabel(ageNow()) + " · " + stageNow().name : ""});
+  const ink = inkSVG(P.ink, "pf-ink");
+  if(ink){ const h = $("t-profile"); h.innerHTML = ink + `<span class="sr-only">${esc(P.name || say("screens.profile"))}</span>`; }
   const iso0 = state.weekStarted, iso6 = isoOf(addDays(weekStart(), 6));
   // How it's going (this week)
   if(hasPlan()){
@@ -1452,7 +1468,14 @@ function renderProfile(){
     b.addEventListener("click", fn);
     set.appendChild(b);
   };
-  row(say("profile.name"), say("profile.editSpelling"), ()=>openOnboarding("name", {single:true}), "set:name");
+  // the name: redraw it or fix its spelling (both on the onboarding's name step)
+  const nm = el("div", "s-person");
+  nm.appendChild(el("p", "", say("profile.name") + (P.name ? " · " + P.name : "")));
+  const na = el("span", "sh-acts");
+  const rd = textBtn(say("profile.redraw"), ()=>openOnboarding("name", {single:true}), "small"); rd.dataset.f = "set:redraw";
+  const sp = textBtn(say("profile.editSpelling"), ()=>{ openOnboarding("name", {single:true}); requestAnimationFrame(()=>{ const f = document.querySelector("#onbCard .blank-input"); if(f) f.focus(); }); }, "small"); sp.dataset.f = "set:name";
+  na.append(rd, sp); nm.appendChild(na);
+  set.appendChild(nm);
   row(say("profile.birthday"), P.birthDate ? fmtDayMonth(localDate(P.birthDate)) + " " + localDate(P.birthDate).getFullYear() : "", ()=>openOnboarding("birthday", {single:true}), "set:birthday");
   row(say("profile.mealTimes"), "", ()=>openOnboarding("mealtimes", {single:true}), "set:mealtimes", planMonths() < 6);
   row(say("profile.priorities"), P.priorities.length ? listJoin(P.priorities.map(id=>lower1((PRIORITIES.find(p=>p.id===id) || {}).label || id))) : "", ()=>openOnboarding("priorities", {single:true}), "set:priorities");
@@ -1792,8 +1815,6 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
     return;
   }
   document.body.classList.add("is-app");
-  // the kept-meal notes for days gone by go
-  Object.keys(state.kept).forEach(iso=>{ if(iso < todayISO()) delete state.kept[iso]; });
   $("profileBtn").addEventListener("click", ()=>go("profile"));
   placeScreens();
   buildMap();

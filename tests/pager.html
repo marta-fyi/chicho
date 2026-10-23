@@ -211,7 +211,7 @@ const load = (hash, months) => new Promise(res => {
     const lunch = E("(() => { const x = refsOn(now()).find(x => x.m.slot === 'lunch'); setStock(foodIdOf(x.m.items[0]), baseName(x.m.items[0]), 'out'); save(); changed(); return x.m.id; })()");
     ok("a planned food out of stock: 'Swipe left to shuffle lunch.'", /^Swipe left to shuffle lunch\. Later$/.test($("#moment").textContent), $("#moment").textContent);
     $("#moment .btn-text").click(); await settle();
-    ok("…tapping it opens Shuffle on that meal", cur() === "shuffle" && d.activeElement && d.activeElement.dataset.meal === lunch, [cur(), d.activeElement && d.activeElement.dataset.meal]);
+    ok("…tapping it opens Shuffle on that meal", cur() === "shuffle" && E("shuffleRef().m.id") === lunch && /^Lunch · around/.test(d.getElementById("t-shuffle").textContent), [cur(), E("shuffleRef().m.id"), d.getElementById("t-shuffle").textContent]);
     await go("home");
     ok("…seen: from now on it's the plain line, 'Out of … Shuffle lunch?'", /^Out of .+\. Shuffle lunch\? Later$/.test($("#moment").textContent), $("#moment").textContent);
     E(`delete state.hints.profile; state.moment = {date: todayISO(), later: ['missing', 'shop']}; state.asked = {priorities: '2026-10-01', kitchen: '2026-10-01'};
