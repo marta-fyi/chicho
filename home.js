@@ -270,6 +270,10 @@ function suggestAlso(meal, plan, nowD, profile, pantry, seen){
 /* ---------- the home ---------- */
 let homeKey = null, momentKey = null, picked = null, firstDraw = true, layoutSig = "";
 const undoUntil = {};    // meal key → ms when its "Offered · Undo" window ends
+const outcomeUntil = {}; // meal key → ms when its outcome row fades away (nothing waits for an answer)
+let OUTCOME_MS = 10000;  // how long "Loved it · Ate some · Not today" stays if ignored
+const OUTCOME_AFTER_MS = 1600;   // …and after an answer, long enough to see it taken
+const outcomeRisen = new Set();
 const changeUndo = {};   // food id → {until, old, m, at}
 const openFood = new Set();
 function refsOn(date){ return mealsOn(date).map(x=>Object.assign(x, {date, key:isoOf(date) + "|" + x.k})); }
@@ -360,7 +364,7 @@ function renderMeals(){
     upNext = tm.filter(x=>!def || x.key!==def.key);
     nextLabel = say("home.tomorrow");
   }
-  const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : ""))].join("|")
+  const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : "") + (outcomeUntil[x.key] > Date.now() ? "o" : ""))].join("|")
             + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "");
   if(sig===layoutSig) return;
   const focus = focusMemo();
@@ -428,9 +432,37 @@ function toggleOffered(x, fromPill){
   // offered from its own pill, the meal stays open (Undo, then how it went) until the next boundary
   if(on && fromPill) picked = {key:x.key, until:nextBoundary(refsOn(now()))};
   offerMeal(x.m, on); save(); haptic();
-  if(on){ pulseGlow(); undoUntil[x.key] = Date.now() + 5000; setTimeout(()=>{ homeChanged(); }, 5050); announce(say("home.announce.offered", {meal:x.m.label})); }
-  else { delete undoUntil[x.key]; announce(say("home.announce.unoffered", {meal:x.m.label})); }
+  if(on){ pulseGlow(); undoUntil[x.key] = Date.now() + 5000; showOutcome(x.key, OUTCOME_MS); setTimeout(()=>{ homeChanged(); }, 5050); announce(say("home.announce.offered", {meal:x.m.label})); }
+  else { delete undoUntil[x.key]; delete outcomeUntil[x.key]; outcomeRisen.delete(x.key); announce(say("home.announce.unoffered", {meal:x.m.label})); }
   homeChanged();
+}
+/* ---------- how it went, in the same motion ----------
+   Ticking a meal (pill, ring or swipe) brings the outcome row up inline; it fades away on its own if ignored,
+   and soon after an answer. Optional and equal, and nothing waits for it. */
+function showOutcome(key, ms){
+  outcomeUntil[key] = Date.now() + ms;
+  clearTimeout(showOutcome[key]);
+  showOutcome[key] = setTimeout(()=>{
+    const el = document.querySelector(`.outcomes[data-key="${CSS.escape(key)}"]`);
+    const done = ()=>{ delete outcomeUntil[key]; outcomeRisen.delete(key); homeChanged(); };
+    if(el && !calm()) el.animate([{opacity:1}, {opacity:0, transform:"translateY(-4px)"}], {duration:400, easing:"ease-in", fill:"forwards"}).onfinish = done;
+    else done();
+  }, ms);
+}
+function outcomeRow(x){
+  const m = x.m, g = document.createElement("div");
+  g.className = "outcomes"; g.dataset.key = x.key; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
+  ["loved","some","nottoday"].forEach(v=>{
+    const ob = document.createElement("button");
+    ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${x.key}:${v}`;
+    ob.setAttribute("aria-pressed", String(m.outcome===v));
+    ob.textContent = say("meal.outcome." + v);
+    ob.addEventListener("click", ()=>{ setOutcome(m, v); save(); haptic(); showOutcome(x.key, OUTCOME_AFTER_MS); homeChanged(); });
+    g.appendChild(ob);
+  });
+  // it rises once, when it first appears
+  if(!outcomeRisen.has(x.key)){ outcomeRisen.add(x.key); if(!calm()) requestAnimationFrame(()=>g.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:260, easing:"cubic-bezier(.2,.8,.2,1)"})); }
+  return g;
 }
 /* a compact row: bullet, "{Meal} · around {time}", its ring; a tap opens it in place */
 function mealRow(x){
@@ -446,6 +478,7 @@ function mealRow(x){
   row.appendChild(b);
   row.appendChild(ringBtn(x, "ring:" + x.key));
   if(undoUntil[x.key] > Date.now()) row.appendChild(undoLine(x));
+  if(mealOffered(x.m) && outcomeUntil[x.key] > Date.now()) row.appendChild(outcomeRow(x));
   swipeRow(row, b, x);
   return row;
 }
@@ -618,19 +651,7 @@ function mealOpen(x, isDefault){
     acts.appendChild(u);
   }
   zone.appendChild(acts);
-  if(on && !undo){
-    const g = document.createElement("div");
-    g.className = "outcomes"; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
-    ["loved","some","nottoday"].forEach(v=>{
-      const ob = document.createElement("button");
-      ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${x.key}:${v}`;
-      ob.setAttribute("aria-pressed", String(m.outcome===v));
-      ob.textContent = say("meal.outcome." + v);
-      ob.addEventListener("click", ()=>{ setOutcome(m, v); save(); haptic(); homeChanged(); });
-      g.appendChild(ob);
-    });
-    a.appendChild(g);
-  }
+  if(on && outcomeUntil[x.key] > Date.now()) a.appendChild(outcomeRow(x));
   const links = document.createElement("p");
   links.className = "mx-links";
   if(addingTo===x.key){

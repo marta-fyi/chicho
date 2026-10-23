@@ -58,9 +58,10 @@ f.onload = async () => {
     ok("Undo: not offered again", E("mealOffered(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'))") === false && pillNow().querySelector(".offer-pill").textContent === "Mark as offered");
     ok("…and nothing left behind in variety", !E("offeredFoods(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[0].cats[0]).includes(baseName(state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').items[0]))"));
     pillNow().querySelector(".offer-pill").click(); await wait(5200);
-    ok("after 5 seconds: 'Offered' and the outcome row", !!$(".outcomes") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    ok("after 5 seconds: 'Offered', and the outcome row (it rose with the tick) is still there", !!$(".outcomes") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
     $$(".outcome")[0].click(); await wait(30);
     ok("an outcome is the food's preference, never its safety", E("lunch = state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch'); lunch.outcome") === "loved" && E("Object.values(state.foods).every(r => !r.preference || ['loved','some','nottoday'].includes(r.preference))"));
+    E("showOutcome(lunchKey = defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).key, 10000)"); E("homeChanged()"); await wait(30);
     $$(".outcome")[0].click(); await wait(30);
     ok("…tapping it again clears it (optional, equal)", !E("state.plan.days[planDayIndex(now())].meals.find(m => m.slot === 'lunch').outcome"));
     ok("now lunch is offered, the headline moves on: 'Snack around 4:00.'", /^Snack around/.test($("#headline").textContent), $("#headline").textContent);

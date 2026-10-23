@@ -29,6 +29,18 @@ f.onload = async () => {
     ok("swipe right on a row: that meal is offered", E(`mealOffered(${mealOf(k)})`));
     ok("…with its undo line, as always", /Offered · Undo/.test(d.querySelector(`.mrow[data-key="${k}"]`).textContent));
     ok("…and the ring shows it (the visible path stays)", d.querySelector(`.mrow[data-key="${k}"] .ring-btn`).getAttribute("aria-pressed") === "true");
+    const outs = () => d.querySelector(`.mrow[data-key="${k}"] .outcomes`);
+    ok("the outcome row rises inline in the same motion", !!outs() && [...outs().querySelectorAll(".outcome")].map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
+    E("OUTCOME_MS = 10000");
+    outs().querySelector(".outcome").click(); await wait(30);
+    ok("…an answer is taken (the meal's preference)", E(`${mealOf(k)}.outcome`) === "loved" && outs().querySelector(".outcome").getAttribute("aria-pressed") === "true");
+    await wait(2300);
+    ok("…and the row fades away soon after", !outs());
+    seed(); await wait(50);
+    E("OUTCOME_MS = 400"); k = key();
+    await swipe(row().querySelector(".mrow-btn"), 60, 110);
+    ok("ignored, it fades away on its own (nothing waits for an answer)", !!outs() && (await wait(1000), !outs()) && !E(`${mealOf(k)}.outcome`));
+    E("OUTCOME_MS = 10000");
     seed(); await wait(50);
     k = key();
     await swipe(row().querySelector(".mrow-btn"), 300, -110);
