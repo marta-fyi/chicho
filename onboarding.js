@@ -1240,17 +1240,19 @@ function onbReveal(card, P){
   });
   card.append(head, jump, list);
   // which day is in view: the first section still below the bar
-  const io = new IntersectionObserver(()=>{
+  const inView = ()=>{
     const top = card.getBoundingClientRect().top + jump.offsetHeight + 2;
     let k = sections.findIndex(s=>s.getBoundingClientRect().bottom > top + 24);
     if(k < 0) k = sections.length - 1;
     [...jump.children].forEach((b, i)=>b.classList.toggle("on", i===k));
-  }, {root:card, threshold:[0, .25, .5, .75, 1]});
+  };
+  // IntersectionObserver for the crossings, and the scroll handler below for where a smooth scroll comes to rest
+  const io = new IntersectionObserver(inView, {root:card, threshold:[0, .25, .5, .75, 1]});
   sections.forEach(s=>io.observe(s));
   // the glow is the header's: it fades as the week scrolls, and only then do the sticky bars take the paper
   const plane = document.querySelector(".onb-backdrop .glow-plane");
   let sraf = 0;
-  const onScroll = ()=>{ sraf = 0; const y = card.scrollTop; plane.style.opacity = String(Math.max(0, 1 - y / 80)); card.classList.toggle("stuck", y >= 80); };
+  const onScroll = ()=>{ sraf = 0; inView(); const y = card.scrollTop; plane.style.opacity = String(Math.max(0, 1 - y / 80)); card.classList.toggle("stuck", y >= 80); };
   card.addEventListener("scroll", ()=>{ if(!sraf) sraf = requestAnimationFrame(onScroll); }, {passive:true});
   plane.style.opacity = "";
   jump.firstChild.classList.add("on");
@@ -1273,6 +1275,7 @@ function onbReveal(card, P){
   love.type = "button"; love.className = "btn-ink wk-love"; love.textContent = say("onb.done.apply");
   love.addEventListener("click", ()=>{
     haptic();
+    if(!P.onboarded && !P.returning) state.plans = [];   // a first run: the starter plan a fresh install carries goes (nothing was offered from it); an older save keeps its weeks
     startWeek(onb.draft, onb.startISO);   // nothing is lost: the offers stay in the log
     P.lastStage = stageNow().id;
     onb.draft = null;
