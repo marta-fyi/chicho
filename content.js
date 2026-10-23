@@ -160,7 +160,9 @@ const CONTENT = {
   shopSheet:{
     title:"Shop", runsOut:"runs out {weekday}", forDay:"for {weekday}", today:"today", tomorrow:"tomorrow", inStock:"In stock",
     bought:"Bought {food}", notBought:"{food}: not bought", send:"Send the list", alsoGet:"Also pick up {blank}", none:"Nothing to pick up.",
-    inStore:"In the store", other:"Everything else"
+    inStore:"In the store", other:"Everything else",
+    staples:"Already in the kitchen…", staplesHint:"Tap what you have. It comes off the list.", staplesDone:"That's all",
+    stapleHave:"{food}: at home", stapleNeed:"{food}: on the list"
   },
   allergenNote:{
     title:"Watching a first taste",

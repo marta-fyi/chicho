@@ -1218,6 +1218,41 @@ function sheetRing(on, label, fn, f){
   b.addEventListener("click", fn);
   return b;
 }
+/* ---------- the staples shortcut ----------
+   At the first shopping list, one sentence: "Already in the kitchen…" with the staples on this list as pills.
+   A tap puts it in stock at its usual pack size, so it comes off the list. It's asked on that first day only,
+   and "That's all" puts it away at once. */
+function staplesAsk(body, need){
+  const A = state.asked || {}, iso = todayISO();
+  if(A.staplesDone || (A.staplesShop && A.staplesShop!==iso)) return;
+  const onList = new Set(need.map(n=>n.key));
+  const opts = STAPLES.filter(([, food])=>onList.has(foodKey(food)) || state.profile.staples.includes(food) && staplesPicked.has(food));
+  if(!opts.length) return;
+  if(!A.staplesShop){ state.asked = Object.assign({}, A, {staplesShop:iso}); save(); }
+  const box = document.createElement("div");
+  box.className = "s-staples";
+  box.innerHTML = `<p class="s-sentence">${esc(say("shopSheet.staples"))}</p><p class="s-hint">${esc(say("shopSheet.staplesHint"))}</p>`;
+  const pills = document.createElement("div");
+  pills.className = "pills";
+  opts.forEach(([label, food])=>{
+    const b = pillBtn(label, food);
+    b.dataset.f = "staple:" + food;
+    b.setAttribute("aria-pressed", String(staplesPicked.has(food)));
+    b.addEventListener("click", ()=>{
+      const k = foodKey(food);
+      if(staplesPicked.has(food)){ staplesPicked.delete(food); delete state.stock[k]; state.profile.staples = state.profile.staples.filter(x=>x!==food); }
+      else{ staplesPicked.add(food); const pack = packFor(food); state.stock[k] = {name:food, g:pack ? pack.g : null, plenty:false}; if(!state.profile.staples.includes(food)) state.profile.staples.push(food); }
+      save(); haptic(); announce(say(staplesPicked.has(food) ? "shopSheet.stapleHave" : "shopSheet.stapleNeed", {food:label})); homeChanged();
+    });
+    pills.appendChild(b);
+  });
+  box.appendChild(pills);
+  const done = textBtn(say("shopSheet.staplesDone"), ()=>{ state.asked = Object.assign({}, state.asked, {staplesDone:iso}); save(); refreshSheetView(); focusLater("instore"); }, "small");
+  done.dataset.f = "staples:done";
+  box.appendChild(done);
+  body.appendChild(box);
+}
+const staplesPicked = new Set();
 /* shopping in the store: grouped by food group, the screen awake while the sheet is open */
 const shopMode = {store:false, stockOpen:false, wakeOurs:false};
 function setStoreMode(on){
@@ -1263,6 +1298,7 @@ const SHEETS = {
     tg.innerHTML = `<i aria-hidden="true"></i>${esc(say("shopSheet.inStore"))}`;
     tg.addEventListener("click", ()=>setStoreMode(!shopMode.store));
     body.appendChild(tg);
+    staplesAsk(body, need);
     if(!need.length && !state.extras.some(x=>!x.checked)) body.insertAdjacentHTML("beforeend", `<p class="s-empty">${esc(say("shopSheet.none"))}</p>`);
     const word = name=>{ const k = order.indexOf(name); return k===0 ? say("shopSheet.today") : k===1 ? say("shopSheet.tomorrow") : fmtWeekday(dateOfPlanDay(name)); };
     const needRow = n=>{
