@@ -71,8 +71,8 @@ f.onload = async () => {
     ok("after 5 seconds: 'Offered' (the Undo is gone), the outcome row still inline", pill().textContent === "Offered" && !$("#offerZone .undo") && $$(".outcome").map(b => b.textContent).join(" · ") === "Loved it · Ate some · Not today");
     const ob = $$(".outcome").map(b => b.getBoundingClientRect().width);
     ok("…equal weight: three text pills the same width", Math.max(...ob) - Math.min(...ob) < 1.5 && new Set($$(".outcome").map(b => getComputedStyle(b).fontWeight + getComputedStyle(b).borderTopWidth)).size === 1, ob);
-    await wait(2700);
-    ok("ignored: it gives way to a quiet 'Add how it went'", !$(".outcomes") && $("#offerZone .how-went .btn-text") && $("#offerZone .how-went .btn-text").textContent === "Add how it went" && $("#offerZone .how-went .btn-text").classList.contains("quiet"));
+    await wait(3200);   // 7.5 s, then a 400 ms fade: gone by 7.9 s (it used to be checked at 7.95 s, and flaked)
+    ok("ignored: it gives way to a quiet 'Add how it went'", !$(".outcomes") && $("#offerZone .how-went .btn-text") && $("#offerZone .how-went .btn-text").textContent === "Add how it went" && $("#offerZone .how-went .btn-text").classList.contains("quiet"), [E("homeRef().ref.m.label"), E("homeRef().ref.key"), Object.keys(E("outcomeUntil")), $("#offerZone").textContent.slice(0, 120)]);
     $("#offerZone .how-went .btn-text").click(); await wait(40);
     ok("'Add how it went' brings the row back", $$(".outcome").length === 3);
     $$(".outcome")[0].click(); await wait(30);

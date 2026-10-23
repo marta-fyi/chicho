@@ -127,19 +127,29 @@ f.onload = async () => {
     ok("…four segments, the last on", d.querySelectorAll("#onbDots i").length === 4 && d.querySelectorAll("#onbDots i")[3].classList.contains("on"));
 
     // reveal, then the week, applied only on Love it
-    ok("the reveal: 'Setting the table…'", step() === "reveal" && d.getElementById("onbTitle").textContent === "Setting the table…");
-    ok("…with drawings floating in", d.querySelectorAll(".rv-item").length > 0);
-    await wait(2600);
-    ok("it moves on by itself within 2.5 s", d.getElementById("onbTitle").textContent === "Lula's week.");
-    const rows = [...d.querySelectorAll("#onbCard .wk-rows .wk-row")];
-    ok("the week preview: seven rows of text, one a day, today first, no drawings", rows.length === 7 && !d.querySelector("#onbCard .wk-rows .food-art, #onbCard .wk-rows img") && rows[0].querySelector(".wk-name").textContent === E("new Intl.DateTimeFormat(undefined, {weekday: 'short'}).format(now())") && rows.every(r => /: /.test(r.querySelector(".wk-meals").textContent)), rows.map(r => r.textContent).slice(0, 2));
+    ok("the reveal: three statements from the answers, one at a time", step() === "reveal" && JSON.stringify([...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent)) === JSON.stringify(["Fingers first.", "Without kiwi.", "Seven days."]), [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent));
+    ok("…no Back, and a 'Skip'", d.getElementById("onbBack").hidden && d.querySelector(".wk-skip").textContent === "Skip");
+    ok("…the week is already made (nothing waits for the animation)", !!E("onb.draft") && d.querySelectorAll(".wk-day").length === 7);
+    const tops = () => [...d.querySelectorAll(".wk-title, .wk-jump, .wk-dh, .wk-meal")].map(e => e.offsetTop).join();
+    const mid = tops();
+    ok("…drawn with transform and opacity only", d.getElementById("onbCard").getAnimations({subtree: true}).every(a => a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p)))));
+    await wait(3600);
+    ok("it becomes Done by itself in about 3 s, with no layout shift", E("onb.revealed") === true && !d.querySelector(".wk-say") && tops() === mid);
+    ok("Done: 'Lula's week.', the ink as the name", d.getElementById("onbTitle").textContent === "Lula's week." && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
+    ok("…'Seven days. Fingers first.', 'Starts today' (lunch is still to come at 9:15)", d.querySelector(".wk-support").textContent === "Seven days. Fingers first." && d.querySelector(".wk-cap").textContent === "Starts today");
+    ok("…seven day buttons, the first underlined", d.querySelectorAll(".wk-jump .wk-j").length === 7 && d.querySelector(".wk-j").classList.contains("on"));
+    const rows = [...d.querySelectorAll(".wk-day")];
+    ok("one section a day, today first, 'Today' on it; three meals a day at this stage", rows.length === 7 && rows[0].querySelector(".wk-rel").textContent === "Today" && rows.every(r => r.querySelectorAll(".wk-meal").length === 3), rows.map(r => r.querySelectorAll(".wk-meal").length));
+    ok("…a meal row: name, 'around' its time, the foods in a line", /^around \d/.test(rows[0].querySelector(".wk-mt").textContent) && rows[0].querySelector(".wk-foods").textContent.length > 2);
+    ok("…Back from Done is there now", !d.getElementById("onbBack").hidden);
     ok("nothing is applied before the choice", JSON.stringify(E("state.plan")) === before);
-    d.querySelectorAll("#onbFoot .btn-text")[0].click(); await settle();
-    ok("Shuffle makes another week, still not applied", JSON.stringify(E("state.plan")) === before && !!E("onb.draft"));
+    const sig0 = E("weekSig(onb.draft)");
+    d.querySelector(".wk-again").click(); await settle();
+    ok("'Again' makes another week, still not applied", JSON.stringify(E("state.plan")) === before && E("weekSig(onb.draft)") !== sig0);
     const draft = JSON.stringify(E("onb.draft.days"));
     E(`state.offers.push({id: "keepme", at: "", date: "2026-10-01", mealId: "legacy", itemId: null, foodId: "banana", outcome: null, firstOfFood: true, firstAllergen: false}); offersChanged()`);
-    next().click(); await settle();
-    ok("Love it applies that week (startWeek, from today) and closes", JSON.stringify(E("state.plan.days")) === draft && E("state.plan.startsOn") === E("todayISO()") && E("state.plans.length") === 1 && d.getElementById("onboarding").hidden && E("state.profile.onboarded") === true);
+    d.querySelector(".wk-love").click(); await wait(700);
+    ok("'Love it' applies that week (from today) and closes", JSON.stringify(E("state.plan.days")) === draft && E("state.plan.startsOn") === E("todayISO()") && E("state.plans.length") === 1 && d.getElementById("onboarding").hidden && E("state.profile.onboarded") === true);
     ok("…nothing from the log is lost", E("state.offers.some(e => e.id === 'keepme')"));
     ok("…its meals carry slots", E("state.plan.days.every(d => d.meals.every(m => m.slot))"));
 

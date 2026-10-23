@@ -67,7 +67,7 @@ function openOnboarding(step, opts){
   onb.replay = !!o.replay;
   onb.snapshot = P.onboarded ? JSON.parse(JSON.stringify(P)) : null;   // Close puts this back
   onb.sub = step==="draw" && P.name && !P.ink && (!onb.single || o.sub==="typed") ? "typed" : null;
-  onb.draft = null; onb.revealed = false; onb.adding = false; onb.bd = null; onb.early = false; onb.bdTyped = false;
+  onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null; onb.early = false; onb.bdTyped = false;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
@@ -157,15 +157,16 @@ function goStep(key, sub, opts){
 }
 
 /* the onboarding's own glow (light theme): two layers crossfade over 1.2 s, as Home's do */
-let onbGlowKey = null;
+/* the glow behind each step's sentence (two layers crossfading over 1.2 s, as Home's do) */
 function onbGlow(cat){
   const group = glowGroup(cat);
-  if(group===onbGlowKey) return;
-  const layers = [...document.querySelectorAll("#onbGlow .glow-l")];
+  const root = document.getElementById("onbGlow");
+  if(root.dataset.group===group) return;
+  const layers = [...root.querySelectorAll(".glow-l")];
   const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
-  if(onbGlowKey===null) on.style.backgroundImage = glowGradient(GLOW[group].hex);
+  if(!root.dataset.group) on.style.backgroundImage = glowGradient(GLOW[group].hex);
   else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
-  onbGlowKey = group;
+  root.dataset.group = group;
   document.getElementById("onboarding").dataset.glow = group;
 }
 
@@ -174,7 +175,8 @@ function renderOnb(){
   const el = document.getElementById("onboarding");
   el.querySelectorAll(".onb-sheet, .onb-scrim").forEach(x=>x.remove());
   [document.getElementById("onbTop"), document.getElementById("onbCard"), document.getElementById("onbFoot")].forEach(x=>x.inert = false);
-  el.classList.remove("has-sheet");
+  el.classList.remove("has-sheet", "has-week");
+  el.querySelector(".onb-backdrop .glow-plane").style.opacity = "";
   // progress: four hairline segments (none for an edit from Profile)
   const seg = ONB_SEGMENT[key];
   const segs = document.getElementById("onbDots");
@@ -189,7 +191,8 @@ function renderOnb(){
   close.hidden = !P.onboarded;   // a replay or an edit can be left; a first run can't
   close.textContent = say("onb.close"); close.onclick = discardOnboarding;
   const card = document.getElementById("onbCard"), foot = document.getElementById("onbFoot");
-  card.innerHTML = ""; foot.innerHTML = "";
+  card.innerHTML = ""; foot.innerHTML = ""; foot.className = "onb-foot"; foot.inert = false;
+  el.querySelectorAll(".wk-skip").forEach(x=>x.remove());
   card.className = "onb-card bare";
   el.classList.remove("has-field");
   card.scrollTop = 0;
@@ -197,8 +200,10 @@ function renderOnb(){
   if(pile){ pile.stop(); pile = null; }
   onbGlow(ONB_GLOW[key] || "grain");
   el.dataset.step = key;
+  const glowNow = ()=>onbGlow(key==="reveal" && onb.revealed ? ONB_GLOW.done : ONB_GLOW[key] || "grain");
   ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
     athome:onbAtHome, mealtimes:onbMealTimes, reveal:onbReveal})[key](card, P);
+  if(key==="reveal") glowNow();
   // a reload mid-flow: "Welcome back." once, above the sentence, gone after 3 s
   if(onb.welcomeBack){
     onb.welcomeBack = false;
@@ -496,13 +501,15 @@ function inkPath(s, op){
   op("lineTo", s[s.length - 2], s[s.length - 1]);
 }
 /* the name as drawn, an SVG cropped to the ink, in currentColor (both themes); "" when there's no ink */
-function inkSVG(ink, cls){
+function inkSVG(ink, cls, o){
   if(!ink || !Array.isArray(ink.strokes) || !ink.strokes.length) return "";
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   ink.strokes.forEach(s=>{ for(let i = 0; i < s.length; i += 2){ x0 = Math.min(x0, s[i]); x1 = Math.max(x1, s[i]); y0 = Math.min(y0, s[i + 1]); y1 = Math.max(y1, s[i + 1]); } });
   const pad = INK_WIDTH, f = v=>(Math.round(v * 10) / 10);
-  const d = ink.strokes.map(s=>{ let out = ""; inkPath(s, (cmd, ...a)=>{ out += ({moveTo:"M", lineTo:"L", quadraticCurveTo:"Q"})[cmd] + a.map(f).join(" ") + " "; }); return out; }).join("");
-  return `<svg class="${cls || "name-ink"}" data-ink viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false"><path d="${d.trim()}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const ds = ink.strokes.map(s=>{ let out = ""; inkPath(s, (cmd, ...a)=>{ out += ({moveTo:"M", lineTo:"L", quadraticCurveTo:"Q"})[cmd] + a.map(f).join(" ") + " "; }); return out.trim(); });
+  // one path, or (split) one per stroke, in the order they were written, so the ink can replay
+  const paths = (o && o.split ? ds : [ds.join(" ")]).map(d=>`<path d="${d}" fill="none" stroke="currentColor" stroke-width="${INK_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+  return `<svg class="${cls || "name-ink"}" data-ink viewBox="${f(x0 - pad)} ${f(y0 - pad)} ${f(x1 - x0 + 2 * pad)} ${f(y1 - y0 + 2 * pad)}" aria-hidden="true" focusable="false">${paths}</svg>`;
 }
 
 /* 3. Birthday: "{name} showed up on…" over three full-height columns (day, month, year, in the locale's order).
@@ -1049,6 +1056,7 @@ function onbKeepout(card, P){
   }
   const go = ()=>{
     save();
+    onb.draft = null;   // the week is built again from these answers
     const to = stepAfter("keepout");
     if(onb.single){ nextStep(); return; }
     if(calm() || !pile){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
@@ -1142,53 +1150,226 @@ function onbMealTimes(card, P){
          {extra:[{label:say("onb.mealTimes.usual"), on:()=>{ P.mealTimes = {}; P.mealTimesConfirmed = true; save(); nextStep(); }}]});
 }
 
-/* 8. the reveal: the table being set (≤ 2.5 s, skippable), then the week; applied only on "Love it" */
+/* 5–6. Reveal, then Done: one layout, built once. The reveal (about 3 s, the first pass only) draws it: three
+   statements one at a time, the hairlines growing, the days filling in row by row, the glow cycling through the
+   five food groups. Then the statements go and the header comes in over the same grid, with no layout shift.
+   Done is the week, organised: a sticky day bar, one section per day, "Again" and "Love it". Nothing is
+   applied until "Love it". */
+const DAY_NUM = new Intl.DateTimeFormat(undefined, {day:"numeric"});
+const DAY_SHORT = new Intl.DateTimeFormat(undefined, {weekday:"short"});
+/* the week starts today if any of today's meals is still to come (or happening now), else tomorrow */
+function weekStartsToday(){
+  const t = now(), months = planMonths();
+  return slotsFor(months).some(slot=>t - atTime(t, mealTime(slot, t)) < NOW_WINDOW_MIN * 60000);
+}
+/* the draft's days from a start date: [{date, day}] (the plan's days are named by weekday) */
+function draftDays(week, start){
+  return Array.from({length:7}, (_, k)=>{
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k);
+    return {date, day:week.days.find(d=>d.name===DAY_ORDER[date.getDay()]) || week.days[k % week.days.length]};
+  });
+}
+/* per day: "First: {allergen}" on the day an allergen first comes, else "New: {food}" for the first food new to them */
+function dayFirsts(days){
+  const foods = knownFoods(), al = introducedAllergens(state.profile);
+  return days.map(({day})=>{
+    let first = null, fresh = null;
+    day.meals.forEach(m=>m.items.forEach(i=>{
+      allergensOf(i.name).forEach(a=>{ if(!al.has(a)){ al.add(a); if(!first) first = (ALLERGENS.find(x=>x.id===a) || {}).label; } });
+      const id = foodIdOf(i);
+      if(!foods.has(id)){ foods.add(id); if(!fresh) fresh = baseName(i); }
+    }));
+    return first ? say("onb.done.first", {allergen:lower1(first.split(" /")[0])}) : fresh ? say("onb.done.new", {food:lower1(fresh)}) : "";
+  });
+}
+/* "8:00" (a 12-hour clock drops AM/PM here: the meal's name already says which part of the day), "08:00" in 24 h */
+function clockTime(d){
+  return (FMT.tp = FMT.tp || new Intl.DateTimeFormat(undefined, {hour:"numeric", minute:"2-digit"})).formatToParts(d)
+    .filter(p=>p.type!=="dayPeriod").map(p=>p.value).join("").trim();
+}
+const weekSig = w=>w.days.map(d=>d.meals.map(m=>m.items.map(i=>i.name).join("+")).join("|")).join("/");
+/* the statements: the stage's tagline; what's kept out (up to three, then "and {n} more"); "Seven days." */
+function revealLines(P){
+  const st = stageFor(planMonths());
+  const out = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(say("onb.keepOut.labels." + a.id) || a.label)), ...P.avoid.map(a=>lower1(a.name))];
+  const without = !out.length ? say("onb.reveal.none")
+    : out.length <= 3 ? say("onb.reveal.without", {list:listJoin(out)})
+    : say("onb.reveal.without", {list:out.slice(0, 3).join(", ") + " " + say("onb.reveal.more", {n:out.length - 3})});
+  return [say("onb.reveal.tagline", {tagline:st.name}), without, say("onb.reveal.days")];
+}
 function onbReveal(card, P){
   const name = P.name || "";
-  if(ageNow() < 6 && !P.exploreEarly){
-    const h = document.createElement("h1");
-    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.restful.title");
-    card.append(h, line(say("onb.restful.line")));
-    onbCta(card, say("onb.restful.cta"), finishOnboarding);
-    return;
-  }
-  if(!onb.draft) onb.draft = generateWeek(planMonths(), P);
-  const draw = weekFoods(onb.draft);
-  if(!onb.revealed){
-    const h = document.createElement("h1");
-    h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.reveal.title");
-    const row = document.createElement("div");
-    row.className = "rv-row"; row.setAttribute("aria-hidden", "true");
-    row.innerHTML = draw.slice(0, 6).map((id, k)=>`<span class="rv-item" style="--k:${k};--r:${[-6,4,-3,6,-5,3][k]}deg">${foodArt(id, {size:32})}</span>`).join("");
-    card.append(row, h);
-    const done = ()=>{ if(onb.revealed) return; onb.revealed = true; clearTimeout(onb.revealTimer); if(onb.step==="reveal"){ renderOnb(); focusStep(); } };
-    const skip = document.createElement("button");
-    skip.type = "button"; skip.className = "btn-text"; skip.textContent = say("onb.reveal.skip");
-    skip.addEventListener("click", done);
-    card.append(skip);
-    card.addEventListener("click", e=>{ if(e.target===card || row.contains(e.target)) done(); });
-    onb.revealTimer = setTimeout(done, calm() ? 700 : 2300);
-    return;
-  }
+  if(ageNow() < 6 && !P.exploreEarly) return onbClosing(card, P);
+  if(!onb.draft) onb.draft = generateWeek(planMonths(), P);   // first, and synchronously: nothing waits for the animation
+  const today = weekStartsToday(), t = now();
+  const start = today ? new Date(t.getFullYear(), t.getMonth(), t.getDate()) : tomorrowOf(new Date(t.getFullYear(), t.getMonth(), t.getDate()));
+  onb.startISO = isoOf(start);
+  const days = draftDays(onb.draft, start), firsts = dayFirsts(days);
+  card.classList.add("wk-step");
+  document.getElementById("onboarding").classList.add("has-week");
+  // the header zone: the statements sit here during the reveal, the header after it
+  const head = document.createElement("div");
+  head.className = "wk-head";
   const h = document.createElement("h1");
-  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.done.title", {name});
-  card.append(h, line(say("onb.done.line", {name})));
-  card.appendChild(weekPreview(onb.draft));
-  const extra = [{label:say("onb.done.shuffle"), on:()=>{ onb.draft = generateWeek(planMonths(), P); renderOnb(); focusStep(); }}];
-  if(P.returning || (P.onboarded && hasPlan())) extra.push({label:say("onb.done.keep"), on:finishOnboarding});
-  onbCta(card, say("onb.done.apply"), ()=>{
-    startWeek(onb.draft, todayISO());   // nothing is lost: the offers stay in the log
+  h.className = "wk-title"; h.id = "onbTitle"; h.tabIndex = -1;
+  const ink = P.ink && P.ink.strokes && P.ink.strokes.length;
+  h.innerHTML = (ink ? `<span class="wk-ink">${inkSVG(P.ink, "wk-ink-svg", {split:true})}<span class="sr-only">${esc(name)}</span></span>` : esc(name)) + esc(say("onb.done.titleAfter"));
+  const support = line(say("onb.done.line", {tagline:stageFor(planMonths()).name}), "wk-support");
+  const cap = line(say(today ? "onb.done.today" : "onb.done.tomorrow"), "wk-cap");
+  head.append(h, support, cap);
+  // the day bar: seven 44px buttons, the day in view underlined
+  const jump = document.createElement("nav");
+  jump.className = "wk-jump"; jump.setAttribute("aria-label", say("onb.done.days"));
+  const list = document.createElement("ol");
+  list.className = "wk-days";
+  const sections = [];
+  days.forEach(({date, day}, k)=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "wk-j";
+    b.innerHTML = `<span>${esc(DAY_SHORT.format(date))}</span><span>${esc(DAY_NUM.format(date))}</span>`;
+    b.setAttribute("aria-label", DAY_FULL(date) + " " + DAY_NUM.format(date));
+    b.addEventListener("click", ()=>{ const s = sections[k]; card.scrollTo({top:s.offsetTop - jump.offsetHeight - head.offsetTop + 1, behavior:calm() ? "auto" : "smooth"}); });
+    jump.appendChild(b);
+    const li = document.createElement("li");
+    li.className = "wk-day"; li.dataset.k = k;
+    const rel = k===0 && today ? say("onb.done.dayToday") : (k===0 && !today) || (k===1 && today) ? say("onb.done.dayTomorrow") : "";
+    li.innerHTML = `<i class="wk-rule" aria-hidden="true"></i><i class="wk-vrule" aria-hidden="true"></i>
+      <h2 class="wk-dh"><span class="wk-dn">${esc(DAY_SHORT.format(date) + " " + DAY_NUM.format(date))}</span>${rel ? `<span class="wk-rel">${esc(rel)}</span>` : ""}${firsts[k] ? `<span class="wk-first">${esc(firsts[k])}</span>` : ""}</h2>`;
+    day.meals.filter(m=>m.items.length).forEach(m=>{
+      const r = document.createElement("div");
+      r.className = "wk-meal";
+      const time = clockTime(atTime(date, mealTime(m.slot, date)));
+      r.innerHTML = `<p class="wk-ml"><span class="wk-mn">${esc(m.label)}</span><span class="wk-mt">${esc(say("onb.done.around", {time}))}</span></p>
+        <p class="wk-foods">${esc(upper1(m.items.map(i=>lower1(baseName(i))).join(", ")))}</p>`;
+      li.appendChild(r);
+    });
+    list.appendChild(li);
+    sections.push(li);
+  });
+  card.append(head, jump, list);
+  // which day is in view: the first section still below the bar
+  const io = new IntersectionObserver(()=>{
+    const top = card.getBoundingClientRect().top + jump.offsetHeight + 2;
+    let k = sections.findIndex(s=>s.getBoundingClientRect().bottom > top + 24);
+    if(k < 0) k = sections.length - 1;
+    [...jump.children].forEach((b, i)=>b.classList.toggle("on", i===k));
+  }, {root:card, threshold:[0, .25, .5, .75, 1]});
+  sections.forEach(s=>io.observe(s));
+  // the glow is the header's: it fades as the week scrolls, and only then do the sticky bars take the paper
+  const plane = document.querySelector(".onb-backdrop .glow-plane");
+  let sraf = 0;
+  const onScroll = ()=>{ sraf = 0; const y = card.scrollTop; plane.style.opacity = String(Math.max(0, 1 - y / 80)); card.classList.toggle("stuck", y >= 80); };
+  card.addEventListener("scroll", ()=>{ if(!sraf) sraf = requestAnimationFrame(onScroll); }, {passive:true});
+  plane.style.opacity = "";
+  jump.firstChild.classList.add("on");
+  // Again · Love it
+  const foot = document.getElementById("onbFoot");
+  foot.classList.add("wk-foot");
+  const again = textButton(say("onb.done.again"), ()=>{
+    let w = generateWeek(planMonths(), P);
+    for(let k = 0; k < 6 && weekSig(w)===weekSig(onb.draft); k++) w = generateWeek(planMonths(), P);   // never the same week twice in a row
+    onb.draft = w;
+    const keepFocus = document.activeElement===again;
+    onb.revealed = true; renderOnb();
+    const c = document.getElementById("onbCard");
+    if(!calm()) c.querySelector(".wk-days").animate([{opacity:0}, {opacity:1}], {duration:250, easing:"ease-out"});
+    const live = document.getElementById("onbProgress");   // inside the dialog, so it's heard under aria-modal
+    live.textContent = ""; setTimeout(()=>{ live.textContent = say("onb.done.ready"); }, 30);
+    if(keepFocus) document.querySelector("#onbFoot .wk-again").focus();
+  }, "pill-o wk-again");
+  const love = document.createElement("button");
+  love.type = "button"; love.className = "btn-ink wk-love"; love.textContent = say("onb.done.apply");
+  love.addEventListener("click", ()=>{
+    haptic();
+    startWeek(onb.draft, onb.startISO);   // nothing is lost: the offers stay in the log
     P.lastStage = stageNow().id;
     onb.draft = null;
-    finishOnboarding();
-  }, {extra});
+    const el = document.getElementById("onboarding");
+    if(calm()) finishOnboarding();
+    else el.animate([{opacity:1}, {opacity:0}], {duration:300, easing:"ease-out"}).onfinish = finishOnboarding;
+  });
+  const row = document.createElement("div");
+  row.className = "wk-acts";
+  row.append(again, love);
+  foot.appendChild(row);
+  if(onb.revealed || onb.revealPlayed){
+    // a second pass (Back, then Show the week again): straight to Done, a 250 ms crossfade
+    onb.revealed = true; onb.revealPlayed = true;
+    if(!calm()) card.animate([{opacity:0}, {opacity:1}], {duration:250});
+    return;
+  }
+  playReveal(card, P, {head, h, support, cap, jump, list, sections, foot});
 }
-/* the drawn foods of a week, most-used first, one each */
-function weekFoods(week){
-  const count = {};
-  week.days.forEach(d=>d.meals.forEach(m=>m.items.forEach(i=>{ const f = foodOf(i.name); if(hasArt(f)) count[f.id] = (count[f.id] || 0) + 1; })));
-  return Object.keys(count).sort((a, b)=>count[b] - count[a]);
+/* the timeline: transform and opacity only, every piece in its final place from the start */
+function playReveal(card, P, x){
+  const lines = revealLines(P);
+  const say_ = document.createElement("div");
+  say_.className = "wk-say"; say_.setAttribute("role", "status");
+  say_.innerHTML = lines.map(t=>`<p class="wk-st">${esc(t)}</p>`).join("");
+  x.head.appendChild(say_);
+  const skip = textButton(say("onb.skip"), ()=>finish(true), "small wk-skip");
+  document.getElementById("onboarding").appendChild(skip);
+  x.foot.inert = true;
+  const anims = [], at = (el, frames, delay, dur, easing)=>{ const a = el.animate(frames, {delay, duration:dur, easing:easing || "cubic-bezier(.22,.61,.36,1)", fill:"backwards"}); anims.push(a); return a; };
+  const fade = [{opacity:0}, {opacity:1}];
+  const rise = [{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}];
+  const rows = x.list.querySelectorAll(".wk-dh, .wk-meal");
+  const late = [x.h, x.support, x.cap, x.jump, x.foot];
+  let glowT = 0, done = false;
+  const finish = skipped=>{
+    if(done) return;
+    done = true;
+    anims.forEach(a=>{ try{ a.finish(); }catch(e){} });
+    clearInterval(glowT); clearTimeout(onb.revealTimer);
+    say_.remove(); skip.remove();
+    x.foot.inert = false;
+    onb.revealed = true; onb.revealPlayed = true;
+    onbGlow(ONB_GLOW.done);
+    document.getElementById("onbBack").hidden = !hasBack();
+    if(skipped || calm()) x.h.querySelectorAll(".wk-ink-svg path").forEach(p=>p.getAnimations().forEach(a=>a.finish()));
+    if(onb.step==="reveal") x.h.focus({preventScroll:true});
+  };
+  if(calm()){
+    // no timeline: the three statements as a still list for 1.5 s (or until Skip), then Done in 150 ms
+    say_.classList.add("still");
+    late.forEach(el=>at(el, fade, 1500, 150, "linear"));
+    x.list.querySelectorAll(".wk-rule, .wk-vrule, .wk-dh, .wk-meal").forEach(el=>at(el, fade, 1500, 150, "linear"));
+    at(say_, [{opacity:1}, {opacity:0}], 1500, 150, "linear").onfinish = ()=>finish(false);
+    return;
+  }
+  // the statements: one at a time, each crossfading out as the next arrives
+  const st = say_.children;
+  [200, 1000, 1800].forEach((t, k)=>{
+    const out = k < 2 ? [1000, 1800][k] : 2800;
+    at(st[k], [{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none", offset:300 / (out - t + 300)}, {opacity:1, transform:"none", offset:(out - t) / (out - t + 300)}, {opacity:0, transform:"translateY(-6px)"}], t, out - t + 300);
+  });
+  // the hairlines: the day dividers, then the meal column's rule
+  x.list.querySelectorAll(".wk-rule").forEach((el, k)=>at(el, [{transform:"scaleX(0)"}, {transform:"scaleX(1)"}], 300 + k * 70, 500));
+  x.list.querySelectorAll(".wk-vrule").forEach((el, k)=>at(el, [{transform:"scaleY(0)"}, {transform:"scaleY(1)"}], 750 + k * 70, 500));
+  // the days fill in, row by row
+  const step = rows.length > 1 ? Math.min(90, 1200 / (rows.length - 1)) : 0;
+  rows.forEach((el, k)=>at(el, rise, 1200 + k * step, 400));
+  // then the header over the same grid, and the name's ink again, stroke by stroke
+  late.forEach((el, k)=>at(el, fade, 2900 + k * 40, 400));
+  const paths = x.h.querySelectorAll(".wk-ink-svg path");
+  paths.forEach((p, k)=>at(p, fade, 3000 + k * 900 / paths.length, Math.max(120, 900 / paths.length), "linear"));
+  // the glow through all five groups
+  const groups = ["grain", "vegetable", "fruit", "protein", "fat"];
+  let g = 0;
+  onbGlow(groups[g]);
+  glowT = setInterval(()=>{ g++; if(g < groups.length) onbGlow(groups[g]); else clearInterval(glowT); }, 600);
+  onb.revealTimer = setTimeout(()=>finish(false), 3400);
 }
+/* under 6 months there's no week yet: one closing screen, then Home (only Home and Profile exist) */
+function onbClosing(card, P){
+  const name = P.name || "";
+  const left = Math.max(1, 6 - ageNow());
+  const h = document.createElement("h1");
+  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.closing.title", {name, n:left});
+  card.append(h, line(say("onb.closing.line")));
+  onbCta(card, say("onb.closing.cta"), finishOnboarding);
+}
+
 /* a new week from a date: it starts then, and any week planned from that date on gives way to it */
 function startWeek(week, iso){
   state.plans = state.plans.filter(p=>p.startsOn < iso).concat({startsOn:iso, days:week.days});

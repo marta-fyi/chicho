@@ -279,9 +279,11 @@ const CONTENT = {
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
     atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
     mealTimes:{title:"{name} usually eats at…", line:"We'll tell you what's next.", cta:"Next", usual:"Use the usual", at:"{meal} at"},
-    reveal:{title:"Setting the table…", skip:"Skip"},
-    done:{title:"{name}'s week.", line:"Seven days, made just for {name}.", apply:"Love it", shuffle:"Shuffle", keep:"Keep my current week"},
-    restful:{title:"All set for now.", line:"We'll have the first week ready around six months.", cta:"Done"}
+    reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.", days:"Seven days."},
+    done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",
+          days:"Days of the week", dayToday:"Today", dayTomorrow:"Tomorrow", first:"First: {allergen}", new:"New: {food}", around:"around {time}",
+          again:"Again", apply:"Love it", ready:"New week ready", shuffle:"Shuffle"},
+    closing:{title:{one:"{name}'s table opens in {n} month.", other:"{name}'s table opens in {n} months."}, line:"Nothing to cook yet.", cta:"Look around"}
   },
 
   /* Every word about a stage. name = the big tagline under the birthday fields;
