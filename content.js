@@ -145,6 +145,15 @@ const CONTENT = {
     ]
   },
 
+  /* ---------- cook mode: one step at a time ---------- */
+  cookMode:{
+    start:"Start cooking", stop:"Stop cooking", step:"Step {n} of {total}",
+    next:"Next step", back:"Back a step", done:"Done", finished:"That's it. Serve it all as {texture}.",
+    need:"You'll need", portions:{one:"{n} portion", other:"{n} portions"}, portionsLabel:"Portions",
+    timer:"Start a {min}-minute timer", timerLeft:"{food} · {time}", timerUp:"Time's up: {food}",
+    limit:"A web page can't ring when the phone is locked or you switch apps. Keep Chicho open while the timer runs."
+  },
+
   /* ---------- sheets: the only overlays ---------- */
   sheet:{close:"Close", back:"Back"},
   day:{title:"{weekday} {date}", nothing:"Nothing planned for this day.", change:"Change"},

@@ -14,6 +14,9 @@ const load = (W, H) => new Promise(res => {
   f.src = "../index.html?test&now=2026-10-22T12:10";
   document.body.append(f);
   f.onload = async () => {
+    // a classic scrollbar (macOS with a mouse attached) narrows the viewport: widen the frame so the page really is W wide
+    const sb = W - f.contentDocument.documentElement.clientWidth;
+    if (sb > 0 && !f.dataset.wide) { f.dataset.wide = "1"; f.width = W + sb; await wait(100); f.contentWindow.eval("kbSync()"); }
     f.contentWindow.eval(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`);

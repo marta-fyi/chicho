@@ -518,8 +518,8 @@ try{
   .outcomes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .outcome{min-height:44px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;cursor:pointer;}
   .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
-  .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:8px 0 0;font-size:17px;}
-  .mx-links .btn-text.small{min-height:44px;padding:0;font-size:17px;}
+  .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0 0;font-size:17px;}
+  .mx-links .btn-text.small{min-height:44px;padding:0;font-size:13px;}   /* button text: 13px uppercase, like every label */
   .mx-links label{font-weight:500;}
   .hold{display:inline-flex;align-items:center;gap:12px;min-height:48px;margin-top:20px;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:13px;
         text-transform:uppercase;letter-spacing:var(--track-label);cursor:pointer;-webkit-touch-callout:none;}
@@ -527,6 +527,35 @@ try{
   .hold-ring b{position:absolute;inset:0;border-radius:50%;background:var(--ink);transform:scale(0);}
   .hold:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
   #newWeekUndo{margin-top:4px;}
+  /* ---------- cook mode ----------
+     The home becomes one step at a time: the step in large type on the glow (dimmed to a calm brightness), the
+     step count and its timer on the moment line, then portions and what you'll need; Next is a big target in the
+     thumb zone, fixed at the bottom. The screen stays awake while cooking. */
+  .is-cooking :is(.captions, #openMeal, #nextSec, #alsoSec, #earlierSec, .below){display:none !important;}
+  .is-cooking .headline{font-size:clamp(26px, 7.4vw, 32px);line-height:1.25;}
+  .cook{margin-top:20px;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+  .cook[hidden]{display:none;}
+  .cook-portions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .cook-portions .mini{margin:0 8px 0 0;}
+  .cook-portions button{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:500;cursor:pointer;}
+  .cook-portions button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
+  .cook-need{list-style:none;margin:16px 0 0;padding:0;}
+  .cook-need li{display:flex;align-items:center;gap:12px;min-height:40px;font-size:16px;border-bottom:1px solid var(--hairline);}
+  .cook-need .food-art{--art:24px;}
+  .cook-need b{font-weight:500;}
+  .cook-limit{margin:16px 0 0;font-size:15px;line-height:1.5;color:var(--ink-muted);}
+  .cook-next{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));z-index:5;transform:translateX(-50%);
+             width:min(var(--col), calc(100% - var(--pad-l) - var(--pad-r)));min-height:88px;border:none;border-radius:28px;background:var(--ink);color:var(--on-ink);
+             font:inherit;font-size:16px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);cursor:pointer;}
+  .cook-next:not(:disabled):active{transform:translateX(-50%) scale(.97);}
+  .cook-next:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
+  .cook-acts{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;}
+  /* a timer: a thin ring in the rings' style, its arc set once a second (never animated) */
+  .timer{display:inline-flex;align-items:center;gap:8px;vertical-align:middle;}
+  .timer svg{width:22px;height:22px;transform:rotate(-90deg);}
+  .timer circle{fill:none;stroke-width:2;}
+  .timer .t-bg{stroke:var(--hairline);}
+  .timer .t-fg{stroke:var(--ink);stroke-dasharray:100;stroke-linecap:round;}
   .wake{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
   .wake i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;}
   .wake[aria-pressed="true"] i{background:currentColor;}
@@ -784,6 +813,8 @@ try{
       <p class="cap-glow" id="capGlow"></p>
     </div>
     <section class="open-meal" id="openMeal"></section>
+    <!-- cook mode: the headline is the step; this holds the portions, what you'll need and the thumb-zone Next -->
+    <section class="cook" id="cook" hidden></section>
     <section class="rows" id="nextSec"><h2 class="mini" id="nextLabel"></h2><div id="nextList"></div></section>
     <section class="also" id="alsoSec" hidden><h2 class="mini" id="alsoLabel"></h2><div id="alsoList"></div></section>
     <section class="rows" id="earlierSec"><h2 class="mini" id="earlierLabel"></h2><div id="earlierList"></div></section>
@@ -1414,6 +1445,7 @@ function freshState(){
     stock: {},           // what's at home: { "oatmeal": {name, g:number|null, plenty:bool} }
     extras: [],          // non-food shopping: [{id, name, qty, checked}]
     history: [],
+    timers: [],          // cook-mode timers: [{id, food, min, end (ms), step}]; a page can't ring, so they're end times
     profile: freshProfile(),
     exposures: {},       // how many times each food has been offered: {"banana": 3}
     openCard: "meals",   // the one card that's open, or null
@@ -1501,6 +1533,7 @@ function migrate(saved){
   // because it's locked now
   const prof = Object.assign(freshProfile(), saved.profile && typeof saved.profile==="object" ? saved.profile : {});
   if(!["auto","light","dark"].includes(prof.appearance)) prof.appearance = "auto";
+  s.timers = Array.isArray(s.timers) ? s.timers.filter(t=>t && t.end > Date.now() - 6*3600000) : [];   // a timer a few hours gone is forgotten
   if(!prof.birthDate || isNaN(localDate(prof.birthDate))){
     const age = savedAgeMonths(saved);
     prof.birthDate = birthDateFromMonths(age===null ? 10 : Math.min(AGE_MAX, Math.max(0, Math.round(age))));

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · cook mode tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Cook mode tests</h1>
+<p>"Start cooking": one step at a time in large type, a big Next in the thumb zone, the screen awake (a stand-in Wake Lock), the glow dimmed, timers that are honest end times (a thin ring, the tab title, "Time's up" on return, kept across a reload), and portions 1 · 2 · 4. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&theme=light&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const log = [];
+    Object.defineProperty(w.navigator, "wakeLock", {value: {request: () => { log.push("request"); const s = new w.EventTarget(); s.release = () => { log.push("release"); return Promise.resolve(); }; return Promise.resolve(s); }}, configurable: true});
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.timers = [];
+       const L = state.plan.days[planDayIndex(now())].meals.find(m => m.slot === "lunch"); L.items = [dish(FOOD_POOL.find(f => f.name === "Sweet potato"), stageNow()), dish(FOOD_POOL.find(f => f.name === "Avocado"), stageNow())];
+       save(); closeOnboarding(); homeChanged();`);
+    await wait(300);
+    const start = [...d.querySelectorAll("#openMeal .mx-links .btn-text")].find(b => b.textContent === "Start cooking");
+    ok("the open meal has 'Start cooking'", !!start);
+    start.click(); await wait(200);
+    const steps = E("cookSteps(cookRef().m)");
+    ok("cook mode: the page is one step at a time", $("#home").classList.contains("is-cooking") && !$("#cook").hidden && w.getComputedStyle($("#openMeal")).display === "none");
+    ok("…the steps: the longest-cooking food first, then the rest, then serve", steps.length === 3 && /^Roast the sweet potato at 200°C for \d+ minutes/.test(steps[0].text) && /^That's it\. Serve it all as /.test(steps[2].text), steps.map(s => s.text));
+    ok("…the step is the headline, in large type", $("#headline").textContent === steps[0].text && parseFloat(w.getComputedStyle($("#headline")).fontSize) >= 26);
+    ok("…'Step 1 of 3' on the moment line", /^Step 1 of 3/.test($("#moment").textContent), $("#moment").textContent);
+    const next = () => $("#cookNext");
+    const nr = next().getBoundingClientRect();
+    ok("Next is a big target in the thumb zone (bottom of the screen, 88px tall, full column)", nr.height >= 88 && nr.bottom >= 844 - 40 && nr.width >= 330 && w.getComputedStyle(next()).position === "fixed", [nr.top, nr.bottom, nr.width]);
+    ok("the screen stays awake (Wake Lock requested)", log.includes("request") && E("wake.on"));
+    ok("the glow dims to a calm brightness", d.documentElement.classList.contains("glow-dim"));
+    // portions
+    const qty0 = $$(".cook-need li")[0].textContent;
+    [...d.querySelectorAll(".cook-portions button")].find(b => b.textContent === "2").click(); await wait(30);
+    ok("portions 1 · 2 · 4: 2 doubles every amount", /· 70 g$|· \d+ g$/.test($$(".cook-need li")[0].textContent) && parseInt($$(".cook-need li")[0].textContent.match(/(\d+) g$/)[1]) === 2 * parseInt(qty0.match(/(\d+) g$/)[1]), [qty0, $$(".cook-need li")[0].textContent]);
+    ok("…and says it is pressed", [...d.querySelectorAll(".cook-portions button")].find(b => b.textContent === "2").getAttribute("aria-pressed") === "true");
+    ok("scaleQty leaves words alone", E("scaleQty('a few spoonfuls', 4)") === "a few spoonfuls" && E("scaleQty('35 g', 4)") === "140 g");
+    // the timer
+    const tb = [...d.querySelectorAll("#moment .btn-text")].find(b => /^Start a \d+-minute timer$/.test(b.textContent));
+    ok("a step with minutes offers a one-tap timer", !!tb);
+    tb.click(); await wait(1200);
+    const t = E("state.timers[0]");
+    ok("…the timer is an end time, kept in state (it survives a reload)", !!t && t.end > Date.now() && JSON.parse(w.localStorage.getItem("toddlerMealPlanner.v1")).timers.length === 1);
+    ok("…shown as a thin ring with the time left", !!$("#moment .timer svg .t-fg") && /\d+:\d\d/.test($("#moment .timer").textContent));
+    ok("…and in the tab title: 'Sweet potato · m:ss'", /^Sweet potato · \d+:\d\d$/.test(d.title), d.title);
+    ok("…honest about the limit", /can't ring when the phone is locked/.test($(".cook-limit").textContent));
+    E("state.timers[0].end = Date.now() - 1000; cookTick()"); await wait(50);
+    ok("back after it ran out: 'Time's up: Sweet potato'", /Time's up: Sweet potato/.test($("#moment").textContent) && !/·\s*\d+:\d\d/.test(d.title));
+    // next, back, done
+    next().click(); await wait(300);
+    ok("Next: step 2", E("cook.step") === 1 && $("#headline").textContent === steps[1].text && /^Step 2 of 3/.test($("#moment").textContent));
+    [...d.querySelectorAll(".cook-acts .btn-text")].find(b => b.textContent === "Back a step").click(); await wait(300);
+    ok("Back a step", E("cook.step") === 0);
+    next().click(); await wait(200); next().click(); await wait(200);
+    ok("the last step says 'Done'", next().textContent === "Done");
+    next().click(); await wait(200);
+    ok("Done: back to the home, the meal as it was", !E("cook.active") && !$("#home").classList.contains("is-cooking") && $("#openMeal .mx-title").textContent === "Lunch");
+    ok("…the wake lock let go (it wasn't on before)", !E("wake.on") && log.at(-1) === "release");
+    start.isConnected; [...d.querySelectorAll("#openMeal .mx-links .btn-text")].find(b => b.textContent === "Start cooking").click(); await wait(100);
+    d.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Escape", bubbles: true})); await wait(100);
+    ok("Escape leaves cook mode", !E("cook.active"));
+    E("state.timers = [{id: 'x', food: 'Rice', min: 10, end: Date.now() - 7 * 3600000, step: 'y'}]; save()");
+    ok("an old save's long-gone timer is forgotten", E("migrate(JSON.parse(localStorage.getItem('toddlerMealPlanner.v1'))).timers.length") === 0);
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · cook";
+};
+</script>
+</body></html>

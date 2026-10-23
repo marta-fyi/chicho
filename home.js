@@ -306,6 +306,9 @@ function renderHome(){
   setText($("clock"), fmtTime(t));
   $("clock").setAttribute("datetime", t.toISOString());
   renderCaptions(st);
+  $("home").classList.toggle("is-cooking", cook.active);
+  $("cook").hidden = !cook.active;
+  if(cook.active){ document.documentElement.classList.add("glow-dim"); renderCook(); updateChrome(); return; }
   const calmState = milkOnly(), empty = !calmState && !hasPlan();
   $("home").classList.toggle("is-milk", calmState);
   $("home").classList.toggle("is-empty", empty);
@@ -314,6 +317,7 @@ function renderHome(){
   try{ renderMeals(); }catch(e){ setGlow(null); throw e; }
   if(calmState || empty) setGlow(null);   // no plan, or under 6 months: the default glow
   document.documentElement.classList.toggle("glow-dim", t.getHours()*60 + t.getMinutes() >= QUIET_FROM_MIN);
+  cookTick();
   renderWeek();
   renderShopLine();
   updateChrome();
@@ -728,6 +732,7 @@ function mealOpen(x, isDefault){
     const sd = textBtn(say("meal.send"), ()=>openSheet("send", {date:x.date}), "small");
     sd.dataset.f = "send:" + x.key;
     links.appendChild(sd);
+    if(isoOf(x.date)===todayISO() && !view.day){ const ck = textBtn(say("cookMode.start"), ()=>startCooking(x), "small"); ck.dataset.f = "cook:" + x.key; links.appendChild(ck); }
 
   }
   a.appendChild(links);
@@ -896,6 +901,121 @@ function watchFold(){
   check();
 }
 
+/* ====================================================================
+   COOK MODE: one step at a time, large type, a big Next in the thumb zone.
+   The screen stays awake (Wake Lock, where there is one) and the glow dims.
+   Timers are honest: a page can't ring when it's backgrounded or the phone
+   is locked, so a timer is an end time (kept in state.timers, so it
+   survives a reload), shown as a thin ring, in the tab title, and as
+   "Time's up" when Chicho is looked at again. Reliable alerts would need
+   web push through the installed app and a small backend.
+   ==================================================================== */
+const cook = {active:false, key:null, step:0, portions:1, wakeWas:false};
+let cookTimer = 0;
+/* the steps: each cooked food, longest first (with its minutes, for a timer), then any raw ones, then serve */
+function cookSteps(m){
+  const texture = stageFor(planMonths()).textureShort || "soft pieces";
+  const foods = m.items.slice().sort((a, b)=>cookOf(b.name).min - cookOf(a.name).min);
+  return foods.map(i=>({text:foodHow(i), min:cookOf(i.name).min, food:baseName(i), id:i.id}))
+    .concat({text:say("cookMode.finished", {texture}), min:0, food:"", id:"serve"});
+}
+/* "35 g" × 2 → "70 g"; anything that isn't a number stays as it is */
+function scaleQty(q, n){ return String(q || "").replace(/^(\d+(?:[.,]\d+)?)/, v=>String(Math.round(parseFloat(v.replace(",", ".")) * n))); }
+function cookRef(){ return refsOn(now()).concat(refsOn(tomorrowOf(now()))).find(x=>x.key===cook.key) || null; }
+function startCooking(x){
+  Object.assign(cook, {active:true, key:x.key, step:0, portions:1, wakeWas:wake.on});
+  if(wakeSupported() && !wake.on) wakeSet(true);
+  homeChanged(); $("headline").focus({preventScroll:true}); scrollTo(0, 0);
+}
+function stopCooking(){
+  if(!cook.active) return;
+  cook.active = false;
+  if(wake.on && !cook.wakeWas) wakeSet(false);
+  homeChanged(); focusLater("cook:" + cook.key);
+}
+function cookGo(d){
+  const x = cookRef(); if(!x) return stopCooking();
+  const steps = cookSteps(x.m), to = cook.step + d;
+  if(to >= steps.length){ stopCooking(); return; }
+  cook.step = Math.max(0, to); haptic(); renderCook();
+  if(!calm()) $("headline").animate([{opacity:0, transform:`translateX(${d > 0 ? 16 : -16}px)`}, {opacity:1, transform:"none"}], {duration:240, easing:"cubic-bezier(.2,.8,.2,1)"});
+}
+/* timers: {id, food, min, end} */
+function timers(){ return state.timers || (state.timers = []); }
+function startTimer(step){
+  timers().push({id:uid(), food:step.food, min:step.min, end:Date.now() + step.min * 60000, step:step.id});
+  save(); haptic(); renderCook(); cookTick();
+}
+function fmtLeft(ms){ const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
+/* once a second while a timer runs and the page is visible: the ring, the time left, the tab title */
+function cookTick(){
+  clearTimeout(cookTimer);
+  const running = timers().filter(t=>t.end > Date.now());
+  if(cook.active) renderCookLine();
+  const first = running.sort((a, b)=>a.end - b.end)[0];
+  document.title = first ? say("cookMode.timerLeft", {food:first.food, time:fmtLeft(first.end - Date.now())}) : currentTitle;
+  if(first && !document.hidden) cookTimer = setTimeout(cookTick, 1000 - (Date.now() % 1000) + 20);
+}
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) cookTick(); });
+function timerEl(t){
+  const left = t.end - Date.now(), p = Math.max(0, Math.min(1, left / (t.min * 60000)));
+  const span = document.createElement("span");
+  span.className = "timer";
+  span.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="t-bg" cx="12" cy="12" r="10" pathLength="100"/><circle class="t-fg" cx="12" cy="12" r="10" pathLength="100" style="stroke-dashoffset:${(100 - p * 100).toFixed(1)}"/></svg>`;
+  span.append(left > 0 ? fmtLeft(left) : say("cookMode.timerUp", {food:t.food}));
+  return span;
+}
+/* the moment line in cook mode: "Step 2 of 4", then this step's timer (or the button to start one) */
+function renderCookLine(){
+  const x = cookRef(); if(!x) return;
+  const steps = cookSteps(x.m), st = steps[Math.min(cook.step, steps.length - 1)], el = $("moment");
+  el.innerHTML = ""; momentKey = null;
+  el.append(say("cookMode.step", {n:cook.step + 1, total:steps.length}));
+  if(!st.min) return;
+  const t = timers().filter(z=>z.step===st.id).sort((a, b)=>b.end - a.end)[0];
+  el.append(" · ");
+  if(t) el.appendChild(timerEl(t));
+  else{ const b = textBtn(say("cookMode.timer", {min:st.min}), ()=>startTimer(st), "inline"); b.dataset.f = "timer:" + st.id; el.appendChild(b); }
+}
+function renderCook(){
+  const x = cookRef(), box = $("cook");
+  if(!x){ stopCooking(); return; }
+  const steps = cookSteps(x.m), st = steps[Math.min(cook.step, steps.length - 1)], last = cook.step >= steps.length - 1;
+  setText($("headline"), st.text);
+  homeKey = "cook:" + cook.step;
+  renderCookLine();
+  const f = focusMemo();
+  box.innerHTML = "";
+  const por = document.createElement("div");
+  por.className = "cook-portions"; por.setAttribute("role", "group"); por.setAttribute("aria-labelledby", "cookPortions");
+  por.innerHTML = `<span class="mini" id="cookPortions">${esc(say("cookMode.portionsLabel"))}</span>`;
+  [1, 2, 4].forEach(n=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = String(n); b.dataset.f = "portions:" + n;
+    b.setAttribute("aria-pressed", String(cook.portions===n)); b.setAttribute("aria-label", say("cookMode.portions", {n}));
+    b.addEventListener("click", ()=>{ cook.portions = n; haptic(); renderCook(); });
+    por.appendChild(b);
+  });
+  box.appendChild(por);
+  box.insertAdjacentHTML("beforeend", `<h2 class="mini" style="margin-top:20px">${esc(say("cookMode.need"))}</h2>`);
+  const ul = document.createElement("ul");
+  ul.className = "cook-need";
+  x.m.items.forEach(i=>ul.insertAdjacentHTML("beforeend", `<li>${foodArt(i.name, {size:24})}<span><b>${esc(baseName(i))}</b> · ${esc(scaleQty(i.qty, cook.portions))}</span></li>`));
+  box.appendChild(ul);
+  if(steps.some(z=>z.min)) box.insertAdjacentHTML("beforeend", `<p class="cook-limit">${esc(say("cookMode.limit"))}</p>`);
+  const acts = document.createElement("p");
+  acts.className = "cook-acts";
+  if(cook.step > 0){ const bk = textBtn(say("cookMode.back"), ()=>cookGo(-1), "small"); bk.dataset.f = "cook:back"; acts.appendChild(bk); }
+  const stop = textBtn(say("cookMode.stop"), stopCooking, "small"); stop.dataset.f = "cook:stop";
+  acts.appendChild(stop);
+  box.appendChild(acts);
+  const next = document.createElement("button");
+  next.type = "button"; next.className = "cook-next"; next.id = "cookNext"; next.dataset.f = "cook:next";
+  next.textContent = last ? say("cookMode.done") : say("cookMode.next");
+  next.addEventListener("click", ()=>cookGo(1));
+  box.appendChild(next);
+  focusRestore(f);
+}
 /* ---------- Start a new week: press and hold ----------
    A big action gets a deliberate gesture instead of a dialog: hold for a second while the ring fills (pointer,
    or Space/Enter held), let go early and nothing happens. Then "New week set. Undo" for 5 seconds. */
@@ -1557,6 +1677,7 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
   setText($("varLabel"), say("home.variety.label"));
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
   $("whenBtn").addEventListener("click", ()=>setView(view.day ? 0 : 1, null));
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape" && cook.active && !sheetEl.open){ e.preventDefault(); stopCooking(); } });
   const nw = $("newWeekBtn");
   setText($("newWeekLabel"), say("week.hold"));
   nw.setAttribute("aria-label", say("week.holdLabel"));
@@ -1566,7 +1687,7 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
   nw.addEventListener("keydown", e=>{ if((e.key===" " || e.key==="Enter") && !e.repeat){ e.preventDefault(); holdStart(); } else if(e.key===" " || e.key==="Enter") e.preventDefault(); });
   nw.addEventListener("keyup", e=>{ if(e.key===" " || e.key==="Enter") holdCancel(); });
   onSwipe($("whenBtn"), dir=>setView(dir==="left" ? 1 : 0, null));
-  onSwipe(document.querySelector(".hl"), scrub);
+  onSwipe(document.querySelector(".hl"), dir=>cook.active ? cookGo(dir==="left" ? 1 : -1) : scrub(dir));
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));
   currentDay = dayDisplayOrder()[0];
   document.addEventListener("themechange", ()=>{ updateChrome(); });
