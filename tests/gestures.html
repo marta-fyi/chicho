@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Gesture tests</h1>
-<p>Shortcuts for one thumb, never the only way: swipe a row right to mark it offered, left to open Change; edge starts and vertical drags are left alone. Every line should be PASS.</p>
+<p>Shortcuts for one thumb, never the only way: swipe a row right to mark it offered, left to open Change, with the outcome row rising and fading on its own; swipe the headline to scrub through the day; tap or swipe the date for tomorrow. Edge starts and vertical drags are left alone. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -54,6 +54,40 @@ f.onload = async () => {
     await swipe(row().querySelector(".mrow-btn"), 60, 40);
     ok("a short swipe springs back and does nothing", !E(`mealOffered(${mealOf(k)})`) && !row().querySelector(".mrow-btn").style.transform);
     ok("rows keep vertical scrolling native (touch-action: pan-y)", w.getComputedStyle(row()).touchAction === "pan-y");
+    // scrub through the day: swipe the headline sideways
+    seed(); await wait(50);
+    const hl = $(".hl"), today = () => E("refsOn(now()).map(x => x.key)");
+    const openTitle = () => $("#openMeal .mx-title").textContent;
+    const before = openTitle(), group0 = d.documentElement.dataset.glow;
+    await swipe(hl, 300, -120); await wait(400);
+    const k1 = E("viewRef() && viewRef().key");
+    ok("swipe the headline left: the next meal of the day", !!k1 && today().indexOf(k1) === today().indexOf(E("defaultOpen(refsOn(now()), refsOn(tomorrowOf(now()))).key")) + 1, k1);
+    ok("…the headline, the open meal and the glow follow it", $("#headline").textContent === E("say('home.headline.at', {meal: viewRef().m.label, time: fmtTime(viewRef().start)})") && openTitle() === E("viewRef().m.label") && d.documentElement.dataset.glow === E("glowGroup(viewRef().m.items[0].cats[0])"), [$("#headline").textContent, openTitle()]);
+    ok("…with a quiet 'Back to now'", [...d.querySelectorAll("#moment .btn-text")].map(b => b.textContent).join() === "Back to now");
+    await swipe(hl, 60, 120); await wait(400);
+    await swipe(hl, 60, 120); await wait(400);
+    ok("swipe right twice: back past now, to the meal before", E("viewRef() && viewRef().key") === today()[today().indexOf(k1) - 2], E("viewRef() && viewRef().key"));
+    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Back to now").click(); await wait(400);
+    ok("'Back to now' returns: the default meal, the moment line, the headline", !E("viewActive()") && openTitle() === before && !/Back to now/.test($("#moment").textContent));
+    await swipe(hl, 300, -120); await wait(50);
+    E("view.until = Date.now() - 1; tick()"); await wait(50);
+    ok("the next meal boundary brings it back to now on its own", !E("viewActive()"));
+    // tomorrow mode: tap the date
+    $("#whenBtn").click(); await wait(400);
+    const tm = E("refsOn(tomorrowOf(now()))[0]");
+    ok("tap the date: tomorrow's plan", E("view.day") === 1 && $("#headline").textContent === E(`say('home.headline.tomorrow', {meal: '${tm.m.label}', time: fmtTime(refsOn(tomorrowOf(now()))[0].start)})`), $("#headline").textContent);
+    ok("…a plain 'Tomorrow · Back to today' line", $("#moment").textContent.replace(/\s+/g, " ").trim() === "Tomorrow · Back to today");
+    ok("…the open meal is tomorrow's first, the rest of tomorrow below it", $("#openMeal .mx").dataset.key === tm.key, [$("#openMeal .mx").dataset.key, tm.key]);
+    ok("…the corner shows tomorrow's date, pressed", $("#whenBtn").getAttribute("aria-pressed") === "true" && $("#clockDate").textContent === E("fmtCornerDate(tomorrowOf(now()))"));
+    ok("…its title is just the meal, and it isn't listed twice", $("#openMeal .mx-title").textContent === tm.m.label && !$$("#nextList .mrow").some(r => r.dataset.key === tm.key));
+    ok("…nothing from today is listed", $("#earlierSec").hidden === true && $$("#nextList .mrow").length > 0 && $$("#nextList .mrow").every(r => E("isoOf(tomorrowOf(now()))") === r.dataset.key.split("|")[0]));
+    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Back to today").click(); await wait(400);
+    ok("'Back to today' returns", E("view.day") === 0 && openTitle() === before);
+    await swipe($("#whenBtn"), 300, -100); await wait(300);
+    ok("swiping the date left also shows tomorrow", E("view.day") === 1);
+    await swipe($("#whenBtn"), 200, 100); await wait(300);
+    ok("…and right, today", E("view.day") === 0);
+    ok("the date is a 44px button", $("#whenBtn").getBoundingClientRect().height >= 44 && $("#whenBtn").tagName === "BUTTON");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

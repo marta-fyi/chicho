@@ -43,7 +43,8 @@ const CONTENT = {
     shop:{one:"{n} thing for the next 3 days", other:"{n} things for the next 3 days", none:"Nothing to pick up for the next 3 days."},
     variety:{label:"Variety", some:"A rainbow in progress", all:"A full rainbow.", legend:"Filled: offered this week."},
     groups:{protein:"Protein", vegetable:"Veg", fruit:"Fruit", grain:"Grains", fat:"Fats and dairy"},
-    profile:"Profile"
+    profile:"Profile",
+    view:{tomorrow:"Tomorrow", backToday:"Back to today", backNow:"Back to now", showTomorrow:"Show tomorrow"}
   },
 
   /* ---------- a meal, opened in place ---------- */

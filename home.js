@@ -300,7 +300,9 @@ function renderHome(){
   setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
   setText($("whoName"), P.name || say("home.profile"));
   $("profileBtn").setAttribute("aria-label", say("home.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
-  setText($("clockDate"), fmtCornerDate(t));
+  setText($("clockDate"), fmtCornerDate(view.day ? tomorrowOf(t) : t));
+  $("whenBtn").setAttribute("aria-pressed", String(view.day===1));
+  $("whenBtn").setAttribute("aria-label", say(view.day ? "home.view.backToday" : "home.view.showTomorrow"));
   setText($("clock"), fmtTime(t));
   $("clock").setAttribute("datetime", t.toISOString());
   renderCaptions(st);
@@ -317,8 +319,48 @@ function renderHome(){
   updateChrome();
   if(firstDraw){ firstDraw = false; entrance(); }
 }
+/* ---------- looking ahead: scrub through the day, or the whole of tomorrow ----------
+   view.day 1 re-skins the page to tomorrow's plan (tap or swipe the date); view.idx is a meal of that day
+   scrubbed to by swiping the headline sideways. Headline, open meal and glow follow; "Back to now" / "Back to
+   today" return, and so does the next meal boundary on its own. */
+const view = {day:0, idx:null, until:0};
+function viewActive(){ return view.day===1 || view.idx!==null; }
+function viewList(){ const t = now(); return milkOnly() ? [] : refsOn(view.day ? tomorrowOf(t) : t); }
+function viewRef(){
+  if(!viewActive()) return null;
+  const list = viewList();
+  if(!list.length) return null;
+  return list[Math.max(0, Math.min(list.length - 1, view.idx===null ? 0 : view.idx))];
+}
+function setView(day, idx){
+  view.day = day; view.idx = idx;
+  view.until = viewActive() ? nextBoundary(refsOn(now())).getTime() : 0;
+  picked = null; changing = null;
+  haptic(); homeChanged();
+  if(!calm()) $("openMeal").animate([{opacity:0}, {opacity:1}], {duration:260, easing:"ease-out"});
+}
+function backToNow(){ setView(0, null); focusLater("top:me"); }
+/* one sideways swipe on an element (not from the screen's edges, not a vertical drag) */
+function onSwipe(el, fn){
+  let x0 = null, y0 = 0;
+  el.addEventListener("pointerdown", e=>{ if(e.pointerType==="mouse" || e.clientX < SWIPE_EDGE || e.clientX > innerWidth - SWIPE_EDGE) return; x0 = e.clientX; y0 = e.clientY; });
+  const up = e=>{ if(x0===null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5){ el.dataset.swiped = "1"; fn(dx < 0 ? "left" : "right"); } };
+  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", ()=>{ x0 = null; });
+  el.addEventListener("click", e=>{ if(el.dataset.swiped){ delete el.dataset.swiped; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+}
+function scrub(dir){
+  const list = viewList(), t = now();
+  if(!list.length) return;
+  let at = view.idx;
+  if(at===null){ const def = view.day ? list[0] : defaultOpen(list, refsOn(tomorrowOf(t))); at = list.indexOf(def); if(at < 0) at = list.length; }
+  const to = at + (dir==="left" ? 1 : -1);
+  if(to < 0 || to >= list.length) return;
+  setView(view.day, to);
+}
 function renderHeadline(){
-  const h = headlineNow(), el = $("headline");
+  const v = viewRef();
+  const h = v ? {key:`view:${view.day}:${v.key}`, headline:say(view.day ? "home.headline.tomorrow" : "home.headline.at", {meal:v.m.label, time:fmtTime(v.start)}), title:currentTitle || "Chicho"} : headlineNow();
+  const el = $("headline");
   const changed = homeKey!==null && homeKey!==h.key;
   if(changed && !calm()){
     el.animate([{opacity:1}, {opacity:0}], {duration:140, fill:"forwards"}).onfinish = function(){ setText(el, h.headline); this.cancel(); el.animate([{opacity:0, transform:"translateY(6px)"}, {opacity:1, transform:"none"}], {duration:280, easing:"cubic-bezier(.2,.8,.2,1)"}); };
@@ -328,7 +370,9 @@ function renderHeadline(){
   currentTitle = h.title;
 }
 function renderMomentLine(){
-  const m = momentLine(), el = $("moment");
+  const m = viewActive() ? (view.day ? {key:"view:tomorrow", text:say("home.view.tomorrow") + " ·", actions:[[say("home.view.backToday"), backToNow]], tone:"plain"}
+                                     : {key:"view:scrub", text:"", actions:[[say("home.view.backNow"), backToNow]], tone:"plain"}) : momentLine();
+  const el = $("moment");
   const sig = m.key + "|" + m.text;
   if(sig===momentKey) return;
   momentKey = sig;
@@ -349,12 +393,15 @@ function textBtn(label, fn, cls){
 /* ---------- meals: one object, opened in place; one open at a time ---------- */
 function renderMeals(){
   const t = now(), today = milkOnly() ? [] : refsOn(t), tm = milkOnly() ? [] : refsOn(tomorrowOf(t));
-  const def = defaultOpen(today, tm);
+  const vr = viewRef();
+  const def = vr || defaultOpen(today, tm);
   const all = today.concat(tm);
   if(picked && !all.some(x=>x.key===picked.key)) picked = null;
   const openKey = picked ? picked.key : def ? def.key : null;
   let earlier, upNext, nextLabel;
-  if(def && today.includes(def)){
+  if(vr && view.day){
+    earlier = []; upNext = tm.filter(x=>x.key!==def.key); nextLabel = say("home.tomorrow");
+  }else if(def && today.includes(def)){
     earlier = today.filter(x=>x.start < def.start);
     upNext = today.filter(x=>x.start > def.start);
     nextLabel = say("home.upNext");
@@ -365,7 +412,7 @@ function renderMeals(){
     nextLabel = say("home.tomorrow");
   }
   const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : "") + (outcomeUntil[x.key] > Date.now() ? "o" : ""))].join("|")
-            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "");
+            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "") + "|v" + view.day + ":" + view.idx;
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -539,14 +586,14 @@ function mealOpen(x, isDefault){
   const title = document.createElement(isDefault ? "h2" : "button");
   title.className = "mx-title";
   title.dataset.f = "title:" + x.key;
-  title.textContent = isoOf(x.date)===todayISO() ? m.label : say("home.tomorrowWhen", {meal:m.label, time:fmtTime(x.start)}).split(" · ")[0];
+  title.textContent = isoOf(x.date)===todayISO() || view.day ? m.label : say("home.tomorrowWhen", {meal:m.label, time:fmtTime(x.start)}).split(" · ")[0];
   if(!isDefault){
     title.type = "button"; title.setAttribute("aria-expanded", "true"); title.setAttribute("aria-controls", a.id);
     title.addEventListener("click", ()=>{ picked = null; homeChanged(); });
   }else title.tabIndex = -1;
   head.appendChild(title);
   if(!isDefault || x.status==="earlier") head.appendChild(ringBtn(x, "ring:" + x.key));
-  else if(wakeSupported()) head.appendChild(wakeToggle());   // the open meal's head has room: cooking happens here
+  else if(wakeSupported() && !view.day) head.appendChild(wakeToggle());   // the open meal's head has room: cooking happens here
   a.appendChild(head);
   const fresh = newFoodIn(m);
   const meta = document.createElement("p");
@@ -1440,6 +1487,7 @@ function faviconLegible(src){
 let clockTimer = 0, lastISO = null;
 function tick(){
   if(SNAPSHOT) return;
+  if(viewActive() && Date.now() >= view.until){ view.day = 0; view.idx = null; layoutSig = ""; }   // the next boundary brings it back to now
   if(todayISO()!==lastISO){ picked = null; homeChanged(); return; }   // midnight: a new day, its own plan
   renderHome();
 }
@@ -1467,6 +1515,9 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
   setText($("shopLabel"), say("shopSheet.title"));
   setText($("varLabel"), say("home.variety.label"));
   $("profileBtn").addEventListener("click", ()=>openSheet("profile"));
+  $("whenBtn").addEventListener("click", ()=>setView(view.day ? 0 : 1, null));
+  onSwipe($("whenBtn"), dir=>setView(dir==="left" ? 1 : 0, null));
+  onSwipe(document.querySelector(".hl"), scrub);
   $("shopLine").addEventListener("click", ()=>openSheet("shop"));
   currentDay = dayDisplayOrder()[0];
   document.addEventListener("themechange", ()=>{ updateChrome(); });

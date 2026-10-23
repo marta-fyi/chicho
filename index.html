@@ -426,7 +426,10 @@ try{
   .who-age, .when-date{font-size:13px;line-height:1.4;color:var(--ink-muted);}
   .who-name{font-size:20px;font-weight:500;line-height:1.3;text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
   .who-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
-  .when{display:flex;flex-direction:column;align-items:flex-end;margin:0;padding:2px 0;text-align:right;font-variant-numeric:tabular-nums;}
+  .when{display:flex;flex-direction:column;align-items:flex-end;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:right;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:pan-y;}
+  .when[aria-pressed="true"] .when-date{color:var(--ink);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+  .when:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
+  .hl{touch-action:pan-y;}
   .when-time{font-size:20px;font-weight:500;line-height:1.3;}
   /* the poster's captions: 12px uppercase; the stage at 55% (decorative), the glow's group in --ink-muted (functional) */
   .captions{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;font-size:12px;line-height:1.5;text-transform:uppercase;letter-spacing:var(--track-label);}
@@ -518,7 +521,7 @@ try{
   .mx-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:8px 0 0;font-size:17px;}
   .mx-links .btn-text.small{min-height:44px;padding:0;font-size:17px;}
   .mx-links label{font-weight:500;}
-  .wake{display:inline-flex;align-items:center;gap:8px;}
+  .wake{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
   .wake i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;}
   .wake[aria-pressed="true"] i{background:currentColor;}
   .undo-line{margin:6px 0 0;font-size:16px;color:var(--ink-85);}
@@ -761,7 +764,7 @@ try{
     <!-- two corners: who (opens Profile) and when -->
     <header class="corners">
       <button type="button" class="who-btn" id="profileBtn" data-f="top:me"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
-      <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
+      <button type="button" class="when" id="whenBtn" data-f="top:when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></button>
     </header>
     <div class="hl">
       <!-- the glow: one element at the top of the page, centred on the headline; it scrolls away with it -->
