@@ -91,6 +91,35 @@ const COOK = {
   avocado:"raw:0", "olive-oil":"none:0", chia:"none:0", "peanut-butter":"none:0", plate:"none:0"
 };
 
+/* the kitchen layer: how a food is cooked ahead, kept and bought (foodMeta). One line per food:
+   method · fridgeDays · freezable · portionGrams · shopUnit · unitLabelOne · unitLabelMany · gramsPerPack
+   method: raw · steam · roast · boil · bake · simmer ("raw" = nothing to cook ahead: fresh, canned, stirred in, or
+           made fresh like toast). fridgeDays and freezable are placeholders to check with a food-safety source.
+   shopUnit: pack (bought by the pack, gramsPerPack each) · weight (by the 100 g, 200 g at least) · piece (whole
+           ones, portionGrams each). portionGrams is also what one unplanned unit stands for.
+   A food missing here gets its group's defaults (kitchenMeta in kitchen.js; the list is in docs/decisions.md). */
+const FOOD_META_KITCHEN = {
+  egg:"boil|2|0|50|pack|box|boxes|300", chicken:"simmer|2|1|100|weight|||", salmon:"roast|2|1|100|weight|||",
+  "white-fish":"steam|2|1|100|weight|||", meatballs:"bake|2|1|25|pack|pack|packs|400",
+  lentils:"simmer|2|1|80|pack|tin|tins|240", chickpeas:"raw|2|1|80|pack|tin|tins|240", tofu:"raw|2|0|100|pack|pack|packs|300",
+  hummus:"raw|2|0|50|pack|tub|tubs|200",
+  "greek-yogurt":"raw|2|0|100|pack|tub|tubs|500", "cottage-cheese":"raw|2|0|50|pack|tub|tubs|250", ricotta:"raw|2|0|50|pack|tub|tubs|250",
+  cheese:"raw|2|1|20|pack|pack|packs|150",
+  carrot:"steam|2|1|60|pack|bag|bags|1000", "sweet-potato":"roast|2|1|250|piece|piece|pieces|", pumpkin:"roast|2|1|100|pack|pack|packs|500",
+  "butternut-squash":"roast|2|1|1000|piece|piece|pieces|", zucchini:"steam|2|1|200|piece|piece|pieces|",
+  "green-beans":"steam|2|1|50|pack|pack|packs|250", peas:"boil|2|1|50|pack|bag|bags|900", cauliflower:"steam|2|1|600|piece|head|heads|",
+  potato:"boil|2|0|60|pack|bag|bags|1000", spinach:"steam|2|1|40|pack|bag|bags|200", beetroot:"roast|2|1|60|pack|pack|packs|500",
+  cucumber:"raw|2|0|300|piece|piece|pieces|", tomato:"raw|2|0|100|piece|piece|pieces|",
+  banana:"raw|2|1|120|piece|piece|pieces|", pear:"raw|2|0|150|piece|piece|pieces|", apple:"steam|2|1|150|piece|piece|pieces|",
+  peach:"raw|2|0|150|piece|piece|pieces|", plum:"raw|2|0|60|piece|piece|pieces|", mango:"raw|2|1|300|piece|piece|pieces|",
+  melon:"raw|2|0|1200|piece|piece|pieces|", kiwi:"raw|2|0|75|piece|piece|pieces|",
+  blueberries:"raw|2|1|30|pack|punnet|punnets|125", strawberries:"raw|2|1|40|pack|punnet|punnets|400",
+  raspberries:"raw|2|1|30|pack|punnet|punnets|125", grapes:"raw|2|0|30|pack|pack|packs|500",
+  "baby-rice":"raw|2|0|20|pack|box|boxes|200", toast:"raw|2|1|30|pack|loaf|loaves|400", rice:"boil|1|1|50|pack|pack|packs|1000",
+  avocado:"raw|2|0|150|piece|piece|pieces|", "olive-oil":"raw|2|0|5|pack|bottle|bottles|500", chia:"raw|2|0|5|pack|bag|bags|200",
+  "peanut-butter":"raw|2|0|10|pack|jar|jars|340"
+};
+
 /* the welcome screen's crossfade, in order; foods without a drawing are skipped */
 const HERO_FOODS = ["banana","carrot","mango","white-fish","egg","avocado","oatmeal"];
 

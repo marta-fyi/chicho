@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · food meta tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Food meta tests</h1>
+<p>The Kitchen's per-food data (foodMeta in foods.js, defaults in kitchen.js), the shopping units, the KITCHEN constants and the storage line built from them. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 600;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    // 1. the constants
+    const K = E("KITCHEN");
+    ok("KITCHEN holds the brief's numbers", JSON.stringify(K) === JSON.stringify({ROW_H: 56, HORIZON_DAYS: 3, LOW_COVERS_HOURS: 48, FRIDGE_DAYS: 2, FREEZER_DAYS: 30, FREEZER_SOON_DAYS: 21, MAX_PREP_SESSIONS: 3, DEFAULT_PORTIONS: 2, UNDO_MS: 5000}), K);
+    ok("…and can't be changed at run time", E("Object.isFrozen(KITCHEN)"));
+
+    // 2. every food has meta: its own line, or its group's defaults
+    const all = E(`FOOD_POOL.map(p => foodKey(baseName(p)))`);
+    const metas = all.map(id => [id, E(`kitchenMeta(${JSON.stringify(id)})`)]);
+    const valid = m => ["raw", "steam", "roast", "boil", "bake", "simmer"].includes(m.method) && m.fridgeDays > 0 && typeof m.freezable === "boolean"
+      && ["pack", "weight", "piece"].includes(m.shopUnit) && (m.shopUnit !== "piece" || (m.portionGrams > 0 && m.unitLabelOne && m.unitLabelMany))
+      && (m.shopUnit !== "pack" || (m.unitLabelOne && m.unitLabelMany)) && ["grain", "vegetable", "fruit", "protein", "fat"].includes(m.group);
+    ok("every food in the pool has complete meta (method, fridge days, freezable, unit and labels, group)", metas.every(([, m]) => valid(m)), metas.filter(([, m]) => !valid(m)));
+    ok("…and so does every food in the manifest", E(`FOODS.filter(f => f.id !== "plate").every(f => { const m = kitchenMeta(f.id); return m.method && m.shopUnit; })`));
+    const defaulted = E("defaultedFoods()");
+    ok("some foods use their group's defaults (and say so)", defaulted.length > 0 && defaulted.every(id => E(`kitchenMeta(${JSON.stringify(id)}).defaulted`)), defaulted);
+    const doc = await (await fetch("../docs/decisions.md")).text();
+    const docSec = doc.slice(doc.indexOf("Defaulted foodMeta"), doc.indexOf("\n\n", doc.indexOf("Defaulted foodMeta") + 40) + 1);
+    ok("docs/decisions.md lists every defaulted food", defaulted.every(id => docSec.includes("`" + id + "`")), defaulted.filter(id => !docSec.includes("`" + id + "`")));
+    ok("…and only those", (docSec.match(/`[a-z-]+`/g) || []).length === defaulted.length, docSec.match(/`[a-z-]+`/g));
+    ok("docs/decisions.md lists the fridge and freezer numbers as needing a food-safety check", doc.split("\n").some(l => /verify/i.test(l) && l.includes("FRIDGE_DAYS")) && /FREEZER_DAYS/.test(doc) && /FREEZER_SOON_DAYS/.test(doc));
+    ok("raw fruit and raw vegetables are 'raw': nothing to cook ahead", ["banana", "mango", "kiwi", "cucumber", "tomato", "avocado"].every(id => E(`kitchenMeta("${id}").method`) === "raw"));
+    ok("cooked foods keep their method (pumpkin roast, carrots steam, lentils simmer, rice boil)", E(`[kitchenMeta("pumpkin").method, kitchenMeta("carrots").method, kitchenMeta("lentils").method, kitchenMeta("rice").method].join()`) === "roast,steam,simmer,boil");
+    ok("toast and 'stirred in' foods are raw (made fresh, nothing to cook ahead)", E(`[kitchenMeta("whole wheat toast").method, kitchenMeta("greek yogurt").method, kitchenMeta("chickpeas").method].join()`) === "raw,raw,raw");
+    ok("a defaulted food takes its method from the cooking layer (pasta boils)", E(`kitchenMeta("whole wheat pasta").method`) === "boil" && E(`kitchenMeta("whole wheat pasta").defaulted`));
+    ok("pantry keys and manifest names meet (carrots → carrot, whole wheat toast → toast)", E(`kitchenMeta("carrots").id`) === "carrot" && E(`kitchenMeta("whole wheat toast").id`) === "toast");
+    ok("a legacy non-food ('wipes') still gets usable defaults", E(`(m => m.shopUnit === "pack" && m.group === "other")(kitchenMeta("wipes"))`));
+
+    // 3. shopping units
+    const U = (g, meta) => E(`shopUnits(${g}, ${JSON.stringify(meta)}).text`);
+    const pack = {shopUnit: "pack", gramsPerPack: 500, unitLabelOne: "pack", unitLabelMany: "packs"};
+    ok("pack: 1 g → 1 pack (at least one)", U(1, pack) === "1 pack");
+    ok("pack: 500 g → 1 pack, 501 g → 2 packs", U(500, pack) === "1 pack" && U(501, pack) === "2 packs", [U(500, pack), U(501, pack)]);
+    ok("pack: 0 g (an unplanned add) → 1 pack", U(0, pack) === "1 pack");
+    const wt = {shopUnit: "weight"};
+    ok("weight: 30 g → 200 g (the minimum)", U(30, wt) === "200 g");
+    ok("weight: 200 g → 200 g, 201 g → 300 g (up to the next 100 g)", U(200, wt) === "200 g" && U(201, wt) === "300 g", [U(200, wt), U(201, wt)]);
+    ok("weight: 450 g → 500 g", U(450, wt) === "500 g");
+    const pc = {shopUnit: "piece", portionGrams: 120, unitLabelOne: "piece", unitLabelMany: "pieces"};
+    ok("piece: 60 g → 1 piece, 121 g → 2 pieces", U(60, pc) === "1 piece" && U(121, pc) === "2 pieces", [U(60, pc), U(121, pc)]);
+    ok("the manifest's own labels: lentils 300 g → 2 tins", E(`shopUnits(300, kitchenMeta("lentils")).text`) === "2 tins");
+    ok("gramsOf reads an item's amount ('35 g' → 35, none → 0)", E(`gramsOf({qty: "35 g"})`) === 35 && E(`gramsOf({qty: ""})`) === 0);
+
+    // 4. the storage line comes from the constants
+    ok("storage: 'Fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool.'", E("storageNote()") === "Fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool.", E("storageNote()"));
+    const src = await (await fetch("../content.js")).text();
+    ok("no storage numbers written into the copy", !/Fridge \d|freezer \d/i.test(src));
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · food meta";
+};
+</script>
+</body></html>

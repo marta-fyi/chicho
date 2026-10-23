@@ -55,7 +55,7 @@ f.onload = async () => {
     E(`tMk([["Monday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
     ok("carrots twice this week: 'Make double carrots and freeze half in small portions.'", s[0] && s[0].kind === "freeze" && s[0].text === "Make double carrots and freeze half in small portions.", s);
-    ok("…with the storage note", s[0] && s[0].note === E(`say("storage")`));
+    ok("…with the storage note", s[0] && s[0].note === E(`storageNote()`));
     // nothing to share beyond 48 hours
     E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Sunday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);

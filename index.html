@@ -1421,7 +1421,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 let state = loadState();
 
 function freshProfile(){
@@ -1448,8 +1448,10 @@ function freshState(){
     schemaVersion: SCHEMA_VERSION,
     plans: [{startsOn:todayISO(), days:ensureSlots(defaultPlan()).days}],   // each week starts on its own date
     offers: [],          // the offer log (see liveOffers)
-    pantry: [],          // what's at home: [{foodId, name, state:"plenty"|"low"|"out", updatedAt}]
+    pantry: [],          // what's at home: [{foodId, name, state:"plenty"|"low"|"out", updatedAt, prevState?}]
     freezer: [],         // [{foodId, name, portions, madeOn}]
+    shop: {manual:[], notThisWeek:[], got:[]},   // Buy: added by hand [{foodId}], skipped for a plan week [{foodId, planWeekId}], ticked today [{foodId, at, prevState}]
+    cookAhead: {done:[]},  // cook-ahead sessions done: [{id, at, covers:[{foodId, iso, mealId}]}] (Kitchen's Prep and Home share it)
     profile: freshProfile(),
     allergyNotes: {},    // per allergen: {noReactionOn:"2026-10-22"}
     firstPhotos: {},     // per food id: a small photo for Firsts, on this device only
@@ -1575,9 +1577,18 @@ function migrate(saved){
     Object.entries(saved.stock).forEach(([k, x])=>{ if(x) putPantry(x.name || k, x.plenty || x.g===null || x.g > 0 ? "plenty" : "out"); });
   if(Array.isArray(saved.extras)) saved.extras.forEach(x=>{ if(x && x.name) putPantry(x.name, x.checked ? "plenty" : "out"); });
   s.pantry = s.pantry.filter(p=>p && typeof p.foodId==="string" && ["plenty","low","out"].includes(p.state))
-    .map(p=>({foodId:p.foodId, name:p.name || upper1(p.foodId), state:p.state, updatedAt:p.updatedAt || stamp}));
+    .map(p=>Object.assign({foodId:p.foodId, name:p.name || upper1(p.foodId), state:p.state, updatedAt:p.updatedAt || stamp}, ["plenty","low","out"].includes(p.prevState) ? {prevState:p.prevState} : {}));
   s.freezer = (Array.isArray(s.freezer) ? s.freezer : []).filter(f=>f && typeof f.foodId==="string" && +f.portions > 0)
     .map(f=>({foodId:f.foodId, name:f.name || upper1(f.foodId), portions:Math.round(+f.portions), madeOn:f.madeOn || todayISO()}));
+  // schema 10: the Kitchen's shopping state and the cook-ahead record
+  const sh = saved.shop && typeof saved.shop==="object" ? saved.shop : {}, stocked = v=>["plenty","low","out"].includes(v) ? v : null;
+  const byFood = (a, f)=>(Array.isArray(a) ? a : []).filter(x=>x && typeof x.foodId==="string" && x.foodId).map(f);
+  s.shop = {manual:byFood(sh.manual, x=>({foodId:x.foodId})),
+            notThisWeek:byFood(sh.notThisWeek, x=>({foodId:x.foodId, planWeekId:String(x.planWeekId || "")})),
+            got:byFood(sh.got, x=>({foodId:x.foodId, at:typeof x.at==="string" ? x.at : stamp, prevState:stocked(x.prevState)}))};
+  const ca = saved.cookAhead && typeof saved.cookAhead==="object" ? saved.cookAhead : {};
+  s.cookAhead = {done:(Array.isArray(ca.done) ? ca.done : []).filter(x=>x && typeof x.id==="string")
+    .map(x=>({id:x.id, at:typeof x.at==="string" ? x.at : stamp, covers:(Array.isArray(x.covers) ? x.covers : []).filter(c=>c && c.foodId && c.iso && c.mealId)}))};
 
   // schema 9: the offer log replaces item.offered, meal.outcome and the exposure counts. An older save has one
   // week: every food marked in it becomes an event on its day (marked in any way = put in front of them; how it
@@ -1585,6 +1596,8 @@ function migrate(saved){
   // allergens introduced by them, become events the day before the week began.
   ["allergyNotes","firstPhotos","hints","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object" || Array.isArray(s[k])) s[k] = {}; });
   if(!Array.isArray(s.newToBuy)) s.newToBuy = [];
+  // the generic "cook double", "make double and freeze half" and same-oven suggestions are gone, and their ticks with them
+  if(Array.isArray(s.prepped.done)) s.prepped.done = s.prepped.done.filter(id=>typeof id==="string" && !/^(double|freeze|roast|steam):/.test(id));
   if(!Array.isArray(saved.offers)){
     s.offers = [];
     const plan = s.plans[0], start = localDate(plan.startsOn);
@@ -1946,6 +1959,7 @@ const DAY_FULL = d=>DAY_ORDER[d.getDay()];
 
 </script>
 <script src="onboarding.js"></script>
+<script src="kitchen.js"></script>
 <script src="home.js"></script>
 </body>
 </html>

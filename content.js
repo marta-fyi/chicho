@@ -109,8 +109,6 @@ const CONTENT = {
     done:"Done",
     when:{today:"later today", tomorrow:"tomorrow", later:"on {weekday}"}
   },
-  /* storage, for batch-and-freeze (check against a food-safety source: docs/decisions.md) */
-  storage:"Fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool",
 
   /* ---------- the cooking layer: a one-line how per method ---------- */
   cook:{
@@ -149,7 +147,12 @@ const CONTENT = {
     add:"Add something", addSentence:"At home: {blank}", added:"{food}: at home",
     portions:{one:"{food} · {n} portion · made {date}", other:"{food} · {n} portions · made {date}"},
     useOne:"Use one", useOneOf:"Use one portion of {food}", prepDone:"Done: {task}",
-    freezerEmpty:"Nothing in the freezer, nothing to prep."
+    freezerEmpty:"Nothing in the freezer, nothing to prep.",
+    /* shopping units (the labels themselves are the food manifest's: foods.js) */
+    unit:"{n} {label}", weight:"{g} g",
+    /* storage, built from the numbers in KITCHEN (kitchen.js; check against a food-safety source: docs/decisions.md) */
+    storage:"Fridge {fridge} · freezer {freezer} · reheat once, piping hot, then let it cool.",
+    span:{days:{one:"{n} day", other:"{n} days"}, months:{one:"{n} month", other:"{n} months"}}
   },
   /* ---------- New week: start the next one ---------- */
   newWeek:{

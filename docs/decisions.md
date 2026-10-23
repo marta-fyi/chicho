@@ -15,6 +15,20 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Kitchen redesign (23 Oct 2026, supersedes every earlier Kitchen rule)
+
+Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a text switch. The four old sections (To buy, Running low, At home, Freezer and prep) are gone, and so is every Kitchen detail in the swipe-navigation section below. The code lives in `kitchen.js`; its numbers are one frozen object, `KITCHEN`.
+
+**Data**
+
+- **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).
+- **The brief's methods** are raw · steam · roast · boil · bake · simmer. The cooking layer (`COOK`, which writes the one-line hows) also has `toast` and `none` (stirred in); both are **raw** here, because there's nothing to cook ahead. Toast is made fresh, and canned chickpeas, yogurt and oil are opened, not cooked. The hows keep their own wording.
+- Defaulted foodMeta (each takes its food group's unit and its method from the cooking layer; check the packs against a real shop): `turkey`, `beef`, `milk`, `oatmeal`, `pasta`, `quinoa`, `couscous`, `plate`.
+
+- **A legacy non-food** in the pantry (an old "Wipes" extra) has the group "other": one pack, no plan need. It still shows in At home, under "Everything else", only when there is one.
+- **Grams in Buy.** The brief says Buy shows no grams, and also that a `weight` food rounds up to the next 100 g (200 g at least). A shopping weight is a unit at the counter, not the plan's portion grams, so `weight` foods read "300 g". The plan's own grams ("35 g") never reach Buy, and the tests check that every gram value in a Buy row is a whole 100 g of a `weight` food.
+- **Migration (schema 10).** The pantry and freezer carry over as they were (a valid `prevState` is kept). `shop` (`manual`, `notThisWeek`, `got`) and `cookAhead.done` start empty. The old generic "Cook double", "Make double … and freeze half" and same-oven suggestions are deleted, along with their stored ticks (`double:`, `freeze:`, `roast:` and `steam:` ids in `prepped`).
+
 ## Onboarding v3 (23 Oct 2026, supersedes every earlier onboarding order)
 
 Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welcome screen: the page opens on Draw. The code lives in `onboarding.js`; `index.html` keeps the data, the generator, safety and the stages.
@@ -203,7 +217,8 @@ The pager: swipes in all four directions on Home, the 24px edge zones against Sa
 
 - The **Meat** and **Gluten** word lists (`DIETS`, index.html): whether oats belong under Gluten (cross-contamination), and what else gives meat or gluten away in a food's name.
 
-- Storage note: **fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool** (`content.js` → `storage`).
+- Storage note: **fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool**, built from the Kitchen's constants (`kitchen.storage` in content.js).
+- The Kitchen's placeholders (`KITCHEN` in kitchen.js), all to verify: `FRIDGE_DAYS = 2` (how long cooked food keeps in the fridge, which is also the cook-ahead window), `FREEZER_DAYS = 30`, `FREEZER_SOON_DAYS = 21` (when a frozen portion says "use soon"), and each food's own `fridgeDays` and `freezable` in `FOOD_META_KITCHEN` (foods.js). Cooked rice is set to **1 day**, the only food below the default.
 - Lead times: **8 hours** to defrost a frozen portion in the fridge, **8 hours** to soak dried legumes (`LEAD` in `home.js`).
 - Which foods freeze well (`FOOD_META` in `index.html`).
 - Cooking times and the 200 °C roast in the one-line hows (`COOK` in `foods.js`, `cook.how` in `content.js`).

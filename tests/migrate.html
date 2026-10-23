@@ -24,7 +24,7 @@ f.onload = () => {
     const v4 = M({schemaVersion: 4, createAge: 10, plan: week(), excludedFoods: ["Broccoli", "Honey", "Added salt or sugar", "Whole nuts"],
       grocery: [{id: "a", name: "Oatmeal", cat: "grain", checked: true, manual: false, entries: [{day: "Monday", qty: "40 g"}, {day: "Tuesday", qty: "60 g"}]},
                 {id: "b", name: "Diapers", qty: "1 pack", cat: "other", checked: true, manual: true}]});
-    ok("schema becomes 9", v4.schemaVersion === 9, v4.schemaVersion);
+    ok("schema becomes 10", v4.schemaVersion === 10, v4.schemaVersion);
     ok("createAge 10 → birth date 10 months ago", w.ageMonths(v4.profile.birthDate) === 10, [v4.profile.birthDate, w.ageMonths(v4.profile.birthDate)]);
     ok("createAge and excludedFoods are gone", !("createAge" in v4) && !("excludedFoods" in v4), Object.keys(v4));
     ok("Broccoli becomes a dislike", JSON.stringify(v4.profile.avoid) === JSON.stringify([{name: "Broccoli", kind: "dislike"}]), v4.profile.avoid);
@@ -49,7 +49,7 @@ f.onload = () => {
       stock: {"oatmeal": {name: "Oatmeal", g: 300, plenty: false}, "banana": {name: "Banana", g: 0, plenty: false}, "rice, soft-cooked": {name: "Rice, soft-cooked", g: null, plenty: false}},
       extras: [{id: "x", name: "Wipes", qty: "", checked: false}],
       profile: {name: "Lula", birthDate: "2025-04-01", onboarded: true, allergens: {}}});
-    ok("schema 8 → 9", v8.schemaVersion === 9);
+    ok("schema 8 → 10", v8.schemaVersion === 10);
     ok("weekStarted becomes the week's start date (and still reads as a view)", v8.plans[0].startsOn === "2026-10-19" && v8.weekStarted === "2026-10-19" && !Object.keys(v8).includes("weekStarted") && !Object.keys(v8).includes("plan"), [v8.plans[0].startsOn, Object.keys(v8)]);
     const ev = v8.offers;
     ok("Tuesday's offered meal: one event per food on Tue 20 Oct, 'nottoday' → 'not_today'", ev.filter(e => e.date === "2026-10-20").length === 2 && ev.filter(e => e.date === "2026-10-20").every(e => e.outcome === "not_today"), ev);
@@ -70,6 +70,21 @@ f.onload = () => {
     ok("a week starting later doesn't take over before its date", v9.plan.startsOn === "2026-10-19");
     v9.plan = {days: v9.plans[0].days.slice()};
     ok("setting state.plan replaces the weeks with one on the current start date", v9.plans.length === 1 && v9.plans[0].startsOn === "2026-10-19");
+
+    // 1d. schema 10: the Kitchen's shopping state and the cook-ahead record; the old suggestion ticks go
+    ok("a v9 save gets an empty shop (manual, not this week, got it) and no cook-ahead done", JSON.stringify(v8.shop) === JSON.stringify({manual: [], notThisWeek: [], got: []}) && JSON.stringify(v8.cookAhead) === JSON.stringify({done: []}), [v8.shop, v8.cookAhead]);
+    const v10 = M(Object.assign(JSON.parse(JSON.stringify(v8)), {schemaVersion: 9,
+      pantry: [{foodId: "pumpkin", name: "Pumpkin", state: "plenty", updatedAt: "2026-10-22T10:00:00Z", prevState: "out"}, {foodId: "rice", name: "Rice", state: "low", prevState: "maybe"}],
+      freezer: [{foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-01"}, {foodId: "peas", portions: 0}],
+      prepped: {date: "2026-10-22", done: ["double:Pumpkin:2026-10-23:4", "freeze:Lentils:2026-10-22", "roast:Beetroot:2026-10-22:2", "steam:Peas:2026-10-23:2", "defrost:Lentils:2026-10-23:2", "salt:2026-10-22"]},
+      shop: {manual: [{foodId: "bread"}, {foodId: ""}, null], notThisWeek: [{foodId: "kiwi", planWeekId: "2026-10-19"}], got: [{foodId: "pumpkin", at: "2026-10-22T09:00:00Z", prevState: "out"}, {foodId: "rice", prevState: "nope"}]},
+      cookAhead: {done: [{id: "roast:2026-10-22:abc", at: "2026-10-22T18:00:00Z", covers: [{foodId: "pumpkin", iso: "2026-10-23", mealId: "m1"}, {foodId: "x"}]}, {nope: 1}]}}));
+    ok("the pantry keeps each food's state and a valid prevState (an unknown one drops)", JSON.stringify(v10.pantry.map(p => [p.foodId, p.state, p.prevState])) === JSON.stringify([["pumpkin", "plenty", "out"], ["rice", "low", undefined]]), v10.pantry);
+    ok("the freezer keeps its portions; an empty one drops", JSON.stringify(v10.freezer.map(f => [f.foodId, f.portions, f.madeOn])) === JSON.stringify([["lentils", 2, "2026-10-01"]]), v10.freezer);
+    ok("the old cook-double, make-double-and-freeze and same-oven ticks are deleted; defrost and salt stay", JSON.stringify(v10.prepped.done) === JSON.stringify(["defrost:Lentils:2026-10-23:2", "salt:2026-10-22"]), v10.prepped.done);
+    ok("shop: junk entries drop, planWeekId and prevState kept", JSON.stringify(v10.shop) === JSON.stringify({manual: [{foodId: "bread"}], notThisWeek: [{foodId: "kiwi", planWeekId: "2026-10-19"}], got: [{foodId: "pumpkin", at: "2026-10-22T09:00:00Z", prevState: "out"}, {foodId: "rice", at: v10.shop.got[1].at, prevState: null}]}), v10.shop);
+    ok("cook-ahead: done sessions kept with their covered meals, junk dropped", v10.cookAhead.done.length === 1 && v10.cookAhead.done[0].covers.length === 1 && v10.cookAhead.done[0].covers[0].mealId === "m1", v10.cookAhead);
+    ok("a v10 save round-trips", JSON.stringify([v10.pantry, v10.freezer, v10.shop, v10.cookAhead]) === JSON.stringify((r => [r.pantry, r.freezer, r.shop, r.cookAhead])(M(JSON.parse(JSON.stringify(v10))))));
 
     // 2. the other ages old saves used, and nonsense
     [12, 18, 0, 36].forEach(m => { const r = M({schemaVersion: 5, createAge: m, plan: week()}); ok(`createAge ${m} → ${m} months`, w.ageMonths(r.profile.birthDate) === m, w.ageMonths(r.profile.birthDate)); });

@@ -310,7 +310,7 @@ function suggestAlso(meal, plan, nowD, profile, pantry, seen){
   m.items.forEach(i=>{
     if(!metaOf(i.name).freezes) return;
     const uses = plan.days.reduce((n, d)=>n + d.meals.reduce((k, x)=>k + x.items.filter(j=>j.name===i.name).length, 0), 0);
-    if(uses >= 2) add({id:`freeze:${i.name}:${isoOf(nowD)}`, kind:"freeze", food:i.name, target:null, note:say("storage"),
+    if(uses >= 2) add({id:`freeze:${i.name}:${isoOf(nowD)}`, kind:"freeze", food:i.name, target:null, note:storageNote(),
                        text:say("also.freeze", {food:lower1(baseName(i))})});
   });
   // 5. family meals: from 12 months, at lunch and dinner, a few times
@@ -1171,7 +1171,7 @@ function renderKitchen(){
     fz.appendChild(r);
   });
   if(!state.freezer.length && !tasks.length) fz.appendChild(el("p", "quiet-line", say("kitchen.freezerEmpty")));
-  if(state.freezer.length || tasks.some(s=>s.kind==="freeze" || s.kind==="defrost")) fz.appendChild(el("p", "storage-note", say("storage")));
+  if(state.freezer.length || tasks.some(s=>s.kind==="freeze" || s.kind==="defrost")) fz.appendChild(el("p", "storage-note", storageNote()));
 }
 /* a pantry line: its name and its state in words; a tap moves it on (Plenty → Low → Out → Plenty) */
 function stockRow(p){
