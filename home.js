@@ -476,6 +476,7 @@ function mealOpen(x, isDefault){
   }else title.tabIndex = -1;
   head.appendChild(title);
   if(!isDefault || x.status==="earlier") head.appendChild(ringBtn(x, "ring:" + x.key));
+  else if(wakeSupported()) head.appendChild(wakeToggle());   // the open meal's head has room: cooking happens here
   a.appendChild(head);
   const fresh = newFoodIn(m);
   const meta = document.createElement("p");
@@ -483,8 +484,8 @@ function mealOpen(x, isDefault){
   meta.textContent = say("home.around", {time:fmtTime(x.start)}) + " · " + say("meal.meta", {n:mealMinutes(m), texture:st.textureShort || textureOf(m.items[0])})
                    + (fresh ? " · " + say("meal.newToday", {food:lower1(baseName(fresh))}) : "");
   a.appendChild(meta);
-  const ul = document.createElement("ul");
-  ul.className = "mx-foods";
+  const ul = document.createElement("ul"), rest = document.createElement("ul");
+  ul.className = rest.className = "mx-foods";
   m.items.forEach((item, k)=>{
     const li = document.createElement("li");
     const id = "fr-" + item.id, isOpen = openFood.has(item.id);
@@ -538,11 +539,17 @@ function mealOpen(x, isDefault){
       }
     }
     li.appendChild(more);
-    ul.appendChild(li);
+    (k < 2 ? ul : rest).appendChild(li);
   });
   a.appendChild(ul);
+  // the pill sticks inside a zone that starts after the first two foods, so stuck at the bottom edge it can
+  // never cover the meal's title or its first two rows, at any screen height
+  const zone = document.createElement("div");
+  zone.className = "mx-zone";
+  if(rest.children.length) zone.appendChild(rest);
+  a.appendChild(zone);
   const how = mealHow(m);
-  if(how.length) a.insertAdjacentHTML("beforeend", `<p class="mx-how">${how.map(esc).join(" ")}</p>`);
+  if(how.length) zone.insertAdjacentHTML("beforeend", `<p class="mx-how">${how.map(esc).join(" ")}</p>`);
   // Mark as offered → "Offered · Undo" for 5 s → "Offered" + how it went
   const acts = document.createElement("div");
   acts.className = "mx-acts";
@@ -558,7 +565,7 @@ function mealOpen(x, isDefault){
     u.dataset.f = "undo:" + x.key;
     acts.appendChild(u);
   }
-  a.appendChild(acts);
+  zone.appendChild(acts);
   if(on && !undo){
     const g = document.createElement("div");
     g.className = "outcomes"; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
@@ -601,7 +608,7 @@ function mealOpen(x, isDefault){
     const sd = textBtn(say("meal.send"), ()=>openSheet("send", {date:x.date}), "small");
     sd.dataset.f = "send:" + x.key;
     links.appendChild(sd);
-    if(isDefault && wakeSupported()) links.appendChild(wakeToggle());
+
   }
   a.appendChild(links);
   // arrow keys move through the open meal's controls
@@ -754,11 +761,19 @@ function entrance(){
   [$("profileBtn"), $("clock").parentNode, $("headline"), $("moment"), $("openMeal")].forEach((el, k)=>el && el.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}],
     {duration:420, delay:k*70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}));
 }
-/* below-the-fold sections fade up as they come into view */
+/* below-the-fold sections fade up as they come into view. A passive scroll check, not an IntersectionObserver:
+   while the glow breathes, an observer makes the browser recompute intersections every frame (measured: ~110ms
+   of main thread a second at 4× CPU, against ~1ms this way). It stops listening once both have arrived. */
 function watchFold(){
-  if(!("IntersectionObserver" in window)){ document.querySelectorAll(".below").forEach(s=>s.classList.add("in")); return; }
-  const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }), {threshold:.15});
-  document.querySelectorAll(".below").forEach(s=>io.observe(s));
+  const pending = new Set(document.querySelectorAll(".below"));
+  const check = ()=>{
+    pending.forEach(s=>{ if(s.getBoundingClientRect().top < innerHeight * .92){ s.classList.add("in"); pending.delete(s); } });
+    if(!pending.size){ removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); }
+  };
+  let queued = false;
+  const onScroll = ()=>{ if(queued) return; queued = true; requestAnimationFrame(()=>{ queued = false; check(); }); };
+  addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll, {passive:true});
+  check();
 }
 
 /* a new week: the reveal, then "Love it" applies it */

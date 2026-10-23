@@ -70,6 +70,10 @@ f.onload = async () => {
     ok("after 21:30 the glow drops to 55%", d.documentElement.classList.contains("glow-dim") && w.getComputedStyle(wrap).opacity === "0.55");
     E("setClock(new Date(2026, 9, 22, 12, 10).getTime()); homeChanged()"); await wait(30);
     ok("…and back by day", !d.documentElement.classList.contains("glow-dim"));
+    // the caption names the group, and changing group never moves the page
+    const top0 = Math.round(R($("#openMeal")).top), tops = [];
+    for (const g of ["grain", "vegetable", "fruit", "protein", "fat"]) { E(`glowKey = null; setGlow('${g}')`); tops.push(Math.round(R($("#openMeal")).top)); }
+    ok("every group's caption leaves the layout exactly where it was (no shift)", tops.every(t => t === top0), tops);
     // the default
     setup(18, false); await wait(50);
     ok("no plan: the default (Grains)", group() === "grain");

@@ -42,7 +42,28 @@ Chicho is designed, built and tested for 360–430px. Everything below supersede
 - **The install line.** Shown in the moment slot on the second day Chicho is opened (the first day after `firstDay`), once: it stays that day unless "Later", and never comes back. Never when running standalone, never while a meal is "now", and only on an iPhone or iPad, because the words describe iOS's Share sheet; Android shows its own install prompt.
 - **Touch.** `touch-action: manipulation` and no tap highlight everywhere; every button and link scales to .97 over 100ms while pressed (transform only), with the empty `touchstart` listener iOS needs for `:active`. Text actions inside a sentence are inline-blocks so they can scale, and two in a row sit 8px apart beyond their 44px pads. The ring scales its 28px circle, not its 44px pad. Haptics stay an optional `navigator.vibrate` that nothing depends on.
 - **"8px between neighbouring targets"** is read as side by side: list rows (food rows, meal rows, sheet rows) stack edge to edge as one list, as iOS lists do. The tests check overlaps everywhere and the 8px gap between side-by-side targets.
+- **Fold budget, worst case.** Over 40 random weeks at 390×844 the "Up next" label ends by 806px (it must show, not just its top edge). That took "Keep screen on" moving into the open meal's title row and the meal's meta line going to 15px so it stays on one line. The group caption has one fixed width (15ch), so a longer name ("Fats and dairy") never reflows the poster.
+- **The pill's zone.** The pill sticks inside a zone that begins after the first two foods, so even in landscape (390px tall) it can never sit on the meal's title or its first two rows; it covers only the meal's own later content as that scrolls under it.
+- **The fold-in observer.** Below-the-fold sections fade up on a passive scroll check, not an IntersectionObserver: with the glow breathing, an observer made the browser recompute intersections every frame (110 ms of main thread a second at 4× CPU, against ~1 ms now).
 - **The sticky pill.** "Mark as offered" is one 48px bar, sticky at the bottom of the open meal. "Offered · Undo" splits the same bar into two buttons (no overlap, no change in size), so nothing shifts.
+
+## Verification (Paper & Glow)
+
+- **Every commit:** `node tools/check.mjs`: lint (no hover, no colour outside the tokens, motion only on transform and opacity, one infinite animation), voice, and 20 test pages in headless Chrome, including layout (the fold budget at 390×844 and 375×667, no horizontal scroll from 320px, landscape), sheets, keyboard (a stand-in `visualViewport`), theme, glow, contrast, bullets, kitchen and touch.
+- **Devices:** `PLAYWRIGHT=… node tools/devices.mjs --perf`: WebKit and Chromium as iPhone SE, 14, 14 Pro Max and 14 landscape, light and dark (78 checks: overflow, header inside the screen, 44px targets, the sticky pill, the fold budget), plus 97 screenshots in `docs/screenshots/` (JPEG, so the published folder stays ~4 MB). Playwright can't emulate safe-area insets; those are on the iPhone list.
+- **Contrast** (`tests/contrast.html`): for all five glow colours, `--ink` on the nucleus is 5.0:1 or better, `--ink` and `--ink-muted` on the brightest zone and the plain grey 5.5:1 or better, rings 3:1 or better; then every functional text on the light home at 390×844 and 375×667, sampled at five points against the colour really behind it (both ends of the breath, and dimmed) passes 4.5:1. The grain's specks (up to 13% alpha) aren't modelled.
+
+## Performance (measured, `docs/perf.json`)
+
+Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms, 1.6 Mb/s), a returning family on the light home:
+
+- **First contentful paint: ~0.93 s** (budget 1.5 s); layout shift 0; ~515 KB transferred, uncached.
+- **The breath:** composited (Chromium reports no compositing failure); main thread **~1 ms a second** with it on, 3 ms with it off; 120 fps, worst frame 9 ms.
+- **The grain:** a static 34 KB tile; no paint or main-thread cost after the first paint (it never repaints: the breath scales and fades a composited layer above it).
+
+## Check on a real iPhone
+
+Install to Home Screen (icon, name, opens standalone, offline after install); the status bar in both themes in standalone (`default`: dark text; the dark theme's light strip is the logged trade-off); safe areas (notch and home indicator, portrait and landscape: the corners, the sticky pill, sheet bottoms); the keyboard (onboarding fields and Next above it with no jump, the hidden field keeping the keyboard up between steps, sheet inputs above it, no zoom on focus); sheets (swipe down, drag to large, pull down from the top of the content); the share sheet (`navigator.share`) and SMS links (body prefill, the fallback when Messages doesn't open); copy; Keep screen on (stays awake, lets go when locked or switched away, comes back); the grain (fine, not blotchy, at 3×) and scroll performance with the glow breathing; `:active` press states; Appearance switching and theme colour; the favicon.
 
 ## How I read the ambiguous parts
 

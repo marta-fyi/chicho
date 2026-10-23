@@ -432,7 +432,7 @@ try{
   .captions{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;font-size:12px;line-height:1.5;text-transform:uppercase;letter-spacing:var(--track-label);}
   .captions p{margin:0;}
   .cap-stage{display:flex;flex-direction:column;color:var(--ink-deco);}
-  .cap-glow{color:var(--ink-muted);text-align:right;white-space:nowrap;}
+  .cap-glow{flex:none;width:15ch;color:var(--ink-muted);text-align:right;}   /* one width for every group's name, so changing colour never moves the page */
   .headline{margin:0;font-family:var(--font-display);font-size:clamp(32px, 9.5vw, 40px);font-weight:500;letter-spacing:var(--track-hero);line-height:1.1;text-wrap:balance;}
   .headline:focus{outline:none;}
   /* ---------- the glow (light theme) ----------
@@ -473,7 +473,7 @@ try{
   h2.mx-title{cursor:default;min-height:0;}
   .mx-title:focus{outline:none;}
   button.mx-title:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px;}
-  .mx-meta{margin:0 0 4px;font-size:16px;line-height:1.4;color:var(--ink-85);}
+  .mx-meta{margin:0 0 4px;font-size:15px;line-height:1.4;color:var(--ink-85);}
   .mx-foods{list-style:none;margin:0;padding:0;}
   .fr{display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:12px;width:100%;min-height:52px;padding:4px 0;border:none;border-bottom:1px solid var(--ink-20);
       background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
