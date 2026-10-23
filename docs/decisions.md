@@ -47,6 +47,12 @@ Chicho is designed, built and tested for 360–430px. Everything below supersede
 - **The fold-in observer.** Below-the-fold sections fade up on a passive scroll check, not an IntersectionObserver: with the glow breathing, an observer made the browser recompute intersections every frame (110 ms of main thread a second at 4× CPU, against ~1 ms now).
 - **The sticky pill.** "Mark as offered" is one 48px bar, sticky at the bottom of the open meal. "Offered · Undo" splits the same bar into two buttons (no overlap, no change in size), so nothing shifts.
 
+## Patterns (one thumb, messy hands, quiet)
+
+- **Change, one at a time.** "Change" on a food shows one safe alternative (the same gate as the generator, drawn foods first, a stable order per food); "Another" crossfades to the next, "Keep" takes it, with the usual 5-second Undo.
+- **Swipe a row.** Right marks the meal offered (its undo line follows), left opens it in place on Change for its main food. The ring and the tap stay the visible path. A swipe that starts within 24px of either edge is left to Safari's back swipe; a drag that moves 10px vertically first is the page's scroll (`touch-action: pan-y`); under 72px it springs back.
+- **The glow's width.** The glow's wrapper is sized from the page's measured width (`--vw`), not `100vw`, which includes a classic scrollbar and overflowed by its width wherever scrollbars aren't overlays.
+
 ## Verification (Paper & Glow)
 
 - **Every commit:** `node tools/check.mjs`: lint (no hover, no colour outside the tokens, motion only on transform and opacity, one infinite animation), voice, and 20 test pages in headless Chrome, including layout (the fold budget at 390×844 and 375×667, no horizontal scroll from 320px, landscape), sheets, keyboard (a stand-in `visualViewport`), theme, glow, contrast, bullets, kitchen and touch.

@@ -53,6 +53,7 @@ const CONTENT = {
     newToday:"New today: {food}",
     amount:"{amount} · {texture}",
     change:"Change",
+    another:"Another", keep:"Keep",
     changeTo:"Change {food}",
     changed:"Changed to {food}.",
     noChange:"Nothing else safe to swap in here.",

@@ -361,7 +361,7 @@ function renderMeals(){
     nextLabel = say("home.tomorrow");
   }
   const sig = [openKey, def && def.key, ...all.map(x=>x.key + x.status + x.time + x.m.items.map(i=>i.id + (i.offered ? 1 : 0)).join(",") + (x.m.outcome || "") + (x.m.prepped || []).join(",") + (undoUntil[x.key] > Date.now() ? "u" : ""))].join("|")
-            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on;
+            + "|" + [...openFood].join(",") + "|" + Object.keys(changeUndo).join(",") + "|" + wake.on + "|" + (changing ? changing.id + ":" + changing.i : "");
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -446,7 +446,44 @@ function mealRow(x){
   row.appendChild(b);
   row.appendChild(ringBtn(x, "ring:" + x.key));
   if(undoUntil[x.key] > Date.now()) row.appendChild(undoLine(x));
+  swipeRow(row, b, x);
   return row;
+}
+/* Swipe a row: right marks it offered (the undo line follows), left opens it on Change for its main food.
+   A shortcut, never the only way: the ring and the row's tap stay. A swipe that starts within 24px of either
+   screen edge is left to the browser (Safari's back swipe); vertical drags stay the page's scroll. */
+const SWIPE_EDGE = 24, SWIPE_AT = 72;
+function swipeRow(row, b, x){
+  let x0 = null, y0 = 0, dx = 0, sideways = false, id = null;
+  const hint = document.createElement("span");
+  hint.className = "swipe-hint"; hint.setAttribute("aria-hidden", "true");
+  row.prepend(hint);
+  const end = ()=>{
+    if(x0===null) return;
+    x0 = null;
+    b.style.transform = ""; hint.style.opacity = "";
+    if(!sideways) return;
+    if(dx > SWIPE_AT && !mealOffered(x.m)) toggleOffered(x);
+    else if(dx < -SWIPE_AT && x.m.items[0]){ picked = {key:x.key, until:nextBoundary(refsOn(now()))}; openFood.add(x.m.items[0].id); changing = {id:x.m.items[0].id, i:0}; haptic(); homeChanged(); focusLater("keep:" + x.m.items[0].id); }
+    else if(!calm()) b.animate([{transform:`translateX(${dx}px)`}, {transform:"none"}], {duration:180, easing:"ease-out"});
+  };
+  b.addEventListener("pointerdown", e=>{
+    if(e.pointerType==="mouse" || e.clientX < SWIPE_EDGE || e.clientX > innerWidth - SWIPE_EDGE) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; sideways = false; id = e.pointerId;
+  });
+  b.addEventListener("pointermove", e=>{
+    if(x0===null || e.pointerId!==id) return;
+    dx = e.clientX - x0;
+    if(!sideways){ if(Math.abs(e.clientY - y0) > 10){ x0 = null; return; } if(Math.abs(dx) < 10) return; sideways = true; b.setPointerCapture(id); }
+    const d = Math.max(-120, Math.min(120, dx));
+    b.style.transform = `translateX(${d}px)`;
+    hint.textContent = d > 0 ? say("meal.offered") : say("meal.change");
+    hint.dataset.side = d > 0 ? "left" : "right";
+    hint.style.opacity = String(Math.min(1, Math.abs(d) / SWIPE_AT));
+  });
+  b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
+  // a finished swipe isn't also a tap
+  b.addEventListener("click", e=>{ if(sideways){ e.stopImmediatePropagation(); e.preventDefault(); sideways = false; } }, true);
 }
 function cssId(k){ return k.replace(/[^a-z0-9]/gi, "-"); }
 function focusLater(f){ requestAnimationFrame(()=>{ const el = document.querySelector(`[data-f="${CSS.escape(f)}"]`); if(el) el.focus({preventScroll:true}); }); }
@@ -509,33 +546,48 @@ function mealOpen(x, isDefault){
         p.append(say("meal.changed", {food:lower1(baseName(item))}) + " ");
         p.appendChild(textBtn(say("meal.undo"), ()=>{ const j = m.items.indexOf(item); if(j >= 0){ if(item.offered) setOffered(item, false); m.items[j] = cu.old; openFood.delete(item.id); openFood.add(cu.old.id); } delete changeUndo[item.id]; save(); homeChanged(); }, "inline"));
         more.appendChild(p);
-      }else{
-        const c = textBtn(say("meal.change"), ()=>{ more.querySelector(".fr-alts").hidden = false; const first = more.querySelector(".fr-alts button"); if(first) first.focus(); }, "small");
-        c.setAttribute("aria-label", say("meal.changeTo", {food:baseName(item)}));
-        more.appendChild(c);
-        const alts = document.createElement("div");
-        alts.className = "fr-alts"; alts.hidden = true;
-        const opts = alternatives(m, k);
-        if(!opts.length) alts.textContent = say("meal.noChange");
-        opts.forEach(f=>{
-          const ob = document.createElement("button");
-          ob.type = "button"; ob.className = "alt";
-          ob.innerHTML = `${foodArt(f.name, {size:24})}<span>${esc(f.name.split(",")[0])}</span>`;
-          ob.addEventListener("click", ()=>{
+      }else if(changing && changing.id===item.id){
+        // one alternative at a time: Another cycles it (a crossfade), Keep takes it
+        const opts = alternatives(m, k, 8);
+        const box = document.createElement("div");
+        box.className = "fr-alts";
+        if(!opts.length){ box.textContent = say("meal.noChange"); more.appendChild(box); }
+        else{
+          const f = opts[changing.i % opts.length];
+          const card = document.createElement("p");
+          card.className = "alt-card"; card.setAttribute("aria-live", "polite");
+          card.innerHTML = `${foodArt(f.name, {size:28})}<span>${esc(f.name.split(",")[0])}</span>`;
+          box.appendChild(card);
+          const acts = document.createElement("div");
+          acts.className = "alt-acts";
+          if(opts.length > 1){
+            const another = textBtn(say("meal.another"), ()=>{ changing.i++; changing.fade = true; homeChanged(); focusLater("another:" + item.id); }, "small");
+            another.dataset.f = "another:" + item.id;
+            acts.appendChild(another);
+          }
+          const keep = textBtn(say("meal.keep"), ()=>{
             const at = m.items.indexOf(item), old = item;
             if(old.offered) setOffered(old, false);
             const fresh_ = dish(f, st);
             if(old.offered) setOffered(fresh_, true);
             m.items[at] = fresh_;
-            openFood.delete(old.id); openFood.add(fresh_.id);
+            openFood.delete(old.id); openFood.add(fresh_.id); changing = null;
             changeUndo[fresh_.id] = {until:Date.now() + 5000, old};
             setTimeout(()=>{ delete changeUndo[fresh_.id]; homeChanged(); }, 5050);
             save(); haptic(); homeChanged(); focusLater("fr:" + fresh_.id);
             announce(say("meal.changed", {food:lower1(f.name.split(",")[0])}));
-          });
-          alts.appendChild(ob);
-        });
-        more.appendChild(alts);
+          }, "small");
+          keep.dataset.f = "keep:" + item.id;
+          acts.appendChild(keep);
+          box.appendChild(acts);
+          more.appendChild(box);
+          if(changing.fade && !calm()){ changing.fade = false; card.animate([{opacity:0, transform:"translateY(4px)"}, {opacity:1, transform:"none"}], {duration:220, easing:"ease-out"}); }
+        }
+      }else{
+        const c = textBtn(say("meal.change"), ()=>{ changing = {id:item.id, i:0}; homeChanged(); focusLater("keep:" + item.id); }, "small");
+        c.dataset.f = "change:" + item.id;
+        c.setAttribute("aria-label", say("meal.changeTo", {food:baseName(item)}));
+        more.appendChild(c);
       }
     }
     li.appendChild(more);
@@ -624,7 +676,7 @@ function mealOpen(x, isDefault){
   });
   return a;
 }
-let addingTo = null;
+let addingTo = null, changing = null;   // changing: {id (the food being changed), i (which alternative shows)}
 /* ---------- Keep screen on: the Screen Wake Lock, while cooking ----------
    Off by default; only where the browser has it. It lets go when the page is hidden or left, and after
    60 minutes (then the toggle turns off); it comes back only if it was left on and the page is visible again. */
@@ -657,15 +709,15 @@ function wakeToggle(){
   b.addEventListener("click", ()=>wakeSet(!wake.on));
   return b;
 }
-/* three safe alternatives from the same food group for this meal */
-function alternatives(m, k){
+/* safe alternatives from the same food group for this meal (drawn ones first), in a stable order */
+function alternatives(m, k, n){
   const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
   const taken = new Set(m.items.map(i=>i.name));
   const known = introducedAllergens(state.profile);
   const pool = FOOD_POOL.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile)
                                   && newAllergens(f.name, known).length===0);   // a swap never brings a first allergen
   return shuffledFor(pool.filter(f=>hasArt(foodOf(f.name)) && !dislikeMatch(f.name, state.profile)), item.id).concat(shuffledFor(pool.filter(f=>!hasArt(foodOf(f.name))), item.id))
-    .filter((f, i, a)=>a.indexOf(f)===i).slice(0, 3);
+    .filter((f, i, a)=>a.indexOf(f)===i).slice(0, n || 3);
 }
 /* the same order for the same key, so options don't jump between redraws */
 function shuffledFor(arr, key){

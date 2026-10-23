@@ -443,9 +443,9 @@ try{
      only continuous animation, paused when the tab is hidden, off under reduced
      motion. After 21:30 it drops to 55%. Its gradient comes from theme.js. */
   .hl{position:relative;margin-top:16px;}
-  .glow-wrap{position:absolute;left:50%;top:50%;width:100vw;height:0;transform:translateX(-50%);overflow-x:clip;overflow-y:visible;
+  .glow-wrap{position:absolute;left:50%;top:50%;width:var(--vw, 100vw);height:0;transform:translateX(-50%);overflow-x:clip;overflow-y:visible;
              pointer-events:none;z-index:-1;transition:opacity 1.2s ease-in-out;
-             --glow-size:calc(1.5 * min(100vw - var(--pad-l) - var(--pad-r), var(--col)));}
+             --glow-size:calc(1.5 * min(var(--vw, 100vw) - var(--pad-l) - var(--pad-r), var(--col)));}
   [data-theme="dark"] .glow-wrap{display:none;}
   .glow-dim .glow-wrap{opacity:.55;}
   .glow-pulse{position:absolute;left:50%;top:0;width:var(--glow-size);height:var(--glow-size);translate:-50% -50%;}
@@ -490,6 +490,14 @@ try{
   .fr-alts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
   .alt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 8px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;cursor:pointer;}
   .alt .food-art{--art:24px;}
+  .alt-card{display:flex;align-items:center;gap:12px;margin:10px 0 0;font-size:17px;font-weight:500;}
+  .alt-card .food-art{--art:28px;}
+  .alt-acts{display:flex;gap:8px 16px;margin-top:4px;}
+  /* row swipes: the row slides (transform), the word for what it will do shows behind it */
+  .mrow{position:relative;touch-action:pan-y;}
+  .swipe-hint{position:absolute;top:0;height:48px;display:flex;align-items:center;font-size:12px;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);opacity:0;pointer-events:none;}
+  .swipe-hint[data-side="left"]{left:0;}
+  .swipe-hint[data-side="right"]{right:52px;}
   .mx-how{margin:12px 0 0;font-size:16px;line-height:1.5;color:var(--ink-85);}
   .mx-acts{position:sticky;bottom:calc(16px + env(safe-area-inset-bottom));z-index:3;display:flex;align-items:stretch;width:100%;height:48px;margin-top:16px;
            border-radius:999px;background:var(--ink);color:var(--on-ink);}
@@ -1561,6 +1569,7 @@ function kbSync(){
   const root = document.documentElement;
   root.style.setProperty("--kb", kb + "px");
   root.style.setProperty("--vvh", Math.round(v.height) + "px");
+  root.style.setProperty("--vw", root.clientWidth + "px");   // the page's real width: 100vw includes a classic scrollbar
   root.classList.toggle("kb-open", kb > 80);
   kbListeners.forEach(f=>f(kb, v));
 }

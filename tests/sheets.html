@@ -31,7 +31,7 @@ f.onload = async () => {
     // the shop sheet has the most content
     $("#shopLine").click(); await wait(320);
     ok("it is a <dialog> opened modally (focus is trapped by the browser too)", sheet.open && sheet.matches(":modal"));
-    ok("a bottom sheet: anchored to the bottom edge, full width", Math.round(R(sheet).bottom) === 844 && Math.round(R(sheet).width) === 390, [R(sheet).bottom, R(sheet).width]);
+    ok("a bottom sheet: anchored to the bottom edge, full width", Math.round(R(sheet).bottom) === 844 && Math.round(R(sheet).width) === d.documentElement.clientWidth, [R(sheet).bottom, R(sheet).width]);
     ok("…with a scrim", getComputedStyle(sheet, "::backdrop").backgroundColor !== "rgba(0, 0, 0, 0)", getComputedStyle(sheet, "::backdrop").backgroundColor);
     ok("…a drag handle", !!$("#sheetGrab i") && R($("#sheetGrab i")).width >= 32);
     ok("…and a visible ✕ of 44px", R($("#sheetClose")).width >= 44 && R($("#sheetClose")).height >= 44 && getComputedStyle($("#sheetClose")).visibility === "visible");

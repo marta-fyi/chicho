@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · gesture tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Gesture tests</h1>
+<p>Shortcuts for one thumb, never the only way: swipe a row right to mark it offered, left to open Change; edge starts and vertical drags are left alone. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const seed = () => E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.foods = {}; save(); closeOnboarding(); picked = null; changing = null; homeChanged();`);
+    seed(); await wait(300);
+    const P = (el, type, x, y) => el.dispatchEvent(new w.PointerEvent(type, {bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 7, pointerType: "touch", isPrimary: true}));
+    const swipe = async (el, x, dx, dy = 0) => { const r = el.getBoundingClientRect(), y = r.top + r.height / 2; P(el, "pointerdown", x, y); for (let k = 1; k <= 6; k++) P(el, "pointermove", x + dx * k / 6, y + dy * k / 6); P(el, "pointerup", x + dx, y + dy); await wait(80); };
+    const row = () => $("#nextList .mrow"), key = () => row().dataset.key;
+    const mealOf = k => `refsOn(now()).concat(refsOn(tomorrowOf(now()))).find(x => x.key === '${k}').m`;
+    let k = key();
+    await swipe(row().querySelector(".mrow-btn"), 60, 110);
+    ok("swipe right on a row: that meal is offered", E(`mealOffered(${mealOf(k)})`));
+    ok("…with its undo line, as always", /Offered · Undo/.test(d.querySelector(`.mrow[data-key="${k}"]`).textContent));
+    ok("…and the ring shows it (the visible path stays)", d.querySelector(`.mrow[data-key="${k}"] .ring-btn`).getAttribute("aria-pressed") === "true");
+    seed(); await wait(50);
+    k = key();
+    await swipe(row().querySelector(".mrow-btn"), 300, -110);
+    ok("swipe left: the meal opens in place, on Change for its main food", !d.querySelector(`.mrow[data-key="${k}"]`) && !!$(".alt-card") && E("changing && changing.id") === E(`${mealOf(k)}.items[0].id`));
+    seed(); await wait(50);
+    k = key();
+    await swipe(row().querySelector(".mrow-btn"), 10, 140);
+    ok("a swipe that starts at the screen's edge is left to the browser (back swipe)", !E(`mealOffered(${mealOf(k)})`));
+    await swipe(row().querySelector(".mrow-btn"), 60, 30, 120);
+    ok("a mostly vertical drag is the page's scroll, not a swipe", !E(`mealOffered(${mealOf(k)})`) && !!d.querySelector(`.mrow[data-key="${k}"]`));
+    await swipe(row().querySelector(".mrow-btn"), 60, 40);
+    ok("a short swipe springs back and does nothing", !E(`mealOffered(${mealOf(k)})`) && !row().querySelector(".mrow-btn").style.transform);
+    ok("rows keep vertical scrolling native (touch-action: pan-y)", w.getComputedStyle(row()).touchAction === "pan-y");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · gestures";
+};
+</script>
+</body></html>
