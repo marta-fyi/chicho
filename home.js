@@ -1141,6 +1141,7 @@ function openSheet(kind, arg){
 }
 function closeSheet(instant){
   if(!sheetEl.open) return;
+  if(shopMode.store) setStoreMode(false);   // leaving the shop leaves the store: the screen may sleep again
   const done = ()=>{ sheetEl.close(); sheetStack = []; sheetEl.style.transform = ""; if(sheetOpener && document.contains(sheetOpener)) sheetOpener.focus({preventScroll:true}); };
   if(instant===true || calm()){ done(); return; }
   const a = sheetEl.animate([{opacity:1, transform:sheetEl.style.transform || "none"}, {opacity:0, transform:"translateY(30%)"}], {duration:150, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
@@ -1217,6 +1218,14 @@ function sheetRing(on, label, fn, f){
   b.addEventListener("click", fn);
   return b;
 }
+/* shopping in the store: grouped by food group, the screen awake while the sheet is open */
+const shopMode = {store:false, stockOpen:false, wakeOurs:false};
+function setStoreMode(on){
+  shopMode.store = on;
+  if(on){ setDetent("large"); if(wakeSupported() && !wake.on){ shopMode.wakeOurs = true; wakeSet(true); } }
+  else if(shopMode.wakeOurs){ shopMode.wakeOurs = false; if(wake.on) wakeSet(false); }
+  haptic(); refreshSheetView();
+}
 let sessionBought = {};   // key → grams added this session, so an untick can take exactly that back
 const SHEETS = {
   /* a day of the week: its meals, offered or planned; future days can change their main food */
@@ -1246,12 +1255,19 @@ const SHEETS = {
   /* shop: what to pick up, soonest first; a ring means bought, and it settles into In stock */
   shop(body){
     sheetTitle(say("shopSheet.title"));
-    const need = shopList("week"), order = dayDisplayOrder().map(i=>state.plan.days[i].name);
+    const need = shopList("week"), order = dayDisplayOrder().map(i=>state.plan.days[i].name), store = shopMode.store;
+    // In the store: sorted by food group, the screen kept awake, the sheet at its large detent
+    const tg = document.createElement("button");
+    tg.type = "button"; tg.className = "btn-text small wake store-toggle"; tg.dataset.f = "instore";
+    tg.setAttribute("aria-pressed", String(store));
+    tg.innerHTML = `<i aria-hidden="true"></i>${esc(say("shopSheet.inStore"))}`;
+    tg.addEventListener("click", ()=>setStoreMode(!shopMode.store));
+    body.appendChild(tg);
     if(!need.length && !state.extras.some(x=>!x.checked)) body.insertAdjacentHTML("beforeend", `<p class="s-empty">${esc(say("shopSheet.none"))}</p>`);
-    need.forEach(n=>{
+    const word = name=>{ const k = order.indexOf(name); return k===0 ? say("shopSheet.today") : k===1 ? say("shopSheet.tomorrow") : fmtWeekday(dateOfPlanDay(name)); };
+    const needRow = n=>{
       const {short} = shortfall(n.key), st = state.stock[n.key];
       const first = n.days.slice().sort((a, b)=>order.indexOf(a) - order.indexOf(b))[0];
-      const word = name=>{ const k = order.indexOf(name); return k===0 ? say("shopSheet.today") : k===1 ? say("shopSheet.tomorrow") : fmtWeekday(dateOfPlanDay(name)); };
       const when = st && st.g > 0 && short ? say("shopSheet.runsOut", {weekday:word(short)}) : say("shopSheet.forDay", {weekday:word(first)});
       const row = document.createElement("div");
       row.className = "s-item";
@@ -1260,15 +1276,29 @@ const SHEETS = {
         const amt = toBuy(n), g = amt===null ? null : buyPacks(n.name, amt).g;
         addToStock(n.key, n.name, g); sessionBought[n.key] = g; haptic(); announce(say("shopSheet.bought", {food:baseName(n)})); homeChanged();
       }, "buy:" + n.key));
-      body.appendChild(row);
-    });
-    state.extras.filter(x=>!x.checked).forEach(x=>{
+      return row;
+    };
+    const extraRow = x=>{
       const row = document.createElement("div");
       row.className = "s-item";
       row.innerHTML = `${foodArt(null, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(x.name)}</span><span class="s-item-sub">${esc(x.qty || "")}</span></p>`;
       row.appendChild(sheetRing(false, say("shopSheet.bought", {food:x.name}), ()=>{ x.checked = true; save(); haptic(); homeChanged(); }, "extra:" + x.id));
-      body.appendChild(row);
-    });
+      return row;
+    };
+    const extras = state.extras.filter(x=>!x.checked);
+    if(store){
+      // by food group, in the same order as Variety; anything else last
+      GROUPS.concat("other").forEach(cat=>{
+        const rows = need.filter(n=>(GROUPS.includes(n.cat) ? n.cat : "other")===cat);
+        if(cat==="other" && extras.length) rows.push(...extras.map(x=>({extra:x})));
+        if(!rows.length) return;
+        body.insertAdjacentHTML("beforeend", `<h3 class="s-sec">${esc(cat==="other" ? say("shopSheet.other") : say("home.groups." + cat))}</h3>`);
+        rows.forEach(r=>body.appendChild(r.extra ? extraRow(r.extra) : needRow(r)));
+      });
+    }else{
+      need.forEach(n=>body.appendChild(needRow(n)));
+      extras.forEach(x=>body.appendChild(extraRow(x)));
+    }
     // also pick up: something that isn't on the plan
     const p = document.createElement("p");
     p.className = "s-add";
@@ -1278,11 +1308,18 @@ const SHEETS = {
     const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
     p.append(l, " ", b.el);
     body.appendChild(p);
-    // in stock: this week's foods that are at home, and anything ticked off
+    // in stock: this week's foods that are at home, and anything ticked off; folded away until asked for
     const stocked = Object.values(needOn(windowDays("week"))).filter(n=>toBuy(n)===0);
     const ticked = state.extras.filter(x=>x.checked);
     if(stocked.length || ticked.length){
-      body.insertAdjacentHTML("beforeend", `<h3 class="s-sec">${esc(say("shopSheet.inStock"))}</h3>`);
+      const fold = document.createElement("button");
+      fold.type = "button"; fold.className = "s-fold"; fold.dataset.f = "instock";
+      fold.setAttribute("aria-expanded", String(shopMode.stockOpen)); fold.setAttribute("aria-controls", "inStockList");
+      fold.innerHTML = `<span class="s-sec">${esc(say("shopSheet.inStock"))} · ${stocked.length + ticked.length}</span><i class="chev" aria-hidden="true"></i>`;
+      fold.addEventListener("click", ()=>{ shopMode.stockOpen = !shopMode.stockOpen; refreshSheetView(); });
+      body.appendChild(fold);
+      const box = document.createElement("div");
+      box.id = "inStockList"; box.hidden = !shopMode.stockOpen;
       stocked.forEach(n=>{
         const row = document.createElement("div");
         row.className = "s-item";
@@ -1292,15 +1329,16 @@ const SHEETS = {
           if(g && st && st.g!==null) st.g = Math.max(0, st.g - g); else delete state.stock[n.key];
           delete sessionBought[n.key]; save(); haptic(); homeChanged();
         }, "unbuy:" + n.key));
-        body.appendChild(row);
+        box.appendChild(row);
       });
       ticked.forEach(x=>{
         const row = document.createElement("div");
         row.className = "s-item";
         row.innerHTML = `${foodArt(null, {size:28})}<p class="s-item-t"><span class="s-item-n">${esc(x.name)}</span></p>`;
         row.appendChild(sheetRing(true, say("shopSheet.notBought", {food:x.name}), ()=>{ x.checked = false; save(); homeChanged(); }, "unextra:" + x.id));
-        body.appendChild(row);
+        box.appendChild(row);
       });
+      body.appendChild(box);
     }
     const foot = document.createElement("button");
     foot.type = "button"; foot.className = "btn-ink s-foot"; foot.textContent = say("shopSheet.send");

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · shopping tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Shopping tests</h1>
+<p>In the store: the list by food group, a thin ring to tick, bought things folded into "In stock", the screen awake (a stand-in Wake Lock) and nothing red. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&theme=light&now=2026-10-22T12:10";
+f.width = 390; f.height = 844;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const log = [];
+    Object.defineProperty(w.navigator, "wakeLock", {value: {request: () => { log.push("request"); const s = new w.EventTarget(); s.release = () => { log.push("release"); return Promise.resolve(); }; return Promise.resolve(s); }}, configurable: true});
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok"); state.asked = {staplesShop: "2026-10-01"};
+       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.stock = {}; state.extras = [{id: "x1", name: "Nappies", qty: "", checked: false}]; save(); closeOnboarding(); homeChanged();`);
+    await wait(300);
+    E("openSheet('shop')"); await wait(350);
+    const toggle = () => $(".store-toggle");
+    ok("the shop sheet has 'In the store', off at first", !!toggle() && toggle().getAttribute("aria-pressed") === "false" && toggle().getBoundingClientRect().height >= 44);
+    ok("planning view: soonest first, no group headings", $$("#sheetBody > .s-sec").length === 0);
+    toggle().click(); await wait(350);
+    const heads = $$("#sheetBody > .s-sec").map(h => h.textContent);
+    const order = ["Protein", "Veg", "Fruit", "Grains", "Fats and dairy", "Everything else"];
+    ok("in the store: grouped by food group, in Variety's order, everything else last", heads.length >= 3 && heads.every((h, i) => i === 0 || order.indexOf(h) > order.indexOf(heads[i - 1])) && heads.at(-1) === "Everything else", heads);
+    ok("…each item under its own group", E(`(() => { const need = shopList("week"); return need.every(n => { const row = [...document.querySelectorAll("#sheetBody .s-item")].find(r => r.querySelector(".s-item-n").textContent === baseName(n)); let h = row.previousElementSibling; while (h && !h.matches(".s-sec")) h = h.previousElementSibling; return h && h.textContent === (GROUPS.includes(n.cat) ? say("home.groups." + n.cat) : "Everything else"); }); })()`));
+    ok("…the screen stays awake", log.includes("request") && E("wake.on"));
+    ok("…the sheet opens to its large detent", $("#sheet").dataset.detent === "large");
+    ok("…a thin ring to tick each thing (28px, 1.5px line, a 44px target)", $$("#sheetBody .s-item .ring-btn").every(r => r.getBoundingClientRect().width >= 44 && Math.round(r.querySelector("i").getBoundingClientRect().width) === 28 && [...d.styleSheets[0].cssRules].some(x => x.selectorText === ".ring-btn i" && /border: 1\.5px solid/.test(x.cssText))));   // declared 1.5px (a 1× screen rounds it to 1px)
+    // tick one: it goes to In stock, folded
+    const name = $("#sheetBody .s-item .s-item-n").textContent;
+    $("#sheetBody .s-item .ring-btn").click(); await wait(60);
+    ok("ticked: it leaves the list", ![...d.querySelectorAll("#sheetBody > .s-item .s-item-n")].some(n => n.textContent === name));
+    const fold = $(".s-fold");
+    ok("…into 'In stock', folded away", !!fold && fold.getAttribute("aria-expanded") === "false" && $("#inStockList").hidden && /^In stock · \d+/.test(fold.textContent));
+    fold.click(); await wait(60);
+    ok("tap 'In stock': it opens, the ticked thing there", $(".s-fold").getAttribute("aria-expanded") === "true" && !$("#inStockList").hidden && [...d.querySelectorAll("#inStockList .s-item-n")].some(n => n.textContent === name));
+    // nothing red: every text colour on the sheet is the ink or its muted step
+    const colours = new Set([...d.querySelectorAll("#sheet *")].filter(e => e.offsetParent && e.textContent.trim()).map(e => w.getComputedStyle(e).color));
+    ok("nothing is red: only the ink, its muted step and the pill's text", [...colours].every(c => ["rgb(18, 18, 18)", "rgba(18, 18, 18, 0.7)", "rgb(246, 246, 244)"].includes(c)), [...colours]);
+    // leaving the shop: the screen may sleep again
+    E("closeSheet(true)"); await wait(50);
+    ok("closing the sheet leaves the store and lets the screen sleep", !E("shopMode.store") && !E("wake.on") && log.at(-1) === "release");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · shop";
+};
+</script>
+</body></html>

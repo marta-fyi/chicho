@@ -159,7 +159,8 @@ const CONTENT = {
   day:{title:"{weekday} {date}", nothing:"Nothing planned for this day.", change:"Change"},
   shopSheet:{
     title:"Shop", runsOut:"runs out {weekday}", forDay:"for {weekday}", today:"today", tomorrow:"tomorrow", inStock:"In stock",
-    bought:"Bought {food}", notBought:"{food}: not bought", send:"Send the list", alsoGet:"Also pick up {blank}", none:"Nothing to pick up."
+    bought:"Bought {food}", notBought:"{food}: not bought", send:"Send the list", alsoGet:"Also pick up {blank}", none:"Nothing to pick up.",
+    inStore:"In the store", other:"Everything else"
   },
   allergenNote:{
     title:"Watching a first taste",

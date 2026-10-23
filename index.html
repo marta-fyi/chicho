@@ -648,6 +648,12 @@ try{
   .s-seg-opts button{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:500;cursor:pointer;}
   .s-seg-opts button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
   .s-seg-opts button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .store-toggle{margin:0 0 8px;}
+  .s-fold{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin-top:12px;padding:0;border:none;border-bottom:1px solid var(--hairline);background:none;color:var(--ink);font:inherit;cursor:pointer;}
+  .s-fold .s-sec{margin:0;}
+  .s-fold[aria-expanded="true"] .chev{rotate:225deg;translate:0 3px;}
+  .s-fold:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  #inStockList[hidden]{display:none;}
   .s-person{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--hairline);}
   .s-person p{margin:0;font-size:17px;}
   .s-foot{margin-top:22px;}

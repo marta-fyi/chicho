@@ -135,7 +135,7 @@ f.onload = async () => {
     const firstName = $("#sheetBody .s-item-n").textContent;
     ok("…'runs out' or 'for' a weekday, in words (never red)", /^(runs out|for) ([A-Z][a-z]+day|today|tomorrow)$/.test($("#sheetBody .s-item-sub").textContent), $("#sheetBody .s-item-sub").textContent);
     $("#sheetBody .ring-btn").click(); await wait(60);
-    ok("a ring = bought: it moves to In stock", [...d.querySelectorAll("#sheetBody .s-sec ~ .s-item .s-item-n")].some(n => n.textContent === firstName));
+    ok("a ring = bought: it moves to In stock", [...d.querySelectorAll("#inStockList .s-item-n")].some(n => n.textContent === firstName));
     ok("…with 'Send the list' at the foot", [...d.querySelectorAll("#sheetBody .btn-ink")].some(b => b.textContent === "Send the list"));
     const r = $("#sheet").getBoundingClientRect();
     $("#sheet").dispatchEvent(new w.MouseEvent("click", {bubbles: true, clientX: 5, clientY: 5}));
