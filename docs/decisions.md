@@ -19,6 +19,12 @@ Where the brief's rules met each other, the principles won. Every number marked 
 
 Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a text switch. The four old sections (To buy, Running low, At home, Freezer and prep) are gone, and so is every Kitchen detail in the swipe-navigation section below. The code lives in `kitchen.js`; its numbers are one frozen object, `KITCHEN`.
 
+**The header and the switch**
+
+- The header is pinned over the scroll area, which starts under it: its `padding-top` and `scroll-padding-top` are set to the header's measured height (a `ResizeObserver`), so nothing is clipped behind it at rest. Its surface is `--bg` at 88% (`--head-bg`, one token per theme, since the colour lint allows no colour outside the tokens) with `backdrop-filter: blur(14px)`. **The surface fades in with its hairline (150 ms)** once anything scrolls under it. At rest only the Kitchen's glow sits behind the title, and a solid surface would have hidden it.
+- The header zone for vertical navigation is the whole pinned header, measured, including the view switch (it was a fixed 120px).
+- The last view is remembered in `sessionStorage`, so it lasts for the tab's session. The arrow keys switch views on the Kitchen, as they switch screens elsewhere.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).

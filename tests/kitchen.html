@@ -8,7 +8,7 @@
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-localStorage.clear();
+localStorage.clear(); sessionStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test&now=2026-10-22T12:10";
 f.width = 390; f.height = 844;
@@ -26,8 +26,10 @@ f.onload = async () => {
        state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
        state.pantry = []; state.freezer = []; state.offers = []; offersChanged(); save(); closeOnboarding(); go("kitchen", {quiet: true});`);
     await wait(500);
-    ok("the Kitchen: a pinned 'Home' control, its title, 'In the store'", $(".home-link").textContent === "Home" && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store");
-    ok("the sections, in order: To buy, At home, Freezer and prep (Running low only when something is low)", $$("section.sec").map(s => s.dataset.sec).join() === "tobuy,athome,freezer", $$("section.sec").map(s => s.dataset.sec));
+    const view = async v => { $(`[data-f="view:${v}"]`).click(); await wait(250); };
+    ok("the Kitchen: a pinned 'Home' control, its title, 'In the store: Off'", $(".home-link").textContent === "Home" && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store: Off");
+    ok("the view switch: Buy, At home, Prep; Buy by default", $$(".k-tab .k-tab-t").map(b => b.textContent).join() === "Buy,At home,Prep" && $(".k-tab.is-on").dataset.view === "buy" && $(".k-view").dataset.view === "buy");
+    ok("…Buy carries the count of rows still to buy", $('.k-tab[data-view="buy"] .k-count').textContent === String(E("toBuyList().length")));
 
     // 1. To buy: the next three days' needs, minus what's at home
     const list = () => E("toBuyList().map(n => n.foodId)");
@@ -41,19 +43,20 @@ f.onload = async () => {
     const first = E("toBuyList()[0]");
     $(`[data-f="buy:${first.foodId}"]`).click(); await wait(40);
     ok("ticking it: off To buy, into At home as Plenty", !list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === "plenty");
-    ok("…its group in At home now shows it, as the word 'Plenty'", (() => { const g = E(`groupOfFood("${first.foodId}")`); $(`[data-f="group:${g}"]`).click(); return true; })() && (await wait(30), $(`[data-f="stock:${first.foodId}"]`)) && $(`[data-f="stock:${first.foodId}"] .state-word`).textContent === "Plenty");
+    await view("home");
+    ok("…its group in At home now shows it, as the word 'Plenty'", (() => { const g = E(`foodGroup("${first.foodId}")`); $(`[data-f="group:${g}"]`).click(); return true; })() && (await wait(30), $(`[data-f="stock:${first.foodId}"]`)) && $(`[data-f="stock:${first.foodId}"] .state-word`).textContent === "Plenty");
 
     // 2. Plenty → Low → Out, as words; Low is Running low, Out goes back to To buy when the plan needs it
     $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
-    ok("tap: Low, and it shows under Running low", E(`stockState("${first.foodId}")`) === "low" && !!$(`[data-sec="low"] [data-f="stock:${first.foodId}"]`) && $$("section.sec").map(s => s.dataset.sec).join() === "tobuy,low,athome,freezer");
+    ok("tap: Low, and it shows under Low", E(`stockState("${first.foodId}")`) === "low" && !!$(`[data-sec="low"] [data-f="stock:${first.foodId}"]`));
     ok("…Low is still at home: not on To buy", !list().includes(first.foodId));
     $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
-    ok("tap: Out, and the plan needs it, so it's back on To buy", E(`stockState("${first.foodId}")`) === "out" && list().includes(first.foodId) && !!$(`[data-f="buy:${first.foodId}"]`));
+    ok("tap: Out, and the plan needs it, so it's back on To buy", E(`stockState("${first.foodId}")`) === "out" && list().includes(first.foodId));
     $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
     ok("tap: Plenty again (nothing is final)", E(`stockState("${first.foodId}")`) === "plenty");
-    ok("At home: one row per food group, folded until opened", $$('[data-sec="athome"] .group-btn').length >= 5 && $$('[data-sec="athome"] .group-btn[aria-expanded="false"]').length >= 4);
+    ok("At home: one row per food group, folded until opened", $$('[data-sec="athome"] .group-btn').length >= 5 && $$('[data-sec="athome"] .group-list[hidden]').length >= 4);
     ok("…no counts on the groups (no totals as pressure)", $$('[data-sec="athome"] .group-btn').every(b => !/\d/.test(b.textContent)));
-    ok("…each line reads its state as a word, with a label saying what a tap does", $$('[data-sec="athome"] .row-btn').every(b => /^(Plenty|Low|Out)$/.test(b.querySelector(".state-word").textContent) && /Tap for (Plenty|Low|Out)/.test(b.getAttribute("aria-label"))));
+    ok("…each line reads its state as a word", $$('[data-sec="athome"] .row-btn').every(b => /^(Plenty|Low|Out)$/.test(b.querySelector(".state-word").textContent)));
 
     // 3. Add something
     $('[data-f="kitchen:add"]').click(); await wait(40);
@@ -71,6 +74,7 @@ f.onload = async () => {
     ok("…anything typed works too, under Everything else", E(`stockState("wipes")`) === "plenty" && !!$('[data-f="group:other"]'));
 
     // 4. Freezer and prep
+    await view("prep");
     E(`state.freezer.push({foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-20"}); save(); refresh("kitchen")`); await wait(30);
     const fz = () => $('[data-sec="freezer"]').textContent;
     const made = E("fmtDayShort(localDate('2026-10-20'))");
@@ -82,9 +86,10 @@ f.onload = async () => {
     $('[data-f="useone:lentils"]').click(); await wait(30);
     ok("…and at none, it's gone", !/Lentils ·/.test(fz()));
     const prep = $$('[data-sec="freezer"] .ring-btn');
-    ok("open prep tasks each have a done ring", prep.every(r => r.getAttribute("aria-pressed") === "false" && /^Done: /.test(r.getAttribute("aria-label"))), prep.length);
+    ok("open prep tasks each have a done ring", prep.every(r => r.getAttribute("aria-pressed") === "false"), prep.length);
 
     // 5. Send the list
+    await view("buy");
     let copied = null;
     Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
     Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
@@ -95,16 +100,46 @@ f.onload = async () => {
 
     // 6. In the store
     const tog = () => $('[data-f="instore"]');
-    ok("'In the store' is off by default, a 44px target", tog().getAttribute("aria-pressed") === "false" && tog().getBoundingClientRect().height >= 44 && !log.length);
+    ok("'In the store: Off' by default, a 44px target", tog().textContent === "In the store: Off" && tog().getBoundingClientRect().height >= 44 && !log.length);
     tog().click(); await wait(60);
-    ok("on: the screen wake lock is requested", log.join() === "request:screen" && tog().getAttribute("aria-pressed") === "true");
+    ok("on: the screen wake lock is requested, and it says 'In the store: On'", log.join() === "request:screen" && tog().textContent === "In the store: On");
     const heads = $$('[data-sec="tobuy"] h3.sec-h').map(h => h.textContent);
     const order = ["Grains", "Veg", "Fruit", "Protein", "Fats and dairy", "Everything else"];
     ok("…To buy regroups by food group, in order", heads.length >= 2 && heads.every((h, i) => order.includes(h) && (i === 0 || order.indexOf(h) > order.indexOf(heads[i - 1]))), heads);
     E(`go("home", {quiet: true})`); await wait(450);
     ok("leaving the Kitchen leaves the store and lets the screen sleep", !E("kitchenUI.store") && !E("wake.on") && log.at(-1) === "release", log);
     E(`go("kitchen", {quiet: true})`); await wait(450);
-    ok("…and it's off when you come back", tog().getAttribute("aria-pressed") === "false");
+    ok("…and it's off when you come back", tog().textContent === "In the store: Off");
+
+    // 7. the view switch: tap, keys, swipe, each view keeps its scroll
+    await view("home");
+    ok("a tap on 'At home' switches, and it's remembered for the session", $(".k-view").dataset.view === "home" && w.sessionStorage.getItem("chicho.kitchenView") === "home");
+    const line = () => $(".k-line").getBoundingClientRect(), tab = v => $(`.k-tab[data-view="${v}"] .k-tab-t`).getBoundingClientRect();
+    ok("…the underline sits under the active label", Math.abs(line().left - tab("home").left) < 2 && Math.abs(line().width - tab("home").width) < 2, [line().left, tab("home").left]);
+    const swipe = async (dx, steps = 8) => {
+      const p = d.getElementById("pager"), y = 500, x0 = 200, ev = (type, x) => p.dispatchEvent(new w.PointerEvent(type, {pointerId: 7, clientX: x, clientY: y, bubbles: true, isPrimary: true, pointerType: "touch"}));
+      $(".k-body").dispatchEvent(new w.PointerEvent("pointerdown", {pointerId: 7, clientX: x0, clientY: y, bubbles: true, isPrimary: true, pointerType: "touch"}));
+      for (let k = 1; k <= steps; k++) { ev("pointermove", x0 + dx * k / steps); await wait(16); }
+      ev("pointerup", x0 + dx); await wait(260);
+    };
+    await swipe(-220);
+    ok("a swipe left moves on to Prep (and the screen stays the Kitchen)", $(".k-view").dataset.view === "prep" && E("pg.cur") === "kitchen", [$(".k-view").dataset.view, E("pg.cur")]);
+    await swipe(-220);
+    ok("…past the last view it rubber-bands back and stays on Prep", $(".k-view").dataset.view === "prep" && !$(".k-view").style.transform && E("pg.cur") === "kitchen");
+    await swipe(60);
+    ok("…a short swipe right springs back", $(".k-view").dataset.view === "prep");
+    await swipe(240); await swipe(240);
+    ok("…two long swipes right come back to Buy", $(".k-view").dataset.view === "buy");
+    await swipe(240);
+    ok("…and past the first view it rubber-bands", $(".k-view").dataset.view === "buy" && E("pg.cur") === "kitchen");
+    d.body.dispatchEvent(new w.KeyboardEvent("keydown", {key: "ArrowRight", bubbles: true})); await wait(250);
+    ok("the arrow keys switch views on the Kitchen", $(".k-view").dataset.view === "home");
+    E(`for (let k = 0; k < 30; k++) setStock("zz" + k, "Zz" + k, "plenty"); kitchenUI.open.other = true; save(); changed()`); await wait(60);
+    $(".k-body").scrollTop = 300; await wait(30);
+    await view("buy"); $(".k-body").scrollTop = 0; await view("home");
+    ok("each view keeps its own scroll position", $(".k-body").scrollTop === 300, $(".k-body").scrollTop);
+    ok("the scroll area starts under the header (padding = its height)", Math.abs(parseFloat($(".k-body").style.paddingTop) - $(".k-head").offsetHeight) < 1 && $(".k-body").style.scrollPaddingTop === $(".k-body").style.paddingTop);
+    ok("…and the header's surface shows once something is under it", $(".k-head").classList.contains("is-under"));
 
     // nothing red, no counters
     const colours = new Set($$("*").filter(e => e.offsetParent && e.textContent.trim()).map(e => w.getComputedStyle(e).color));

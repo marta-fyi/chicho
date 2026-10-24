@@ -45,7 +45,7 @@ const fit = (d, W, H) => {
 };
 (async () => {
   try {
-    localStorage.clear();
+    localStorage.clear(); sessionStorage.clear();
     for (const [W, H] of [[375, 667], [390, 844], [430, 932]]) {
       // a three-food lunch
       let f = await load(W, H), d = f.contentDocument, w = f.contentWindow, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];

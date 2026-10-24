@@ -140,6 +140,7 @@ const CONTENT = {
   },
   /* ---------- Kitchen: stock, shopping, prep ---------- */
   kitchen:{
+    views:{buy:"Buy", home:"At home", prep:"Prep"}, storeOff:"In the store: Off", storeOn:"In the store: On",
     inStore:"In the store", toBuy:"To buy", low:"Running low", atHome:"At home", freezer:"Freezer and prep", other:"Everything else",
     forMeal:"{food} · for {day} {meal}", bought:"Bought {food}", send:"Send the list",
     nothingToBuy:"Nothing to pick up for the next 3 days.", groupEmpty:"Nothing marked here yet.",

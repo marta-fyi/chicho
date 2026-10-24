@@ -7,7 +7,7 @@
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
-localStorage.clear();
+localStorage.clear(); sessionStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test";
 f.style.cssText = "width:390px;height:300px;border:1px solid #ccc";
@@ -103,7 +103,7 @@ f.onload = async () => {
     const d = f.contentDocument;
     const alsoLines = [...d.querySelectorAll("#nowMeal .meal-also")];
     ok("Home shows one 'While you're at it' line, and no button in it", alsoLines.length === 1 && /^While you're at it: /.test(alsoLines[0].textContent) && !alsoLines[0].querySelector("button"), alsoLines.map(x => x.textContent));
-    E(`go("kitchen", {quiet: true})`);
+    E(`go("kitchen", {quiet: true}); switchView("prep")`);
     await new Promise(r => setTimeout(r, 450));
     const ring = d.querySelector('#scr-kitchen [data-f^="prep:double:"]');
     ok("Kitchen lists the open prep task under Freezer and prep, with a done ring", !!ring && ring.closest('[data-sec="freezer"]') && ring.getAttribute("aria-pressed") === "false");

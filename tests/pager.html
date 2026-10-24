@@ -19,7 +19,7 @@ const load = (hash, months) => new Promise(res => {
 });
 (async () => {
   try {
-    localStorage.clear();
+    localStorage.clear(); sessionStorage.clear();
     let f = await load(), w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
     const cur = () => E("pg.cur");
     const cam = () => (($("#camera").style.transform.match(/-?[\d.]+px/g) || ["0px", "0px"]).slice(0, 2)).map(v => Math.round(parseFloat(v)));
@@ -92,7 +92,7 @@ const load = (hash, months) => new Promise(res => {
     // scrolling screens: header zone, and the pull past the edge
     await go("kitchen");
     const kb = $("#scr-kitchen .scr-body");
-    ok("Kitchen scrolls natively (pan-y), its header zone takes the drag (touch-action none)", w.getComputedStyle(kb).touchAction === "pan-y" && w.getComputedStyle($("#scr-kitchen .scr-head")).touchAction === "none" && w.getComputedStyle($("#scr-home")).touchAction === "none");
+    ok("Kitchen scrolls natively (pan-y), its header zone takes the drag (touch-action none)", w.getComputedStyle(kb).touchAction === "pan-y" && w.getComputedStyle($("#scr-kitchen .k-head")).touchAction === "none" && w.getComputedStyle($("#scr-home")).touchAction === "none");
     await drag(200, 500, 0, 330, {steps: 8, dt: 30}); await settle();
     ok("a vertical pointer drag in the body is the body's scroll, not the pager's", cur() === "kitchen");
     const T = (type, y, target) => { const touch = new w.Touch({identifier: 3, target, clientX: 200, clientY: y}); target.dispatchEvent(new w.TouchEvent(type, {touches: type === "touchend" ? [] : [touch], targetTouches: type === "touchend" ? [] : [touch], changedTouches: [touch], bubbles: true, cancelable: true})); };
@@ -110,6 +110,15 @@ const load = (hash, months) => new Promise(res => {
     await go("kitchen");
     await drag(200, 60, 0, 330, {steps: 8, dt: 30}); await settle();
     ok("Kitchen's header zone, dragged down → Home", cur() === "home");
+    await go("kitchen");
+    const swY = $("#scr-kitchen .k-switch").getBoundingClientRect().top + 20;
+    await drag(200, swY, 0, 330, {steps: 8, dt: 30}); await settle();
+    ok("…the header zone includes the view switch: a vertical drag there → Home", cur() === "home", [swY, cur()]);
+    await go("kitchen");
+    await drag(200, 500, -300, 0, {steps: 8, dt: 30}); await settle();
+    ok("a sideways swipe on the Kitchen switches its view; the camera stays on the Kitchen", cur() === "kitchen" && cam().join() === "0,-844" && E("kitchenUI.view") === "home", [cur(), cam(), E("kitchenUI.view")]);
+    E("switchView('buy')"); await wait(250);
+    await go("home");
 
     // only the current screen is live; only it and its neighbours are rendered
     const live = () => ["home", "shuffle", "kitchen", "week", "profile"].map(k => { const e = $("#scr-" + k); return k + ":" + (e.inert ? "i" : "-") + (e.getAttribute("aria-hidden") === "true" ? "h" : "-") + (k === "home" || e.children.length ? "r" : "-"); }).join(" ");
@@ -121,7 +130,7 @@ const load = (hash, months) => new Promise(res => {
     for (const k of ["shuffle", "kitchen", "week", "profile"]) {
       await go(k);
       const b = d.querySelector(`[data-f="${k}:home"]`), r = b.getBoundingClientRect();
-      ok(`${k}: a pinned 'Home' text control, top-left, 44px`, b.textContent === "Home" && r.left < 30 && r.top < 60 && r.height >= 44 && r.width >= 44 && !!b.closest(".scr-head"), [b.textContent, r.left, r.top, r.width, r.height]);
+      ok(`${k}: a pinned 'Home' text control, top-left, 44px`, b.textContent === "Home" && r.left < 30 && r.top < 60 && r.height >= 44 && r.width >= 44 && !!b.closest(".scr-head, .k-head"), [b.textContent, r.left, r.top, r.width, r.height]);
     }
     d.querySelector('[data-f="profile:home"]').click(); await settle();
     ok("…and it goes Home", cur() === "home");
@@ -174,7 +183,7 @@ const load = (hash, months) => new Promise(res => {
     ok("the Home key goes Home", cur() === "home");
     key("ArrowLeft"); await settle();
     ok("← from Home: nothing there, nothing happens", cur() === "home");
-    await go("kitchen");
+    await go("kitchen"); E("switchView('home')"); await wait(250);
     d.querySelector('[data-f="kitchen:add"]').click(); await wait(100);
     const field = d.querySelector('[data-f="kitchen:adding"]');
     field.focus(); key("ArrowDown", field); key("ArrowUp", field); await settle();

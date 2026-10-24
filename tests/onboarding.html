@@ -8,7 +8,7 @@
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-localStorage.clear();
+localStorage.clear(); sessionStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test&now=2026-10-22T09:15";
 f.style.cssText = "width:390px;height:844px;border:1px solid #ccc";

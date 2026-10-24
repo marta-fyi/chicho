@@ -7,7 +7,7 @@
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
-localStorage.clear();
+localStorage.clear(); sessionStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test&now=2026-10-22T12:10";
 f.width = 390; f.height = 600;

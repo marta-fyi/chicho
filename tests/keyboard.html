@@ -8,7 +8,7 @@
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-localStorage.clear();
+localStorage.clear(); sessionStorage.clear();
 const f = document.createElement("iframe");
 f.src = "../index.html?test&now=2026-10-22T12:10";
 f.width = 390; f.height = 844;
@@ -51,7 +51,7 @@ f.onload = async () => {
     }
     E("closeOnboarding(); state.profile.onboarded = true; state.profile.birthDate = birthDateFromMonths(18); state.plan = generateWeek(18, state.profile); save(); changed(); go('profile')"); await wait(600);
     d.querySelectorAll("#scr-profile input").forEach(i => sizes.push(["profile", parseFloat(w.getComputedStyle(i).fontSize)]));
-    E("go('kitchen')"); await wait(600);
+    E("go('kitchen'); switchView('home')"); await wait(600);
     d.querySelector('[data-f="kitchen:add"]').click(); await wait(100);
     d.querySelectorAll("#scr-kitchen input").forEach(i => sizes.push(["kitchen", parseFloat(w.getComputedStyle(i).fontSize)]));
     E("go('week')"); await wait(600);

@@ -521,8 +521,9 @@ function onboardingOpen(){ const o = $("onboarding"); return o && !o.hidden; }
 pagerEl.addEventListener("pointerdown", e=>{
   if(e.button > 0 || pg.anim || onboardingOpen()) return;
   if(e.clientX < EDGE || e.clientX > innerWidth - EDGE) return;
-  const scr = screenEl(pg.cur), scrollable = pg.cur!=="home";
-  const inHeader = scrollable && e.clientY - scr.getBoundingClientRect().top < HEADER_ZONE;
+  const scr = screenEl(pg.cur), scrollable = pg.cur!=="home", kh = scr.querySelector(".k-head");
+  // the header zone: the Kitchen's whole pinned header (its view switch included), else the top 120px
+  const inHeader = scrollable && (kh ? e.clientY < kh.getBoundingClientRect().bottom : e.clientY - scr.getBoundingClientRect().top < HEADER_ZONE);
   const inField = e.target.closest("input, textarea, select");
   pg.drag = {id:e.pointerId, x0:e.clientX, y0:e.clientY, axis:null, d:0, scrollable, inHeader, inField, samples:[]};
 });
@@ -538,12 +539,13 @@ pagerEl.addEventListener("pointermove", e=>{
     // inside the meal block when it scrolls: the block's
     if(g.axis==="y" && e.target.closest && e.target.closest(".now-meal.scrolls")){ pg.drag = null; return; }
     if(g.inField && g.axis==="x"){ pg.drag = null; return; }   // selecting text in a field
+    g.views = g.axis==="x" && pg.cur==="kitchen";   // sideways on the Kitchen switches its views, not screens
     try{ pagerEl.setPointerCapture(g.id); }catch(_){}
   }
   g.d = g.axis==="x" ? dx : dy;
   g.samples.push({t:e.timeStamp || performance.now(), d:g.d});
   if(g.samples.length > 12) g.samples.shift();
-  dragTo(g.axis, g.d);
+  if(g.views) kitchenDrag(g.d); else dragTo(g.axis, g.d);
   if(e.cancelable) e.preventDefault();
 });
 function pointerUp(e){
@@ -552,6 +554,7 @@ function pointerUp(e){
   pg.drag = null;
   if(!g.axis) return;
   pg.justDragged = true; setTimeout(()=>{ pg.justDragged = false; }, 0);
+  if(g.views){ kitchenDragEnd(e.type==="pointercancel" ? 0 : g.d, e.type==="pointercancel" || !g.samples.length ? 0 : velocity(g.samples)); return; }
   if(e.type==="pointercancel"){ dragEnd(g.axis, 0, 0); return; }
   dragEnd(g.axis, g.d, g.samples.length ? velocity(g.samples) : 0);
 }
@@ -595,6 +598,7 @@ document.addEventListener("keydown", e=>{
   const t = e.target, typing = t && (t.matches("input, textarea, select") || t.isContentEditable);
   if(typing) return;
   const side = {ArrowLeft:"left", ArrowRight:"right", ArrowUp:"up", ArrowDown:"down"}[e.key];
+  if(side && pg.cur==="kitchen" && (side==="left" || side==="right")){ e.preventDefault(); const v = kitchenNext(side==="right" ? -1 : 1); if(v) switchView(v); return; }
   if(side){ const n = neighbour(pg.cur, side); e.preventDefault(); if(n) go(n, {quiet:true}); return; }
   if((e.key==="Escape" || e.key==="Home") && pg.cur!=="home"){ e.preventDefault(); go("home", {quiet:true}); }
 });
@@ -1078,182 +1082,6 @@ function renderShuffle(){
   foot.appendChild(send);
   col.appendChild(foot);
 }
-
-/* ====================================================================
-   KITCHEN: stock, shopping, prep. What to pick up for the next three
-   days, what's running low, what's at home (Plenty, Low, Out, never
-   grams), the freezer and the prep "While you're at it" left open.
-   ==================================================================== */
-const kitchenUI = {open:{}, adding:false, store:false, wakeOurs:false};
-const STOCK_NEXT = {plenty:"low", low:"out", out:"plenty"};
-const KITCHEN_GROUPS = ["grain","vegetable","fruit","protein","fat","other"];
-function groupOfFood(foodId){ const c = foodInfo(foodId).cat; return KITCHEN_GROUPS.includes(c) ? c : "other"; }
-function groupName(c){ return c==="other" ? say("kitchen.other") : say("home.groups." + c); }
-function setStoreMode(on){
-  kitchenUI.store = on;
-  if(on){ if(wakeSupported() && !wake.on){ kitchenUI.wakeOurs = true; wakeSet(true); } }
-  else if(kitchenUI.wakeOurs){ kitchenUI.wakeOurs = false; if(wake.on) wakeSet(false); }
-  haptic(); refresh("kitchen");
-}
-function renderKitchen(){
-  const tg = document.createElement("button");
-  tg.type = "button"; tg.className = "btn-text small wake"; tg.dataset.f = "instore";
-  tg.setAttribute("aria-pressed", String(kitchenUI.store));
-  tg.innerHTML = `<i aria-hidden="true"></i>${esc(say("kitchen.inStore"))}`;
-  tg.addEventListener("click", ()=>setStoreMode(!kitchenUI.store));
-  const col = frame("kitchen", say("screens.kitchen"), {tools:[tg]});
-  // 1. To buy
-  const buy = section(col, "tobuy", say("kitchen.toBuy")), list = toBuyList();
-  if(!list.length) buy.appendChild(el("p", "quiet-line", say("kitchen.nothingToBuy")));
-  const buyRow = n=>{
-    const r = el("div", "row");
-    const t = el("p", "row-t"); t.style.margin = "0";
-    t.textContent = say("kitchen.forMeal", {food:n.name, day:possDay(n.date), meal:n.label.toLowerCase()});
-    r.appendChild(t);
-    r.appendChild(ring(false, say("kitchen.bought", {food:n.name}), ()=>{ setStock(n.foodId, n.name, "plenty"); save(); haptic(); announce(say("kitchen.bought", {food:n.name})); changed(); }, "buy:" + n.foodId));
-    return r;
-  };
-  if(kitchenUI.store) KITCHEN_GROUPS.forEach(c=>{
-    const rows = list.filter(n=>(KITCHEN_GROUPS.includes(n.cat) ? n.cat : "other")===c);
-    if(!rows.length) return;
-    buy.appendChild(el("h3", "sec-h", groupName(c))).style.marginTop = "14px";
-    rows.forEach(n=>buy.appendChild(buyRow(n)));
-  });
-  else list.forEach(n=>buy.appendChild(buyRow(n)));
-  if(list.length){
-    const p = el("p", "quiet-line");
-    const s = textBtn(say("kitchen.send"), ()=>sendGroceries(), "small");
-    s.dataset.f = "kitchen:send";
-    p.appendChild(s); buy.appendChild(p);
-  }
-  // 2. Running low
-  const low = state.pantry.filter(p=>p.state==="low");
-  if(low.length){
-    const sec = section(col, "low", say("kitchen.low"));
-    low.forEach(p=>sec.appendChild(stockRow(p)));
-  }
-  // 3. At home, by food group, each opened in place
-  const home = section(col, "athome", say("kitchen.atHome"));
-  KITCHEN_GROUPS.forEach(c=>{
-    const items = state.pantry.filter(p=>groupOfFood(p.foodId)===c);
-    if(c==="other" && !items.length) return;
-    const open = !!kitchenUI.open[c], id = "grp-" + c;
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "group-btn"; b.dataset.f = "group:" + c;
-    b.setAttribute("aria-expanded", String(open)); b.setAttribute("aria-controls", id);
-    b.innerHTML = `<span>${esc(groupName(c))}</span><i class="chev" aria-hidden="true"></i>`;
-    b.addEventListener("click", ()=>{ kitchenUI.open[c] = !open; refresh("kitchen"); });
-    home.appendChild(b);
-    const box = el("div", "group-list"); box.id = id; box.hidden = !open;
-    if(open){
-      if(!items.length) box.appendChild(el("p", "quiet-line", say("kitchen.groupEmpty")));
-      items.forEach(p=>box.appendChild(stockRow(p)));
-    }
-    home.appendChild(box);
-  });
-  home.appendChild(addSomething());
-  // 4. Freezer and prep
-  const fz = section(col, "freezer", say("kitchen.freezer"));
-  state.freezer.forEach(f=>{
-    const r = el("div", "row");
-    r.appendChild(el("p", "row-t", say("kitchen.portions", {food:f.name, n:f.portions, date:fmtDayShort(localDate(f.madeOn))}))).style.margin = "0";
-    const use = textBtn(say("kitchen.useOne"), ()=>{ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); save(); haptic(); refresh("kitchen"); }, "small");
-    use.dataset.f = "useone:" + f.foodId; use.setAttribute("aria-label", say("kitchen.useOneOf", {food:f.name}));
-    r.appendChild(use);
-    fz.appendChild(r);
-  });
-  const tasks = prepTasks();
-  tasks.forEach(s=>{
-    const r = el("div", "row");
-    const t = el("p", "row-t"); t.style.margin = "0"; t.textContent = s.text;
-    r.appendChild(t);
-    r.appendChild(ring(false, say("kitchen.prepDone", {task:s.text}), ()=>donePrep(s), "prep:" + s.id));
-    fz.appendChild(r);
-  });
-  if(!state.freezer.length && !tasks.length) fz.appendChild(el("p", "quiet-line", say("kitchen.freezerEmpty")));
-  if(state.freezer.length || tasks.some(s=>s.kind==="freeze" || s.kind==="defrost")) fz.appendChild(el("p", "storage-note", storageNote()));
-}
-/* a pantry line: its name and its state in words; a tap moves it on (Plenty → Low → Out → Plenty) */
-function stockRow(p){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "row-btn"; b.dataset.f = "stock:" + p.foodId;
-  b.innerHTML = `<span class="row-t">${esc(p.name)}</span><span class="state-word">${esc(say("kitchen.state." + p.state))}</span>`;
-  b.setAttribute("aria-label", say("kitchen.stockLabel", {food:p.name, state:say("kitchen.state." + p.state), next:say("kitchen.state." + STOCK_NEXT[p.state])}));
-  b.addEventListener("click", ()=>{ setStock(p.foodId, p.name, STOCK_NEXT[p.state]); save(); haptic(); announce(p.name + ": " + say("kitchen.state." + STOCK_NEXT[p.state])); changed(); focusLater("stock:" + p.foodId); });
-  return b;
-}
-/* "Add something": one field, suggestions as it's typed, one tap puts it at home */
-function addSomething(){
-  const wrap = el("div", "add-line");
-  if(!kitchenUI.adding){
-    const b = textBtn(say("kitchen.add"), ()=>{ kitchenUI.adding = true; refresh("kitchen"); focusLater("kitchen:adding"); }, "small");
-    b.dataset.f = "kitchen:add";
-    wrap.appendChild(b);
-    return wrap;
-  }
-  const put = name=>{
-    kitchenUI.adding = false;
-    if(name){ const id = foodKey(baseName({name})); setStock(id, baseName({name}), "plenty"); kitchenUI.open[groupOfFood(id)] = true; save(); haptic(); announce(say("kitchen.added", {food:baseName({name})})); }
-    changed(); focusLater("kitchen:add");
-  };
-  const list = el("div", "suggest-list"); list.setAttribute("aria-live", "polite");
-  const fill = q=>{
-    list.innerHTML = "";
-    const t = String(q || "").trim().toLowerCase();
-    if(t.length < 2) return;
-    FOOD_POOL.filter(f=>f.name.toLowerCase().split(/[ ,]+/).some(w=>w.startsWith(t)) && !pantryOf(foodKey(baseName(f)))).slice(0, 4).forEach(f=>{
-      const sb = document.createElement("button");
-      sb.type = "button"; sb.className = "alt"; sb.dataset.f = "sug:" + f.name; sb.textContent = baseName(f);
-      sb.addEventListener("click", ()=>put(f.name));
-      list.appendChild(sb);
-    });
-  };
-  const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const first = list.querySelector("button"); put(first ? first.dataset.f.slice(4) : b.input.value.trim()); }});
-  b.input.dataset.f = "kitchen:adding";
-  b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); kitchenUI.adding = false; refresh("kitchen"); focusLater("kitchen:add"); } });
-  const parts = say("kitchen.addSentence").split("{blank}");
-  const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-  wrap.append(l, b.el, list);
-  return wrap;
-}
-/* the prep left open: "While you're at it" for the meals still to come today and tomorrow */
-function prepTasks(){
-  const t = now(), refs = refsOn(t).concat(refsOn(tomorrowOf(t))).filter(x=>x.status==="upcoming" || x.status==="now");
-  const seen = new Set(), out = [];
-  refs.forEach(x=>alsoFor(x, 3).forEach(s=>{ if(s.kind==="salt" || seen.has(s.id)) return; seen.add(s.id); out.push(s); }));
-  return out;
-}
-function donePrep(s){
-  state.prepped = {date:todayISO(), done:prepDone().concat(s.id)};
-  const id = foodKey(baseName({name:s.food}));
-  if(s.kind==="freeze"){ const f = state.freezer.find(z=>z.foodId===id && z.madeOn===todayISO()); if(f) f.portions += 2; else state.freezer.push({foodId:id, name:baseName({name:s.food}), portions:2, madeOn:todayISO()}); }
-  if(s.kind==="defrost"){ const f = state.freezer.find(z=>z.foodId===id); if(f){ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); } }
-  save(); haptic(); announce(say("also.done")); changed();
-}
-
-/* ---------- Keep the screen on: the Screen Wake Lock, while shopping in the store ----------
-   Only where the browser has it. It lets go when the page is hidden or left, and after 60 minutes;
-   it comes back only if it was left on and the page is visible again. */
-const WAKE_MAX_MS = 60 * 60000;
-const wake = {on:false, lock:null, until:0, timer:0};
-function wakeSupported(){ return "wakeLock" in navigator && !!navigator.wakeLock; }
-async function wakeAcquire(){
-  if(!wake.on || document.hidden || wake.lock) return;
-  try{ wake.lock = await navigator.wakeLock.request("screen"); wake.lock.addEventListener("release", ()=>{ wake.lock = null; }); }
-  catch(e){ wake.on = false; }
-}
-function wakeRelease(){ const l = wake.lock; wake.lock = null; if(l) try{ l.release(); }catch(e){} }
-function wakeSet(on){
-  wake.on = on; clearTimeout(wake.timer);
-  if(on){ wake.until = Date.now() + WAKE_MAX_MS; wake.timer = setTimeout(()=>{ wakeSet(false); kitchenUI.store = false; refresh("kitchen"); }, WAKE_MAX_MS); wakeAcquire(); }
-  else wakeRelease();
-}
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden) wakeRelease();
-  else if(wake.on && Date.now() < wake.until) wakeAcquire();
-  else if(wake.on) wakeSet(false);
-});
-addEventListener("pagehide", wakeRelease);
 
 /* ====================================================================
    NEW WEEK: start the next one. The onboarding's sentences, inside the
