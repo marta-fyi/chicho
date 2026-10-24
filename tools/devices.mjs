@@ -4,6 +4,10 @@
 // the glow's nucleus clear of every control, tick/undo/Got it, Have it, Not this week, In the store and its wake
 // lock, Send's units, At home, swipes between views with rubber bands, per-view scroll, the freezer, Prep's clamp,
 // the pager's header drag and mid-list scroll, and the empty states.
+// Meal times (mealtimesRun) runs on the portrait devices too: a timed first run through Meal times (scripted taps, no
+// thinking time; the median goes to docs/firstrun.json, no target asserted), the axis never scrolling and an hour at
+// least MT.minHourPx tall, and (WebKit, both themes) the handoff from Allergens, the idle axis, mid-drag, typing, and
+// Done with five and three meals.
 // (Playwright isn't a dependency of this repo; point at any install, e.g. ~/dev/client/node_modules/playwright,
 // with its WebKit and Chromium browsers downloaded.)
 //
@@ -183,6 +187,69 @@ async function kitchenRun(page, tag, slug, shotK) {
   if (shotK) await shotK("kitchen-buy-empty");
 }
 
+/* Meal times (step 5 of the onboarding), on a portrait device: a first run from Draw to Home with scripted taps and no
+   thinking time (the Reveal plays in full), timed (the median goes to docs/firstrun.json, for the owner to set a
+   target); the axis's layout; then the screenshots: the handoff from Allergens, the idle axis, mid-drag, typing, and
+   Done with five and three meals. */
+const firstRuns = [];
+async function mealtimesRun(page, tag, shot) {
+  const ready = async fn => page.waitForFunction(fn, null, {timeout: 15000, polling: 20});
+  const t9 = base.replace("T12:10", "T09:15");
+  await page.goto(t9); await page.evaluate("localStorage.clear()"); await page.goto(t9);
+  await ready("!document.getElementById('onboarding').hidden && onb.step === 'draw'");
+  const t0 = Date.now();
+  await ready("!!document.querySelector('.type-instead') && !document.querySelector('.pad-sheet').hidden");
+  await page.click(".type-instead");
+  await ready("onb.sub === 'typed' && !!document.querySelector('#onbCard .blank-input')");
+  await page.fill("#onbCard .blank-input", "Lula"); await page.click("#onbFoot .btn-ink");
+  await ready("onb.step === 'birthday' && document.querySelectorAll('.bd-col').length === 3");
+  for (const [k, keys] of [["day", ["ArrowDown"]], ["month", ["ArrowDown"]], ["year", ["ArrowUp", "ArrowDown"]]]) { await page.focus(`.bd-col[data-key="${k}"]`); for (const key of keys) await page.keyboard.press(key); }
+  await ready("document.querySelector('#onbFoot .btn-ink').getAttribute('aria-disabled') === 'false'");
+  await page.click("#onbFoot .btn-ink");
+  await ready("onb.step === 'keepout' && !!document.querySelector('.pile .ab')");
+  await page.click("#onbFoot .btn-ink");
+  await ready("onb.step === 'mealtimes' && !!document.querySelector('.mt-axis')");
+  await page.click("#onbFoot .btn-ink");
+  await ready("onb.step === 'reveal' && onb.revealed && !document.getElementById('onbFoot').inert");
+  await page.click(".wk-love");
+  await ready("document.getElementById('onboarding').hidden");
+  const ms = Date.now() - t0;
+  firstRuns.push({tag, ms});
+  ok(`${tag}: a scripted first run reaches Home through Meal times (${(ms / 1000).toFixed(1)} s)`, await page.evaluate("state.profile.onboarded && state.profile.mealTimesSource === 'default' && state.plan.days.every(d => d.meals.length === 5)"));
+  // the axis, from Allergens
+  await page.evaluate(`state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
+  await page.waitForTimeout(1600);
+  await page.click("#onbFoot .btn-ink");
+  if (shot) { await page.waitForTimeout(220); await shot("mt-from-allergens", true); }
+  await ready("onb.step === 'mealtimes'");
+  if (shot) { await page.waitForTimeout(450); await shot("mt-entrance", true); }
+  await page.waitForTimeout(1200);
+  const L = await page.evaluate(`(() => { const c = document.getElementById("onbCard"), a = document.querySelector(".mt-axis"), H = innerHeight;
+    return {scroll: c.scrollHeight - c.clientHeight, hourPx: (a.clientHeight - 2 * MT.pad) / 15, min: MT.minHourPx, inside: [...document.querySelectorAll(".mt-m")].every(m => m.getBoundingClientRect().bottom <= a.getBoundingClientRect().bottom + 1),
+            pill: document.querySelector("#onbFoot .btn-ink").getBoundingClientRect().bottom <= H}; })()`);
+  ok(`${tag}: meal times never scrolls, the whole day fits`, L.scroll <= 1 && L.inside && L.pill, L);
+  ok(`${tag}: an hour on the axis is at least ${L.min}px`, L.hourPx >= L.min, L.hourPx.toFixed(1));
+  if (!shot) return;
+  await shot("mt-idle");
+  const r = await page.evaluate(`(() => { const r = document.querySelector('.mt-m[data-slot="lunch"]').getBoundingClientRect(); return [r.left + 120, r.top + r.height / 2]; })()`);
+  await page.mouse.move(r[0], r[1]); await page.mouse.down();
+  for (let k = 1; k <= 10; k++) { await page.mouse.move(r[0], r[1] + k * 9); await page.waitForTimeout(16); }
+  await shot("mt-drag", true);
+  await page.mouse.up(); await page.waitForTimeout(350);
+  await page.click(".mt-type"); await page.keyboard.type("1:15");
+  await shot("mt-typing");
+  await page.keyboard.press("Enter"); await page.waitForTimeout(200);
+  await page.click(".mt-usual"); await page.waitForTimeout(200);
+  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'reveal' && !!document.querySelector('.wk-skip')");
+  await page.click(".wk-skip"); await page.waitForTimeout(300);
+  await shot("done-5meals");
+  await page.click("#onbBack"); await ready("onb.step === 'mealtimes'"); await page.waitForTimeout(400);
+  for (const s of ["snack1", "snack2"]) await page.evaluate(`state.profile.mealTimesSel = "${s}"; save(); renderOnb(); document.querySelector(".mt-remove").click()`);
+  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'reveal' && onb.revealed"); await page.waitForTimeout(300);
+  await shot("done-3meals");
+  await page.evaluate("closeOnboarding()");
+}
+
 const browsers = {chromium: await pw.chromium.launch(), webkit: await pw.webkit.launch()};
 for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
   for (const [slug, name] of DEVICES) {
@@ -239,9 +306,9 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           }
           await page.evaluate("glowKey = null; changed()");
         }
-        const steps = full ? ["welcome", "name", "birthday", "keepout", "priorities", "athome", "mealtimes", "reveal", "done"] : ["birthday"];
+        const steps = full ? ["draw", "birthday", "keepout", "mealtimes", "reveal", "done", "priorities", "athome"] : ["birthday"];
         for (const step of steps) {
-          await page.evaluate(step === "welcome" ? "openOnboarding('welcome', {replay: true})" : step === "done" ? "openOnboarding('reveal', {single: true}); onb.revealed = true; renderOnb()" : `openOnboarding('${step}', {single: true})`);
+          await page.evaluate(step === "draw" ? "openOnboarding('draw', {replay: true})" : step === "done" ? "openOnboarding('reveal', {single: true}); onb.revealed = true; renderOnb()" : `openOnboarding('${step}', {single: true})`);
           await page.waitForTimeout(500); await page.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()");
           await shot("onb-" + step); await page.evaluate("closeOnboarding()");
         }
@@ -252,6 +319,9 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
         await page.evaluate("closeOnboarding(); go('kitchen', {quiet: true})"); await page.waitForTimeout(400);
         const shotK = args.has("--quick") ? null : async what => page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-${what}.jpg`), type: "jpeg", quality: 80, animations: "disabled", scale: "css"});
         await kitchenRun(page, tag, slug, shotK);
+        // meal times: a timed first run on every portrait device; the screenshots on WebKit, both themes
+        const shotM = args.has("--quick") || engine !== "webkit" ? null : async (what, live) => page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-${what}.jpg`), type: "jpeg", quality: 80, animations: live ? "allow" : "disabled", scale: "css"});
+        await mealtimesRun(page, tag, shotM);
       }
       await ctx.close();
     }
@@ -295,6 +365,13 @@ if (args.has("--perf") || args.has("--perf-only")) {
   await ctx.close();
 }
 
+if (firstRuns.length) {
+  // the first run's time: scripted taps, no thinking time; recorded for the owner to set a target (none is asserted)
+  const sorted = firstRuns.map(r => r.ms).sort((a, b) => a - b), median = sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2);
+  const fr = {what: "Draw (Type instead) to Home through Birthday, Allergens, Meal times (untouched), Reveal (played in full) and Done; scripted taps, no thinking time", medianMs: median, minMs: sorted[0], maxMs: sorted.at(-1), runs: firstRuns};
+  console.log(`\nfirst run: median ${(median / 1000).toFixed(1)} s over ${sorted.length} runs (${(sorted[0] / 1000).toFixed(1)}–${(sorted.at(-1) / 1000).toFixed(1)} s)`);
+  writeFileSync(join(root, "docs", "firstrun.json"), JSON.stringify(fr, null, 2) + "\n");
+}
 await browsers.chromium.close(); await browsers.webkit.close(); server.close();
 const fails = results.filter(l => l.startsWith("FAIL"));
 console.log(results.filter(l => l.startsWith("FAIL")).join("\n") || "", `\n${results.length - fails.length} passed, ${fails.length} failed` + (args.has("--quick") || args.has("--perf-only") ? "" : `; screenshots in docs/screenshots/ (${readdirSync(SHOTS).filter(f => f.endsWith(".jpg")).length})`));

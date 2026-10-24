@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · meal times tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
+<body>
+<h1>Meal times tests</h1>
+<p>The day axis (mealtimes.js), in its onboarding form: resolve, snap, the rubber band and typed times as pure functions, then the
+screen driven by pointer: drag and push, the strip, typing (the keyboard rule), snacks, "Use the usual" and its undo, the sun, and the
+layout minimums at 375×667 and 390×844. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear(); sessionStorage.clear();
+const frame = (W, H, months = 18) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = W; f.height = H; f.src = "../index.html?test&theme=light&now=2026-10-22T09:15";
+  f.onload = async () => {
+    f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(${months})}); state.profile.onboardingStep = "mealtimes"; save(); openOnboarding("mealtimes")`);
+    await wait(500); res(f);
+  };
+  document.body.append(f);
+});
+(async () => {
+  try {
+    let f = await frame(390, 844);
+    let w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x);
+
+    // 1. the pure parts
+    ok("snap: to the nearest 15 minutes", E("[mtSnap(487), mtSnap(495), mtSnap(502), mtSnap(720)].join()") === "480,495,495,720");
+    ok("normalize: in order, an hour apart, inside 6:00-21:00", E("mtNormalize([300, 330, 700, 1300]).join()") === "360,420,705,1260", E("mtNormalize([300, 330, 700, 1300]).join()"));
+    const day = "[480, 630, 750, 960, 1140]";   // 8:00, 10:30, 12:30, 16:00, 19:00
+    ok("resolve: a move with room changes only that marker", E(`mtResolve(${day}, 2, 780).join()`) === "480,630,780,960,1140");
+    ok("resolve: pushing down keeps an hour between neighbours, all the way along", E(`mtResolve(${day}, 2, 1020).join()`) === "480,630,1020,1080,1140", E(`mtResolve(${day}, 2, 1020).join()`));
+    ok("resolve: pushing up does the same the other way (only as far as needed)", E(`mtResolve(${day}, 2, 600).join()`) === "480,540,600,960,1140" && E(`mtResolve(${day}, 2, 560).join()`) === "440,500,560,960,1140", E(`mtResolve(${day}, 2, 560).join()`));
+    ok("resolve: a marker can't push the others off the day (held at its range)", E(`mtResolve(${day}, 2, 1260).join()`) === "480,630,1140,1200,1260" && E(`mtResolve(${day}, 0, 0)[0]`) === 360, E(`mtResolve(${day}, 2, 1260).join()`));
+    ok("resolve: pure (the input is untouched, so a neighbour comes back when the marker does)", E(`(() => { const a = ${day}; mtResolve(a, 2, 1100); return a.join(); })()`) === "480,630,750,960,1140");
+    ok("rubber band: nothing at the end, 30% of the finger at first, never past 40px", E("mtRubber(0)") === 0 && Math.abs(E("mtRubber(4)") - 1.2) < .1 && E("mtRubber(2000)") < 40 && E("mtRubber(-2000)") > -40 && E("mtRubber(200)") > E("mtRubber(100)"));
+    const P_ = (t, near) => E(`parseTyped(${JSON.stringify(t)}${near === undefined ? "" : ", " + near})`);
+    ok("parseTyped: 7:30, 7.30, 730, 19h30, 1930, 07:00", P_("7:30", 480) === 450 && P_("7.30", 480) === 450 && P_("730", 480) === 450 && P_("19h30") === 1170 && P_("1930") === 1170 && P_("07:00", 1140) === 420);
+    ok("parseTyped: 7pm, 7:30 p.m., 12am, 12 PM, 9a", P_("7pm") === 1140 && P_("7:30 p.m.") === 1170 && P_("12am") === 0 && P_("12 PM") === 720 && P_("9a") === 540);
+    ok("parseTyped: a bare 7 is the one nearer the meal (dinner 19:00, breakfast 8:00)", P_("7", 1140) === 1140 && P_("7", 480) === 420 && P_("12", 750) === 720);
+    ok("parseTyped: nonsense is null (no guessing)", [P_("lunch"), P_("25"), P_("7:75"), P_("13pm"), P_("")].every(v => v === null));
+
+    // 2. the screen
+    const $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const mark = id => $(`.mt-m[data-slot="${id}"]`), R = el => el.getBoundingClientRect();
+    const mid = id => { const r = R(mark(id)); return [r.left + 120, r.top + r.height / 2]; };
+    const axis = () => $(".mt-axis");
+    const ptr = (type, x, y, id = 5) => axis().dispatchEvent(new w.PointerEvent(type, {bubbles: true, cancelable: true, pointerId: id, pointerType: "touch", isPrimary: true, clientX: x, clientY: y}));
+    const drag = async (slot, dy, hold) => { const [x, y] = mid(slot); ptr("pointerdown", x, y); for (let k = 1; k <= 8; k++) ptr("pointermove", x, y + dy * k / 8); if (!hold) ptr("pointerup", x, y + dy); await wait(40); };
+    ok("'Lula usually eats around…', with the hint in the strip", $("#onbTitle").textContent === "Lula usually eats around…" && $(".mt-strip").textContent === "Drag each meal to where it usually lands.");
+    ok("five markers at 18 months, in the day's order, at the stage's times", $$(".mt-m").map(m => m.dataset.slot).join() === "breakfast,snack1,lunch,snack2,dinner" && E("mtCurrent(18, state.profile).times.join()") === "480,630,750,960,1140");
+    ok("text only: no icons, images or emoji on the screen", !d.querySelector("#onbCard svg:not([data-ink]), #onbCard img, #onbFoot svg, #onbFoot img") && !/\p{Extended_Pictographic}/u.test($("#onbCard").textContent + $("#onbFoot").textContent));
+    ok("…ticks and hour labels (every three hours, the reader's clock), and a gap label between each pair", $$(".mt-tick").length === 16 && $$(".mt-hour").length === 6 && $$(".mt-gap").map(g => g.textContent).join() === "2 h 30,2 h,3 h 30,3 h", $$(".mt-gap").map(g => g.textContent));
+    ok("nothing on arrival opens the keyboard (the sentence has the focus)", d.activeElement === $("#onbTitle") && !$(".mt-strip input"));
+    ok("the axis takes the finger itself: touch-action none, so it never scrolls the page", w.getComputedStyle(axis()).touchAction === "none" && w.getComputedStyle($("#onbCard")).overflowY === "hidden");
+    const y0 = R(mark("lunch")).top;
+    await drag("lunch", 0);
+    ok("a tap selects: 'Lunch around 12:30 PM', Type a time (no Remove: lunch isn't a snack)", $(".mt-strip .mt-say").textContent === "Lunch around " + E("mtClock(750)") && !!$(".mt-type") && !$(".mt-remove") && mark("lunch").classList.contains("on"));
+    ok("…saved, so a reload comes back to it", E("state.profile.mealTimesSel") === "lunch");
+    const per = E("(document.querySelector('.mt-axis').clientHeight - 2 * MT.pad) / (MT.to - MT.from)");
+    await drag("lunch", per * 300);   // five hours later: 17:30, past the afternoon snack and dinner
+    ok("drag: lunch to 17:30 pushes the snack and dinner to keep an hour each", E("mtCurrent(18, state.profile).times.join()") === "480,630,1050,1110,1170", E("mtCurrent(18, state.profile).times.join()"));
+    ok("…every time on the 15-minute grid", E("mtCurrent(18, state.profile).times.every(t => t % 15 === 0)"));
+    ok("…saved as theirs (only what differs from the stage)", JSON.stringify(E("state.profile.mealTimes")) === JSON.stringify({lunch: "17:30", snack2: "18:30", dinner: "19:30"}), E("state.profile.mealTimes"));
+    ok("…the marker sits at its time", Math.abs(R(mark("lunch")).top - (y0 + per * 300)) < 2, [R(mark("lunch")).top, y0 + per * 300]);
+    await drag("lunch", -per * 300);
+    ok("dragging back in one go: the pushed neighbours stay where they were pushed (each drop is kept)", E("mtCurrent(18, state.profile).times.join()") === "480,630,750,1110,1170", E("mtCurrent(18, state.profile).times.join()"));
+    // the rubber band, past the top of the day
+    const top = R(mark("breakfast")).top;
+    await drag("breakfast", -per * 240, true);
+    const held = R(mark("breakfast")).top, edge = top - per * 120;
+    ok("rubber band: past 6:00 the marker gives, at most 40px beyond the end", held < edge - 1 && held > edge - 41 && E("mtCurrent(18, state.profile).times[0]") === 480, [held, edge]);
+    ok("…while held: 'held', and the time reads 6:00 AM", mark("breakfast").classList.contains("held") && mark("breakfast").querySelector(".mt-mc").textContent === E("mtClock(360)"));
+    ptr("pointerup", mid("breakfast")[0], mid("breakfast")[1] - per * 240); await wait(450);
+    ok("…and springs back to 6:00 on release", Math.abs(R(mark("breakfast")).top - edge) < 1.5 && E("state.profile.mealTimes.breakfast") === "06:00", [R(mark("breakfast")).top, edge]);
+    // the sun: follows the marker in hand in the colour of its hour
+    await drag("dinner", 0); await wait(400);
+    const pulse = $(".onb-glow"), centre = () => R(pulse).top + R(pulse).height / 2;
+    ok("the sun follows the selected marker (dinner)…", Math.abs(centre() - mid("dinner")[1]) < 3, [centre(), mid("dinner")[1]]);
+    ok("…in the colour of its hour", $("#onbGlow").dataset.sun === E("sunColor(1170)") && E("sunColor(1170)") !== E("sunColor(600)"), $("#onbGlow").dataset.sun);
+
+    // typing: the keyboard rule
+    await drag("lunch", 0);
+    $(".mt-type").click();
+    const field = $(".mt-strip input");
+    ok("typing: the field is in the strip, above the axis, and has the focus (opened by the tap)", !!field && d.activeElement === field && R(field.closest(".blank")).bottom <= R(axis()).top);
+    ok("…its keyboard follows the clock: text where there's AM/PM, decimal where there isn't; 'done' on return", field.inputMode === (E("mtTwelve()") ? "text" : "decimal") && field.enterKeyHint === "done" && parseFloat(w.getComputedStyle(field).fontSize) >= 16);
+    const marks0 = $$(".mt-m").map(m => m.style.transform).join();
+    w.__vv = {height: 844 - 336, offsetTop: 0}; E("kbSync()"); await wait(400);
+    ok("…keyboard up: the field stays above it and the axis holds still underneath", R(field).bottom <= 844 - 336 && $$(".mt-m").map(m => m.style.transform).join() === marks0 && $("#onbCard").scrollTop === 0);
+    field.value = "nonsense"; field.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+    ok("a time it can't read: 'Try 12:30 or 7pm.', still typing", $(".mt-msg").textContent === "Try 12:30 or 7pm." && d.activeElement === field);
+    field.value = "11:50pm"; field.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+    ok("outside the day: 'Between 6:00 AM and 9:00 PM.'", $(".mt-msg").textContent === `Between ${E("mtClock(360)")} and ${E("mtClock(1260)")}.`, $(".mt-msg").textContent);
+    field.value = "1"; field.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+    w.__vv = null; E("kbSync()"); await wait(400);
+    ok("'1' for lunch is 1:00 PM, saved and placed", E("state.profile.mealTimes.lunch") === "13:00" && mark("lunch").querySelector(".mt-mc").textContent === E("mtClock(780)") && !$(".mt-strip input"), E("state.profile.mealTimes"));
+    await drag("lunch", 0); $(".mt-type").click();
+    $(".mt-strip input").value = "06:30"; $(".mt-strip input").dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+    ok("a typed time that would cross breakfast is held an hour after the marker before (and it says so)", E("mtCurrent(18, state.profile).times.slice(0, 3).join()") === "360,420,480" && /^Moved to /.test($(".mt-strip .mt-msg").textContent), [E("mtCurrent(18, state.profile).times.join()"), $(".mt-strip").textContent]);
+
+    // snacks
+    await drag("snack1", 0);
+    ok("a snack selected: Remove is there", !!$(".mt-remove"));
+    $(".mt-remove").click();
+    ok("…Remove takes it out, saved as their choice", !mark("snack1") && JSON.stringify(E("state.profile.mealSlots.snacks")) === JSON.stringify(["snack2"]));
+    ok("…and 'Add a snack' appears (there's a slot free)", !!$(".mt-add") && $(".mt-add").textContent === "Add a snack");
+    $(".mt-add").click();
+    ok("'Add a snack' puts it back where there's room, selected", !!mark("snack1") && E("state.profile.mealSlots.snacks.length") === 2 && E("state.profile.mealTimesSel") === "snack1" && !$(".mt-add"));
+
+    // Use the usual
+    E("MT.undoMs = 400");
+    const theirs = JSON.stringify(E("state.profile.mealTimes")) + JSON.stringify(E("state.profile.mealSlots"));
+    $(".mt-usual").click();
+    ok("'Use the usual': back to the stage's, 'Back to the usual. Undo'", E("mtIsDefault(18, mtCurrent(18, state.profile).slots, mtCurrent(18, state.profile).times)") && $(".mt-strip").textContent.replace(/\s+/g, " ").trim() === "Back to the usual. Undo" && JSON.stringify(E("state.profile.mealTimes")) === "{}");
+    $(".mt-undo").click();
+    ok("…Undo brings theirs back, exactly", JSON.stringify(E("state.profile.mealTimes")) + JSON.stringify(E("state.profile.mealSlots")) === theirs, [theirs, E("state.profile.mealTimes")]);
+    $(".mt-usual").click(); await wait(600);
+    ok("…the undo line goes by itself", !$(".mt-undo") && $(".mt-strip").dataset.mode === "hint");
+    $(".mt-usual").click();
+    ok("'Use the usual' when it already is: nothing, no undo line", !$(".mt-undo") && $(".mt-strip").dataset.mode === "hint");
+    f.remove();
+
+    // the sun when untouched: lunch, in 10:00's colour
+    f = await frame(390, 844); w = f.contentWindow; d = f.contentDocument; E = x => w.eval(x); await wait(400);
+    const pl = d.querySelector(".onb-glow"), lm = d.querySelector('.mt-m[data-slot="lunch"]');
+    ok("untouched: the sun waits by lunch, in the colour of 10:00", Math.abs(pl.getBoundingClientRect().top + pl.getBoundingClientRect().height / 2 - (lm.getBoundingClientRect().top + lm.getBoundingClientRect().height / 2)) < 3 && d.getElementById("onbGlow").dataset.sun === E("sunColor(600)"));
+    ok("…and the per-step glow is the sun's here", d.getElementById("onbGlow").dataset.group === "sun");
+    d.querySelector("#onbFoot .btn-ink").click(); await wait(300);
+    ok("leaving: the glow crossfades to the Reveal's cycle and goes back to its place", d.getElementById("onbGlow").dataset.group !== "sun" && pl.style.transform === "");
+    f.remove();
+
+    // 3. the layout minimums: no scrolling, the day fits, an hour is enough to tell markers apart, tap targets 44px
+    for (const [W, H] of [[375, 667], [390, 844]]) {
+      f = await frame(W, H); w = f.contentWindow; d = f.contentDocument; E = x => w.eval(x); await wait(300);
+      const c = d.getElementById("onbCard"), ax = d.querySelector(".mt-axis"), foot = d.getElementById("onbFoot");
+      const hourPx = (ax.clientHeight - 2 * E("MT.pad")) / 15;
+      ok(`${W}×${H}: nothing scrolls (the card fits)`, c.scrollHeight <= c.clientHeight + 1, [c.scrollHeight, c.clientHeight]);
+      ok(`${W}×${H}: an hour is at least ${E("MT.minHourPx")}px on the axis`, hourPx >= E("MT.minHourPx"), hourPx.toFixed(1));
+      ok(`${W}×${H}: the whole day and every marker inside the axis, the pill on screen`, [...d.querySelectorAll(".mt-m")].every(m => m.getBoundingClientRect().top >= ax.getBoundingClientRect().top - 1 && m.getBoundingClientRect().bottom <= ax.getBoundingClientRect().bottom + 1) && foot.querySelector(".btn-ink").getBoundingClientRect().bottom <= H);
+      ok(`${W}×${H}: Next is 52px, the links' tap areas 44px`, foot.querySelector(".btn-ink").getBoundingClientRect().height >= 52 && [...foot.querySelectorAll(".btn-text")].every(b => Math.max(b.getBoundingClientRect().height, parseFloat(w.getComputedStyle(b, "::after").height) || 0) >= 44));
+      // two markers an hour apart: their labels don't overlap
+      E(`state.profile.mealTimes = {breakfast: "11:00", snack1: "12:00", lunch: "13:00"}; save(); renderOnb()`); await wait(200);
+      const a = d.querySelector('.mt-m[data-slot="breakfast"]').getBoundingClientRect(), b = d.querySelector('.mt-m[data-slot="snack1"]').getBoundingClientRect();
+      ok(`${W}×${H}: an hour apart, two markers' labels don't overlap`, b.top >= a.bottom - 1, [a.bottom, b.top]);
+      f.remove();
+    }
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · meal times";
+})();
+</script>
+</body></html>

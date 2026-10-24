@@ -39,6 +39,12 @@ const load = (W, H) => new Promise(res => {
       ok(`${g}: --ink and --ink-muted on the plain grey ≥ 4.5`, ratio(INK, plain) >= 4.5 && ratio(MUTED, plain) >= 4.5, [ratio(INK, plain).toFixed(2), ratio(MUTED, plain).toFixed(2)]);
       ok(`${g}: a ring's ink line ≥ 3 on all three`, [nucleus, bright, plain].every(z => ratio(INK, z) >= 3));
     }
+    // 1b. the sun (meal times): every stop, and the colour between two stops, holds the same three zones
+    for (const min of [...E("SUN.map(s => s[0])"), 8 * 60, 12 * 60, 18 * 60]) {
+      const hex = E(`sunColor(${min})`), at = t => over(E(`glowAt(${t}, '${hex}')`), BG);
+      const zones = [at(0), at(.36), BG];
+      ok(`sun at ${min / 60}:00 (${hex}): --ink ≥ 4.5 on the nucleus; --ink and --ink-muted on the brightest zone and the grey`, ratio(INK, zones[0]) >= 4.5 && zones.slice(1).every(z => ratio(INK, z) >= 4.5 && ratio(MUTED, z) >= 4.5), zones.map(z => [ratio(INK, z).toFixed(2), ratio(MUTED, z).toFixed(2)]));
+    }
     // 2. what's really behind each text, on the page
     for (const [W, H] of [[390, 844], [375, 667]]) {
       if (W !== 390) f = await load(W, H);
