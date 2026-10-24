@@ -236,7 +236,8 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .onb-side.end{justify-content:flex-end;grid-column:3;}
   .onb-back{margin-left:-6px;padding:0 6px;}
   .onb-close{margin-right:-6px;padding:0 6px;}
-  .onb-dots{display:flex;justify-content:center;gap:6px;}
+  .onb-dots{position:relative;display:flex;justify-content:center;gap:6px;}
+  .onb-dots i.gone{position:absolute;top:0;}
   .onb-dots i{flex:0 1 32px;height:2px;border-radius:1px;background:var(--hairline);}
   .onb-dots i.on, .onb-dots i.done{background:var(--ink);}
   .onb-card{flex:1;min-height:0;width:min(var(--col),100%);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;

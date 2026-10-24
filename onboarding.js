@@ -1,14 +1,15 @@
 // The onboarding: one sentence per screen (index.html holds the data, the generator and the stages).
 /* ---------- onboarding (v3) ----------
-   Draw → Spell → Birthday → Allergens → Reveal → Done → Home. One sentence per screen, completed by you.
+   Draw → Spell → Birthday → Allergens → Meal times → Reveal → Done → Home (under 6 months: Allergens → Closing → Home).
+   One sentence per screen, completed by you.
    Every answer is saved as it's given (and the step on every advance), so a reload resumes where it was,
    with "Welcome back." once. Nothing about the plan changes until "Love it". A replay or an edit from
    Profile works on the live profile, and Close puts back what was there when it opened. */
-const ONB_STEPS = ["draw","spell","birthday","keepout","reveal","priorities","athome","mealtimes"];
+const ONB_STEPS = ["draw","spell","birthday","keepout","mealtimes","reveal","priorities","athome"];
 /* legacy: the step order before v3, for a save that stopped mid-flow (onboardingStep was an index) */
 const ONB_STEPS_V2 = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
-/* the four progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
-const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, reveal:3, done:3};
+/* the five progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
+const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, mealtimes:3, reveal:4, done:4};
 /* the glow behind each step (light theme): Reveal cycles through all five */
 const ONB_GLOW = {draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
 const STAPLES = [
@@ -27,16 +28,18 @@ function planMonths(){
   const m = ageNow();
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
-/* Ask late: a first run (or a replay) asks only what safety needs (name, birthday, allergens); the rest is
-   asked later, in context, one at a time, from Profile. Spell only follows a drawn name. Meal times need meals. */
-const LATE_STEPS = ["priorities","athome","mealtimes"];
+/* Ask late: a first run (or a replay) asks what safety needs (name, birthday, allergens) and, since the week is built
+   from them, the meal times; the rest is asked later, in context, one at a time, from Profile. Spell only follows a
+   drawn name. Meal times need meals (6 months and up). */
+const LATE_STEPS = ["priorities","athome"];
 function stepApplies(key){
   if(key==="mealtimes" && planMonths() < 6) return false;
   if(key==="spell" && !(state.profile.ink && state.profile.ink.strokes && state.profile.ink.strokes.length)) return false;
   return !LATE_STEPS.includes(key) || !!onb.single;
 }
 function stepAfter(key){ let k = S(key) + 1; while(k < ONB_STEPS.length && !stepApplies(ONB_STEPS[k])) k++; return ONB_STEPS[k] || "end"; }
-/* Back: Spell → Draw, Birthday → Spell (or Draw, typed), Allergens → Birthday; Draw and Reveal have none */
+/* Back: Spell → Draw, Birthday → Spell (or Draw, typed), Allergens → Birthday, Meal times → Allergens, Done → Meal
+   times, Closing → Allergens; Draw and Reveal have none */
 function stepBefore(key){ let k = S(key) - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return ONB_STEPS[Math.max(0, k)]; }
 function hasBack(){
   if(onb.single) return false;
@@ -101,6 +104,7 @@ function finishOnboarding(){
   state.profile.onboarded = true;
   state.profile.onboardingStep = null;
   delete state.profile.returning;
+  delete state.profile.mealTimesSel;
   save();
   closeOnboarding();
 }
@@ -177,6 +181,39 @@ function onbGlow(cat){
   document.getElementById("onboarding").dataset.glow = group;
 }
 
+/* progress: five hairline segments, no numbers, no labels (none for an edit from Profile). Before the birthday is known
+   there are five; under 6 months there are no meal times to set, so four. */
+function onbSegs(){ return state.profile.birthDate && noWeekYet() ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]; }
+/* animate: the birthday just changed which it is, so the Meal times segment collapses (or opens) over 250 ms, its
+   neighbours sliding to their new places (transform and opacity only) */
+function paintProgress(animate){
+  const segs = document.getElementById("onbDots"), seg = ONB_SEGMENT[onb.step], list = onbSegs();
+  segs.hidden = onb.single || seg===undefined;
+  const cls = k=>k < seg ? "done" : k===seg ? "on" : "";
+  const have = [...segs.children].filter(i=>!i.classList.contains("gone")).map(i=>+i.dataset.seg);
+  const before = new Map([...segs.children].map(i=>[+i.dataset.seg, {x:i.getBoundingClientRect().left, w:i.getBoundingClientRect().width, cls:i.className}]));
+  segs.querySelectorAll(".gone").forEach(i=>i.remove());
+  segs.innerHTML = list.map(k=>`<i data-seg="${k}" class="${cls(k)}"></i>`).join("");
+  document.getElementById("onbProgress").textContent = segs.hidden ? "" : say("onb.progress.step", {n:list.indexOf(seg) + 1, total:list.length, name:say("onb.progress.names." + seg)});
+  if(!animate || calm() || segs.hidden || !have.length || slotSig(have)===slotSig(list)) return;
+  const o = {duration:250, easing:"cubic-bezier(.22,.61,.36,1)"};
+  [...segs.children].forEach(i=>{
+    const k = +i.dataset.seg;
+    if(!have.includes(k)){ i.animate([{transform:"scaleX(0)", opacity:0}, {transform:"scaleX(1)", opacity:1}], o); return; }
+    const dx = before.get(k).x - i.getBoundingClientRect().left;
+    if(Math.abs(dx) > .5) i.animate([{transform:`translateX(${dx.toFixed(1)}px)`}, {transform:"none"}], o);
+  });
+  have.filter(k=>!list.includes(k)).forEach(k=>{
+    // the one that goes: a stand-in where it was, shrinking to nothing as the others close the gap
+    const g = document.createElement("i");
+    const was = before.get(k);
+    g.className = (was.cls + " gone").trim(); g.dataset.seg = k;
+    g.style.left = (was.x - segs.getBoundingClientRect().left) + "px"; g.style.width = was.w + "px";
+    segs.appendChild(g);
+    g.animate([{transform:"scaleX(1)", opacity:1}, {transform:"scaleX(0)", opacity:0}], Object.assign({fill:"forwards"}, o)).onfinish = ()=>g.remove();
+  });
+}
+
 /* the sun on the meal-times step: the glow follows a marker (y, in the viewport) in the colour of its hour (hex; null =
    unchanged). It arrives with the usual 1.2 s crossfade, then paints in place: instantly while a marker is held, with
    a short glide when the selection changes. */
@@ -205,12 +242,7 @@ function renderOnb(){
   [document.getElementById("onbTop"), document.getElementById("onbCard"), document.getElementById("onbFoot")].forEach(x=>x.inert = false);
   el.classList.remove("has-sheet", "has-week");
   el.querySelector(".onb-backdrop .glow-plane").style.opacity = "";
-  // progress: four hairline segments (none for an edit from Profile)
-  const seg = ONB_SEGMENT[key];
-  const segs = document.getElementById("onbDots");
-  segs.hidden = onb.single || seg===undefined;
-  segs.innerHTML = [0, 1, 2, 3].map(k=>`<i class="${k < seg ? "done" : k===seg ? "on" : ""}"></i>`).join("");
-  document.getElementById("onbProgress").textContent = segs.hidden ? "" : say("onb.progress.step", {n:seg + 1, name:say("onb.progress.names." + seg)});
+  paintProgress(false);
   const back = document.getElementById("onbBack");
   back.textContent = say("onb.back");
   back.hidden = !hasBack();
@@ -695,6 +727,7 @@ function onbBirthday(card, P){
     }
     msg.textContent = text;
     if(date){ P.birthDate = isoOf(date); save(); }
+    paintProgress(true);
     paintStage(date);
     next.ready(!!date);
   };

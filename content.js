@@ -241,7 +241,7 @@ const CONTENT = {
     save:"Save",
     skip:"Skip",
     welcomeBack:"Welcome back.",
-    progress:{names:["Name","Birthday","Allergens","Week"], step:"Step {n} of 4: {name}"},
+    progress:{names:["Name","Birthday","Allergens","Meal times","Week"], step:"Step {n} of {total}: {name}"},
     draw:{sentence:"Pull up a chair for {blank}.", title:"Sign here", hint:"Big letters. Wobbly is perfect.",
           erase:"Erase", done:"Done", undo:"Undo", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
     spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},

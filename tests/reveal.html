@@ -51,7 +51,7 @@ const lines = d => [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textCont
     ok("…Back is there now", !d.getElementById("onbBack").hidden);
     // Back, then the week again: no second reveal
     d.getElementById("onbBack").click(); await wait(500);
-    ok("Back from Done: Allergens", E("onb.step") === "keepout");
+    ok("Back from Done: Meal times", E("onb.step") === "mealtimes", E("onb.step"));
     E("goStep('reveal')"); await wait(400);
     ok("building the week again goes straight to Done", !d.querySelector(".wk-say") && E("onb.revealed"));
     f.remove();
