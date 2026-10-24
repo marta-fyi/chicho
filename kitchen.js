@@ -276,11 +276,18 @@ function kitchenShell(){
   sw.appendChild(el("i", "k-line"));
   hc.append(top, h, sw); head.appendChild(hc);
   const body = el("div", "scr-body k-body"), col = el("div", "scr-col k-view");
-  body.appendChild(col);
+  // the glow (Veg) lives in the scroll area, centred on the title row, so it scrolls away with the content
+  const glow = el("i", "k-glow");
+  glow.style.backgroundImage = glowGradient(GLOW.vegetable.hex, KITCHEN_GLOW);
+  body.append(glow, col);
   e.append(head, body);
   // the scroll area starts under the header (padding and scroll padding = its measured height), so nothing is
   // ever clipped behind it at rest; what scrolls under it is blurred
-  const fit = ()=>{ const hh = head.offsetHeight; body.style.paddingTop = hh + "px"; body.style.scrollPaddingTop = hh + "px"; e.style.setProperty("--kh", hh + "px"); };
+  const fit = ()=>{
+    const hh = head.offsetHeight; body.style.paddingTop = hh + "px"; body.style.scrollPaddingTop = hh + "px"; e.style.setProperty("--kh", hh + "px");
+    const t = head.querySelector(".k-title");
+    glow.style.top = (t.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop + t.offsetHeight / 2) + "px";   // the title's middle, in the scroll area's coordinates
+  };
   if(window.ResizeObserver) new ResizeObserver(fit).observe(head);
   body.addEventListener("scroll", ()=>kitchenScrolled(body, head), {passive:true});
   watchPull(body);
@@ -288,8 +295,16 @@ function kitchenShell(){
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ fit(); placeLine(head, false); });
   return {e, head, body, col};
 }
+/* scrolling: the header's surface and hairline once anything is under it; the position map dims to 35% and comes
+   back 400ms after the scrolling stops */
+let mapTimer = 0;
 function kitchenScrolled(body, head){
   head.classList.toggle("is-under", body.scrollTop > 0);
+  const map = $("map");
+  if(!map) return;
+  map.classList.add("is-dim");
+  clearTimeout(mapTimer);
+  mapTimer = setTimeout(()=>map.classList.remove("is-dim"), 400);
 }
 /* the underline sits under the active label (transform only); it slides when the view changes */
 function placeLine(head, slide){

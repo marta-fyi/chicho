@@ -305,7 +305,7 @@ function alsoFor(ref, max){
    layout changes in one place. [column, row]; Home is the origin.
    ==================================================================== */
 const LAYOUT = {profile:[0,-1], home:[0,0], shuffle:[1,0], kitchen:[0,1], week:[0,2]};
-const SCREEN_GLOW = {shuffle:"protein", kitchen:"vegetable", week:"fruit", profile:"grain"};
+const SCREEN_GLOW = {shuffle:"protein", week:"fruit", profile:"grain"};   // the Kitchen's glow scrolls with its content (kitchen.js)
 const EDGE = 24, HEADER_ZONE = 120, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, SETTLE_MS = 320, PULL_AT = 48;
 /* under 6 months only Home and Profile exist */
 function screensNow(){ return milkOnly() ? ["home","profile"] : Object.keys(LAYOUT); }

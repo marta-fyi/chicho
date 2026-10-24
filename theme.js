@@ -30,17 +30,20 @@ const GLOW_PROFILE = {
 };
 const hexRGB = h=>[1, 3, 5].map(i=>parseInt(h.slice(i, i + 2), 16));
 const smooth = (a, b, t)=>{ const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
-/* the glow at t (0 = centre, 1 = edge): [r, g, b, alpha] */
-function glowAt(t, hex){
-  const P = GLOW_PROFILE, c = hexRGB(GLOW_CORE), g = hexRGB(hex || GLOW[GLOW_DEFAULT].hex);
+/* the Kitchen's glow scrolls with its content behind the title: its nucleus holds to 9% of the radius and is
+   lighter, so the ink on it stays well clear of 4.5:1, and the whole layer shows at 70% */
+const KITCHEN_GLOW = {core:.09, coreHex:"#A6A6AC", opacity:.7};
+/* the glow at t (0 = centre, 1 = edge): [r, g, b, alpha]. prof overrides the nucleus ({core, coreHex}) */
+function glowAt(t, hex, prof){
+  const P = Object.assign({}, GLOW_PROFILE, prof && prof.core ? {core:prof.core} : {}), c = hexRGB((prof && prof.coreHex) || GLOW_CORE), g = hexRGB(hex || GLOW[GLOW_DEFAULT].hex);
   const k = 1 - smooth(P.core, P.blend, t);                       // share of the grey
   const a = Math.pow(1 - smooth(P.fadeFrom, P.fadeTo, t), P.ease);  // opacity
   return [0, 1, 2].map(i=>Math.round(c[i] * k + g[i] * (1 - k))).concat(+a.toFixed(3));
 }
 /* the CSS: a circle that fills the square element (closest-side = the radius), 25 stops */
-function glowGradient(hex){
+function glowGradient(hex, prof){
   const stops = [];
-  for(let i = 0; i <= 24; i++){ const t = i / 24, [r, g, b, a] = glowAt(t, hex); stops.push(`rgba(${r},${g},${b},${a}) ${(t * 100).toFixed(1)}%`); }
+  for(let i = 0; i <= 24; i++){ const t = i / 24, [r, g, b, a] = glowAt(t, hex, prof); stops.push(`rgba(${r},${g},${b},${a}) ${(t * 100).toFixed(1)}%`); }
   return `radial-gradient(circle closest-side, ${stops.join(", ")})`;
 }
 /* the open meal's food group → its glow (anything unknown is the default) */

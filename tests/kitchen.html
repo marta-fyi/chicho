@@ -281,6 +281,12 @@ f.onload = async () => {
     ok("each view keeps its own scroll position", $(".k-body").scrollTop === 300, $(".k-body").scrollTop);
     ok("the scroll area starts under the header (padding = its height)", Math.abs(parseFloat($(".k-body").style.paddingTop) - $(".k-head").offsetHeight) < 1 && $(".k-body").style.scrollPaddingTop === $(".k-body").style.paddingTop);
     ok("…and the header's surface shows once something is under it", $(".k-head").classList.contains("is-under"));
+    $(".k-body").dispatchEvent(new w.Event("scroll")); await wait(30);
+    const map = d.getElementById("map");
+    ok("while scrolling, the position map dims to 35%", map.classList.contains("is-dim") && w.getComputedStyle(map).opacity !== "1");
+    await wait(480);
+    ok("…and comes back 400ms after it stops", !map.classList.contains("is-dim"));
+    ok("the scroll area's bottom: 120px plus the safe area, and a 48px mask fade", w.getComputedStyle($(".k-body")).paddingBottom === "120px" && /linear-gradient/.test(w.getComputedStyle($(".k-body")).webkitMaskImage || w.getComputedStyle($(".k-body")).maskImage));
 
     // nothing red, no counters
     const colours = new Set($$("*").filter(e => e.offsetParent && e.textContent.trim()).map(e => w.getComputedStyle(e).color));

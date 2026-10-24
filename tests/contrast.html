@@ -71,9 +71,10 @@ const load = (W, H) => new Promise(res => {
       E("kitchenUI.open = {grain: true, vegetable: true, fruit: true, protein: true, fat: true}; state.plans[0].days.forEach(d => d.meals.forEach(m => m.items.forEach(i => setStock(foodIdOf(i), baseName(i), 'low'))))");
       for (const [k, g] of [["shuffle", "protein"], ["kitchen", "vegetable"], ["week", "fruit"], ["profile", "grain"]]) {
         E(`go("${k}", {quiet: true})`); await new Promise(r => setTimeout(r, 500));
-        const hex = E(`GLOW.${g}.hex`), layer = d.querySelector(`.glow-s[data-screen="${k}"]`).getBoundingClientRect();
-        const cx = layer.left + layer.width / 2, cy = layer.top + layer.height / 2;
-        const behind = (x, y, scale, alpha) => { const t = Math.hypot(x - cx, y - cy) / (layer.width / 2 * scale); if (t >= 1) return BG; const c = E(`glowAt(${t}, '${hex}')`); return over([c[0], c[1], c[2], c[3] * alpha], BG); };
+        // the Kitchen's glow is its own (in the scroll area, KITCHEN_GLOW's nucleus, 70%); the others sit on the backdrop
+        const kit = k === "kitchen", hex = E(`GLOW.${g}.hex`), layer = (kit ? d.querySelector("#scr-kitchen .k-glow") : d.querySelector(`.glow-s[data-screen="${k}"]`)).getBoundingClientRect();
+        const cx = layer.left + layer.width / 2, cy = layer.top + layer.height / 2, prof = kit ? ", KITCHEN_GLOW" : "", fade = kit ? .7 : 1;
+        const behind = (x, y, scale, alpha) => { const t = Math.hypot(x - cx, y - cy) / (layer.width / 2 * scale); if (t >= 1) return BG; const c = E(`glowAt(${t}, '${hex}'${prof})`); return over([c[0], c[1], c[2], c[3] * alpha * fade], BG); };
         const scr = d.getElementById("scr-" + k);
         const texts = [...scr.querySelectorAll("*")].filter(el => el.offsetParent && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && !el.closest("[aria-hidden='true']") && !el.closest(".btn-ink, .k-pill, .pill-o[aria-pressed='true'], .s-seg-opts [aria-pressed='true']") && el.getBoundingClientRect().bottom > 0 && el.getBoundingClientRect().top < 844);
         const worst = [];

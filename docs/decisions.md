@@ -51,6 +51,11 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - **Freeze some {food}** freezes `DEFAULT_PORTIONS` dated today when ticked, with "{Food} · in the freezer · Undo" (the brief asks for "the Undo line" here without giving its words). Its detail names the second use, the one beyond the fridge window.
 - **The freezer's rows** are fixed-height like the others, so a long "use soon" meta ellipsizes beside "Used one" rather than wrapping. "Add a frozen portion" adds to a batch made the same day instead of making a second row.
 
+**Glow and scroll**
+
+- **The Kitchen's glow** is no longer on the backdrop plane. It's an element inside the scroll area, centred on the title row, so it scrolls away with the content. It's Veg at 70%, and its nucleus (`KITCHEN_GLOW` in theme.js) holds to 9% of the radius in a lighter grey (`#A6A6AC`, against Home's `#83838A`). The contrast test reads the Kitchen's text against this glow. The device run checks that the nucleus is clear of every control's box.
+- **The bottom fade** is a 48px `mask-image` on the scroll area, ending at the position map's bottom edge (12px above the safe area), so rows dissolve into the map's band. While the list scrolls the map dims to 35% (an opacity transition) and returns 400 ms after the scrolling stops.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).

@@ -701,7 +701,16 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .k-count{font-size:12px;font-weight:400;color:var(--ink-muted);}
   .k-count:empty{display:none;}
   .k-line{position:absolute;left:0;bottom:6px;width:100px;height:2px;background:var(--ink);transform-origin:0 50%;transition:transform 220ms var(--spring);pointer-events:none;}
-  .k-body{position:absolute;inset:0;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+  /* the scroll area: under the header and the pill, 120px clear at the bottom, and a 48px fade so rows dissolve
+     into the band of the position map instead of running into it */
+  .k-body{position:absolute;inset:0;padding-bottom:calc(120px + env(safe-area-inset-bottom));
+          -webkit-mask-image:linear-gradient(to bottom, black calc(100% - env(safe-area-inset-bottom) - 60px), transparent calc(100% - env(safe-area-inset-bottom) - 12px));
+          mask-image:linear-gradient(to bottom, black calc(100% - env(safe-area-inset-bottom) - 60px), transparent calc(100% - env(safe-area-inset-bottom) - 12px));}
+  .k-glow{position:absolute;left:50%;top:120px;width:var(--glow-size, 520px);height:var(--glow-size, 520px);translate:-50% -50%;opacity:.7;pointer-events:none;
+          --glow-size:calc(1.5 * min(var(--vw, 100vw) - var(--pad-l) - var(--pad-r), var(--col)));}
+  [data-theme="dark"] .k-glow{display:none;}
+  .k-view{position:relative;}
+  .k-body{overflow-x:hidden;}
   .k-ghost{position:absolute;z-index:1;pointer-events:none;}
   /* Kitchen rows: one fixed height (ROW_H), name and meta on one line each, the control on the right */
   .k-row{display:flex;align-items:center;gap:12px;height:var(--row-h);border-bottom:1px solid var(--hairline);}
@@ -798,8 +807,11 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .map a:focus-visible{outline:2px solid var(--ink);outline-offset:0;border-radius:3px;}
   .map .m-profile{grid-area:1 / 1;} .map .m-home{grid-area:2 / 1;} .map .m-shuffle{grid-area:2 / 2;} .map .m-kitchen{grid-area:3 / 1;} .map .m-week{grid-area:4 / 1;}
   .is-onb .map{display:none;}
+  .map{transition:opacity 200ms linear;}
+  .map.is-dim{opacity:.35;}
   /* screens fade their content in, staggered, after arriving */
   .arrive > *{animation:arrive 280ms var(--ease-out) both;}
+  .arrive > .k-glow{animation:none;}
   @keyframes arrive{from{opacity:0;}}
   @media (prefers-reduced-motion: reduce){ .chev, .ring-btn i::before{transition:none;} }
 

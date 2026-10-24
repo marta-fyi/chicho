@@ -43,7 +43,7 @@ f.onload = async () => {
     await wait(800);
     // each screen's own colour
     const scr = k => $(`.glow-s[data-screen="${k}"]`);
-    const want = {shuffle: "protein", kitchen: "vegetable", week: "fruit", profile: "grain"};
+    const want = {shuffle: "protein", week: "fruit", profile: "grain"};
     for (const [k, g] of Object.entries(want))
       ok(`${k}'s glow is ${g}'s colour`, /radial-gradient/.test(scr(k).style.backgroundImage) && scr(k).style.backgroundImage.replace(/\s/g, "").includes(E(`hexRGB(GLOW.${g}.hex).join()`)), scr(k).style.backgroundImage.slice(0, 120));
     ok("on Home, only Home's glow shows", scr("home").style.opacity === "1" && Object.keys(want).every(k => scr(k).style.opacity === "0"));
@@ -56,6 +56,18 @@ f.onload = async () => {
       ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) < 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
       E(`go("home", {quiet: true})`); await wait(500);
     }
+    // the Kitchen: its own glow in the scroll area (Veg, 70%, a wider and lighter nucleus), scrolling away with the content
+    E(`go("kitchen", {quiet: true})`); await wait(500);
+    const kg = $("#scr-kitchen .k-glow"), kb = $("#scr-kitchen .k-body");
+    ok("the Kitchen's glow is Veg, in the scroll area, at 70%", kg && kg.parentNode === kb && kg.style.backgroundImage.replace(/\s/g, "").includes(E("hexRGB(GLOW.vegetable.hex).join()")) && w.getComputedStyle(kg).opacity === "0.7");
+    ok("…not on the backdrop plane (its layer there is empty, and dark there on the Kitchen)", !scr("kitchen").style.backgroundImage && scr("home").style.opacity === "0");
+    ok("…its nucleus holds to 9% of the radius and is lighter than Home's", E("KITCHEN_GLOW.core") === .09 && E("glowAt(.08, GLOW.vegetable.hex, KITCHEN_GLOW).slice(0, 3).join()") === E("hexRGB(KITCHEN_GLOW.coreHex).join()") && E("hexRGB(KITCHEN_GLOW.coreHex)[0]") > E("hexRGB(GLOW_CORE)[0]"));
+    const t0 = R(kg).top; kb.scrollTop = 200; await wait(50);
+    ok("…and it scrolls away with the content", Math.abs((t0 - R(kg).top) - kb.scrollTop) < 1, [t0, R(kg).top, kb.scrollTop]);
+    kb.scrollTop = 0; await wait(30);
+    const tt = R($("#scr-kitchen .k-title"));
+    ok("…centred on the title row at rest", Math.abs((R(kg).top + R(kg).height / 2) - (tt.top + tt.height / 2)) < 2);
+    E(`go("home", {quiet: true})`); await wait(500);
     // the parallax: the backdrop moves at 0.3x of the camera
     E("applyCamera(.5, 0)");
     const cam = new w.DOMMatrix(w.getComputedStyle($("#camera")).transform), plane = new w.DOMMatrix(w.getComputedStyle($("#glowPlane")).transform);
