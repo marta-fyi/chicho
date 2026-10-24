@@ -135,7 +135,7 @@ f.onload = async () => {
     ok("…then the week; five segments, the last on", step() === "reveal" && d.querySelectorAll("#onbDots i").length === 5 && d.querySelectorAll("#onbDots i")[4].classList.contains("on"));
 
     // reveal, then the week, applied only on Love it
-    ok("the reveal: three statements from the answers, one at a time", step() === "reveal" && JSON.stringify([...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent)) === JSON.stringify(["Fingers first.", "Without kiwi.", "Seven days."]), [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent));
+    ok("the reveal: three statements from the answers, one at a time", step() === "reveal" && JSON.stringify([...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent)) === JSON.stringify(["Fingers first.", "Without kiwi.", "Three meals a day, seven days."]), [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent));
     ok("…no Back, and a 'Skip'", d.getElementById("onbBack").hidden && d.querySelector(".wk-skip").textContent === "Skip");
     ok("…the week is already made (nothing waits for the animation)", !!E("onb.draft") && d.querySelectorAll(".wk-day").length === 7);
     const tops = () => [...d.querySelectorAll(".wk-title, .wk-jump, .wk-dh, .wk-meal")].map(e => e.offsetTop).join();

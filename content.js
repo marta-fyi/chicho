@@ -285,7 +285,8 @@ const CONTENT = {
     },
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
     atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
-    reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.", days:"Seven days."},
+    reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.",
+            days:{one:"One meal a day, seven days.", other:"{count} meals a day, seven days."}},
     done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",
           days:"Days of the week", dayToday:"Today", dayTomorrow:"Tomorrow", first:"First: {allergen}", new:"New: {food}", around:"around {time}",
           again:"Again", apply:"Love it", ready:"New week ready", shuffle:"Shuffle"},
@@ -365,6 +366,7 @@ const CONTENT = {
     affordable:{label:"Easy on the budget", lean:"budget-friendly staples"},
     gentle:    {label:"Gentle new tastes",  lean:"familiar favourites, one new taste a day"}
   },
+  numbers:["No","One","Two","Three","Four","Five","Six"],   // a count that starts a sentence
   priorityLine:{none:"We'll keep the week balanced and varied.", some:"We'll lean on {list}."},
 
 };

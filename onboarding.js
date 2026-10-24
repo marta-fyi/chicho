@@ -1223,7 +1223,8 @@ function clockTime(d){
     .filter(p=>p.type!=="dayPeriod").map(p=>p.value).join("").trim();
 }
 const weekSig = w=>w.days.map(d=>d.meals.map(m=>m.items.map(i=>i.name).join("+")).join("|")).join("/");
-/* the statements: the stage's tagline; what's kept out (up to three, then "and {n} more"); "Seven days." */
+/* the statements: the stage's tagline; what's kept out (up to three, then "and {n} more"); "{n} meals a day, seven
+   days.", n from the meals chosen on Meal times */
 function revealLines(P){
   const st = stageFor(planMonths());
   const out = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(say("onb.keepOut.labels." + a.id) || a.label)),
@@ -1231,7 +1232,8 @@ function revealLines(P){
   const without = !out.length ? say("onb.reveal.none")
     : out.length <= 3 ? say("onb.reveal.without", {list:listJoin(out)})
     : say("onb.reveal.without", {list:out.slice(0, 3).join(", ") + " " + say("onb.reveal.more", {n:out.length - 3})});
-  return [say("onb.reveal.tagline", {tagline:st.name}), without, say("onb.reveal.days")];
+  const n = mealSlotsFor(planMonths(), P).length;
+  return [say("onb.reveal.tagline", {tagline:st.name}), without, say("onb.reveal.days", {n, count:CONTENT.numbers[n] || n})];
 }
 function onbReveal(card, P){
   const name = P.name || "";

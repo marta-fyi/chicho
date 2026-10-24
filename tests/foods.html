@@ -59,7 +59,7 @@ f.onload = async () => {
     const banned = /little one|lovely|gentle questions|get started|\bplan\b|\btrack|\bmanage|\boptimi[sz]e/i;
     const flat = o => typeof o === "string" ? [o] : Object.values(o).flatMap(flat);
     const onbHeads = [C.onb.draw.sentence, C.onb.spell.sentence, C.onb.birthday.sentence, C.onb.keepOut.sentence, C.onb.priorities.title,
-      C.onb.atHome.title, C.mealTimes.sentence, C.onb.reveal.days, C.onb.done.title, C.onb.closing.title.other];
+      C.onb.atHome.title, C.mealTimes.sentence, C.onb.reveal.days.other, C.onb.done.title, C.onb.closing.title.other];
     const headlines = [...flat(C.home.headline), ...onbHeads];
     ok("headlines are at most 7 words", headlines.every(h => words(h) <= 7), headlines.filter(h => words(h) > 7));
     ok("headlines avoid the banned words", headlines.every(h => !banned.test(h)), headlines.filter(h => banned.test(h)));
