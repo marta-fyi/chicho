@@ -273,7 +273,9 @@ function kitchenDragEnd(dx, v){
   col.animate([{transform:from, opacity:+fromO}, {transform:"none", opacity:1}], {duration:180, easing:"cubic-bezier(.32,1.25,.5,1)"});
 }
 
-/* ---------- In the store ---------- */
+/* ---------- In the store: the list regroups by food group, the count leaves the switch, and the screen stays
+   awake (Screen Wake Lock) until the store is left, the Kitchen is left, the page is hidden, or an hour passes.
+   Off by default and never remembered: a new session starts with it off. ---------- */
 function setStoreMode(on){
   kitchenUI.store = on;
   if(on){ if(wakeSupported() && !wake.on){ kitchenUI.wakeOurs = true; wakeSet(true); } }
@@ -411,11 +413,13 @@ function renderBuy(col, list, e){
     });
     else list.forEach(r=>sec.appendChild(rowFor(r)));
   }
+  // Send the list: a pill pinned above the safe area, only while there's something on the list
   if(list.length){
-    const p = el("p", "quiet-line");
-    const s = textBtn(say("kitchen.send"), ()=>sendGroceries(), "small");
-    s.dataset.f = "kitchen:send";
-    p.appendChild(s); sec.appendChild(p);
+    const pin = el("div", "k-pin"), pc = el("div", "scr-col");
+    const s = document.createElement("button");
+    s.type = "button"; s.className = "k-pill"; s.dataset.f = "kitchen:send"; s.textContent = say("kitchen.send");
+    s.addEventListener("click", ()=>sendGroceries());
+    pc.appendChild(s); pin.appendChild(pc); e.appendChild(pin);
   }
   // Got it: today's, folded away until shown; its ring puts the food back on the list
   const got = state.shop.got;
@@ -546,7 +550,7 @@ function donePrep(s){
    Only where the browser has it. It lets go when the page is hidden or left, when the Kitchen is left, and after
    60 minutes; it comes back only if it was left on and the page is visible again within the hour. */
 const WAKE_MAX_MS = 60 * 60000;
-const wake = {on:false, lock:null, until:0, timer:0};
+const wake = {on:false, lock:null, until:0, timer:0, max:WAKE_MAX_MS};
 function wakeSupported(){ return "wakeLock" in navigator && !!navigator.wakeLock; }
 async function wakeAcquire(){
   if(!wake.on || document.hidden || wake.lock) return;
@@ -556,7 +560,7 @@ async function wakeAcquire(){
 function wakeRelease(){ const l = wake.lock; wake.lock = null; if(l) try{ l.release(); }catch(e){} }
 function wakeSet(on){
   wake.on = on; clearTimeout(wake.timer);
-  if(on){ wake.until = Date.now() + WAKE_MAX_MS; wake.timer = setTimeout(()=>{ wakeSet(false); kitchenUI.store = false; kitchenUI.wakeOurs = false; refresh("kitchen"); }, WAKE_MAX_MS); wakeAcquire(); }
+  if(on){ wake.until = Date.now() + wake.max; wake.timer = setTimeout(()=>{ wakeSet(false); kitchenUI.store = false; kitchenUI.wakeOurs = false; refresh("kitchen"); }, wake.max); wakeAcquire(); }
   else wakeRelease();
 }
 document.addEventListener("visibilitychange", ()=>{

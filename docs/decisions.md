@@ -25,6 +25,12 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - The header zone for vertical navigation is the whole pinned header, measured, including the view switch (it was a fixed 120px).
 - The last view is remembered in `sessionStorage`, so it lasts for the tab's session. The arrow keys switch views on the Kitchen, as they switch screens elsewhere.
 
+**Buy**
+
+- **Ticking folds the row away with transforms only.** The ring fills (180 ms), then the row scales to nothing while everything below it slides up by its height (200 ms). The build's motion rule forbids animating height. **Got it** lists today's ticks (it empties at local midnight; what was bought stays at home). Its ring restores the stock the food had before (none, if it wasn't in the pantry), and a hand-added food goes back on the list as hand-added.
+- **Send the list** is a 52px pill pinned 64px above the safe area, the same clearance the other screens' pills keep for the position map. The scroll area's 120px bottom padding is that pill and its gap. The quiet undo line sits just above the pill, or in its place when there's no pill. The text sent lists only what's still on the list, in shopping units; "by {weekday}" goes only on items a meal needs within the three days, so a hand-added one has none.
+- **In the store** turns the screen's Wake Lock on and lets it go when the store is turned off, the Kitchen is left, the page is hidden (it comes back if the page is visible again within the hour) or the hour runs out. The hour is `wake.max`, so the tests can shorten it.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).

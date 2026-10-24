@@ -214,7 +214,7 @@ const CONTENT = {
   /* the week preview (onboarding and New week): one row a day */
   weekRow:{meal:"{meal}: {foods}"},
   share:{
-    groceries:{head:"{name}'s groceries · {date}", updated:"Updated {time}", item:"☐ {item}", by:" · by {weekday}"},
+    groceries:{head:"{name}'s groceries · {date}", updated:"Updated {time}", item:"☐ {item} · {unit}", by:" · by {weekday}"},
     day:{head:"{name} · {weekday} {date}", updated:"Updated {time}", allergies:"Allergies: {list}. Not yet: {locked}.", none:"none",
          meal:"{time} {meal}: {foods}", food:"{food} {amount} ({texture})", foodPlain:"{food} {amount}", newToday:"New today: {food}.", full:"Full day: {link}"},
     week:{head:"{name}'s week", updated:"Updated {date} {time}", day:"{weekday}: {meals}", meal:"{meal} {foods}", full:"Full week: {link}"}

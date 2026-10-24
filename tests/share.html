@@ -31,8 +31,12 @@ f.onload = async () => {
     const g = E("groceriesText()"), gl = g.trim().split("\n");
     ok("groceries: '{name}'s groceries · {date}' then 'Updated {time}'", gl[0] === `Lula's groceries · ${E("fmtDayMonth(now())")}` && gl[1] === `Updated ${E("fmtTime(now())")}`, gl.slice(0, 2));
     ok("…one '☐ ' line per item, and no other symbol", gl.slice(2).every(l => l.startsWith("☐ ")) && !/\p{Extended_Pictographic}/u.test(g.replace(/☐/g, "")), gl.slice(2, 5));
-    const list = E("toBuyList().map(n => n.name + ' · by ' + fmtWeekday(n.date))");
-    ok("…the items are Kitchen's To buy (next 3 days' needs minus stock), each ' · by {weekday}'", list.length > 0 && JSON.stringify(gl.slice(2).map(l => l.slice(2))) === JSON.stringify(list), [gl.slice(2, 4), list.slice(0, 2)]);
+    const list = E("toBuyList().map(n => n.name + ' · ' + n.unit.text + ' · by ' + fmtWeekday(n.date))");
+    ok("…the items are Kitchen's Buy list, each '{item} · {unit} · by {weekday}'", list.length > 0 && JSON.stringify(gl.slice(2).map(l => l.slice(2))) === JSON.stringify(list), [gl.slice(2, 4), list.slice(0, 2)]);
+    ok("…in shopping units, never the plan's grams", gl.slice(2).every(l => { const m = l.match(/(\d+) ?g\b/); return !m || +m[1] % 100 === 0; }), gl.slice(2, 6));
+    E(`state.shop.manual.push({foodId: "olive oil"})`);
+    ok("…a hand-added item has no 'by' (nothing needs it by a day)", E("groceriesText()").includes("☐ Olive oil · 1 bottle\n"), E("groceriesText()").split("\n").slice(-3));
+    E(`state.shop.manual = []`);
     const first = E("toBuyList()[0]");
     E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "plenty")`);
     ok("…and what's at home (Plenty) drops off", !E("groceriesText()").includes("☐ " + first.name + " ·"));

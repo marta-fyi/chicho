@@ -1463,7 +1463,8 @@ function lockedList(){ return LOCKED_RULES.filter(r=>!r.until || ageNow() < r.un
 function groceriesText(){
   const P = state.profile, t = now(), C = "share.groceries.";
   const lines = [say(C + "head", {name:P.name || "", date:fmtDayMonth(t)}), say(C + "updated", {time:fmtTime(t)})];
-  toBuyList().forEach(n=>lines.push(say(C + "item", {item:n.name}) + say(C + "by", {weekday:fmtWeekday(n.date)})));
+  // only what's still on the list, in shopping units; "by {weekday}" only for what's needed within the three days
+  toBuyList().forEach(n=>lines.push(say(C + "item", {item:n.name, unit:n.unit.text}) + (n.date && daysFromToday(n.date) < KITCHEN.HORIZON_DAYS ? say(C + "by", {weekday:fmtWeekday(n.date)}) : "")));
   return lines.join("\n") + "\n";
 }
 function dayText(date, link){

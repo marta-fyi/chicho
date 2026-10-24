@@ -139,9 +139,14 @@ f.onload = async () => {
     Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
     Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
     const send = $('[data-f="kitchen:send"]');
-    ok("'Send the list' sits at the end of To buy", !!send && send.closest('[data-sec="buy"]') && send.textContent === "Send the list");
+    ok("'Send the list' is a 52px ink pill pinned above the safe area (outside the scroll)", !!send && send.closest(".k-pin") && !send.closest(".k-body") && send.textContent === "Send the list" && send.getBoundingClientRect().height === 52 && w.getComputedStyle(send).textTransform === "uppercase");
+    ok("…its bottom clears the position map", send.getBoundingClientRect().bottom <= d.getElementById("map").getBoundingClientRect().top);
     send.click(); await wait(80);
     ok("…it sends the groceries text (copied here: no number, no share sheet)", copied === E("groceriesText()"), copied && copied.slice(0, 60));
+    ok("…with pack units: '☐ {item} · {unit} · by {weekday}'", copied.split("\n").slice(2).filter(Boolean).every(l => /^☐ .+ · (\d+ [a-z]+|\d+ g)( · by [A-Z][a-z]+day)?$/.test(l)), copied.split("\n").slice(2, 5));
+    await view("home");
+    ok("the pill is only in Buy", !$(".k-pin"));
+    await view("buy");
 
     // 6. In the store
     const tog = () => $('[data-f="instore"]');
@@ -150,11 +155,30 @@ f.onload = async () => {
     ok("on: the screen wake lock is requested, and it says 'In the store: On'", log.join() === "request:screen" && tog().textContent === "In the store: On");
     const heads = $$('[data-sec="buy"] .k-label').map(h => h.textContent);
     const order = ["Grains", "Veg", "Fruit", "Protein", "Fats and dairy", "Everything else"];
+    ok("…the count leaves the switch", $('.k-tab[data-view="buy"] .k-count').textContent === "");
+    ok("…the rows stay the same rows", $$('[data-sec="buy"] .k-row').length === E("toBuyList().length"));
     ok("…To buy regroups by food group, in order", heads.length >= 2 && heads.every((h, i) => order.includes(h) && (i === 0 || order.indexOf(h) > order.indexOf(heads[i - 1]))), heads);
+    const hide = v => { Object.defineProperty(d, "hidden", {value: v, configurable: true}); d.dispatchEvent(new w.Event("visibilitychange")); };
+    hide(true); await wait(30);
+    ok("hidden (locked, another app): the lock is let go", log.at(-1) === "release" && !E("wake.lock"), log);
+    hide(false); await wait(30);
+    ok("…back within the hour: taken again", log.at(-1) === "request:screen", log);
+    await view("home");
+    ok("'In the store' shows only in Buy", $('[data-f="instore"]').hidden);
+    await view("buy");
     E(`go("home", {quiet: true})`); await wait(450);
     ok("leaving the Kitchen leaves the store and lets the screen sleep", !E("kitchenUI.store") && !E("wake.on") && log.at(-1) === "release", log);
     E(`go("kitchen", {quiet: true})`); await wait(450);
     ok("…and it's off when you come back", tog().textContent === "In the store: Off");
+    E(`wake.max = 80; setStoreMode(true)`); await wait(40);
+    ok("(on again)", E("wake.on") && tog().textContent === "In the store: On");
+    await wait(120); E("wake.max = WAKE_MAX_MS");
+    ok("after the hour it lets go and the store turns itself off", !E("wake.on") && tog().textContent === "In the store: Off");
+    Object.defineProperty(w.navigator, "wakeLock", {value: undefined, configurable: true});
+    E(`refresh("kitchen")`); await wait(30);
+    ok("where the browser has no Wake Lock, there's no 'In the store'", tog().hidden);
+    Object.defineProperty(w.navigator, "wakeLock", {value: {request: t => { log.push("request:" + t); return Promise.resolve(lock()); }}, configurable: true});
+    E(`refresh("kitchen")`); await wait(30);
 
     // 7. the view switch: tap, keys, swipe, each view keeps its scroll
     await view("home");
