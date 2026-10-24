@@ -37,7 +37,8 @@ f.onload = async () => {
     E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "plenty")`);
     ok("…and what's at home (Plenty) drops off", !E("groceriesText()").includes("☐ " + first.name + " ·"));
     E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "low")`);
-    ok("…Low still counts as at home", !E("groceriesText()").includes("☐ " + first.name + " ·"));
+    const lowRow = E(`toBuyList().find(n => n.foodId === ${JSON.stringify(first.foodId)}) || null`);
+    ok("…Low covers what's needed in the next 48 hours (anything left is needed later)", !lowRow || (new Date(lowRow.date) - E("+now()")) > 48 * 3600000, lowRow);
     E(`setStock(${JSON.stringify(first.foodId)}, ${JSON.stringify(first.name)}, "out")`);
     ok("…Out puts it back", E("groceriesText()").includes("☐ " + first.name + " ·"));
 

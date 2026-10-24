@@ -152,6 +152,8 @@ const CONTENT = {
     /* shopping units (the labels themselves are the food manifest's: foods.js) */
     unit:"{n} {label}", weight:"{g} g", rowMeta:"{unit} · {when}",
     when:{tonight:"tonight", today:"today", tomorrow:"tomorrow"},
+    got:"Got it", show:"Show", hide:"Hide", haveIt:"Have it", notThisWeek:"Not this week", gotUndo:"{food} · got it · Undo",
+    haveItHint:"Already have some of these? Tap a row, then Have it.",
     /* storage, built from the numbers in KITCHEN (kitchen.js; check against a food-safety source: docs/decisions.md) */
     storage:"Fridge {fridge} · freezer {freezer} · reheat once, piping hot, then let it cool.",
     span:{days:{one:"{n} day", other:"{n} days"}, months:{one:"{n} month", other:"{n} months"}}

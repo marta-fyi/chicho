@@ -31,25 +31,70 @@ f.onload = async () => {
     ok("the view switch: Buy, At home, Prep; Buy by default", $$(".k-tab .k-tab-t").map(b => b.textContent).join() === "Buy,At home,Prep" && $(".k-tab.is-on").dataset.view === "buy" && $(".k-view").dataset.view === "buy");
     ok("…Buy carries the count of rows still to buy", $('.k-tab[data-view="buy"] .k-count').textContent === String(E("toBuyList().length")));
 
-    // 1. To buy: the next three days' needs, minus what's at home
+    // 1. Buy: the next three days' needs, minus what's at home, in shopping units
     const list = () => E("toBuyList().map(n => n.foodId)");
-    const rows = () => $$('[data-sec="tobuy"] .row');
-    ok("To buy lists every need of the next three days that isn't at home", rows().length === list().length && list().length > 0, [rows().length, list().length]);
-    ok("…each '{food} · for {day} {meal}'", rows().every(r => /^.+ · for (today's|tomorrow's|[A-Z][a-z]+day's) (breakfast|snack|lunch|dinner)$/.test(r.querySelector(".row-t").textContent)), rows().slice(0, 3).map(r => r.textContent));
-    ok("…soonest first", rows()[0].textContent.includes("today's"));
-    const window3 = E(`(() => { const s = new Set(); for (let k = 0; k < 3; k++) mealsOn(new Date(2026, 9, 22 + k)).filter(x => x.status !== "earlier").forEach(x => x.m.items.forEach(i => s.add(foodIdOf(i)))); return [...s]; })()`);
-    ok("…only foods from meals still to come in that window (not breakfast, already past)", list().every(id => window3.includes(id)), list().filter(id => !window3.includes(id)));
-    ok("…never in grams or packs", !rows().some(r => /\d+ ?g\b|pack/.test(r.textContent)));
+    const rows = () => $$('[data-sec="buy"] .k-row');
+    ok("Buy lists one row per food still to buy", rows().length === list().length && list().length > 0, [rows().length, list().length]);
+    ok("…each row is exactly ROW_H (56px) tall", rows().every(r => r.getBoundingClientRect().height === 56), [...new Set(rows().map(r => r.getBoundingClientRect().height))]);
+    ok("…its name and its meta '{unit} · {when}' on one line each", rows().every(r => { const n = r.querySelector(".k-name"), m = r.querySelector(".k-meta"); return n.getBoundingClientRect().height < 26 && m.getBoundingClientRect().height < 20 && /^(\d+ [a-z]+|\d+ g) · (tonight|today|tomorrow|[A-Z][a-z]+day)$/.test(m.textContent); }), rows().slice(0, 3).map(r => r.textContent));
+    ok("…in deriveBuyList's order", JSON.stringify(rows().map(r => r.dataset.food)) === JSON.stringify(list()));
+    ok("no plan grams in Buy: a gram value is only ever a whole 100 g of a weight food", rows().every(r => { const m = r.querySelector(".k-meta").textContent.match(/(\d+) ?g\b/); return !m || (+m[1] % 100 === 0 && +m[1] >= 200 && E(`kitchenMeta("${r.dataset.food}").shopUnit`) === "weight"); }), rows().map(r => r.querySelector(".k-meta").textContent));
+    ok("first visit with nothing at home: 'Already have some of these? Tap a row, then Have it.'", $(".k-hint") && $(".k-hint").textContent === "Already have some of these? Tap a row, then Have it.");
+    E(`state.shop.manual.push({foodId: "an extraordinarily long name for a very small thing"}); save(); refresh("kitchen")`); await wait(40);
+    const long = $('[data-food="an extraordinarily long name for a very small thing"]');
+    ok("a long name ellipsizes and never wraps (the row stays 56px)", long && long.getBoundingClientRect().height === 56 && long.querySelector(".k-name").scrollWidth > long.querySelector(".k-name").clientWidth && w.getComputedStyle(long.querySelector(".k-name")).textOverflow === "ellipsis");
+    E(`state.shop.manual = []; save(); refresh("kitchen")`); await wait(40);
+
+    // the ring: got it, with a 5-second undo
     const first = E("toBuyList()[0]");
-    $(`[data-f="buy:${first.foodId}"]`).click(); await wait(40);
-    ok("ticking it: off To buy, into At home as Plenty", !list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === "plenty");
+    $(`[data-f="buy:${first.foodId}"]`).click(); await wait(80);
+    ok("tick: the ring fills at once", $(`[data-f="buy:${first.foodId}"]`).classList.contains("on"));
+    await wait(450);
+    ok("…then the row folds away: off the list, at home as Plenty, in Got it", !list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === "plenty" && E(`state.shop.got.some(g => g.foodId === "${first.foodId}")`) && !$(`[data-food="${first.foodId}"]`));
+    ok("…the count in the switch follows", $('.k-tab[data-view="buy"] .k-count').textContent === String(list().length));
+    const undo = () => d.querySelector("#scr-kitchen .k-undo");
+    ok("…and one quiet line: '{Food} · got it · Undo'", undo() && undo().textContent === first.name + " · got it · Undo", undo() && undo().textContent);
+    undo().querySelector("button").click(); await wait(60);
+    ok("Undo: back on the list, and the stock as it was (nothing)", list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === null && !E(`state.shop.got.length`) && !undo());
+    $(`[data-f="buy:${first.foodId}"]`).click(); await wait(500);
+    ok("the undo line goes after 5 seconds", !!undo()); await wait(5100);
+    ok("…(gone)", !undo());
+    const gotHead = $('[data-sec="got"] .k-label');
+    ok("'Got it' below the list, with its count, folded ('Show')", gotHead && gotHead.textContent === "Got it1" && $('[data-f="got:toggle"]').textContent === "Show" && !$('[data-sec="got"] .k-row'), gotHead && gotHead.textContent);
+    $('[data-f="got:toggle"]').click(); await wait(40);
+    ok("…'Show' lists it with a filled ring, and says 'Hide'", $('[data-sec="got"] .k-row .ring-btn.on') && $('[data-f="got:toggle"]').textContent === "Hide");
+    $(`[data-f="ungot:${first.foodId}"]`).click(); await wait(40);
+    ok("…its ring puts it back on the list, with the stock it had", list().includes(first.foodId) && E(`stockState("${first.foodId}")`) === null && !$('[data-sec="got"]'));
+
+    // a tap on the row: Have it, Not this week
+    const second = E("toBuyList()[1]");
+    $(`[data-f="row:${second.foodId}"]`).click(); await wait(40);
+    ok("tapping a row opens 'Have it' and 'Not this week' under it", $(`[data-f="have:${second.foodId}"]`).textContent === "Have it" && $(`[data-f="skip:${second.foodId}"]`).textContent === "Not this week");
+    $(`[data-f="row:${second.foodId}"]`).click(); await wait(40);
+    ok("…tapping it again closes them", !$(`[data-f="have:${second.foodId}"]`));
+    $(`[data-f="row:${second.foodId}"]`).click(); await wait(40);
+    $(`[data-f="have:${second.foodId}"]`).click(); await wait(300);
+    ok("Have it: Plenty, off the list, and not in Got it", E(`stockState("${second.foodId}")`) === "plenty" && !list().includes(second.foodId) && !E(`state.shop.got.some(g => g.foodId === "${second.foodId}")`));
+    ok("…and the first-visit line is gone for good", !$(".k-hint") && !!E("state.hints.haveIt"));
+    const third = E("toBuyList()[0]");
+    $(`[data-f="row:${third.foodId}"]`).click(); await wait(40);
+    $(`[data-f="skip:${third.foodId}"]`).click(); await wait(300);
+    ok("Not this week: off the list for this plan week, the pantry untouched", !list().includes(third.foodId) && E(`state.shop.notThisWeek.some(x => x.foodId === "${third.foodId}" && x.planWeekId === planWeekNow())`) && E(`stockState("${third.foodId}")`) === null);
+    E(`state.shop.notThisWeek = []; setStock("${second.foodId}", "x", null); save(); refresh("kitchen")`); await wait(30);
+
+    // empty
+    const keep = E("JSON.stringify(state.pantry)");
+    E(`toBuyList().forEach(n => setStock(n.foodId, n.name, "plenty")); save(); changed()`); await wait(40);
+    ok("nothing left: 'Nothing to pick up for the next 3 days.', centred, no rows", $(".k-empty") && $(".k-empty").textContent === "Nothing to pick up for the next 3 days." && w.getComputedStyle($(".k-empty")).textAlign === "center" && !rows().length);
+    ok("…and no count in the switch", $('.k-tab[data-view="buy"] .k-count').textContent === "");
+    E(`state.pantry = JSON.parse(${JSON.stringify(keep)}); save(); changed()`); await wait(40);
+    E(`setStock("${first.foodId}", "${first.name}", "plenty"); save(); changed()`); await wait(40);
     await view("home");
     ok("…its group in At home now shows it, as the word 'Plenty'", (() => { const g = E(`foodGroup("${first.foodId}")`); $(`[data-f="group:${g}"]`).click(); return true; })() && (await wait(30), $(`[data-f="stock:${first.foodId}"]`)) && $(`[data-f="stock:${first.foodId}"] .state-word`).textContent === "Plenty");
 
     // 2. Plenty → Low → Out, as words; Low is Running low, Out goes back to To buy when the plan needs it
     $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
     ok("tap: Low, and it shows under Low", E(`stockState("${first.foodId}")`) === "low" && !!$(`[data-sec="low"] [data-f="stock:${first.foodId}"]`));
-    ok("…Low is still at home: not on To buy", !list().includes(first.foodId));
     $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
     ok("tap: Out, and the plan needs it, so it's back on To buy", E(`stockState("${first.foodId}")`) === "out" && list().includes(first.foodId));
     $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
@@ -94,7 +139,7 @@ f.onload = async () => {
     Object.defineProperty(w.navigator, "share", {value: undefined, configurable: true});
     Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
     const send = $('[data-f="kitchen:send"]');
-    ok("'Send the list' sits at the end of To buy", !!send && send.closest('[data-sec="tobuy"]') && send.textContent === "Send the list");
+    ok("'Send the list' sits at the end of To buy", !!send && send.closest('[data-sec="buy"]') && send.textContent === "Send the list");
     send.click(); await wait(80);
     ok("…it sends the groceries text (copied here: no number, no share sheet)", copied === E("groceriesText()"), copied && copied.slice(0, 60));
 
@@ -103,7 +148,7 @@ f.onload = async () => {
     ok("'In the store: Off' by default, a 44px target", tog().textContent === "In the store: Off" && tog().getBoundingClientRect().height >= 44 && !log.length);
     tog().click(); await wait(60);
     ok("on: the screen wake lock is requested, and it says 'In the store: On'", log.join() === "request:screen" && tog().textContent === "In the store: On");
-    const heads = $$('[data-sec="tobuy"] h3.sec-h').map(h => h.textContent);
+    const heads = $$('[data-sec="buy"] .k-label').map(h => h.textContent);
     const order = ["Grains", "Veg", "Fruit", "Protein", "Fats and dairy", "Everything else"];
     ok("…To buy regroups by food group, in order", heads.length >= 2 && heads.every((h, i) => order.includes(h) && (i === 0 || order.indexOf(h) > order.indexOf(heads[i - 1]))), heads);
     E(`go("home", {quiet: true})`); await wait(450);

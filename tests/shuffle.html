@@ -69,7 +69,7 @@ f.onload = async () => {
     ok("…and Undo puts the food back", lunchM().items[0].id === item.id);
 
     // the Kitchen and Home follow: everything at home, so whatever the shuffle brings is new on the list
-    E(`needs(3).forEach(n => setStock(n.foodId, n.name, "plenty")); state.newToBuy = []; save(); refresh("shuffle")`);
+    E(`toBuyList().forEach(n => setStock(n.foodId, n.name, "plenty")); state.newToBuy = []; save(); refresh("shuffle")`);
     let fresh = 0;
     for (let k = 0; k < 6 && !fresh; k++) { $(".scr-pin .btn-ink").click(); await wait(30); fresh = E("state.newToBuy.length"); }
     ok("what the shuffle brought that isn't at home is on To buy now", fresh > 0 && E("state.newToBuy.every(id => toBuyList().some(n => n.foodId === id))"), fresh);

@@ -164,7 +164,8 @@ function buyMeta(r, now){ const w = whenLabel(r.first, r.firstSlot, now); return
    ==================================================================== */
 const KITCHEN_VIEWS = ["buy","home","prep"];
 const KITCHEN_GROUPS = FOOD_GROUP_ORDER.concat("other");
-const kitchenUI = {view:savedView(), scroll:{buy:0, home:0, prep:0}, open:{}, adding:false, store:false, wakeOurs:false};
+const kitchenUI = {view:savedView(), scroll:{buy:0, home:0, prep:0}, open:{}, adding:false, store:false, wakeOurs:false,
+                   expanded:null, showGot:false, undo:null};
 function savedView(){ try{ const v = sessionStorage.getItem("chicho.kitchenView"); return KITCHEN_VIEWS.includes(v) ? v : "buy"; }catch(e){ return "buy"; } }
 function keepView(v){ try{ sessionStorage.setItem("chicho.kitchenView", v); }catch(e){} }
 function groupName(c){ return c==="other" ? say("kitchen.other") : say("home.groups." + c); }
@@ -220,7 +221,7 @@ function placeLine(head, slide){
 }
 function renderKitchen(slide){
   const {e, head, col} = kitchenShell(), v = kitchenUI.view;
-  const list = toBuyList();
+  const list = buyRows();
   const store = head.querySelector(".k-store");
   store.hidden = v!=="buy" || !wakeSupported();
   store.textContent = say(kitchenUI.store ? "kitchen.storeOn" : "kitchen.storeOff");
@@ -231,7 +232,9 @@ function renderKitchen(slide){
   placeLine(head, !!slide);
   col.innerHTML = ""; col.dataset.view = v;
   [...e.querySelectorAll(".k-pin")].forEach(x=>x.remove());
+  [...e.querySelectorAll(".k-undo")].forEach(x=>x.remove());
   ({buy:renderBuy, home:renderAtHome, prep:renderPrep})[v](col, list, e);
+  undoLine(e, !!e.querySelector(".k-pin"));
 }
 /* switching views: a crossfade with an 8px slide in the direction of travel, 180ms; each view keeps its scroll */
 function switchView(to){
@@ -270,37 +273,166 @@ function kitchenDragEnd(dx, v){
   col.animate([{transform:from, opacity:+fromO}, {transform:"none", opacity:1}], {duration:180, easing:"cubic-bezier(.32,1.25,.5,1)"});
 }
 
-/* ---------- Buy (moving to deriveBuyList next) ---------- */
+/* ---------- In the store ---------- */
 function setStoreMode(on){
   kitchenUI.store = on;
   if(on){ if(wakeSupported() && !wake.on){ kitchenUI.wakeOurs = true; wakeSet(true); } }
   else if(kitchenUI.wakeOurs){ kitchenUI.wakeOurs = false; if(wake.on) wakeSet(false); }
   haptic(); refresh("kitchen");
 }
-function renderBuy(col, list){
-  const buy = section(col, "tobuy", "");
-  if(!list.length) buy.appendChild(el("p", "quiet-line", say("kitchen.nothingToBuy")));
-  const buyRow = n=>{
-    const r = el("div", "row");
-    const t = el("p", "row-t"); t.style.margin = "0";
-    t.textContent = say("kitchen.forMeal", {food:n.name, day:possDay(n.date), meal:n.label.toLowerCase()});
-    r.appendChild(t);
-    r.appendChild(ring(false, say("kitchen.bought", {food:n.name}), ()=>{ setStock(n.foodId, n.name, "plenty"); save(); haptic(); changed(); }, "buy:" + n.foodId));
-    return r;
+/* ---------- Buy: what to pick up, one row per food ----------
+   A tap on the ring: it fills, the row folds away, the food is at home (Plenty) and in Got it, and a quiet line
+   offers Undo for 5 seconds. A tap on the row opens Have it and Not this week under it. */
+function buyRows(){
+  pruneGot();
+  return deriveBuyList(state.plans, state.pantry, state.shop, now(), {timeOf:mealTime, isOffered:(m, d, i)=>itemOffered(m, i, d)});
+}
+/* Got it is today's: at local midnight it empties (what was bought stays at home) */
+function pruneGot(){
+  const iso = todayISO(), keep = state.shop.got.filter(g=>isoOf(new Date(g.at))===iso);
+  if(keep.length!==state.shop.got.length){ state.shop.got = keep; save(); }
+}
+function planWeekNow(){ const p = planRecOn(state, now()); return p ? p.startsOn : ""; }
+/* the ring: 28px drawn, 44px to tap, a 1.5px ink line; filled when done */
+function kRing(on, fn, f){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "ring-btn" + (on ? " on" : ""); b.dataset.f = f;
+  b.innerHTML = RING;
+  b.addEventListener("click", fn);
+  return b;
+}
+/* a fixed-height row: name (and an optional meta line), each on one line, and a control on the right */
+function kRow(name, meta, right, onTap, f){
+  const r = el("div", "k-row");
+  const main = document.createElement(onTap ? "button" : "div");
+  main.className = "k-main";
+  if(onTap){ main.type = "button"; main.dataset.f = f; main.addEventListener("click", onTap); }
+  main.appendChild(el("span", "k-name", name));
+  if(meta) main.appendChild(el("span", "k-meta", meta));
+  r.appendChild(main);
+  if(right) r.appendChild(right);
+  return r;
+}
+/* the row folds away (transform only): it shrinks to nothing while everything below it slides up its height */
+function collapseRow(row, done){
+  const h = row.offsetHeight + (row.nextElementSibling && row.nextElementSibling.classList.contains("k-acts") ? row.nextElementSibling.offsetHeight : 0);
+  const after = [];
+  let n = row;
+  while(n && !n.classList.contains("k-view")){
+    for(let s = n.nextElementSibling; s; s = s.nextElementSibling) if(!s.classList.contains("k-acts") || n!==row) after.push(s);
+    n = n.parentElement;
+  }
+  const o = {duration:200, easing:"cubic-bezier(.22,.61,.36,1)", fill:"forwards"};
+  row.style.transformOrigin = "50% 0";
+  const a = row.animate([{transform:"scaleY(1)", opacity:1}, {transform:"scaleY(0)", opacity:0}], o);
+  if(row.nextElementSibling && row.nextElementSibling.classList.contains("k-acts")) row.nextElementSibling.animate([{opacity:1}, {opacity:0}], o);
+  after.forEach(s=>s.animate([{transform:"none"}, {transform:`translateY(${-h}px)`}], o));
+  a.onfinish = done;
+}
+/* the quiet undo line above the pill: "{Food} · got it · Undo", 5 seconds */
+function setKitchenUndo(text, restore){
+  clearTimeout(kitchenUI.undo && kitchenUI.undo.timer);
+  kitchenUI.undo = {text, restore, timer:setTimeout(()=>{ kitchenUI.undo = null; refresh("kitchen"); }, KITCHEN.UNDO_MS)};
+}
+function undoLine(e, hasPin){
+  const u = kitchenUI.undo;
+  if(!u) return;
+  const wrap = el("div", "k-undo" + (hasPin ? "" : " no-pin")), c = el("p", "scr-col");
+  const k = u.text.lastIndexOf(say("meal.undo"));
+  c.append(u.text.slice(0, k));
+  const b = textBtn(say("meal.undo"), ()=>{ clearTimeout(u.timer); kitchenUI.undo = null; u.restore(); save(); changed(); }, "inline");
+  b.dataset.f = "kitchen:undo";
+  c.appendChild(b);
+  wrap.appendChild(c);
+  e.appendChild(wrap);
+}
+function gotIt(r){
+  const p = pantryOf(r.foodId), prev = p ? p.state : null, manual = state.shop.manual.some(x=>x.foodId===r.foodId);
+  setStock(r.foodId, r.name, "plenty");
+  pantryOf(r.foodId).prevState = prev || "out";
+  state.shop.manual = state.shop.manual.filter(x=>x.foodId!==r.foodId);
+  state.shop.got = state.shop.got.filter(g=>g.foodId!==r.foodId).concat(Object.assign({foodId:r.foodId, at:now().toISOString(), prevState:prev}, manual ? {manual:true} : {}));
+  kitchenUI.expanded = null;
+  setKitchenUndo(say("kitchen.gotUndo", {food:r.name}), ()=>unGot(r.foodId));
+  save(); haptic();
+}
+/* back on the list: the stock it had before (or none), and a hand-added food is hand-added again */
+function unGot(foodId){
+  const g = state.shop.got.find(x=>x.foodId===foodId);
+  if(!g) return;
+  const p = pantryOf(foodId);
+  if(g.prevState) setStock(foodId, p ? p.name : foodName(foodId), g.prevState); else setStock(foodId, "", null);
+  const q = pantryOf(foodId); if(q) delete q.prevState;
+  if(g.manual && !state.shop.manual.some(x=>x.foodId===foodId)) state.shop.manual.push({foodId});
+  state.shop.got = state.shop.got.filter(x=>x!==g);
+}
+function haveIt(r){
+  setStock(r.foodId, r.name, "plenty");
+  state.shop.manual = state.shop.manual.filter(x=>x.foodId!==r.foodId);
+  if(!state.hints.haveIt) state.hints.haveIt = todayISO();
+  kitchenUI.expanded = null;
+  save(); haptic();
+}
+function notThisWeek(r){
+  const week = planWeekNow();
+  state.shop.manual = state.shop.manual.filter(x=>x.foodId!==r.foodId);
+  if(!state.shop.notThisWeek.some(x=>x.foodId===r.foodId && x.planWeekId===week)) state.shop.notThisWeek.push({foodId:r.foodId, planWeekId:week});
+  kitchenUI.expanded = null;
+  save(); haptic();
+}
+function renderBuy(col, list, e){
+  const rowFor = r=>{
+    const box = document.createDocumentFragment();
+    const ringB = kRing(false, ()=>{
+      ringB.classList.add("on");
+      setTimeout(()=>collapseRow(row, ()=>{ gotIt(r); changed(); }), 180);
+    }, "buy:" + r.foodId);
+    const row = kRow(r.name, buyMeta(r, now()), ringB, ()=>{ kitchenUI.expanded = kitchenUI.expanded===r.foodId ? null : r.foodId; refresh("kitchen"); }, "row:" + r.foodId);
+    row.dataset.food = r.foodId;
+    box.appendChild(row);
+    if(kitchenUI.expanded===r.foodId){
+      const acts = el("div", "k-acts");
+      const have = textBtn(say("kitchen.haveIt"), ()=>collapseRow(row, ()=>{ haveIt(r); changed(); }), "small"); have.dataset.f = "have:" + r.foodId;
+      const skip = textBtn(say("kitchen.notThisWeek"), ()=>collapseRow(row, ()=>{ notThisWeek(r); changed(); }), "small"); skip.dataset.f = "skip:" + r.foodId;
+      acts.append(have, skip);
+      box.appendChild(acts);
+    }
+    return box;
   };
-  if(kitchenUI.store) KITCHEN_GROUPS.forEach(c=>{
-    const rows = list.filter(n=>(KITCHEN_GROUPS.includes(n.cat) ? n.cat : "other")===c);
-    if(!rows.length) return;
-    buy.appendChild(el("h3", "sec-h", groupName(c))).style.marginTop = "14px";
-    rows.forEach(n=>buy.appendChild(buyRow(n)));
-  });
-  else list.forEach(n=>buy.appendChild(buyRow(n)));
+  const sec = section(col, "buy", "");
+  if(!list.length) sec.appendChild(el("p", "k-empty", say("kitchen.nothingToBuy")));
+  else{
+    if(!state.pantry.length && !state.hints.haveIt) sec.appendChild(el("p", "k-hint", say("kitchen.haveItHint")));
+    if(kitchenUI.store) KITCHEN_GROUPS.forEach(c=>{
+      const rows = list.filter(r=>r.group===c);
+      if(!rows.length) return;
+      sec.appendChild(el("h2", "k-label", groupName(c)));
+      rows.forEach(r=>sec.appendChild(rowFor(r)));
+    });
+    else list.forEach(r=>sec.appendChild(rowFor(r)));
+  }
   if(list.length){
     const p = el("p", "quiet-line");
     const s = textBtn(say("kitchen.send"), ()=>sendGroceries(), "small");
     s.dataset.f = "kitchen:send";
-    p.appendChild(s); buy.appendChild(p);
+    p.appendChild(s); sec.appendChild(p);
   }
+  // Got it: today's, folded away until shown; its ring puts the food back on the list
+  const got = state.shop.got;
+  if(got.length){
+    const g = section(col, "got", "");
+    const h = el("div", "k-sechead");
+    const lab = el("h2", "k-label", say("kitchen.got"));
+    lab.appendChild(el("span", "k-label-n", String(got.length)));
+    const t = textBtn(say(kitchenUI.showGot ? "kitchen.hide" : "kitchen.show"), ()=>{ kitchenUI.showGot = !kitchenUI.showGot; refresh("kitchen"); }, "small"); t.dataset.f = "got:toggle";
+    h.append(lab, t); g.appendChild(h);
+    if(kitchenUI.showGot) got.slice().reverse().forEach(x=>{
+      const p = pantryOf(x.foodId), name = p ? p.name : foodName(x.foodId);
+      const ringB = kRing(true, ()=>{ unGot(x.foodId); save(); haptic(); changed(); }, "ungot:" + x.foodId);
+      g.appendChild(kRow(name, "", ringB, null));
+    });
+  }
+  return list.length;
 }
 
 /* ---------- At home ---------- */
