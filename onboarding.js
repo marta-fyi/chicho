@@ -894,7 +894,7 @@ function makePile(zone, els, seed){
     let asleep = false;
     while(p.acc >= PILE.dt){ p.acc -= PILE.dt; asleep = step(); if(asleep) break; }
     render();
-    if(p.exitAt && p.t >= p.exitAt){ p.running = false; const f = p.onExit; p.onExit = null; f && f(); return; }
+    if(p.exitAt && (p.t >= p.exitAt || p.allOut())){ p.running = false; const f = p.onExit; p.onExit = null; f && f(); return; }
     if(asleep && !p.exitAt){ p.running = false; return; }
     p.raf = requestAnimationFrame(frame);
   };
@@ -913,13 +913,15 @@ function makePile(zone, els, seed){
       if(d < a.r + b.r + 40){ b.vx += dx / d * PILE.nudge; b.vy += dy / d * PILE.nudge; b.px = b.x - b.vx * PILE.dt; b.py = b.y - b.vy * PILE.dt; } });
     p.wake();
   };
-  /* "Show the week": the floor opens, bottom first, a little apart, and everything falls out */
-  p.open = done=>{
+  /* Allergens' Next: the floor opens, bottom first, a little apart, and everything falls out (about 500 ms). done()
+     comes once every circle has fallen past clipY (zone coordinates: the bottom of what's visible), or at 900 ms anyway */
+  p.open = (done, clipY)=>{
     const order = w.bodies.filter(b=>b.live).sort((a, b)=>b.y - a.y);
     order.forEach((b, k)=>{ setTimeout(()=>{ b.free = true; b.vy = Math.max(b.vy, 200); p.wake(); }, k * 25); });
-    p.exitAt = p.t + 500; p.onExit = done;
+    p.exitAt = p.t + 900; p.clipY = clipY===undefined ? Infinity : clipY; p.onExit = done;
     p.wake();
   };
+  p.allOut = ()=>w.bodies.every(b=>!b.live || (b.free && b.y - b.r > p.clipY));
   new ResizeObserver(()=>{ const W0 = w.W; size(); if(w.W!==W0) w.bodies.forEach(b=>{ b.x = Math.min(b.x, w.W - b.r); }); p.wake(); }).observe(zone);
   document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && zone.isConnected && !w.asleep) p.wake(); });
   addEventListener("orientationchange", ()=>p.wake());
@@ -1110,9 +1112,12 @@ function onbKeepout(card, P){
     const to = stepAfter("keepout");
     if(onb.single){ nextStep(); return; }
     if(calm() || !pile || noWeekYet()){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
-    pile.open(()=>goStep(to, null, {instant:true}));
+    // the circles fall out through the floor; once they are gone, the meal-times axis makes its entrance (the swap
+    // is synchronous, so no frame shows both)
+    const clip = card.getBoundingClientRect().bottom - zone.getBoundingClientRect().top;
+    pile.open(()=>{ onb.mtEntrance = to==="mealtimes"; goStep(to, null, {instant:true}); }, clip);
   };
-  onbCta(card, onb.single ? say("onb.save") : noWeekYet() ? say("onb.next") : say("onb.keepOut.cta"), go);
+  onbCta(card, onb.single ? say("onb.save") : say("onb.next"), go);
 }
 
 /* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */
@@ -1327,7 +1332,7 @@ function onbReveal(card, P){
   row.append(again, love);
   foot.appendChild(row);
   if(onb.revealed || onb.revealPlayed){
-    // a second pass (Back, then Show the week again): straight to Done, a 250 ms crossfade
+    // a second pass (Back, then on to the week again): straight to Done, a 250 ms crossfade
     onb.revealed = true; onb.revealPlayed = true;
     if(!calm()) card.animate([{opacity:0}, {opacity:1}], {duration:250});
     return;

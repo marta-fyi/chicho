@@ -80,7 +80,7 @@ const geometry = f => {
     // the floor opens
     E("pile.settle()");
     d.querySelector("#onbFoot .btn-ink").click(); await wait(150);
-    ok("'Show the week': the floor opens and the circles fall", E("pile.world.bodies.some(b => b.free)"));
+    ok("'Next': the floor opens and the circles fall", E("pile.world.bodies.some(b => b.free)"));
     await wait(900);
     ok("…then the next step", E("onb.step") !== "keepout", E("onb.step"));
     f.remove();

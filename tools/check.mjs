@@ -32,6 +32,11 @@ for (const f of SOURCES) readFileSync(join(root, f), "utf8").split("\n").forEach
   if (/Fridge \d|freezer \d+ (day|month)/i.test(line)) fails.push(`voice ${f}:${i + 1}  a storage number written into the copy (use KITCHEN): ${line.trim().slice(0, 90)}`);
 });
 
+// 2b''. Allergens' pill is "Next": the old label is gone from every source, comments included
+for (const f of SOURCES) readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
+  if (/Show the week/i.test(line)) fails.push(`voice ${f}:${i + 1}  the old "Show the week" label: ${line.trim().slice(0, 90)}`);
+});
+
 // 2a. the voice is dry and warm: no exclamation marks in any of the copy (every string literal in content.js)
 readFileSync(join(root, "content.js"), "utf8").split("\n").forEach((line, i) => {
   for (const m of line.matchAll(/"((?:[^"\\]|\\.)*)"/g)) if (m[1].includes("!")) fails.push(`voice content.js:${i + 1}  an exclamation mark: "${m[1].slice(0, 80)}"`);

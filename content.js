@@ -281,8 +281,7 @@ const CONTENT = {
       lockedOpen:"What's always off the plate",
       lockedTitle:"Always off the plate",
       spacing:"Anything left alone, we'll introduce one at a time, with space between.",
-      note:"Not medical advice. Your pediatrician has the final word on allergens.",
-      cta:"Show the week"
+      note:"Not medical advice. Your pediatrician has the final word on allergens."
     },
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
     atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
