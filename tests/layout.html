@@ -19,7 +19,7 @@ const load = (W, H, extra) => new Promise(res => {
     // a classic scrollbar (macOS with a mouse attached) narrows the viewport: widen the frame so the page really is W wide
     const sb = W - f.contentDocument.documentElement.clientWidth;
     if (sb > 0 && !f.dataset.wide) { f.dataset.wide = "1"; f.width = W + sb; await wait(100); f.contentWindow.eval("kbSync()"); }
-    f.contentWindow.eval(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+    f.contentWindow.eval(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
       ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
       state.offers = []; state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01", profile: "2026-10-01"}; offersChanged(); ${extra || ""} save(); closeOnboarding(); changed();`);

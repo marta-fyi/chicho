@@ -8,7 +8,7 @@
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const SEED = months => `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesConfirmed: true});
+const SEED = months => `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesSource: "default"});
   ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
   state.plan = generateWeek(${months}, state.profile) || defaultPlan(); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; state.hints = {}; save(); closeOnboarding(); changed();`;
 const load = (hash, months) => new Promise(res => {

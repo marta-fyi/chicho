@@ -44,7 +44,7 @@ const base = `http://127.0.0.1:${server.address().port}/index.html?test&now=2026
 
 const SHOTS = join(root, "docs", "screenshots");
 if (!args.has("--quick") && !args.has("--perf-only")) { if (existsSync(SHOTS)) readdirSync(SHOTS).filter(f => /\.(png|jpg)$/.test(f)).forEach(f => rmSync(join(SHOTS, f))); mkdirSync(SHOTS, {recursive: true}); }
-const SEED = `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+const SEED = `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
   ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
   state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding();`;
 const DEVICES = [["se", "iPhone SE"], ["14", "iPhone 14"], ["14max", "iPhone 14 Pro Max"], ["14land", "iPhone 14 landscape"]];

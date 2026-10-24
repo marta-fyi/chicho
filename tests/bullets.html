@@ -14,7 +14,7 @@ const frame = src => new Promise(res => { const f = document.createElement("ifra
   try {
     const f = await frame("../index.html?test&theme=light&now=2026-10-22T12:10");
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
-    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
        state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id; save(); closeOnboarding(); changed();`);
     await wait(600);

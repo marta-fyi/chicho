@@ -73,7 +73,7 @@ f.onload = async () => {
 
     // say(): placeholders, plurals, daily variants
     ok("say() fills placeholders", E("say('home.headline.soon', {meal: 'Lunch', n: 25})") === "Lunch in 25 minutes." && E("say('home.headline.soon', {meal: 'Lunch', n: 1})") === "Lunch in 1 minute.");
-    ok("say() reads months", E("say('moment.stage', {name: 'Lula', months: 9})") === "Lula is 9 months.");
+    ok("say() reads months", E("say('moment.stage', {name: 'Lula', months: 9})") === "Lula is 9 months. New meals, new times. Set them?");
     ok("say() picks singular and plural", E("[say('moment.shop', {n: 1}), say('moment.shop', {n: 4})].join('|')") === "1 thing to pick up.|4 things to pick up.", E("[say('moment.shop', {n: 1}), say('moment.shop', {n: 4})].join('|')"));
     ok("say() picks none when there's one", E("CONTENT.__t = {one:'a {n}', other:'b {n}', none:'nothing'}; [say('__t', {n: 0}), say('__t', {n: 1}), say('__t', {n: 2})].join('|')") === "nothing|a 1|b 2");
     ok("say() picks the same tip all day", E("say('cook.tips', {name: 'Lula', food: 'peas'}, 'tip') === say('cook.tips', {name: 'Lula', food: 'peas'}, 'tip')"));

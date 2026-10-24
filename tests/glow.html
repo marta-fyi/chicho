@@ -16,7 +16,7 @@ document.body.append(f);
 f.onload = async () => {
   try {
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)], R = el => el.getBoundingClientRect();
-    const setup = (months, plan = true) => E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesConfirmed: true});
+    const setup = (months, plan = true) => E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months}), firstDay: "2026-10-01", mealTimesSource: "default"});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
        state.plan = generateWeek(${Math.max(months, 6)}, state.profile); ${plan ? "" : "state.plan.days.forEach(d => d.meals.forEach(m => m.items = []));"} state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
        state.offers = []; state.hints = {shuffle: "x", kitchen: "x", profile: "x"}; offersChanged(); save(); if (!document.getElementById("onboarding").hidden) closeOnboarding(); changed();`);

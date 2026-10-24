@@ -14,7 +14,7 @@ const over = (fg, bg) => { const a = fg[3] === undefined ? 1 : fg[3]; return [0,
 const ratio = (fg, bg) => { const a = lum(over(fg, bg)), b = lum(bg); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
 const parse = c => { const m = c.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] === undefined ? 1 : m[3]]; };
 const BG = [220, 221, 221], INK = [18, 18, 18, 1], MUTED = [18, 18, 18, .7];
-const SETUP = `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+const SETUP = `state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
   ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
   state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
   state.offers = []; state.hints = {shuffle: "x", kitchen: "x", profile: "x"}; offersChanged(); save(); closeOnboarding(); changed();`;

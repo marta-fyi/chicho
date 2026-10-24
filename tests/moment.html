@@ -21,7 +21,7 @@ f.onload = async () => {
     const setup = (months, clock, extra) => {
       E(`setClock(${clock || at(15, 0)})`);
       E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(${months || 18}, now()),
-           firstDay: "2026-10-01", mealTimesConfirmed: true, priorities: ["iron"], allergens: {egg: "ok", milk: "ok", peanut: "ok", treenuts: "ok", wheat: "ok", soy: "ok", fish: "ok", shellfish: "ok", sesame: "ok"}});
+           firstDay: "2026-10-01", mealTimesSource: "default", priorities: ["iron"], allergens: {egg: "ok", milk: "ok", peanut: "ok", treenuts: "ok", wheat: "ok", soy: "ok", fish: "ok", shellfish: "ok", sesame: "ok"}});
          state.plan = generateWeek(${Math.max(6, months || 18)}, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
          state.offers = [{id: "o1", at: "2026-10-21T08:00", date: "2026-10-21", mealId: "legacy", itemId: null, foodId: "banana", outcome: null, firstOfFood: true, firstAllergen: false}];
          state.moment = {}; state.asked = {}; state.newToBuy = []; state.hints = {shuffle: "2026-10-01", kitchen: "2026-10-01", profile: "2026-10-01"};
@@ -45,8 +45,10 @@ f.onload = async () => {
     // 2. stage changed this month
     setup(12, at(15, 0), `state.profile.lastStage = "textures";`);
     let m = M();
-    ok("12 months, new stage: 'Lula is 12 months. Update the week?'", m.text === "Lula is 12 months." && JSON.stringify(actions(m)) === JSON.stringify(["Update the week?", "Later"]), m);
-    ok("…'Update the week?' goes to New week", await goTo(m.actions[0][1]) === "week"); await home();
+    ok("12 months, new stage: 'Lula is 12 months. New meals, new times. Set them?' with Set / Later", m.text === "Lula is 12 months. New meals, new times. Set them?" && JSON.stringify(actions(m)) === JSON.stringify(["Set", "Later"]), m);
+    m.actions[0][1](); await wait(400);
+    ok("…'Set' opens Meal times in its Profile form: Save and Close, no Back, no progress", E("onb.step") === "mealtimes" && E("onb.single") && d.querySelector("#onbFoot .btn-ink").textContent === "Save" && !d.getElementById("onbClose").hidden && d.getElementById("onbBack").hidden && d.getElementById("onbDots").hidden);
+    d.getElementById("onbClose").click(); await wait(300);
     m.actions[1][1]();
     ok("Later puts it away for today", M().key !== "stage" && E("state.moment.later").includes("stage"));
     E(`setClock(${at(15, 0, 23)})`);
@@ -134,16 +136,16 @@ f.onload = async () => {
     ok("after 21:30: only tomorrow's first meal, no actions", m.key === "quiet" && /^Breakfast tomorrow: /.test(m.text) && m.actions.length === 0, m);
 
     // 9. late questions
-    setup(18, at(15, 0), `state.profile.mealTimesConfirmed = false;`);
+    setup(18, at(15, 0), `state.profile.mealTimesSource = null; state.profile.priorities = [];`);
     m = M();
-    ok("meal times not confirmed: 'What time does lunch usually happen?' with Set / Later", m.text === "What time does lunch usually happen?" && JSON.stringify(actions(m)) === JSON.stringify(["Set", "Later"]), m);
+    ok("meal times are never a late question (even unanswered): priorities comes, with Set / Later", m.key === "ask:priorities" && JSON.stringify(actions(m)) === JSON.stringify(["Set", "Later"]), m);
     m.actions[1][1]();
     ok("Later: no other question today (one a day)", (E(`state.profile.priorities = []`), !/^ask:/.test(M().key)), M().key);
     E(`setClock(${at(15, 0, 23)})`);
     ok("…another day, a question can come back", /^ask:/.test(M().key), M().key);
-    setup(18, at(15, 0), `state.profile.mealTimesConfirmed = false; state.profile.firstDay = "2026-10-22";`);
+    setup(18, at(15, 0), `state.profile.priorities = []; state.profile.firstDay = "2026-10-22";`);
     ok("never on day one", !/^ask:/.test(M().key));
-    setup(18, at(12, 45), `state.profile.mealTimesConfirmed = false;`);
+    setup(18, at(12, 45), `state.profile.priorities = [];`);
     ok("never while a meal is 'now'", !/^ask:/.test(M().key), M().key);
     setup(18, at(15, 0), `state.profile.priorities = [];`);
     ok("priorities, after the first week", M().text === "Anything to lean on this week, like iron or quick meals?", M().text);

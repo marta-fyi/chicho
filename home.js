@@ -140,7 +140,7 @@ function anotherWay(foodId){
 /* ---------- the moment line: one line, picked by the first rule that applies. It's also the router: its
    text action goes to the screen that does the job ---------- */
 const QUIET_FROM_MIN = 21*60 + 30;   // after 21:30 only tomorrow's first meal, no actions
-const LATE_QUESTIONS = ["mealTimes","priorities","kitchen","people"];
+const LATE_QUESTIONS = ["priorities","kitchen","people"];   // meal times are asked in the onboarding, never late
 function momentLine(){
   const P = state.profile, t = now(), iso = todayISO(), name = P.name || "", st = stageNow(), months = ageNow();
   const later = state.moment && state.moment.date===iso ? state.moment.later || [] : [];
@@ -158,8 +158,9 @@ function momentLine(){
     const f = tmFirst.m.items.map(i=>lower1(baseName(i)));
     return L("quiet", f.length > 1 ? say("moment.quiet", {meal:tmFirst.m.label, food1:f[0], food2:f[1]}) : say("moment.quietOne", {meal:tmFirst.m.label, food1:f[0] || ""}));
   }
-  if(st.solids && P.lastStage!==st.id && months===st.from && open("stage"))
-    return L("stage", say("moment.stage", {name, months}), [[say("moment.stageUpdate"), ()=>go("week")], [say("moment.later"), putAway("stage")]]);
+  // a boundary that changes the meals: "{name} is {n} months. New meals, new times. Set them?" → Meal times, in Profile
+  if(st.solids && mealSlotsStale(months, st) && open("stage"))
+    return L("stage", say("moment.stage", {name, months}), [[say("moment.set"), ()=>openOnboarding("mealtimes", {single:true})], [say("moment.later"), putAway("stage")]]);
   const firsts = firstAllergensToday();
   if(firsts.length) return L("allergen:" + firsts[0].id, say("moment.allergen", {allergen:firsts[0].label, name}),
                               [[say("moment.allergenAction"), ()=>go("profile", {section:"offplate"})]], "calm");
@@ -199,6 +200,12 @@ function momentLine(){
   const food = today.flatMap(x=>x.m.items)[0];
   return L("tip", say("cook.tips", {name, food:food ? lower1(baseName(food)) : "food"}, "tip"));
 }
+/* have the stage's meals changed since the family last set theirs? (their snack choice was made against other slots;
+   with none made yet, the month a new stage starts, as before: a baby who turns 6 months, or a family from before) */
+function mealSlotsStale(months, st){
+  const P = state.profile;
+  return P.mealSlots ? P.mealSlots.base!==slotSig(slotsFor(months)) : P.lastStage!==st.id && months===st.from;
+}
 /* ---------- the install line ---------- */
 function isStandalone(){ return matchMedia("(display-mode: standalone)").matches || navigator.standalone===true; }
 /* the second day (or the first one after it that Chicho is opened), on an iPhone or iPad in the browser, once:
@@ -219,8 +226,7 @@ function lateQuestion(today){
   if(today.some(x=>x.status==="now")) return null;
   if(A.day===iso) return A.today && !A[A.today] && !(state.moment.later || []).includes("ask:" + A.today) ? A.today : null;
   const weekOld = isoOf(addDays(localDate(P.firstDay), 7)) <= iso;
-  const want = {mealTimes:!P.mealTimesSource && !P.mealTimesConfirmed && stageNow().solids,   // legacy: mealTimesConfirmed
-                priorities:weekOld && !(P.priorities || []).length,
+  const want = {priorities:weekOld && !(P.priorities || []).length,
                 kitchen:toBuyList().length > 0 && !state.pantry.length, people:!!A.shared && !P.people.length};
   const q = LATE_QUESTIONS.find(k=>want[k] && !A[k]);
   if(!q) return null;
@@ -231,8 +237,7 @@ function lateQuestion(today){
 function markAsked(q, answered){ state.asked = Object.assign({}, state.asked, answered ? {[q]:todayISO()} : {}); save(); }
 function answerLate(q){
   markAsked(q, true);
-  if(q==="mealTimes") openOnboarding("mealtimes", {single:true});
-  else if(q==="priorities") openOnboarding("priorities", {single:true});
+  if(q==="priorities") openOnboarding("priorities", {single:true});
   else if(q==="kitchen") openOnboarding("athome", {single:true});
   else go("profile", {section:"people"});
 }

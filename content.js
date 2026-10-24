@@ -64,8 +64,7 @@ const CONTENT = {
   /* ---------- the moment line: one line at a time, never two ---------- */
   moment:{
     milk:{one:"Solids start in {n} month.", other:"Solids start in {n} months."},
-    stage:"{name} is {months}.",
-    stageUpdate:"Update the week?",
+    stage:"{name} is {months}. New meals, new times. Set them?",
     later:"Later",
     install:"Add Chicho to your Home Screen to open it like an app. Tap Share, then Add to Home Screen.",
     allergen:"{allergen}, for the first time. A small taste, then keep an eye on how {name} feels.",
@@ -87,7 +86,6 @@ const CONTENT = {
     quiet:"{meal} tomorrow: {food1} and {food2}.",
     quietOne:"{meal} tomorrow: {food1}.",
     ask:{
-      mealTimes:"What time does lunch usually happen?",
       priorities:"Anything to lean on this week, like iron or quick meals?",
       kitchen:"Anything already in the kitchen we should use up?",
       people:"Anyone else looking after {name}?"

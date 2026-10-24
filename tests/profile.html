@@ -18,7 +18,7 @@ f.onload = async () => {
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x);
     const $ = s => d.querySelector("#scr-profile " + s), $$ = s => [...d.querySelectorAll("#scr-profile " + s)];
     const sec = k => $(`[data-sec="${k}"]`);
-    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesConfirmed: true});
+    E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
        delete state.profile.allergens.egg; delete state.profile.allergens.shellfish; state.profile.allergens.peanut = "avoid";
        state.profile.avoid = [{name: "Kiwi", kind: "allergy"}, {name: "Beetroot", kind: "dislike"}];
