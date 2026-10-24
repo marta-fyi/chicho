@@ -285,8 +285,13 @@ function kitchenShell(){
   // ever clipped behind it at rest; what scrolls under it is blurred
   const fit = ()=>{
     const hh = head.offsetHeight; body.style.paddingTop = hh + "px"; body.style.scrollPaddingTop = hh + "px"; e.style.setProperty("--kh", hh + "px");
-    const t = head.querySelector(".k-title");
-    glow.style.top = (t.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop + t.offsetHeight / 2) + "px";   // the title's middle, in the scroll area's coordinates
+    // the glow's grey nucleus sits where no control is: right of the view switch's last label, level with the
+    // switch's top (between the title and the switch, clear of In the store above), in the scroll area's coordinates
+    const sw = head.querySelector(".k-switch"), tabs = head.querySelectorAll(".k-tab"), last = tabs[tabs.length - 1], b = body.getBoundingClientRect();
+    if(!last) return;
+    const s = sw.getBoundingClientRect(), l = last.getBoundingClientRect();
+    glow.style.left = ((l.right + s.right) / 2 - b.left) + "px";
+    glow.style.top = (s.top - b.top + body.scrollTop) + "px";
   };
   if(window.ResizeObserver) new ResizeObserver(fit).observe(head);
   body.addEventListener("scroll", ()=>kitchenScrolled(body, head), {passive:true});

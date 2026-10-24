@@ -1,4 +1,9 @@
 // The device run: `PLAYWRIGHT=<path to the playwright package> node tools/devices.mjs [--quick] [--perf]`
+// The Kitchen (kitchenRun) runs on the portrait devices: row heights, one line, no plan grams, the header (five rows
+// on first paint at 390×844, solid and blurred when scrolled, no sliver at rest), the map dimming, the bottom fade,
+// the glow's nucleus clear of every control, tick/undo/Got it, Have it, Not this week, In the store and its wake
+// lock, Send's units, At home, swipes between views with rubber bands, per-view scroll, the freezer, Prep's clamp,
+// the pager's header drag and mid-list scroll, and the empty states.
 // (Playwright isn't a dependency of this repo; point at any install, e.g. ~/dev/client/node_modules/playwright,
 // with its WebKit and Chromium browsers downloaded.)
 //
@@ -67,6 +72,117 @@ const CHECKS = () => {
   };
 };
 
+/* ---------- the Kitchen on every portrait device, engine and theme (the redesign's UI, layout and pager checks) ---------- */
+const KSEED = `state.pantry = []; state.freezer = []; state.shop = {manual: [], notThisWeek: [], got: []}; state.cookAhead = {done: []}; state.hints = {shuffle: "x", kitchen: "x", profile: "x"};
+  kitchenUI.view = "buy"; kitchenUI.store = false; kitchenUI.expanded = null; kitchenUI.showGot = false; kitchenUI.open = {}; kitchenUI.morePrep = false; kitchenUI.scroll = {buy: 0, home: 0, prep: 0};
+  try { sessionStorage.clear(); } catch (e) {} save(); go("kitchen", {quiet: true}); refresh("kitchen");`;
+const KLAYOUT = () => {
+  const $ = s => document.querySelector("#scr-kitchen " + s), $$ = s => [...document.querySelectorAll("#scr-kitchen " + s)], R = el => el.getBoundingClientRect(), H = innerHeight;
+  const head = R($(".k-head")), rows = $$('[data-sec="buy"] .k-row');
+  const shown = rows.filter(r => R(r).top >= head.bottom - .5 && R(r).bottom <= H + .5);
+  // nothing peeks out from under the header at rest: no row starts above its bottom edge
+  const sliver = [...$(".k-view").querySelectorAll("*")].filter(el => el.offsetParent && R(el).height && R(el).top < head.bottom - .5 && R(el).bottom > head.top).length;
+  // the glow's nucleus (9% of the radius) against every control's box
+  const g = R($(".k-glow")), cx = g.left + g.width / 2, cy = g.top + g.height / 2, nr = g.width / 2 * KITCHEN_GLOW.core;
+  const hit = [...document.querySelectorAll("#scr-kitchen button, #scr-kitchen a[href]")].filter(b => b.offsetParent && !b.closest("[hidden]")).filter(b => {
+    const r = R(b), dx = Math.max(r.left - cx, 0, cx - r.right), dy = Math.max(r.top - cy, 0, cy - r.bottom); return Math.hypot(dx, dy) < nr; }).map(b => b.textContent.trim().slice(0, 16));
+  return {fiveRows: shown.length >= 5, shown: shown.length, sliver, nucleus: hit, dark: document.documentElement.dataset.theme === "dark",
+          heights: [...new Set(rows.map(r => Math.round(R(r).height * 10) / 10))], wrapped: rows.filter(r => R(r.querySelector(".k-name")).height > 26).length,
+          grams: rows.map(r => r.querySelector(".k-meta").textContent).filter(t => { const m = t.match(/(\d+) ?g\b/); return m && (+m[1] % 100 || +m[1] < 200); })};
+};
+async function kitchenRun(page, tag, slug, shotK) {
+  const E = js => page.evaluate(js), wait = ms => page.waitForTimeout(ms);
+  const fakeLock = `window.__lockLog = []; Object.defineProperty(navigator, "wakeLock", {configurable: true, value: {request: t => { __lockLog.push("request"); const s = new EventTarget(); s.release = () => { __lockLog.push("release"); s.dispatchEvent(new Event("release")); return Promise.resolve(); }; return Promise.resolve(s); }}});`;
+  await E(fakeLock + KSEED); await wait(500);
+  // layout on first paint
+  const L = await E(KLAYOUT);
+  if (slug === "14") ok(`${tag}: Kitchen at 390×844: the header and at least five Buy rows on first paint`, L.fiveRows, L.shown);
+  ok(`${tag}: Kitchen: Buy rows are exactly ROW_H and one line (names never wrap)`, L.heights.length === 1 && L.heights[0] === 56 && L.wrapped === 0, [L.heights, L.wrapped]);
+  ok(`${tag}: Kitchen: no plan grams in Buy (any gram value is a whole 100 g, 200 g or more)`, L.grams.length === 0, L.grams);
+  ok(`${tag}: Kitchen: no clipped sliver under the header at rest`, L.sliver === 0, L.sliver);
+  if (!L.dark) ok(`${tag}: Kitchen: the glow's nucleus never sits under a control's hit area`, L.nucleus.length === 0, L.nucleus);
+  ok(`${tag}: Kitchen: the bottom fade is there, and the scroll area clears the pill (120px)`, await E(`(cs => /linear-gradient/.test(cs.webkitMaskImage || cs.maskImage) && cs.paddingBottom === "120px")(getComputedStyle(document.querySelector("#scr-kitchen .k-body")))`));
+  if (shotK) { await shotK("kitchen-buy"); }
+  // scrolled: the header's blurred, solid surface; the map dims
+  await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 260`); await wait(260);
+  const S = await E(`(() => { const s = document.querySelector("#scr-kitchen .k-surface"), cs = getComputedStyle(s); return {op: cs.opacity, blur: cs.backdropFilter || cs.webkitBackdropFilter, bg: cs.backgroundColor, dim: getComputedStyle(document.getElementById("map")).opacity}; })()`);
+  ok(`${tag}: Kitchen scrolled: the header is solid (--bg at 88%) and blurred (14px)`, S.op === "1" && /blur\(14px\)/.test(S.blur) && /0\.88\)$/.test(S.bg), S);
+  ok(`${tag}: Kitchen scrolled: the position map dims`, +S.dim < 1, S.dim);
+  if (shotK) await shotK("kitchen-buy-scrolled");
+  await wait(600);
+  ok(`${tag}: Kitchen: the map comes back after scrolling stops`, await E(`getComputedStyle(document.getElementById("map")).opacity === "1"`));
+  await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 0`); await wait(80);
+  // the tick, undo and Got it round trip
+  const id = await E(`toBuyList()[0].foodId`);
+  await page.click(`#scr-kitchen [data-f="buy:${id}"]`); await wait(520);
+  ok(`${tag}: Kitchen: a tick folds the row into Got it, with the undo line`, await E(`!toBuyList().some(n => n.foodId === "${id}") && state.shop.got.length === 1 && /· got it · Undo$/.test(document.querySelector("#scr-kitchen .k-undo").textContent)`));
+  await page.click("#scr-kitchen .k-undo button"); await wait(120);
+  ok(`${tag}: Kitchen: Undo puts it back`, await E(`toBuyList().some(n => n.foodId === "${id}") && !state.shop.got.length`));
+  // a row expanded, Have it and Not this week
+  await page.click(`#scr-kitchen [data-f="row:${id}"]`); await wait(120);
+  if (shotK) await shotK("kitchen-buy-expanded");
+  await page.click(`#scr-kitchen [data-f="have:${id}"]`); await wait(350);
+  const id2 = await E(`toBuyList()[0].foodId`);
+  await page.click(`#scr-kitchen [data-f="row:${id2}"]`); await wait(120); await page.click(`#scr-kitchen [data-f="skip:${id2}"]`); await wait(350);
+  ok(`${tag}: Kitchen: Have it and Not this week take rows off`, await E(`stockState("${id}") === "plenty" && state.shop.notThisWeek.some(x => x.foodId === "${id2}") && !toBuyList().some(n => n.foodId === "${id}" || n.foodId === "${id2}")`));
+  // In the store: regroups, holds the wake lock, lets it go
+  await page.click(`#scr-kitchen [data-f="instore"]`); await wait(200);
+  ok(`${tag}: Kitchen: In the store regroups by food group and takes the wake lock`, await E(`document.querySelectorAll('#scr-kitchen [data-sec="buy"] .k-label').length >= 2 && __lockLog.join() === "request"`), await E("__lockLog"));
+  if (shotK) await shotK("kitchen-instore");
+  await page.click(`#scr-kitchen [data-f="instore"]`); await wait(120);
+  ok(`${tag}: Kitchen: …and lets it go`, await E(`__lockLog.join() === "request,release"`));
+  // Send uses pack units
+  ok(`${tag}: Kitchen: Send the list uses pack units`, await E(`groceriesText().split("\\n").slice(2).filter(Boolean).every(l => /^☐ .+ · (\\d+ [a-z]+|\\d+ g)( · by [A-Z][a-z]+day)?$/.test(l))`));
+  // the view switch: a sideways swipe (pointer), rubber band at the ends, scroll kept per view
+  const b = await page.$eval("#scr-kitchen .k-body", el => { const r = el.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height * .6, w: r.width}; });
+  const swipe = async dx => { await page.mouse.move(b.x, b.y); await page.mouse.down(); for (let k = 1; k <= 10; k++) await page.mouse.move(b.x + dx * k / 10, b.y); await page.mouse.up(); await wait(320); };
+  await swipe(-b.w * .5);
+  ok(`${tag}: Kitchen: a sideways swipe switches to At home (not the pager)`, await E(`kitchenUI.view === "home" && pg.cur === "kitchen"`));
+  await E(`["pumpkin","rice","banana","lentils","chicken","avocado","oatmeal","peas"].forEach((n, i) => setStock(n, n[0].toUpperCase() + n.slice(1), ["plenty","low","out","plenty","low","plenty","plenty","out"][i])); kitchenUI.open = {grain: true, vegetable: true, protein: true}; save(); changed()`); await wait(120);
+  ok(`${tag}: Kitchen At home: group counts and Low with Add to list`, await E(`document.querySelector('#scr-kitchen [data-f="grouprow:protein"] .k-meta').textContent === "2 · 1 low" && !!document.querySelector('#scr-kitchen [data-f="list:rice"]')`));
+  await page.click(`#scr-kitchen [data-f="stock:pumpkin"]`); await wait(80);
+  ok(`${tag}: Kitchen At home: a tap cycles Plenty → Low`, await E(`stockState("pumpkin") === "low"`));
+  if (shotK) await shotK("kitchen-athome");
+  await swipe(-b.w * .5);
+  ok(`${tag}: Kitchen: …another swipe, Prep`, await E(`kitchenUI.view === "prep"`));
+  if (shotK) await shotK("kitchen-prep");
+  await swipe(-b.w * .5);
+  ok(`${tag}: Kitchen: past Prep it rubber-bands and stays`, await E(`kitchenUI.view === "prep" && pg.cur === "kitchen" && !document.querySelector("#scr-kitchen .k-view").style.transform`));
+  // freezer: add, used one, the last one's undo
+  await page.click(`#scr-kitchen [data-f="frozen:add"]`);
+  ok(`${tag}: Kitchen Prep: Add a frozen portion focuses its field in the tap`, await E(`document.activeElement === document.querySelector('#scr-kitchen [data-f="frozen:food"]')`));
+  await page.keyboard.type("lent"); await wait(60); await page.keyboard.press("Enter"); await wait(120);
+  ok(`${tag}: Kitchen Prep: a frozen portion added (2 to start)`, await E(`(f => f && f.portions === 2)(state.freezer.find(f => f.foodId === "lentils"))`));
+  await page.click(`#scr-kitchen [data-f="useone:lentils"]`); await wait(80); await page.click(`#scr-kitchen [data-f="useone:lentils"]`); await wait(80);
+  ok(`${tag}: Kitchen Prep: Used one, and the last one offers Undo`, await E(`!state.freezer.length && /^Used the last lentils · Undo$/.test(document.querySelector("#scr-kitchen .k-undo").textContent)`));
+  await page.click("#scr-kitchen .k-undo button"); await wait(80);
+  // Prep rows clamp to three lines, with a long list
+  await E(`(() => { const days = state.plan.days, put = (day, slot, names) => { const m = days.find(d => d.name === day).meals.find(x => x.slot === slot); if (m) m.items = names.map(n => it(n, "30 g", (FOOD_POOL.find(p => p.name === n) || {cats: ["vegetable"]}).cats.slice())); };
+    put("Thursday", "dinner", ["Pumpkin", "Sweet potato", "Butternut squash", "Beetroot, cooked", "Carrots, soft-cooked", "Lentils"]); put("Friday", "lunch", ["Pumpkin", "Sweet potato", "Butternut squash", "Beetroot, cooked", "Carrots, soft-cooked", "Lentils"]);
+    put("Friday", "dinner", ["Peas", "Spinach, cooked", "Rice, soft-cooked"]); put("Saturday", "lunch", ["Peas", "Spinach, cooked", "Rice, soft-cooked"]); put("Saturday", "dinner", ["Chicken", "White fish"]); put("Sunday", "lunch", ["Chicken", "White fish"]);
+    kitchenUI.morePrep = true; save(); changed(); })()`); await wait(150);
+  ok(`${tag}: Kitchen Prep: rows clamp to three lines (title one, detail two)`, await E(`[...document.querySelectorAll("#scr-kitchen .k-prep")].every(r => { const t = r.querySelector(".k-prep-title"), d = r.querySelector(".k-prep-detail"); return t.getBoundingClientRect().height <= parseFloat(getComputedStyle(t).lineHeight) + 1 && d.getBoundingClientRect().height <= parseFloat(getComputedStyle(d).lineHeight) * 2 + 1; })`));
+  if (shotK) await shotK("kitchen-prep-long");
+  // scroll kept per view
+  await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 150`); await wait(60);
+  await page.click(`#scr-kitchen [data-f="view:buy"]`); await wait(260); await page.click(`#scr-kitchen [data-f="view:prep"]`); await wait(260);
+  ok(`${tag}: Kitchen: each view keeps its scroll position`, await E(`Math.abs(document.querySelector("#scr-kitchen .k-body").scrollTop - 150) < 2`), await E(`document.querySelector("#scr-kitchen .k-body").scrollTop`));
+  // the pager: a vertical drag on the header navigates; a scroll mid-list doesn't
+  await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 0`);
+  const sw = await page.$eval("#scr-kitchen .k-switch", el => { const r = el.getBoundingClientRect(); return {x: r.left + r.width - 40, y: r.top + r.height / 2}; });
+  await page.mouse.move(sw.x, sw.y); await page.mouse.down(); for (let k = 1; k <= 10; k++) await page.mouse.move(sw.x, sw.y + 40 * k); await page.mouse.up(); await wait(450);
+  ok(`${tag}: Kitchen: a vertical drag on the header (the switch row) goes Home`, await E(`pg.cur === "home"`));
+  await E(`go("kitchen", {quiet: true})`); await wait(450);
+  await page.mouse.move(b.x, b.y); await page.mouse.down(); for (let k = 1; k <= 10; k++) await page.mouse.move(b.x, b.y - 30 * k); await page.mouse.up(); await wait(450);
+  ok(`${tag}: Kitchen: dragging the list mid-way never navigates`, await E(`pg.cur === "kitchen"`));
+  // the empty states
+  await E(`state.cookAhead = {done: []}; state.freezer = []; state.plan.days.forEach(d => d.meals.forEach(m => { m.items = m.items.filter(i => kitchenMeta(foodIdOf(i)).method === "raw"); })); toBuyList().forEach(n => setStock(n.foodId, n.name, "plenty")); save(); changed()`); await wait(120);
+  if (shotK) await shotK("kitchen-prep-empty");
+  await page.click(`#scr-kitchen [data-f="view:buy"]`); await wait(260);
+  ok(`${tag}: Kitchen: the empty Buy says so, with no pill`, await E(`document.querySelector("#scr-kitchen .k-empty").textContent === "Nothing to pick up for the next 3 days." && !document.querySelector("#scr-kitchen .k-pin")`));
+  if (shotK) await shotK("kitchen-buy-empty");
+}
+
 const browsers = {chromium: await pw.chromium.launch(), webkit: await pw.webkit.launch()};
 for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
   for (const [slug, name] of DEVICES) {
@@ -109,12 +225,6 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           await go("shuffle", "const m = shuffleRef().m; setStock(foodIdOf(m.items[0]), baseName(m.items[0]), 'plenty'); setStock(foodIdOf(m.items[1]), baseName(m.items[1]), 'low'); save(); changed()"); await shot("shuffle-stock");
           await page.evaluate("document.querySelector('#scr-shuffle [data-f^=\"change:\"]').click()"); await page.waitForTimeout(200); await shot("shuffle-change");
           await page.evaluate("shuffleUI.changing = null; state.pantry = []; save(); changed()");
-          // Kitchen: stock in its states, a group open, In the store, the freezer
-          await go("kitchen", "const n = toBuyList(); setStock(n[0].foodId, n[0].name, 'plenty'); setStock(n[1].foodId, n[1].name, 'low'); setStock('rice', 'Rice', 'out'); state.freezer = [{foodId: 'lentils', name: 'Lentils', portions: 2, madeOn: '2026-10-20'}]; kitchenUI.open.grain = true; kitchenUI.open.vegetable = true; save(); changed()");
-          await shot("kitchen-stock");
-          await page.evaluate("document.querySelector('#scr-kitchen .scr-body').scrollTop = 9999"); await page.waitForTimeout(150); await shot("kitchen-freezer");
-          await page.evaluate("kitchenUI.store = true; refresh('kitchen'); document.querySelector('#scr-kitchen .scr-body').scrollTop = 0"); await page.waitForTimeout(200); await shot("kitchen-instore");
-          await page.evaluate("kitchenUI.store = false; state.pantry = []; state.freezer = []; kitchenUI.open = {}; save(); changed()");
           // New week: More open, then the preview
           await go("week", "nwUI.more = true; refresh('week'); document.querySelector('#scr-week .scr-body').scrollTop = 9999"); await page.waitForTimeout(150); await shot("week-more");
           await page.evaluate("nwUI.more = false; setTable()"); await page.waitForTimeout(250); await shot("week-preview");
@@ -135,6 +245,13 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           await page.waitForTimeout(500); await page.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()");
           await shot("onb-" + step); await page.evaluate("closeOnboarding()");
         }
+      }
+      // the Kitchen redesign: every portrait device, both engines, both themes (screenshots of each view, the store,
+      // an expanded row, a long Prep list and the empty states)
+      if (portrait) {
+        await page.evaluate("closeOnboarding(); go('kitchen', {quiet: true})"); await page.waitForTimeout(400);
+        const shotK = args.has("--quick") ? null : async what => page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-${what}.jpg`), type: "jpeg", quality: 80, animations: "disabled", scale: "css"});
+        await kitchenRun(page, tag, slug, shotK);
       }
       await ctx.close();
     }
