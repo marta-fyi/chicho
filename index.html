@@ -724,6 +724,18 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .k-sechead .btn-text{margin-right:-6px;}
   .k-hint{margin:4px 0 6px;font-size:15px;line-height:1.45;color:var(--ink-muted);}
   .k-empty{margin:56px 0 0;font-size:17px;line-height:1.45;text-align:center;color:var(--ink-muted);}
+  /* At home */
+  .k-right{display:flex;align-items:center;gap:14px;flex:none;}
+  .k-state{flex:none;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);}
+  .k-act{margin-right:-6px;white-space:nowrap;}
+  .k-right .k-act{margin-right:0;}
+  .k-act.quiet{color:var(--ink-muted);text-decoration:none;}
+  .k-item .k-main{padding-left:12px;}
+  .k-add{margin-top:14px;}
+  .k-add > .btn-text{margin-left:-6px;}
+  .k-sentence{margin:0;flex-basis:100%;font-size:17px;font-weight:500;line-height:1.5;}
+  .k-sentence .blank-input, .k-num{font-size:16px;}
+  .k-count[hidden]{display:none;}
   .k-pin{position:absolute;left:0;right:0;z-index:3;bottom:calc(env(safe-area-inset-bottom) + 64px);pointer-events:none;}
   .k-pill{display:block;width:100%;height:52px;border:none;border-radius:999px;background:var(--ink);color:var(--sheet);cursor:pointer;pointer-events:auto;
           font:inherit;font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);transition:transform var(--dur-1) var(--ease-out);}

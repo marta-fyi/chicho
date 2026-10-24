@@ -75,7 +75,7 @@ const load = (W, H) => new Promise(res => {
         const cx = layer.left + layer.width / 2, cy = layer.top + layer.height / 2;
         const behind = (x, y, scale, alpha) => { const t = Math.hypot(x - cx, y - cy) / (layer.width / 2 * scale); if (t >= 1) return BG; const c = E(`glowAt(${t}, '${hex}')`); return over([c[0], c[1], c[2], c[3] * alpha], BG); };
         const scr = d.getElementById("scr-" + k);
-        const texts = [...scr.querySelectorAll("*")].filter(el => el.offsetParent && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && !el.closest("[aria-hidden='true']") && !el.closest(".btn-ink, .pill-o[aria-pressed='true'], .s-seg-opts [aria-pressed='true']") && el.getBoundingClientRect().bottom > 0 && el.getBoundingClientRect().top < 844);
+        const texts = [...scr.querySelectorAll("*")].filter(el => el.offsetParent && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && !el.closest("[aria-hidden='true']") && !el.closest(".btn-ink, .k-pill, .pill-o[aria-pressed='true'], .s-seg-opts [aria-pressed='true']") && el.getBoundingClientRect().bottom > 0 && el.getBoundingClientRect().top < 844);
         const worst = [];
         for (const el of texts) {
           const r = el.getBoundingClientRect(), fg = parse(w.getComputedStyle(el).color);
@@ -86,7 +86,7 @@ const load = (W, H) => new Promise(res => {
         ok(`${k}: every functional text on screen ≥ 4.5:1 over its ${g} glow`, worst.length === 0 && texts.length > 5, [texts.length, worst.slice(0, 5)]);
         const rings = [...scr.querySelectorAll(".ring-btn i")].filter(el => el.offsetParent && el.getBoundingClientRect().top < 844);
         ok(`${k}: every ring ≥ 3:1`, rings.every(el => { const r = el.getBoundingClientRect(); return ratio(INK, behind(r.left + r.width / 2, r.top + r.height / 2, 1, 1)) >= 3; }));
-        const ink = [...scr.querySelectorAll(".btn-ink")].filter(b => b.offsetParent);
+        const ink = [...scr.querySelectorAll(".btn-ink, .k-pill")].filter(b => b.offsetParent);
         ok(`${k}: ink pills' text ≥ 4.5:1 on the ink`, ink.every(b => ratio(parse(w.getComputedStyle(b).color), parse(w.getComputedStyle(b).backgroundColor).slice(0, 3)) >= 4.5));
         E(`go("home", {quiet: true})`); await new Promise(r => setTimeout(r, 500));
       }

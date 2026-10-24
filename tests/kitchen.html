@@ -90,33 +90,55 @@ f.onload = async () => {
     E(`state.pantry = JSON.parse(${JSON.stringify(keep)}); save(); changed()`); await wait(40);
     E(`setStock("${first.foodId}", "${first.name}", "plenty"); save(); changed()`); await wait(40);
     await view("home");
-    ok("…its group in At home now shows it, as the word 'Plenty'", (() => { const g = E(`foodGroup("${first.foodId}")`); $(`[data-f="group:${g}"]`).click(); return true; })() && (await wait(30), $(`[data-f="stock:${first.foodId}"]`)) && $(`[data-f="stock:${first.foodId}"] .state-word`).textContent === "Plenty");
+    const g1 = E(`foodGroup("${first.foodId}")`);
+    ok("At home: five group rows (Grains, Veg, Fruit, Protein, Fats and dairy), each ROW_H, folded ('Show')", $$('[data-sec="groups"] .k-group .k-name').map(n => n.textContent).join() === "Grains,Veg,Fruit,Protein,Fats and dairy" && $$('[data-sec="groups"] .k-group').every(r => r.getBoundingClientRect().height === 56) && $$('[data-f^="group:"]').every(b => b.textContent === "Show") && !$('[data-sec="groups"] .k-item'));
+    ok("…a group's meta counts what's not Out ('1')", $(`[data-f="grouprow:${g1}"] .k-meta`).textContent === "1", $(`[data-f="grouprow:${g1}"] .k-meta`).textContent);
+    $(`[data-f="group:${g1}"]`).click(); await wait(260);
+    ok("'Show' opens the group in place: its foods, each with its state as a word, and 'Hide'", $(`[data-f="stock:${first.foodId}"]`) && $(`[data-f="stock:${first.foodId}"]`).closest(".k-row").querySelector(".k-state").textContent === "Plenty" && $(`[data-f="group:${g1}"]`).textContent === "Hide");
+    const stateOf = id => { const r = $(`[data-f="stock:${id}"]`); return r && r.closest(".k-row").querySelector(".k-state").textContent; };
 
-    // 2. Plenty → Low → Out, as words; Low is Running low, Out goes back to To buy when the plan needs it
+    // 2. Plenty → Low → Out → Plenty, as words; Low on top with "Add to list"; Out stays until removed
     $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
-    ok("tap: Low, and it shows under Low", E(`stockState("${first.foodId}")`) === "low" && !!$(`[data-sec="low"] [data-f="stock:${first.foodId}"]`));
-    $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
-    ok("tap: Out, and the plan needs it, so it's back on To buy", E(`stockState("${first.foodId}")`) === "out" && list().includes(first.foodId));
-    $(`[data-sec="athome"] [data-f="stock:${first.foodId}"]`).click(); await wait(30);
-    ok("tap: Plenty again (nothing is final)", E(`stockState("${first.foodId}")`) === "plenty");
-    ok("At home: one row per food group, folded until opened", $$('[data-sec="athome"] .group-btn').length >= 5 && $$('[data-sec="athome"] .group-list[hidden]').length >= 4);
-    ok("…no counts on the groups (no totals as pressure)", $$('[data-sec="athome"] .group-btn').every(b => !/\d/.test(b.textContent)));
-    ok("…each line reads its state as a word", $$('[data-sec="athome"] .row-btn').every(b => /^(Plenty|Low|Out)$/.test(b.querySelector(".state-word").textContent)));
+    ok("tap: Low", E(`stockState("${first.foodId}")`) === "low" && stateOf(first.foodId) === "Low");
+    ok("…and a 'Low' section on top, the food with 'Add to list'", $('[data-sec="low"] .k-label').textContent === "Low" && $(`[data-f="list:${first.foodId}"]`).textContent === "Add to list" && $$("section.sec")[0].dataset.sec === "low");
+    ok("…the group's meta says it: '1 · 1 low'", $(`[data-f="grouprow:${g1}"] .k-meta`).textContent === "1 · 1 low");
+    $(`[data-f="list:${first.foodId}"]`).click(); await wait(30);
+    ok("'Add to list' puts it on the list by hand, and reads 'On the list' (muted)", E(`state.shop.manual.some(x => x.foodId === "${first.foodId}")`) && $(`[data-f="list:${first.foodId}"]`).textContent === "On the list" && $(`[data-f="list:${first.foodId}"]`).classList.contains("quiet") && list().includes(first.foodId));
+    $(`[data-f="list:${first.foodId}"]`).click(); await wait(30);
+    ok("…a second tap takes it off again", !E(`state.shop.manual.some(x => x.foodId === "${first.foodId}")`) && $(`[data-f="list:${first.foodId}"]`).textContent === "Add to list");
+    $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    ok("tap: Out, and the plan needs it, so it's back on Buy", E(`stockState("${first.foodId}")`) === "out" && stateOf(first.foodId) === "Out" && list().includes(first.foodId));
+    ok("…an Out food stays in its group with 'Remove'", $(`[data-f="remove:${first.foodId}"]`) && $(`[data-f="remove:${first.foodId}"]`).textContent === "Remove");
+    ok("…and the group counts only what isn't Out ('0')", $(`[data-f="grouprow:${g1}"] .k-meta`).textContent === "0");
+    $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    ok("tap: Plenty again (nothing is final)", E(`stockState("${first.foodId}")`) === "plenty" && !$(`[data-f="remove:${first.foodId}"]`));
+    $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30); $(`[data-f="stock:${first.foodId}"]`).click(); await wait(30);
+    $(`[data-f="remove:${first.foodId}"]`).click(); await wait(280);
+    ok("'Remove' takes it out of the kitchen", E(`stockState("${first.foodId}")`) === null && !$(`[data-f="stock:${first.foodId}"]`));
+    ok("every food row is ROW_H and one line; states are words in 12px uppercase", $$('[data-sec="groups"] .k-row').every(r => r.getBoundingClientRect().height === 56) && $$(".k-state").every(x => w.getComputedStyle(x).fontSize === "12px" && w.getComputedStyle(x).textTransform === "uppercase"));
+    ok("no grams anywhere in At home", !/\d+ ?g\b/.test($(".k-view").textContent));
 
-    // 3. Add something
-    $('[data-f="kitchen:add"]').click(); await wait(40);
+    // 3. Add something: the field is focused inside the tap (iOS)
+    $('[data-f="kitchen:add"]').click();
     const inp = $('[data-f="kitchen:adding"]');
-    ok("'Add something' opens one field inline, in a sentence", !!inp && /At home:/.test(inp.closest(".add-line").textContent) && d.activeElement === inp);
+    ok("'Add something' turns into 'Add to the kitchen: ____.' in place, focused in the same tap", !!inp && inp.closest(".k-sentence").textContent.startsWith("Add to the kitchen:") && inp.closest(".k-sentence").textContent.trim().endsWith(".") && d.activeElement === inp);
+    ok("…the field is 16px (no zoom on iOS)", parseFloat(w.getComputedStyle(inp).fontSize) >= 16);
     inp.value = "avo"; inp.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(20);
     const sug = $('[data-f="sug:Avocado"]');
     ok("…suggestions follow what's typed ('avo' → Avocado)", !!sug);
     sug.click(); await wait(40);
     ok("…one tap puts it at home as Plenty, its group opened", E(`stockState("avocado")`) === "plenty" && !!$('[data-f="stock:avocado"]'));
-    $('[data-f="kitchen:add"]').click(); await wait(30);
+    $('[data-f="kitchen:add"]').click();
     const inp2 = $('[data-f="kitchen:adding"]');
-    inp2.value = "Wipes"; inp2.dispatchEvent(new w.Event("input", {bubbles: true}));
+    inp2.value = "quin"; inp2.dispatchEvent(new w.Event("input", {bubbles: true}));
     inp2.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(40);
-    ok("…anything typed works too, under Everything else", E(`stockState("wipes")`) === "plenty" && !!$('[data-f="group:other"]'));
+    ok("…Enter adds the first suggestion, as Plenty, to its group", E(`stockState("quinoa")`) === "plenty" && E(`foodGroup("quinoa")`) === "grain" && !!$('[data-f="stock:quinoa"]'));
+    $('[data-f="kitchen:add"]').click();
+    const inp3 = $('[data-f="kitchen:adding"]');
+    inp3.value = "Wipes"; inp3.dispatchEvent(new w.Event("input", {bubbles: true}));
+    inp3.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(40);
+    ok("…something that isn't a food adds nothing", E(`stockState("wipes")`) === null);
+    E(`refresh("kitchen")`); await wait(20);
 
     // 4. Freezer and prep
     await view("prep");

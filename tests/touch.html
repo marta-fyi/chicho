@@ -36,7 +36,11 @@ f.onload = async () => {
     const audit = name => {
       const scope = d.getElementById("scr-" + name);
       // only what can be seen: a scrolling body clips what's under its pinned header and pill
-      const body = scope.querySelector(".scr-body"), clip = body ? body.getBoundingClientRect() : null;
+      // (the Kitchen's scroll area runs under its pinned header and pill: only the band between them counts)
+      const body = scope.querySelector(".scr-body"), clip = body ? (r => ({top: r.top, bottom: r.bottom}))(body.getBoundingClientRect()) : null;
+      const kh = scope.querySelector(".k-head"), kp = scope.querySelector(".k-pin .k-pill");
+      if (clip && kh) clip.top = Math.max(clip.top, kh.getBoundingClientRect().bottom);
+      if (clip && kp) clip.bottom = Math.min(clip.bottom, kp.getBoundingClientRect().top);
       const list = targets(scope).filter(b => !clip || !body.contains(b) || (b.getBoundingClientRect().top >= clip.top && b.getBoundingClientRect().bottom <= clip.bottom)).map(hit);
       const small = list.filter(h => !h.el.classList.contains("inline") && (h.b - h.t < 44 || h.r - h.l < 44));
       ok(`${name}: every target is at least 44×44`, small.length === 0, small.map(h => h.el.className + " '" + h.el.textContent.slice(0, 12) + "' " + Math.round(h.r - h.l) + "×" + Math.round(h.b - h.t)));

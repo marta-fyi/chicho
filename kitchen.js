@@ -227,7 +227,7 @@ function renderKitchen(slide){
   store.textContent = say(kitchenUI.store ? "kitchen.storeOn" : "kitchen.storeOff");
   head.querySelectorAll(".k-tab").forEach(b=>{
     b.classList.toggle("is-on", b.dataset.view===v);
-    if(b.dataset.view==="buy") setText(b.querySelector(".k-count"), list.length && !kitchenUI.store ? String(list.length) : "");
+    if(b.dataset.view==="buy"){ const c = b.querySelector(".k-count"), n = list.length && !kitchenUI.store ? String(list.length) : ""; setText(c, n); c.hidden = !n; }
   });
   placeLine(head, !!slide);
   col.innerHTML = ""; col.dataset.view = v;
@@ -439,74 +439,107 @@ function renderBuy(col, list, e){
   return list.length;
 }
 
-/* ---------- At home ---------- */
+/* ---------- At home: what's here, as Plenty, Low or Out (never grams) ----------
+   Low first, each with "Add to list"; then the five food groups, each a row with its count, opened in place.
+   A tap on a food moves it on (Plenty → Low → Out → Plenty); an Out food stays until it's removed. */
 const STOCK_NEXT = {plenty:"low", low:"out", out:"plenty"};
+/* keyed rows slide to their new place when a group opens or closes (transform only); new rows fade in */
+function flipKitchen(fn){
+  const col = screenEl("kitchen").querySelector(".k-view"), before = {};
+  if(col) col.querySelectorAll("[data-k]").forEach(x=>{ before[x.dataset.k] = x.getBoundingClientRect().top; });
+  fn();
+  const now_ = screenEl("kitchen").querySelector(".k-view");
+  if(!now_) return;
+  const o = {duration:220, easing:"cubic-bezier(.22,.61,.36,1)"};
+  now_.querySelectorAll("[data-k]").forEach(x=>{
+    const k = x.dataset.k, top = x.getBoundingClientRect().top;
+    if(k in before){ const dy = before[k] - top; if(Math.abs(dy) > .5) x.animate([{transform:`translateY(${dy}px)`}, {transform:"none"}], o); }
+    else x.animate([{opacity:0, transform:"translateY(-8px)"}, {opacity:1, transform:"none"}], o);
+  });
+}
+function onList(foodId){ return state.shop.manual.some(x=>x.foodId===foodId); }
+function toggleList(p){
+  if(onList(p.foodId)) state.shop.manual = state.shop.manual.filter(x=>x.foodId!==p.foodId);
+  else state.shop.manual.push({foodId:p.foodId});
+  save(); haptic(); changed();
+}
 function renderAtHome(col){
   const low = state.pantry.filter(p=>p.state==="low");
   if(low.length){
-    const sec = section(col, "low", say("kitchen.low"));
-    low.forEach(p=>sec.appendChild(stockRow(p)));
+    const sec = section(col, "low", "");
+    sec.appendChild(el("h2", "k-label", say("kitchen.low")));
+    low.forEach(p=>{
+      const on = onList(p.foodId);
+      const b = textBtn(say(on ? "kitchen.onList" : "kitchen.addToList"), ()=>toggleList(p), "small k-act" + (on ? " quiet" : ""));
+      b.dataset.f = "list:" + p.foodId;
+      const r = kRow(p.name, "", b, null); r.dataset.k = "low:" + p.foodId;
+      sec.appendChild(r);
+    });
   }
-  const home = section(col, "athome", "");
+  const sec = section(col, "groups", "");
   KITCHEN_GROUPS.forEach(c=>{
     const items = state.pantry.filter(p=>foodGroup(p.foodId)===c);
     if(c==="other" && !items.length) return;
     const open = !!kitchenUI.open[c];
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "group-btn"; b.dataset.f = "group:" + c;
-    b.innerHTML = `<span>${esc(groupName(c))}</span><i class="chev" aria-hidden="true"></i>`;
-    b.addEventListener("click", ()=>{ kitchenUI.open[c] = !open; refresh("kitchen"); });
-    home.appendChild(b);
-    const box = el("div", "group-list"); box.hidden = !open;
-    if(open){
-      if(!items.length) box.appendChild(el("p", "quiet-line", say("kitchen.groupEmpty")));
-      items.forEach(p=>box.appendChild(stockRow(p)));
-    }
-    home.appendChild(box);
+    const n = items.filter(p=>p.state!=="out").length, m = items.filter(p=>p.state==="low").length;
+    const toggle = ()=>flipKitchen(()=>{ kitchenUI.open[c] = !open; refresh("kitchen"); });
+    const t = textBtn(say(open ? "kitchen.hide" : "kitchen.show"), toggle, "small k-act"); t.dataset.f = "group:" + c;
+    const r = kRow(groupName(c), m ? say("kitchen.groupLow", {n, m}) : String(n), t, toggle, "grouprow:" + c);
+    r.classList.add("k-group"); r.dataset.k = "grp:" + c;
+    sec.appendChild(r);
+    if(open) items.forEach(p=>sec.appendChild(stockRow(p)));
   });
-  home.appendChild(addSomething());
+  sec.appendChild(addSomething());
 }
-/* a pantry line: its name and its state in words; a tap moves it on (Plenty → Low → Out → Plenty) */
+/* a food at home: its name, its state as a word; a tap moves it on. Out shows Remove beside the word */
 function stockRow(p){
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "row-btn"; b.dataset.f = "stock:" + p.foodId;
-  b.innerHTML = `<span class="row-t">${esc(p.name)}</span><span class="state-word">${esc(say("kitchen.state." + p.state))}</span>`;
-  b.addEventListener("click", ()=>{ setStock(p.foodId, p.name, STOCK_NEXT[p.state]); save(); haptic(); changed(); focusLater("stock:" + p.foodId); });
-  return b;
-}
-/* "Add something": one field, suggestions as it's typed, one tap puts it at home */
-function addSomething(){
-  const wrap = el("div", "add-line");
-  if(!kitchenUI.adding){
-    const b = textBtn(say("kitchen.add"), ()=>{ kitchenUI.adding = true; refresh("kitchen"); focusLater("kitchen:adding"); }, "small");
-    b.dataset.f = "kitchen:add";
-    wrap.appendChild(b);
-    return wrap;
+  const right = el("span", "k-right");
+  if(p.state==="out"){
+    const rm = textBtn(say("kitchen.remove"), e=>{ e.stopPropagation(); flipKitchen(()=>{ setStock(p.foodId, p.name, null); save(); haptic(); changed(); }); }, "small k-act"); rm.dataset.f = "remove:" + p.foodId;
+    right.appendChild(rm);
   }
-  const put = name=>{
-    kitchenUI.adding = false;
-    if(name){ const id = foodKey(baseName({name})); setStock(id, baseName({name}), "plenty"); kitchenUI.open[foodGroup(id)] = true; save(); haptic(); }
-    changed(); focusLater("kitchen:add");
-  };
+  right.appendChild(el("span", "k-state", say("kitchen.state." + p.state)));
+  const r = kRow(p.name, "", right, ()=>{ setStock(p.foodId, p.name, STOCK_NEXT[p.state]); save(); haptic(); changed(); }, "stock:" + p.foodId);
+  r.classList.add("k-item"); r.dataset.k = "item:" + p.foodId;
+  return r;
+}
+/* "Add something": a text link that becomes the sentence "Add to the kitchen: ____." in place, with live
+   suggestions from the food manifest. The field is built and focused inside the tap itself (iOS opens the
+   keyboard only for a focus made during a tap). Enter adds the first suggestion as Plenty, in its group. */
+function addSomething(){
+  const wrap = el("div", "add-line k-add"); wrap.dataset.k = "add";
+  const link = textBtn(say("kitchen.add"), ()=>{ link.remove(); const inp = addSentence(wrap); inp.focus(); }, "small"); link.dataset.f = "kitchen:add";
+  wrap.appendChild(link);
+  return wrap;
+}
+function addSentence(wrap){
   const list = el("div", "suggest-list");
+  const matches = q=>{
+    const t = String(q || "").trim().toLowerCase();
+    return t.length < 2 ? [] : FOOD_POOL.filter(f=>f.name.toLowerCase().split(/[ ,]+/).some(w=>w.startsWith(t)) && !pantryOf(foodKey(baseName(f)))).slice(0, 4);
+  };
+  const put = f=>{
+    const id = foodKey(baseName(f));
+    setStock(id, baseName(f), "plenty"); kitchenUI.open[foodGroup(id)] = true;
+    save(); haptic(); changed();
+  };
   const fill = q=>{
     list.innerHTML = "";
-    const t = String(q || "").trim().toLowerCase();
-    if(t.length < 2) return;
-    FOOD_POOL.filter(f=>f.name.toLowerCase().split(/[ ,]+/).some(w=>w.startsWith(t)) && !pantryOf(foodKey(baseName(f)))).slice(0, 4).forEach(f=>{
+    matches(q).forEach(f=>{
       const sb = document.createElement("button");
       sb.type = "button"; sb.className = "alt"; sb.dataset.f = "sug:" + f.name; sb.textContent = baseName(f);
-      sb.addEventListener("click", ()=>put(f.name));
+      sb.addEventListener("click", ()=>put(f));
       list.appendChild(sb);
     });
   };
-  const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const first = list.querySelector("button"); put(first ? first.dataset.f.slice(4) : b.input.value.trim()); }});
+  const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const f = matches(b.input.value)[0]; if(f) put(f); }});
   b.input.dataset.f = "kitchen:adding";
-  b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); kitchenUI.adding = false; refresh("kitchen"); focusLater("kitchen:add"); } });
-  const parts = say("kitchen.addSentence").split("{blank}");
-  const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = parts[0].trim();
-  wrap.append(l, b.el, list);
-  return wrap;
+  b.input.addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); refresh("kitchen"); } });
+  const [before, after] = say("kitchen.addSentence").split("{blank}");
+  const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = before.trim();
+  const s = el("p", "k-sentence"); s.append(l, " ", b.el, after || "");
+  wrap.append(s, list);
+  return b.input;
 }
 
 /* ---------- Prep ---------- */

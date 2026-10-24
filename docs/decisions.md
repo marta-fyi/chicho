@@ -31,6 +31,13 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - **Send the list** is a 52px pill pinned 64px above the safe area, the same clearance the other screens' pills keep for the position map. The scroll area's 120px bottom padding is that pill and its gap. The quiet undo line sits just above the pill, or in its place when there's no pill. The text sent lists only what's still on the list, in shopping units; "by {weekday}" goes only on items a meal needs within the three days, so a hand-added one has none.
 - **In the store** turns the screen's Wake Lock on and lets it go when the store is turned off, the Kitchen is left, the page is hidden (it comes back if the page is visible again within the hour) or the hour runs out. The hour is `wake.max`, so the tests can shorten it.
 
+**At home**
+
+- **Group rows** count what isn't Out ("4", or "4 · 1 low"). This replaces the old rule of no counts on the groups. "Show" opens a group in place: its rows fade in and everything below slides down (220 ms, transform only, FLIP), because height can't animate under the motion rule.
+- **"Remove … when the row is expanded by a second tap."** A tap already moves a food on (Plenty → Low → Out → Plenty), so a second tap can't also expand it without guessing at double taps, which make every tap wait. Instead, an Out food shows "Remove" beside its state word, and Out is two taps from Plenty. It stays in its group until it's removed.
+- **Add something** suggests only foods from the manifest, and Enter adds the first suggestion; free text that isn't a food adds nothing. The old "Everything else" group shows only for a legacy non-food already in the pantry.
+- **Focus inside the tap.** "Add something" (and "Add a frozen portion") replace the link with the sentence and focus its field in the same click handler, with no redraw in between. iOS opens the keyboard only for a focus made during the tap.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).

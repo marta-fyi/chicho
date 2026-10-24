@@ -141,11 +141,12 @@ const CONTENT = {
   /* ---------- Kitchen: stock, shopping, prep ---------- */
   kitchen:{
     views:{buy:"Buy", home:"At home", prep:"Prep"}, storeOff:"In the store: Off", storeOn:"In the store: On",
-    inStore:"In the store", toBuy:"To buy", low:"Running low", atHome:"At home", freezer:"Freezer and prep", other:"Everything else",
+    inStore:"In the store", toBuy:"To buy", low:"Low", atHome:"At home", freezer:"Freezer and prep", other:"Everything else",
     forMeal:"{food} · for {day} {meal}", bought:"Bought {food}", send:"Send the list",
     nothingToBuy:"Nothing to pick up for the next 3 days.", groupEmpty:"Nothing marked here yet.",
     state:{plenty:"Plenty", low:"Low", out:"Out"}, stockLabel:"{food}: {state}. Tap for {next}.",
-    add:"Add something", addSentence:"At home: {blank}", added:"{food}: at home",
+    add:"Add something", addSentence:"Add to the kitchen: {blank}.", addToList:"Add to list", onList:"On the list", remove:"Remove",
+    groupLow:"{n} · {m} low", added:"{food}: at home",
     portions:{one:"{food} · {n} portion · made {date}", other:"{food} · {n} portions · made {date}"},
     useOne:"Use one", useOneOf:"Use one portion of {food}", prepDone:"Done: {task}",
     freezerEmpty:"Nothing in the freezer, nothing to prep.",
