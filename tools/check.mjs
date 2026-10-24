@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["index.html", "theme.js", "onboarding.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js"];
+const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js"];
 const fails = [];
 
 // 1. hover
@@ -66,7 +66,7 @@ readFileSync(join(root, "content.js"), "utf8").split("\n").forEach((line, i) => 
     for (const d of m[2].matchAll(/([a-z-]+)\s*:/g)) if (!MOVES.has(d[1])) fails.push(`lint  index.html:${lineOf(m.index)}  @keyframes ${m[1]} animates "${d[1]}"`);
   }
   html.split("\n").forEach((line, i) => { if (/\binfinite\b/.test(line) && !/animation:breathe/.test(line) && !/^\s*(\/\*|\*)/.test(line)) fails.push(`lint  index.html:${i + 1}  an infinite animation that isn't the glow's breath`); });
-  for (const f of ["index.html", "onboarding.js", "kitchen.js", "home.js"]) {
+  for (const f of ["index.html", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js"]) {
     readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
       for (const m of line.matchAll(/\.animate\(\s*\[([^\]]*)\]/g)) for (const k of m[1].matchAll(/([a-zA-Z]+)\s*:/g))
         if (!["opacity", "transform", "offset", "easing", "translate", "scale"].includes(k[1])) fails.push(`lint  ${f}:${i + 1}  .animate() moves "${k[1]}"`);

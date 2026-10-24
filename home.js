@@ -219,7 +219,8 @@ function lateQuestion(today){
   if(today.some(x=>x.status==="now")) return null;
   if(A.day===iso) return A.today && !A[A.today] && !(state.moment.later || []).includes("ask:" + A.today) ? A.today : null;
   const weekOld = isoOf(addDays(localDate(P.firstDay), 7)) <= iso;
-  const want = {mealTimes:!P.mealTimesConfirmed && stageNow().solids, priorities:weekOld && !(P.priorities || []).length,
+  const want = {mealTimes:!P.mealTimesSource && !P.mealTimesConfirmed && stageNow().solids,   // legacy: mealTimesConfirmed
+                priorities:weekOld && !(P.priorities || []).length,
                 kitchen:toBuyList().length > 0 && !state.pantry.length, people:!!A.shared && !P.people.length};
   const q = LATE_QUESTIONS.find(k=>want[k] && !A[k]);
   if(!q) return null;

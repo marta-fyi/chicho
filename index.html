@@ -233,7 +233,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .onb-top, .onb-card, .onb-foot{position:relative;z-index:1;}
   .onb-top{flex:none;width:min(var(--col),100%);display:grid;grid-template-columns:88px 1fr 88px;align-items:center;min-height:48px;}
   .onb-side{display:flex;}
-  .onb-side.end{justify-content:flex-end;}
+  .onb-side.end{justify-content:flex-end;grid-column:3;}
   .onb-back{margin-left:-6px;padding:0 6px;}
   .onb-close{margin-right:-6px;padding:0 6px;}
   .onb-dots{display:flex;justify-content:center;gap:6px;}
@@ -495,11 +495,31 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .lock-i{width:14px;height:14px;margin-right:6px;vertical-align:-1px;fill:currentColor;stroke:currentColor;stroke-width:1.6;}
   .lock-i path{fill:none;}
   .why-list{margin:10px auto 0;padding:0;list-style:none;text-align:left;display:grid;gap:6px;}
-  /* meal times */
-  .mt-rows{margin-top:24px;display:grid;gap:6px;}
-  .mt-row{margin:0;font-size:24px;font-weight:500;letter-spacing:-.025em;line-height:1.5;color:var(--ink);}
-  .mt-row input[type=time]{font-variant-numeric:tabular-nums;}
-  .mt-row input[type=time]::-webkit-calendar-picker-indicator{display:none;}
+  /* meal times on a day axis (mealtimes.js): the sentence, the strip, then the day down a hairline. Never scrolls. */
+  .onb-card.mt-step{overflow:hidden;justify-content:flex-start;padding-bottom:4px;}
+  .onb-card.mt-step::before, .onb-card.mt-step::after{display:none;}
+  .mt-sent{flex:none;margin-top:4px;}
+  .mt-strip{flex:none;min-height:48px;margin:6px 0 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 10px;font-size:16px;line-height:1.35;color:var(--ink);}
+  .mt-hint, .mt-msg{margin:0;width:100%;font-size:15px;color:var(--ink-85);}
+  .mt-say{font-variant-numeric:tabular-nums;}
+  .mt-typed{margin:0;font-size:20px;font-weight:500;}
+  .mt-axis{position:relative;flex:1 1 auto;min-height:0;width:100%;touch-action:none;-webkit-user-select:none;user-select:none;}
+  .mt-line{position:absolute;left:72px;top:var(--mt-pad, 14px);bottom:var(--mt-pad, 14px);width:1px;background:var(--hairline);transform-origin:top;}
+  .mt-ticks, .mt-gaps, .mt-marks{position:absolute;inset:0;}
+  .mt-tick{position:absolute;left:66px;top:0;width:13px;height:1px;background:var(--hairline);}
+  .mt-tick:not(.major){left:69px;width:7px;}
+  .mt-hour{position:absolute;right:20px;top:-9px;font-size:13px;line-height:18px;white-space:nowrap;color:var(--ink-muted);font-variant-numeric:tabular-nums;}
+  .mt-gap{position:absolute;right:0;top:-9px;font-size:13px;line-height:18px;color:var(--ink-muted);font-variant-numeric:tabular-nums;}
+  .mt-m{position:absolute;left:0;right:0;top:-11px;height:22px;display:flex;align-items:center;gap:8px;padding-left:62px;pointer-events:none;will-change:transform;}
+  .mt-mt{flex:none;width:21px;height:2px;border-radius:1px;background:var(--ink);transform-origin:left center;transition:transform var(--dur-1) var(--ease-out);}
+  .mt-mn{font-size:17px;font-weight:500;letter-spacing:-.01em;}
+  .mt-mc{font-size:15px;color:var(--ink-85);font-variant-numeric:tabular-nums;}
+  .mt-m.on .mt-mt{transform:scaleX(1.5);}
+  .mt-m.on .mt-mn{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
+  .mt-m.held .mt-mt{transform:scaleX(1.9) scaleY(1.5);}
+  .mt-links{display:flex;justify-content:center;flex-wrap:wrap;gap:0 8px;}
+  .onb-glow.sun-move{transition:transform 300ms var(--ease-out);}
+  .onb-glow.sun-leave{transition:transform 1.2s ease-in-out;}
   /* the reveal: drawings floating up one by one */
   .rv-row{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:28px;min-height:84px;}
   .rv-item{display:block;rotate:var(--r);animation:rv-rise 520ms var(--spring) both;
@@ -960,15 +980,15 @@ const STAGES = [
     times:{breakfast:"08:00", lunch:"12:30"},
     portions:{protein:15, vegetable:20, fruit:20, grain:15, fat:5}, groups:ALL_GROUPS },
   { id:"textures", from:9, to:11, solids:true,
-    slots:["breakfast","lunch","dinner"],
+    slots:["breakfast","lunch","dinner"], snacks:["snack2"],   // no snack by default; one in the afternoon if they like
     times:{breakfast:"08:00", lunch:"12:30", dinner:"18:30"},
     portions:{protein:25, vegetable:30, fruit:30, grain:30, fat:10}, groups:ALL_GROUPS },
   { id:"family", from:12, to:23, solids:true,
-    slots:["breakfast","snack1","lunch","snack2","dinner"],
+    slots:["breakfast","snack1","lunch","snack2","dinner"], snacks:["snack1","snack2"],
     times:{breakfast:"08:00", snack1:"10:30", lunch:"12:30", snack2:"16:00", dinner:"19:00"},
     portions:{protein:35, vegetable:45, fruit:40, grain:40, fat:15}, groups:ALL_GROUPS },
   { id:"nearfamily", from:24, to:36, solids:true,
-    slots:["breakfast","snack1","lunch","snack2","dinner"], picky:true,
+    slots:["breakfast","snack1","lunch","snack2","dinner"], snacks:["snack1","snack2"], picky:true,
     times:{breakfast:"08:00", snack1:"10:30", lunch:"12:30", snack2:"16:00", dinner:"19:00"},
     portions:{protein:50, vegetable:60, fruit:55, grain:55, fat:20}, groups:ALL_GROUPS }
 ];
@@ -1013,6 +1033,16 @@ function slotsFor(months){
   return (st.slots || []).filter(id=>!(st.slotsFrom && st.slotsFrom[id] > months));
 }
 function stageFor(months){ return STAGES.find(st=>months>=st.from && months<=st.to) || STAGES[STAGES.length-1]; }
+/* snacks are the slots a family can drop or add (st.snacks: the ones a stage allows) */
+const SNACK_IDS = ["snack1","snack2"];
+const slotSig = list=>list.join(",");
+/* the meals a family has at this age: the stage's slots, with their own snack choice when it was made against the
+   same slots (profile.mealSlots.base). A boundary that changes the stage's slots starts from the stage's again. */
+function mealSlotsFor(months, profile){
+  const base = slotsFor(months), ch = profile && profile.mealSlots, allowed = stageFor(months).snacks || [];
+  if(!ch || ch.base!==slotSig(base)) return base;
+  return MEAL_SLOTS.map(ms=>ms.id).filter(id=>SNACK_IDS.includes(id) ? allowed.includes(id) && ch.snacks.includes(id) : base.includes(id));
+}
 function ageLabel(months){ return months===1 ? "1 month" : months+" months"; }
 /* "3 meals · lumpy mash & finger foods" */
 function stageLine(st){ return st.solids ? `${st.meals} · ${st.textureShort}` : st.meals; }
@@ -1506,7 +1536,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 let state = loadState();
 
 function freshProfile(){
@@ -1519,7 +1549,8 @@ function freshProfile(){
           staples:[], remindAt:null, lastStage:null,
           mealTimes:{},      // the family's own times, {lunch:"12:00"}; the stage's defaults fill the rest
           timesToday:null,   // {date:"2026-10-22", times:{lunch:"13:15"}}: one day's change
-          mealTimesConfirmed:false,
+          mealTimesSource:null,  // how meal times were answered: "default" (the usual) or "custom"; null = not yet
+          mealSlots:null,    // their snack choice, {base:"breakfast,lunch,dinner", snacks:["snack2"]}; null = the stage's
           people:[],         // [{id, name, phone, role}]: on this device only, never in a link
           self:{phone:""},   // where notes to self go (optional)
           firstDay:null,     // the day onboarding finished: no late questions on day one
@@ -1638,7 +1669,13 @@ function migrate(saved){
     .map(x=>({id:x.id || uid(), name:x.name.trim(), phone:normPhone(x.phone), role:x.role || ""}));
   prof.self = {phone:normPhone(prof.self && prof.self.phone)};
   if(!prof.firstDay) prof.firstDay = prof.onboarded ? (saved.weekStarted || s.plans[0].startsOn || todayISO()) : null;
-  if(prof.mealTimesConfirmed===undefined) prof.mealTimesConfirmed = Object.keys(prof.mealTimes || {}).length > 0;
+  // schema 11: meal times answered (legacy: mealTimesConfirmed) become where the answer came from, and the snack choice
+  if(prof.mealTimesSource===undefined) prof.mealTimesSource = prof.mealTimesConfirmed || Object.keys(prof.mealTimes || {}).length ? (Object.keys(prof.mealTimes || {}).length ? "custom" : "default") : null;   // legacy: mealTimesConfirmed
+  if(!["default","custom",null].includes(prof.mealTimesSource)) prof.mealTimesSource = null;
+  delete prof.mealTimesConfirmed;   // legacy: mealTimesConfirmed
+  const ms = prof.mealSlots;
+  prof.mealSlots = ms && typeof ms.base==="string" && Array.isArray(ms.snacks) ? {base:ms.base, snacks:ms.snacks.filter(id=>SNACK_IDS.includes(id))} : null;
+  if(prof.mealTimesSel!==undefined && !MEAL_SLOTS.some(x=>x.id===prof.mealTimesSel)) delete prof.mealTimesSel;
   prof.cookDays = Math.min(7, Math.max(1, Math.round(+prof.cookDays) || 7));
   prof.newFoods = prof.newFoods===null || prof.newFoods===undefined ? null : Math.min(5, Math.max(0, Math.round(+prof.newFoods) || 0));
   // schema 7: meal times are the family's own overrides of the stage's defaults
@@ -2028,6 +2065,7 @@ const DAY_FULL = d=>DAY_ORDER[d.getDay()];
 
 </script>
 <script src="onboarding.js"></script>
+<script src="mealtimes.js"></script>
 <script src="kitchen.js"></script>
 <script src="home.js"></script>
 </body>

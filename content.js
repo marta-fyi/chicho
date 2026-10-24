@@ -286,7 +286,6 @@ const CONTENT = {
     },
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
     atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
-    mealTimes:{title:"{name} usually eats at…", line:"We'll tell you what's next.", cta:"Next", usual:"Use the usual", at:"{meal} at"},
     reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.", days:"Seven days."},
     done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",
           days:"Days of the week", dayToday:"Today", dayTomorrow:"Tomorrow", first:"First: {allergen}", new:"New: {food}", around:"around {time}",
@@ -297,6 +296,27 @@ const CONTENT = {
   /* Every word about a stage. name = the big tagline under the birthday fields;
      meals + textureShort make the small line beneath it ("3 meals · lumpy mash and finger foods");
      locked = the "always off the plate" line (the rules themselves live in LOCKED_RULES). */
+  /* ---------- meal times on a day axis (onboarding and Profile share it: mealtimes.js) ---------- */
+  mealTimes:{
+    sentence:"{name} usually eats around…",
+    they:"They",
+    hint:"Drag each meal to where it usually lands.",
+    selected:"{meal} around {time}",
+    type:"Type a time",
+    typed:"{meal} around",
+    typeLabel:"{meal}, the time",
+    bad:"Try 12:30 or 7pm.",
+    out:"Between {from} and {to}.",
+    moved:"Moved to {time}, to keep an hour between meals.",
+    remove:"Remove",
+    addSnack:"Add a snack",
+    usual:"Use the usual",
+    usualDone:"Back to the usual.",
+    undo:"Undo",
+    gapH:"{h} h",
+    gapHM:"{h} h {m}"
+  },
+
   stages:{
     milk:{
       name:"Milk only", meals:"Milk only, for now"

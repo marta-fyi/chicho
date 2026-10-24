@@ -48,3 +48,14 @@ function glowGradient(hex, prof){
 }
 /* the open meal's food group → its glow (anything unknown is the default) */
 function glowGroup(cat){ return GLOW[cat] ? cat : GLOW_DEFAULT; }
+/* the sun (meal times, light theme only): the glow takes the colour of the hour of the meal in hand, blended
+   between these stops, all near the food groups' lightness so the ink keeps its contrast. Untouched, it's 10:00. */
+const SUN = [[6 * 60, "#FEBC9F"], [10 * 60, "#FFE56B"], [14 * 60, "#FFD86B"], [17 * 60, "#FEBC8A"], [19 * 60, "#FEB7C5"], [21 * 60, "#D2C3FE"]];
+const SUN_IDLE = 10 * 60;
+function sunColor(min){
+  const k = SUN.findIndex(s=>s[0] >= min);
+  if(k < 0) return SUN[SUN.length - 1][1];
+  if(k===0) return SUN[0][1];
+  const [m0, h0] = SUN[k - 1], [m1, h1] = SUN[k], t = (min - m0) / (m1 - m0), a = hexRGB(h0), b = hexRGB(h1);
+  return "#" + a.map((v, i)=>Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join("").toUpperCase();
+}

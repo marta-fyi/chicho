@@ -145,10 +145,11 @@ function goStep(key, sub, opts){
     onb.step = key; onb.sub = sub || null; onb.adding = false;
     if(!onb.single) state.profile.onboardingStep = key;
     save();
+    const own = key==="mealtimes" && onb.mtEntrance;   // the axis has its own arrival
     renderOnb();
-    if(!calm()) card.animate([{transform:`translateY(${onb.dir*28}px)`, opacity:0}, {transform:"none", opacity:1}],
-                             {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
-    else card.animate([{opacity:0},{opacity:1}], {duration:180});
+    if(!own && !calm()) card.animate([{transform:`translateY(${onb.dir*28}px)`, opacity:0}, {transform:"none", opacity:1}],
+                                     {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
+    else if(!own) card.animate([{opacity:0},{opacity:1}], {duration:180});
     focusStep();
   };
   holdKeyboard(key, sub);
@@ -164,12 +165,37 @@ function onbGlow(cat){
   const group = glowGroup(cat);
   const root = document.getElementById("onbGlow");
   if(root.dataset.group===group) return;
+  if(root.dataset.group==="sun"){   // leaving meal times: the sun goes back to its place as the colours crossfade
+    const pulse = root.closest(".onb-glow");
+    pulse.classList.remove("sun-move"); pulse.classList.add("sun-leave"); pulse.style.transform = "";
+  }
   const layers = [...root.querySelectorAll(".glow-l")];
   const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
   if(!root.dataset.group) on.style.backgroundImage = glowGradient(GLOW[group].hex);
   else { off.style.backgroundImage = glowGradient(GLOW[group].hex); off.classList.add("is-on"); on.classList.remove("is-on"); }
   root.dataset.group = group;
   document.getElementById("onboarding").dataset.glow = group;
+}
+
+/* the sun on the meal-times step: the glow follows a marker (y, in the viewport) in the colour of its hour (hex; null =
+   unchanged). It arrives with the usual 1.2 s crossfade, then paints in place: instantly while a marker is held, with
+   a short glide when the selection changes. */
+function onbSun(hex, y, held){
+  const root = document.getElementById("onbGlow"), pulse = root.closest(".onb-glow");
+  if(hex){
+    const layers = [...root.querySelectorAll(".glow-l")];
+    const on = layers.find(l=>l.classList.contains("is-on")) || layers[0], off = layers.find(l=>l!==on);
+    if(root.dataset.group!=="sun"){
+      off.style.backgroundImage = glowGradient(hex); off.classList.add("is-on"); on.classList.remove("is-on");
+      root.dataset.group = "sun"; document.getElementById("onboarding").dataset.glow = "sun";
+    }else on.style.backgroundImage = glowGradient(hex);
+    root.dataset.sun = hex;
+  }
+  const plane = pulse.parentElement.getBoundingClientRect();
+  if(!plane.height) return;   // the dark theme: the night sky, no glow
+  pulse.classList.remove("sun-leave"); pulse.classList.toggle("sun-move", !held);
+  const dy = y - (plane.top + parseFloat(getComputedStyle(pulse).top));
+  pulse.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0)`;
 }
 
 function renderOnb(){
@@ -200,7 +226,7 @@ function renderOnb(){
   card.scrollTop = 0;
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
   if(pile){ pile.stop(); pile = null; }
-  onbGlow(ONB_GLOW[key] || "grain");
+  if(key!=="mealtimes") onbGlow(ONB_GLOW[key] || "grain");   // meal times has the sun instead
   el.dataset.step = key;
   const glowNow = ()=>onbGlow(key==="reveal" && onb.revealed ? ONB_GLOW.done : ONB_GLOW[key] || "grain");
   ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
@@ -1112,33 +1138,13 @@ function onbAtHome(card, P){
   onbCta(card, say("onb.atHome.cta"), ()=>{ stock(); nextStep(); }, {extra:[{label:say("onb.atHome.skip"), on:nextStep}]});
 }
 
-/* 7. meal times: "{name} usually eats at…" one time per meal the stage serves, prefilled */
+/* Meal times: the day axis (mealtimes.js), the same in Profile (Save, Close) as here. "Next" with the usual untouched
+   is an answer too: either way it's never asked again. */
 function onbMealTimes(card, P){
-  const months = planMonths(), defaults = stageTimes(months);
-  const h = document.createElement("h1");
-  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.mealTimes.title", {name:P.name || "They"});
-  card.append(h);
-  const rows = document.createElement("div");
-  rows.className = "mt-rows";
-  slotsFor(months).forEach(slot=>{
-    const ms = MEAL_SLOTS.find(x=>x.id===slot);
-    const r = document.createElement("p");
-    r.className = "mt-row";
-    const id = "mt-" + slot;
-    r.innerHTML = `<label for="${id}">${esc(say("onb.mealTimes.at", {meal:ms.label}))}</label> <span class="blank time" data-state="ok"><input class="blank-input" type="time" id="${id}" step="300" value="${(P.mealTimes||{})[slot] || defaults[slot]}"></span>`;
-    r.querySelector("input").addEventListener("change", e=>{
-      const v = hhmm(e.target.value);
-      if(!v) return;
-      const t = fmtHHMM(v);
-      P.mealTimes = Object.assign({}, P.mealTimes);
-      if(t===defaults[slot]) delete P.mealTimes[slot]; else P.mealTimes[slot] = t;   // the stage's defaults keep following the stage
-      save();
-    });
-    rows.appendChild(r);
-  });
-  card.append(rows, line(say("onb.mealTimes.line")));
-  onbCta(card, say("onb.mealTimes.cta"), ()=>{ P.mealTimesConfirmed = true; save(); nextStep(); },
-         {extra:[{label:say("onb.mealTimes.usual"), on:()=>{ P.mealTimes = {}; P.mealTimesConfirmed = true; save(); nextStep(); }}]});
+  const entrance = !!onb.mtEntrance;
+  onb.mtEntrance = false;
+  mealTimesScreen({P, months:planMonths(), card, foot:document.getElementById("onbFoot"), entrance,
+                   onNext:()=>{ onb.draft = null; nextStep(); }});   // the week is made at Reveal, from these meals
 }
 
 /* 5–6. Reveal, then Done: one layout, built once. The reveal (about 3 s, the first pass only) draws it: three
