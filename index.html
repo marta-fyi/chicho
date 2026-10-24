@@ -736,6 +736,18 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .k-sentence{margin:0;flex-basis:100%;font-size:17px;font-weight:500;line-height:1.5;}
   .k-sentence .blank-input, .k-num{font-size:16px;}
   .k-count[hidden]{display:none;}
+  /* Prep: the one row that can grow (up to three lines) */
+  .k-prep{display:flex;align-items:center;gap:12px;min-height:var(--row-h);padding:8px 0;border-bottom:1px solid var(--hairline);}
+  .k-prep-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .k-prep-title{font-size:17px;font-weight:500;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .k-prep-detail{font-size:13px;line-height:1.35;color:var(--ink-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .k-prep .ring-btn{margin-right:-8px;}
+  .k-quiet{margin:10px 0 0;font-size:15px;line-height:1.45;color:var(--ink-muted);}
+  .k-foot{margin:10px 0 0;font-size:13px;line-height:1.45;color:var(--ink-muted);}
+  .k-more{margin:4px 0 0 -6px;}
+  .k-portions{display:flex;align-items:baseline;gap:10px;margin:6px 0 0;font-size:15px;color:var(--ink-muted);}
+  .k-num{width:3.5ch;min-height:44px;padding:0 4px;border:none;border-bottom:2px solid var(--ink);background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;text-align:center;}
+  .k-num:focus{outline:none;border-bottom-color:var(--ink);}
   .k-pin{position:absolute;left:0;right:0;z-index:3;bottom:calc(env(safe-area-inset-bottom) + 64px);pointer-events:none;}
   .k-pill{display:block;width:100%;height:52px;border:none;border-radius:999px;background:var(--ink);color:var(--sheet);cursor:pointer;pointer-events:auto;
           font:inherit;font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);transition:transform var(--dur-1) var(--ease-out);}
@@ -1653,7 +1665,8 @@ function migrate(saved){
             got:byFood(sh.got, x=>Object.assign({foodId:x.foodId, at:typeof x.at==="string" ? x.at : stamp, prevState:stocked(x.prevState)}, x.manual ? {manual:true} : {}))};
   const ca = saved.cookAhead && typeof saved.cookAhead==="object" ? saved.cookAhead : {};
   s.cookAhead = {done:(Array.isArray(ca.done) ? ca.done : []).filter(x=>x && typeof x.id==="string")
-    .map(x=>({id:x.id, at:typeof x.at==="string" ? x.at : stamp, covers:(Array.isArray(x.covers) ? x.covers : []).filter(c=>c && c.foodId && c.iso && c.mealId)}))};
+    .map(x=>Object.assign({id:x.id, at:typeof x.at==="string" ? x.at : stamp, covers:(Array.isArray(x.covers) ? x.covers : []).filter(c=>c && c.foodId && c.iso && c.mealId)},
+      x.session && typeof x.session==="object" && x.session.first && Array.isArray(x.session.items) && Array.isArray(x.session.covers) ? {session:x.session} : {}))};
 
   // schema 9: the offer log replaces item.offered, meal.outcome and the exposure counts. An older save has one
   // week: every food marked in it becomes an event on its day (marked in any way = put in front of them; how it
@@ -1661,7 +1674,7 @@ function migrate(saved){
   // allergens introduced by them, become events the day before the week began.
   ["allergyNotes","firstPhotos","hints","moment","asked","prepped","shown"].forEach(k=>{ if(!s[k] || typeof s[k]!=="object" || Array.isArray(s[k])) s[k] = {}; });
   if(!Array.isArray(s.newToBuy)) s.newToBuy = [];
-  // the generic "cook double", "make double and freeze half" and same-oven suggestions are gone, and their ticks with them
+  // the generic doubling, freeze-half and same-oven suggestions are gone, and their ticks with them
   if(Array.isArray(s.prepped.done)) s.prepped.done = s.prepped.done.filter(id=>typeof id==="string" && !/^(double|freeze|roast|steam):/.test(id));
   if(!Array.isArray(saved.offers)){
     s.offers = [];

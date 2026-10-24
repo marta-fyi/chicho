@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · cook ahead tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Cook ahead tests</h1>
+<p>deriveCookAhead() and deriveFreezeSuggestion() on a hand-made week (now: Thursday 22 October 2026, 12:10): raw foods, the fridge window to the minute, sessions by method and first meal, extra amounts, past and offered meals, done and prepped, the titles, and the one freeze suggestion. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+localStorage.clear(); sessionStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-22T12:10";
+f.width = 390; f.height = 600;
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    E(`window.T = {breakfast: "08:00", snack1: "10:30", lunch: "12:30", snack2: "19:01", dinner: "19:00"};
+       window.mk = (slot, foods) => ({id: slot + "-" + Math.random().toString(36).slice(2, 6), slot, label: {breakfast: "Breakfast", snack1: "Snack", snack2: "Snack", lunch: "Lunch", dinner: "Dinner"}[slot], items: foods.map(([name, qty]) => ({id: uid(), name, qty: qty + " g", cats: []}))});
+       window.week = spec => { const W = {startsOn: "2026-10-19", days: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(name => ({name, meals: []}))};
+         spec.forEach(([day, slot, foods]) => W.days.find(d => d.name === day).meals.push(mk(slot, foods))); return W; };
+       window.C = (W, opts, at) => deriveCookAhead(W, [], at || now(), Object.assign({timeOf: s => T[s]}, opts || {}));
+       window.short = list => list.map(s => s.method + "@" + s.first.iso + "/" + s.first.m.slot + ":" + s.items.map(i => i.foodId + "+" + i.extra).join(","));`);
+    E(`window.W1 = week([
+         ["Thursday", "dinner", [["Pumpkin", 100], ["Banana", 60], ["Rice, soft-cooked", 50]]],
+         ["Friday", "lunch", [["Pumpkin", 60], ["Carrots, soft-cooked", 45]]],
+         ["Friday", "dinner", [["Rice, soft-cooked", 50], ["Banana", 60]]],
+         ["Saturday", "lunch", [["Carrots, soft-cooked", 45]]],
+         ["Saturday", "dinner", [["Pumpkin", 40]]]])`);
+    const s1 = E("short(C(W1))");
+    ok("sessions by (method, first meal), soonest first; each item's extra is its later uses' grams", JSON.stringify(s1) === JSON.stringify(["boil@2026-10-22/dinner:rice+50", "roast@2026-10-22/dinner:pumpkin+100", "steam@2026-10-23/lunch:carrots+45"]), s1);
+    ok("raw foods never make a session (banana twice in a day)", !s1.some(x => x.includes("banana")));
+    ok("the window is inclusive: exactly FRIDGE_DAYS (Thu 19:00 → Sat 19:00, and Fri 12:30 → Sat 12:30) counts", s1[1].endsWith("pumpkin+100") && s1[2].endsWith("carrots+45"));
+    ok("…and each food's own fridge days: rice (1 day) reaches Friday's dinner, exactly 24 h on", s1[0] === "boil@2026-10-22/dinner:rice+50");
+    E(`window.W2 = week([["Thursday", "dinner", [["Pumpkin", 100]]], ["Friday", "lunch", [["Pumpkin", 60]]], ["Saturday", "snack2", [["Pumpkin", 40]]]])`);
+    ok("one minute beyond the window doesn't count (Sat 19:01): pumpkin +60 only", JSON.stringify(E("short(C(W2))")) === JSON.stringify(["roast@2026-10-22/dinner:pumpkin+60"]), E("short(C(W2))"));
+    E(`window.W3 = week([["Thursday", "dinner", [["Pumpkin", 100], ["Sweet potato", 50], ["Carrots, soft-cooked", 45]]], ["Friday", "lunch", [["Pumpkin", 60], ["Sweet potato", 50], ["Carrots, soft-cooked", 45]]]])`);
+    ok("two roasts with the same first meal are one session; a steam is its own", JSON.stringify(E("short(C(W3))")) === JSON.stringify(["roast@2026-10-22/dinner:pumpkin+60,sweet potato+50", "steam@2026-10-22/dinner:carrots+45"]), E("short(C(W3))"));
+    const s3 = E("C(W3)")[0];
+    ok("…it covers each later meal once", s3.covers.length === 1 && s3.covers[0].iso === "2026-10-23");
+    ok("titles: 'Roast with tonight's dinner'", E("sessionTitle(C(W3)[0], now())") === "Roast with tonight's dinner", E("sessionTitle(C(W3)[0], now())"));
+    ok("…'Steam with tomorrow's lunch'", E("sessionTitle(C(W1)[2], now())") === "Steam with tomorrow's lunch", E("sessionTitle(C(W1)[2], now())"));
+    ok("details: 'Pumpkin +60 g · Sweet potato +50 g. Covers tomorrow's lunch.'", E("sessionDetail(C(W3)[0], now())") === "Pumpkin +60 g · Sweet potato +50 g. Covers tomorrow's lunch.", E("sessionDetail(C(W3)[0], now())"));
+    const sat = E(`new Intl.DateTimeFormat(undefined, {weekday: "long"}).format(new Date(2026, 9, 24))`);
+    ok("…two later meals: 'Pumpkin +100 g. Covers tomorrow's lunch and Saturday's dinner.'", E("sessionDetail(C(W1)[1], now())") === `Pumpkin +100 g. Covers tomorrow's lunch and ${sat}'s dinner.`, E("sessionDetail(C(W1)[1], now())"));
+
+    // past and offered first meals
+    const late = E(`short(C(W1, {}, new Date(2026, 9, 22, 20, 30)))`);
+    ok("a session whose first meal has passed (Thu dinner, at 20:30) never shows; the next use starts its own", JSON.stringify(late) === JSON.stringify(["roast@2026-10-23/lunch:pumpkin+40", "steam@2026-10-23/lunch:carrots+45"]), late);
+    const thuDinner = E(`W1.days.find(d => d.name === "Thursday").meals[0].id`);
+    const off = E(`short(C(W1, {isOffered: m => m.id === "${thuDinner}"}))`);
+    ok("…and an offered meal isn't cooked for", !off.some(x => x.includes("2026-10-22")), off);
+    ok("still within its hour, it shows (Thu dinner at 19:45)", E(`short(C(W1, {}, new Date(2026, 9, 22, 19, 45)))`).some(x => x.startsWith("roast@2026-10-22")));
+
+    // done and prepped
+    const id = E("C(W1)[1].id");
+    ok("a done session comes back marked done", E(`C(W1, {done: ["${id}"]})[1].done`) === true && E(`C(W1)[1].done`) === false);
+    const friLunch = E(`W1.days.find(d => d.name === "Friday").meals.find(m => m.slot === "lunch").id`), satDinner = E(`W1.days.find(d => d.name === "Saturday").meals.find(m => m.slot === "dinner").id`);
+    const pre = E(`short(C(W1, {prepped: new Set(["pumpkin|2026-10-23|${friLunch}", "pumpkin|2026-10-24|${satDinner}"])}, new Date(2026, 9, 22, 20, 30)))`);
+    ok("meals already covered by a done session don't make new ones (pumpkin prepped for Fri and Sat)", !pre.some(x => x.includes("pumpkin")), pre);
+    const before = E("JSON.stringify(W1)");
+    ok("pure: same answer twice, the plan untouched", JSON.stringify(E("short(C(W1))")) === JSON.stringify(s1) && E("JSON.stringify(W1)") === before);
+
+    // the freeze suggestion
+    const F = (W, freezer, at) => E(`(r => r && {food: r.foodId, second: r.second.iso, slot: r.second.m.slot})(deriveFreezeSuggestion(${W}, ${JSON.stringify(freezer || [])}, ${at || "now()"}, {timeOf: s => T[s]}))`);
+    E(`window.W4 = week([["Thursday", "dinner", [["Lentils", 40], ["Banana", 60]]], ["Sunday", "lunch", [["Lentils", 40], ["Banana", 60]]], ["Friday", "lunch", [["Chicken", 40]]], ["Sunday", "dinner", [["Chicken", 40]]]])`);
+    ok("a cookable, freezable food twice this week, the second beyond the fridge window: one suggestion, the earliest (lentils)", JSON.stringify(F("W4")) === JSON.stringify({food: "lentils", second: "2026-10-25", slot: "lunch"}), F("W4"));
+    ok("…its words: 'Freeze some lentils' / 'It's in lunch on Sunday, beyond the fridge window.'", E(`(r => say("kitchen.freezeSome", {food: lower1(r.name)}) + " / " + say("kitchen.freezeWhy", {meal: r.second.m.label.toLowerCase(), weekday: fmtWeekdayK(r.second.date)}))(deriveFreezeSuggestion(W4, [], now(), {timeOf: s => T[s]}))`) === `Freeze some lentils / It's in lunch on ${E(`new Intl.DateTimeFormat(undefined, {weekday: "long"}).format(new Date(2026, 9, 25))`)}, beyond the fridge window.`);
+    ok("…never a raw food (banana is freezable, but raw)", F("W4").food !== "banana");
+    ok("…not when it's already in the freezer (then the next, chicken)", F("W4", [{foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-20"}]).food === "chicken");
+    ok("…not when the second use is inside the window (cook ahead covers it)", F("W1") === null, F("W1"));
+    ok("…at most one, ever", E(`typeof deriveFreezeSuggestion(W4, [], now(), {timeOf: s => T[s]})`) === "object" && !Array.isArray(E(`deriveFreezeSuggestion(W4, [], now(), {timeOf: s => T[s]})`)));
+    ok("…not for a food that isn't freezable (tofu: raw anyway; potato: not freezable)", F(`week([["Thursday", "dinner", [["Potato", 40]]], ["Sunday", "lunch", [["Potato", 40]]]])`) === null);
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · cook ahead";
+};
+</script>
+</body></html>

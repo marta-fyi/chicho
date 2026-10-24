@@ -95,15 +95,10 @@ const CONTENT = {
     set:"Set"
   },
 
-  /* ---------- "While you're at it": cooking ahead, using only foods already in the week ---------- */
+  /* ---------- "While you're at it": lead times and the family's salt (cooking ahead is the Kitchen's: kitchen.*) ---------- */
   also:{
     defrost:"Move the {food} to the fridge tonight. It's in {meal} {when}.",
     soak:"Soak the {food} tonight. It's in {meal} {when}.",
-    double:"{verb} double. It's in {meal} {when} (another {amount}).",
-    verb:{steam:"Steam", roast:"Roast", boil:"Cook"},
-    oven:"The oven's on. Roast the {food} for {meal} {when} too.",
-    steamer:"The steamer's on. Add the {food} for {meal} {when}.",
-    freeze:"Make double {food} and freeze half in small portions.",
     salt:"Cooking for the family? Set aside {name}'s portion before adding salt.",
     doIt:"I'll do it",
     done:"Done",
@@ -148,8 +143,16 @@ const CONTENT = {
     add:"Add something", addSentence:"Add to the kitchen: {blank}.", addToList:"Add to list", onList:"On the list", remove:"Remove",
     groupLow:"{n} · {m} low", added:"{food}: at home",
     portions:{one:"{food} · {n} portion · made {date}", other:"{food} · {n} portions · made {date}"},
-    useOne:"Use one", useOneOf:"Use one portion of {food}", prepDone:"Done: {task}",
-    freezerEmpty:"Nothing in the freezer, nothing to prep.",
+    useOne:"Use one",
+    /* Prep */
+    cookAhead:"Cook ahead", inFreezer:"In the freezer", showMore:"Show more", nothingToCook:"Nothing to cook ahead.",
+    freezerEmpty:"Nothing in the freezer yet.",
+    session:"{method} with {meal}", method:{steam:"Steam", roast:"Roast", boil:"Boil", bake:"Bake", simmer:"Simmer"},
+    meal:{tonight:"tonight's {meal}", today:"today's {meal}", tomorrow:"tomorrow's {meal}", day:"{weekday}'s {meal}"},
+    extra:"{food} +{g} g", sessionDetail:"{items}. Covers {meals}.", prepped:"{food} · prepped",
+    usedOne:"Used one", usedLast:"Used the last {food} · Undo", addFrozen:"Add a frozen portion", frozenSentence:"Frozen: {blank}.",
+    portionsLabel:"Portions", portionsMeta:{one:"{n} portion · made {date}", other:"{n} portions · made {date}"}, useSoon:"use soon",
+    freezeSome:"Freeze some {food}", freezeWhy:"It's in {meal} on {weekday}, beyond the fridge window.", frozeUndo:"{food} · in the freezer · Undo",
     /* shopping units (the labels themselves are the food manifest's: foods.js) */
     unit:"{n} {label}", weight:"{g} g", rowMeta:"{unit} · {when}",
     when:{tonight:"tonight", today:"today", tomorrow:"tomorrow"},

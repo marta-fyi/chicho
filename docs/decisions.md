@@ -38,6 +38,13 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - **Add something** suggests only foods from the manifest, and Enter adds the first suggestion; free text that isn't a food adds nothing. The old "Everything else" group shows only for a legacy non-food already in the pantry.
 - **Focus inside the tap.** "Add something" (and "Add a frozen portion") replace the link with the sentence and focus its field in the same click handler, with no redraw in between. iOS opens the keyboard only for a focus made during the tap.
 
+**Cook ahead: one source**
+
+- `deriveCookAhead(plan, pantry, now, opts)` is pure. Only meals still ahead (within their hour) and not offered count, so a session whose first meal has passed never shows, and the next use starts its own. The window is inclusive: a later use exactly `fridgeDays` after the first counts, and one minute more doesn't. `pantry` is accepted, as the brief's signature asks, but no rule reads it yet.
+- **Home's "While you're at it"** now reads the same sessions (through `suggestAlso`'s `seen.sessions`). Its cook-ahead line is the session whose first meal is the one on Home ("Carrots +45 g. Covers tonight's dinner."), with an inline "Done" there. The old generic rules are deleted: cook double, make double and freeze half, and the oven's or steamer's on. Defrost, soak and the family-salt lines aren't cooking ahead, so they stay.
+- **Done is a record** in `state.cookAhead.done`: the session's id, the meals it covers, and enough to draw it until its first meal has passed (so it can be unticked). Covered meals show "{food} · prepped" on Home and Shuffle, and their uses no longer make new sessions. Records go after 14 days.
+- `tools/check.mjs` now fails any "Make double"/"Cook double" and any storage number written into the copy.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).

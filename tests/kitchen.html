@@ -146,8 +146,6 @@ f.onload = async () => {
     const fz = () => $('[data-sec="freezer"]').textContent;
     const made = E("fmtDayShort(localDate('2026-10-20'))");
     ok("the freezer: 'Lentils · 2 portions · made 20 Oct' (in the reader's own date format)", fz().includes("Lentils · 2 portions · made " + made), fz().slice(0, 80));
-    ok("…the storage note shows once for the section, not on every task", fz().split(E("storageNote()")).length === 2);
-    ok("…with the storage note (flagged for checking in docs/decisions.md)", fz().includes(E("storageNote()")));
     $('[data-f="useone:lentils"]').click(); await wait(30);
     ok("'Use one': 1 portion left", fz().includes("Lentils · 1 portion · made " + made));
     $('[data-f="useone:lentils"]').click(); await wait(30);

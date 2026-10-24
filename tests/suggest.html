@@ -35,31 +35,27 @@ f.onload = async () => {
       const m = state.plan.days[dayIdx].meals[k];
       return {m, k, dayIdx, date, start: atTime(date, mealTime(slot, date))};
     };
-    window.tS = (r, nowD, pantry, seen) => suggestAlso(r, state.plan, nowD, state.profile, pantry || {}, seen || {});`);
+    window.tS = (r, nowD, pantry, seen) => suggestAlso(r, state.plan, nowD, state.profile, pantry || {}, Object.assign({sessions: deriveCookAhead(state.plan, [], nowD, {timeOf: mealTime})}, seen || {}));`);
     const thu = "new Date(2026, 9, 22)", fri = "new Date(2026, 9, 23)";
 
-    // 2. shared ingredient (and 4. batch & freeze, 5. salt) — capped at two, in order
+    // 2. cook ahead (from deriveCookAhead, the Kitchen's own) and 5. salt, capped at two, in order
     E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Friday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
     let s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
-    ok("carrots today and tomorrow: 'Steam double. It's in lunch tomorrow (another 45 g).'", s[0] && s[0].kind === "double" && s[0].text === "Steam double. It's in lunch tomorrow (another 45 g).", s);
-    ok("…it points at tomorrow's lunch", s[0] && s[0].target && s[0].target.dayIdx === E(`state.plan.days.findIndex(d => d.name === "Friday")`));
-    ok("never more than two, and never two about the same food (double, then salt)", s.length === 2 && s[1].kind === "salt", s.map(x => x.kind));
+    ok("carrots today and tomorrow: the cook-ahead session for this meal, 'Carrots +45 g. Covers tomorrow's lunch.'", s[0] && s[0].kind === "cook" && s[0].text === "Carrots +45 g. Covers tomorrow's lunch.", s);
+    ok("…it is the session itself (one source with the Kitchen's Prep)", s[0] && s[0].id === E(`deriveCookAhead(state.plan, [], new Date(2026, 9, 22, 11, 0), {timeOf: mealTime})[0].id`));
+    ok("never more than two, and never two about the same food (cook, then salt)", s.length === 2 && s[1].kind === "salt", s.map(x => x.kind));
     const before = E("JSON.stringify(state.plan)");
     E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
     ok("pure: asking changes nothing in the plan", E("JSON.stringify(state.plan)") === before);
-    ok("only foods already in the plan are ever suggested", s.every(x => E(`state.plan.days.some(d => d.meals.some(m => m.items.some(i => i.name === ${JSON.stringify(x.food)})))`)));
-    // the prepped flag
-    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {done: [tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))[0].id]})`);
-    ok("a suggestion marked done today stops appearing", !s.some(x => x.kind === "double"), s.map(x => x.kind));
-    // 4. batch and freeze: a freezable food used twice this week, beyond the 48-hour window
-    E(`tMk([["Monday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
+    ok("only foods already in the plan are ever suggested", s.every(x => E(`state.plan.days.some(d => d.meals.some(m => m.items.some(i => i.name === ${JSON.stringify(x.food)} || baseName(i) === ${JSON.stringify(x.food)})))`)));
+    s = E(`tS(tRef("Friday", "lunch", ${fri}), new Date(2026, 9, 22, 11, 0))`);
+    ok("the later meal gets no line of its own (it's covered, not the first)", !s.some(x => x.kind === "cook"), s.map(x => x.kind));
+    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {sessions: deriveCookAhead(state.plan, [], new Date(2026, 9, 22, 11, 0), {timeOf: mealTime}).map(x => Object.assign(x, {done: true}))})`);
+    ok("a session marked done stops appearing", !s.some(x => x.kind === "cook"), s.map(x => x.kind));
+    // the old generic rules are gone
+    E(`tMk([["Monday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"], ["Sweet potato", "45 g"]]], ["Thursday", "dinner", [["Pumpkin", "45 g"]]], ["Sunday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
-    ok("carrots twice this week: 'Make double carrots and freeze half in small portions.'", s[0] && s[0].kind === "freeze" && s[0].text === "Make double carrots and freeze half in small portions.", s);
-    ok("…with the storage note", s[0] && s[0].note === E(`storageNote()`));
-    // nothing to share beyond 48 hours
-    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Sunday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
-    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
-    ok("the same food three days later isn't a shared ingredient (48-hour window)", !s.some(x => x.kind === "double"), s.map(x => x.kind));
+    ok("no 'Cook double', 'Make double … freeze half' or 'the oven's on' lines any more", !s.some(x => ["double", "freeze", "oven", "steamer"].includes(x.kind)) && !s.some(x => /double|oven's on|steamer's on/i.test(x.text)), s);
 
     // 1. lead time: a frozen portion to defrost, while there's time
     E(`tMk([["Thursday", "lunch", [["Rice, soft-cooked", "40 g"]]], ["Friday", "dinner", [["Lentils", "40 g"]], {from: "Wednesday"}]])`);
@@ -75,11 +71,6 @@ f.onload = async () => {
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {lentils: {name: "Lentils", g: 500, dried: true}})`);
     ok("dried lentils in the pantry: 'Soak the lentils tonight. It's in lunch tomorrow.'", s[0] && s[0].kind === "soak" && s[0].text === "Soak the lentils tonight. It's in lunch tomorrow.", s);
 
-    // 3. the same appliance
-    E(`tMk([["Thursday", "lunch", [["Sweet potato", "45 g"]]], ["Thursday", "dinner", [["Pumpkin", "45 g"]]]])`);
-    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
-    ok("the oven's on for lunch and dinner roasts too: 'The oven's on. Roast the pumpkin for dinner later today too.'", s.some(x => x.kind === "oven" && x.text === "The oven's on. Roast the pumpkin for dinner later today too."), s);
-
     // 5. family salt: 12 months and up, lunch or dinner, retired after three showings
     E(`tMk([["Thursday", "lunch", [["Banana", "45 g"]]]])`);
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`);
@@ -91,26 +82,29 @@ f.onload = async () => {
     E(`tMk([["Thursday", "lunch", [["Banana", "45 g"]]]], 10)`);
     ok("…and not before 12 months", !E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0))`).some(x => x.kind === "salt"));
 
-    // a later meal that's already offered isn't cooked for (the caller says so: suggestAlso reads only its arguments)
     E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Friday", "lunch", [["Carrots, soft-cooked", "45 g"]]]])`);
-    s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {isOffered: m => m === state.plan.days.find(d => d.name === "Friday").meals[0]})`);
-    ok("seen.isOffered: an offered later meal gets no 'double'", !s.some(x => x.kind === "double"), s.map(x => x.kind));
     s = E(`tS(tRef("Thursday", "lunch", ${thu}), new Date(2026, 9, 22, 11, 0), {}, {max: 1})`);
     ok("seen.max caps the lines (Home asks for one)", s.length === 1, s.length);
 
-    // Home: at most one "While you're at it" line, text only; Kitchen: the open prep tasks, each with a done ring
-    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "dinner", [["Carrots, soft-cooked", "45 g"]]]]); setClock(new Date(2026, 9, 22, 11, 0)); state.weekStarted = "2026-10-22"; state.prepped = {}; state.profile.lastStage = stageNow().id; closeOnboarding(); homeChanged();`);
-    const d = f.contentDocument;
-    const alsoLines = [...d.querySelectorAll("#nowMeal .meal-also")];
-    ok("Home shows one 'While you're at it' line, and no button in it", alsoLines.length === 1 && /^While you're at it: /.test(alsoLines[0].textContent) && !alsoLines[0].querySelector("button"), alsoLines.map(x => x.textContent));
-    E(`go("kitchen", {quiet: true}); switchView("prep")`);
-    await new Promise(r => setTimeout(r, 450));
-    const ring = d.querySelector('#scr-kitchen [data-f^="prep:double:"]');
-    ok("Kitchen lists the open prep task under Freezer and prep, with a done ring", !!ring && ring.closest('[data-sec="freezer"]') && ring.getAttribute("aria-pressed") === "false");
-    ring.click();
-    await new Promise(r => setTimeout(r, 50));
-    ok("done: saved for the day, and it leaves the list", E("state.prepped.date") === "2026-10-22" && E("state.prepped.done.length") === 1 && !d.querySelector('#scr-kitchen [data-f^="prep:double:"]'));
-    ok("…and Home's line moves on to the next suggestion", !/Steam double/.test(d.getElementById("nowMeal").textContent));
+    // Home and the Kitchen share one done-state
+    E(`tMk([["Thursday", "lunch", [["Carrots, soft-cooked", "45 g"]]], ["Thursday", "dinner", [["Carrots, soft-cooked", "45 g"]]]]); setClock(new Date(2026, 9, 22, 11, 0)); state.weekStarted = "2026-10-22"; state.prepped = {}; state.cookAhead = {done: []}; state.profile.lastStage = stageNow().id; closeOnboarding(); homeChanged();`);
+    const d = f.contentDocument, wait = ms => new Promise(r => setTimeout(r, ms));
+    const also = () => [...d.querySelectorAll("#nowMeal .meal-also")];
+    ok("Home shows one 'While you're at it' line: the session, with 'Done'", also().length === 1 && also()[0].textContent === "While you're at it: Carrots +45 g. Covers tonight's dinner. Done", also().map(x => x.textContent));
+    E(`go("kitchen", {quiet: true}); switchView("prep")`); await wait(450);
+    const sid = E(`cookAhead()[0].id`), kring = () => d.querySelector(`#scr-kitchen [data-f="cook:${sid}"]`);
+    ok("the Kitchen's Prep has the same session, its ring open", !!kring() && !kring().classList.contains("on") && kring().closest(".k-prep").textContent.startsWith("Steam with today's lunch"));
+    d.querySelector('[data-f="also:done"]').click(); await wait(60);
+    ok("Done on Home: the Kitchen's ring fills too", kring() && kring().classList.contains("on"));
+    ok("…and Home's line moves on", !also().some(x => /Carrots \+45/.test(x.textContent)));
+    E(`setClock(new Date(2026, 9, 22, 18, 30)); picked = null; homeChanged()`); await wait(60);
+    ok("the later meal says '{food} · prepped' (Home at dinner)", [...d.querySelectorAll("#nowMeal .meal-foods li")].some(li => li.textContent === "Carrots · prepped"), [...d.querySelectorAll("#nowMeal .meal-foods li")].map(li => li.textContent));
+    E(`setClock(new Date(2026, 9, 22, 11, 0)); picked = null; homeChanged()`); await wait(60);
+    kring().click(); await wait(60);
+    ok("unticked in the Kitchen: Home's line is back", also().some(x => /Carrots \+45 g/.test(x.textContent)) && !E("state.cookAhead.done.length"));
+    E(`refresh("kitchen")`); await wait(30);
+    kring().click(); await wait(60);
+    ok("ticked in the Kitchen: Home's line goes", !also().some(x => /Carrots \+45 g/.test(x.textContent)) && E("state.cookAhead.done.length") === 1);
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

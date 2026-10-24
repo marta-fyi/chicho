@@ -236,13 +236,12 @@ function answerLate(q){
   else go("profile", {section:"people"});
 }
 
-/* ---------- "While you're at it": cook ahead, using only foods already in the plan ----------
-   Pure: reads only its arguments (and the stage table), so it can never suggest
-   anything the generator didn't already pass through the safety rules.
-   seen.isOffered(meal, date) says whether a later meal is already offered. */
+/* ---------- "While you're at it": lead times, cooking ahead and the family's salt, using only foods already in
+   the plan. Pure: reads only its arguments (and the stage table), so it can never suggest anything the
+   generator didn't already pass through the safety rules. seen.isOffered(meal, date) says whether a later meal
+   is already offered; seen.sessions are the cook-ahead sessions (deriveCookAhead: one source with the Kitchen). */
 const LEAD = {defrost:8, soak:8};   // hours a lead-time step needs before the meal
 const SALT_MAX_SHOWINGS = 3;
-const COOK_AHEAD_METHODS = ["steam","roast","boil"];
 const LEGUMES = ["lentils","chickpeas"];
 function planMealsBetween(plan, profile, from, to){
   const out = [];
@@ -285,34 +284,9 @@ function suggestAlso(meal, plan, nowD, profile, pantry, seen){
              text:say("also.soak", {food:lower1(baseName(i)), meal:label(x), when:whenWord(x.start, nowD)})});
     });
   });
-  // 2. a shared ingredient: cook it double now, it comes back within 48 hours
-  const next48 = ahead(48);
-  m.items.forEach(i=>{
-    const c = cookOf(i.name);
-    if(!COOK_AHEAD_METHODS.includes(c.method)) return;
-    const again = next48.find(x=>x.m.items.some(j=>j.name===i.name));
-    if(!again) return;
-    const j = again.m.items.find(z=>z.name===i.name);
-    add({id:`double:${i.name}:${isoOf(again.date)}:${again.k}`, kind:"double", food:i.name, target:{dayIdx:again.dayIdx, k:again.k},
-         text:say("also.double", {verb:say("also.verb." + c.method), meal:label(again), when:whenWord(again.start, nowD), amount:j.qty || ""}).replace(" (another )", "")});
-  });
-  // 3. the same appliance: the oven or steamer is on, and another meal within 24 hours needs it
-  const next24 = ahead(24);
-  ["roast","steam"].forEach(method=>{
-    if(!m.items.some(i=>cookOf(i.name).method===method)) return;
-    next24.forEach(x=>x.m.items.forEach(j=>{
-      if(cookOf(j.name).method!==method || m.items.some(i=>i.name===j.name)) return;
-      add({id:`${method}:${j.name}:${isoOf(x.date)}:${x.k}`, kind:method==="roast" ? "oven" : "steamer", food:j.name, target:{dayIdx:x.dayIdx, k:x.k},
-           text:say(method==="roast" ? "also.oven" : "also.steamer", {food:lower1(baseName(j)), meal:label(x), when:whenWord(x.start, nowD)})});
-    }));
-  });
-  // 4. batch and freeze: a freezable food used two or more times this week
-  m.items.forEach(i=>{
-    if(!metaOf(i.name).freezes) return;
-    const uses = plan.days.reduce((n, d)=>n + d.meals.reduce((k, x)=>k + x.items.filter(j=>j.name===i.name).length, 0), 0);
-    if(uses >= 2) add({id:`freeze:${i.name}:${isoOf(nowD)}`, kind:"freeze", food:i.name, target:null, note:storageNote(),
-                       text:say("also.freeze", {food:lower1(baseName(i))})});
-  });
+  // 2. cook ahead: the session (deriveCookAhead, passed in as seen.sessions) whose first meal is this one
+  (S.sessions || []).filter(s=>!s.done && s.first.iso===isoOf(ref.date) && s.first.m.id===m.id).forEach(s=>
+    add({id:s.id, kind:"cook", food:s.items[0].name, target:null, session:s, text:sessionDetail(s, nowD)}));
   // 5. family meals: from 12 months, at lunch and dinner, a few times
   if(months >= 12 && ["lunch","dinner"].includes(m.slot) && (S.salt || 0) < SALT_MAX_SHOWINGS)
     add({id:`salt:${isoOf(nowD)}`, kind:"salt", food:m.items[0] ? m.items[0].name : "", target:null, text:say("also.salt", {name})});
@@ -321,7 +295,7 @@ function suggestAlso(meal, plan, nowD, profile, pantry, seen){
 function prepDone(){ const iso = todayISO(); return state.prepped && state.prepped.date===iso ? state.prepped.done || [] : []; }
 function alsoFor(ref, max){
   const iso = todayISO();
-  const items = suggestAlso(ref, ref.plan || state.plan, now(), state.profile, {}, {done:prepDone(), salt:(state.shown && state.shown.salt) || 0, isOffered:mealOffered, max});
+  const items = suggestAlso(ref, ref.plan || state.plan, now(), state.profile, {}, {done:prepDone(), salt:(state.shown && state.shown.salt) || 0, isOffered:mealOffered, max, sessions:cookAhead()});
   items.forEach(s=>{ if(s.kind==="salt" && state.shown.saltDay!==iso){ state.shown = Object.assign({}, state.shown, {salt:(state.shown.salt || 0) + 1, saltDay:iso}); save(); } });
   return items;
 }
@@ -743,7 +717,7 @@ const FOOD_LINES_MAX = 4;
 function renderNowMeal(ref, today){
   const box = $("nowMeal"), zone = $("offerZone"), foot = $("footLine");
   const sig = !ref ? "none" : [ref.key, ref.status, ref.time, ref.m.items.map(i=>i.id).join(","), mealOffered(ref.m, ref.date), mealOutcome(ref.m, ref.date),
-               undoUntil[ref.key] > Date.now(), outcomeUntil[ref.key] > Date.now(), homeUI.allFoods, homeUI.howOpen, prepDone().length, offersVersion].join("|");
+               undoUntil[ref.key] > Date.now(), outcomeUntil[ref.key] > Date.now(), homeUI.allFoods, homeUI.howOpen, prepDone().length, state.cookAhead.done.length, offersVersion].join("|");
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -760,7 +734,7 @@ function renderNowMeal(ref, today){
   box.setAttribute("aria-label", say(tomorrow ? "home.mealTitleTomorrow" : "home.mealTitle", {meal:m.label, time:fmtTime(ref.start)}));
   const ul = el("ul", "meal-foods");
   const shown = homeUI.allFoods || m.items.length <= FOOD_LINES_MAX ? m.items : m.items.slice(0, FOOD_LINES_MAX - 1);
-  shown.forEach(i=>{ const li = el("li", "", foodLine(i)); li.dataset.item = i.id; ul.appendChild(li); });
+  shown.forEach(i=>{ const li = el("li", "", isPrepped(i, isoOf(ref.date), m.id) ? say("kitchen.prepped", {food:baseName(i)}) : foodLine(i)); li.dataset.item = i.id; ul.appendChild(li); });
   if(shown.length < m.items.length){
     const li = el("li");
     const more = textBtn(say("home.andMore", {n:m.items.length - shown.length}), ()=>{ homeUI.allFoods = true; layoutSig = ""; renderHome(); focusLater("meal:more"); }, "inline more-btn");
@@ -784,7 +758,12 @@ function renderNowMeal(ref, today){
     });
   }
   const also = !mealOffered(m, ref.date) ? alsoFor(ref, 1)[0] : null;
-  if(also){ const p = el("p", "meal-also"); p.innerHTML = `<b>${esc(say("home.also"))}:</b> ${esc(also.text)}`; box.appendChild(p); }
+  if(also){
+    const p = el("p", "meal-also"); p.innerHTML = `<b>${esc(say("home.also"))}:</b> ${esc(also.text)}`;
+    // cooking ahead is the Kitchen's Prep too: done here is done there (and the later meals say "prepped")
+    if(also.kind==="cook"){ const b = textBtn(say("also.done"), ()=>{ markCooked(also.session); save(); haptic(); changed(); }, "inline"); b.dataset.f = "also:done"; p.append(" "); p.appendChild(b); }
+    box.appendChild(p);
+  }
   renderOfferZone(ref, zone);
   // the footer line: the meal after this one
   const after = homeAfter(ref, today);
@@ -798,7 +777,7 @@ function renderNowMeal(ref, today){
 function oneLine(ul, m){
   [...ul.querySelectorAll("li[data-item]")].forEach(li=>{
     const i = m.items.find(x=>x.id===li.dataset.item);
-    if(!i || li.scrollWidth <= li.clientWidth + 1) return;
+    if(!i || li.scrollWidth <= li.clientWidth + 1 || li.textContent===say("kitchen.prepped", {food:baseName(i)})) return;
     li.textContent = [baseName(i), i.qty].filter(Boolean).join(" · ");
     if(li.scrollWidth > li.clientWidth + 1) li.textContent = baseName(i);
     li.title = foodLine(i);
@@ -1032,7 +1011,7 @@ function renderShuffle(){
   m.items.forEach((item, k)=>{
     const li = el("li", "sh-food");
     const t = el("span", "sh-food-t");
-    t.appendChild(el("span", "", foodLine(item)));
+    t.appendChild(el("span", "", isPrepped(item, isoOf(x.date), m.id) ? say("kitchen.prepped", {food:baseName(item)}) : foodLine(item)));
     const alert = stockAlert(item);
     if(alert){ if(alert===say("shuffle.notHome")) missing = true; t.appendChild(el("span", "sh-alert", alert)); }
     li.appendChild(t);

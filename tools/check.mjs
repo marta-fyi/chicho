@@ -26,6 +26,12 @@ for (const f of SOURCES) {
   });
 }
 
+// 2b'. the old generic cook-ahead lines are gone for good, and the storage numbers come only from KITCHEN (kitchen.js)
+for (const f of SOURCES) readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
+  if (/\b(Make|Cook) double\b/i.test(line)) fails.push(`voice ${f}:${i + 1}  the old "Make double"/"Cook double" line: ${line.trim().slice(0, 90)}`);
+  if (/Fridge \d|freezer \d+ (day|month)/i.test(line)) fails.push(`voice ${f}:${i + 1}  a storage number written into the copy (use KITCHEN): ${line.trim().slice(0, 90)}`);
+});
+
 // 2a. the voice is dry and warm: no exclamation marks in any of the copy (every string literal in content.js)
 readFileSync(join(root, "content.js"), "utf8").split("\n").forEach((line, i) => {
   for (const m of line.matchAll(/"((?:[^"\\]|\\.)*)"/g)) if (m[1].includes("!")) fails.push(`voice content.js:${i + 1}  an exclamation mark: "${m[1].slice(0, 80)}"`);

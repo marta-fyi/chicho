@@ -79,7 +79,7 @@ function shopUnits(grams, meta){
 /* "35 g" → 35 (a food with no amount counts as none) */
 function gramsOf(item){ const m = String(item && item.qty || "").match(/(\d+(?:\.\d+)?)\s*g\b/); return m ? +m[1] : 0; }
 
-/* the storage line, from the numbers above: "Fridge 2 days · freezer 1 month · reheat once, …" */
+/* the storage line, built from the numbers above (the words are kitchen.storage) */
 function spanText(days){ return days % 30===0 ? say("kitchen.span.months", {n:days / 30}) : say("kitchen.span.days", {n:days}); }
 function storageNote(){ return say("kitchen.storage", {fridge:spanText(KITCHEN.FRIDGE_DAYS), freezer:spanText(KITCHEN.FREEZER_DAYS)}); }
 
@@ -154,6 +154,88 @@ function whenLabel(first, slot, now){
 }
 /* "1 pack · tomorrow" (an item added by hand, needed by no meal, is just its unit) */
 function buyMeta(r, now){ const w = whenLabel(r.first, r.firstSlot, now); return w ? say("kitchen.rowMeta", {unit:r.unit.text, when:w}) : r.unit.text; }
+
+/* ---------- Cook ahead: deriveCookAhead(plan, pantry, now, opts) (pure) ----------
+   A cookable food (method isn't raw) used in two or more meals, the later ones within the food's fridge days of
+   the first: cook the extra with the first. Items group into sessions by (method, first-use meal); each item's
+   extra is the grams of its later uses. Only meals still ahead (and not offered) count, so a session whose
+   first meal has passed never shows. One source: Kitchen's Prep and Home's "While you're at it" both read it.
+   opts: {timeOf, isOffered(m, date), done:[session ids], prepped:Set("foodId|iso|mealId") already covered}
+   Sessions: {id, method, first:{m, date, iso, start}, items:[{foodId, name, extra, covers}], covers, done} */
+function deriveCookAhead(plan, pantry, now, opts){
+  const o = opts || {}, isOffered = o.isOffered || (()=>false), done = new Set(o.done || []), prepped = o.prepped || new Set();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const meals = planMealsIn(plan, today, 8, o).filter(x=>stillAhead(x, now) && !isOffered(x.m, x.date));
+  const uses = {};
+  meals.forEach(x=>x.m.items.forEach(i=>{
+    const id = foodKey(baseName(i));
+    if(kitchenMeta(id).method==="raw" || prepped.has(id + "|" + x.iso + "|" + x.m.id)) return;
+    const list = uses[id] || (uses[id] = []);
+    if(!list.some(u=>u.x===x)) list.push({x, i, grams:gramsOf(i)});
+  }));
+  const sessions = {};
+  Object.keys(uses).forEach(id=>{
+    const list = uses[id], meta = kitchenMeta(id), win = meta.fridgeDays * 86400000;
+    for(let k = 0; k < list.length;){
+      const first = list[k];
+      let j = k + 1;
+      while(j < list.length && list[j].x.start - first.x.start <= win) j++;
+      const later = list.slice(k + 1, j);
+      if(later.length){
+        const key = meta.method + ":" + first.x.iso + ":" + first.x.m.id;
+        const s = sessions[key] || (sessions[key] = {id:key, method:meta.method, first:first.x, items:[]});
+        s.items.push({foodId:id, name:baseName(first.i), extra:later.reduce((n, u)=>n + u.grams, 0),
+                      covers:later.map(u=>({iso:u.x.iso, mealId:u.x.m.id, start:u.x.start, slot:u.x.m.slot, label:u.x.m.label}))});
+        k = j;
+      }else k++;
+    }
+  });
+  return Object.values(sessions).map(s=>{
+    const seen = {};
+    s.items.forEach(it=>it.covers.forEach(c=>{ seen[c.iso + "|" + c.mealId] = c; }));
+    s.covers = Object.values(seen).sort((a, b)=>a.start - b.start);
+    s.items.sort((a, b)=>a.name.localeCompare(b.name));
+    s.done = done.has(s.id);
+    return s;
+  }).sort((a, b)=>a.first.start - b.first.start || a.method.localeCompare(b.method));
+}
+/* "tonight's dinner", "today's lunch", "tomorrow's lunch", "Sunday's lunch" */
+function mealPhrase(date, slot, label, now){
+  const days = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  const meal = String(label || slot).toLowerCase();
+  return days===0 ? say(slot==="dinner" ? "kitchen.meal.tonight" : "kitchen.meal.today", {meal}) : days===1 ? say("kitchen.meal.tomorrow", {meal}) : say("kitchen.meal.day", {meal, weekday:fmtWeekdayK(date)});
+}
+/* "Roast with tonight's dinner" */
+function sessionTitle(s, now){ return say("kitchen.session", {method:say("kitchen.method." + s.method), meal:mealPhrase(s.first.date, s.first.m.slot, s.first.m.label, now)}); }
+/* "Pumpkin +60 g · Rice +50 g. Covers tomorrow's dinner and Sunday's lunch." */
+function sessionDetail(s, now){
+  const items = s.items.map(it=>say("kitchen.extra", {food:it.name, g:it.extra})).join(" · ");
+  return say("kitchen.sessionDetail", {items, meals:listJoin(s.covers.map(c=>mealPhrase(localDate(c.iso), c.slot, c.label, now)))});
+}
+
+/* ---------- Freeze some: at most one suggestion (pure) ----------
+   A cookable, freezable food used twice or more this plan week where the second use is beyond its fridge days
+   (so cooking ahead can't cover it), and not already in the freezer. The earliest such food wins. */
+function deriveFreezeSuggestion(plan, freezer, now, opts){
+  const o = opts || {}, isOffered = o.isOffered || (()=>false);
+  const recs = (Array.isArray(plan) ? plan : [plan]).filter(Boolean), cur = planRecOn({plans:recs}, now);
+  if(!cur) return null;
+  const start = localDate(cur.startsOn), end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.max(0, Math.round((end - today) / 86400000));
+  const frozen = new Set((freezer || []).filter(f=>f.portions > 0).map(f=>f.foodId));
+  const uses = {};
+  planMealsIn(recs, today, days, o).filter(x=>x.planWeekId===cur.startsOn && stillAhead(x, now) && !isOffered(x.m, x.date)).forEach(x=>x.m.items.forEach(i=>{
+    const id = foodKey(baseName(i)), meta = kitchenMeta(id);
+    if(meta.method==="raw" || !meta.freezable || frozen.has(id)) return;
+    const list = uses[id] || (uses[id] = []);
+    if(!list.some(u=>u.x===x)) list.push({x, i});
+  }));
+  const hits = Object.keys(uses).filter(id=>{ const u = uses[id]; return u.length >= 2 && u[1].x.start - u[0].x.start > kitchenMeta(id).fridgeDays * 86400000; })
+    .map(id=>({foodId:id, name:baseName(uses[id][0].i), first:uses[id][0].x, second:uses[id][1].x}))
+    .sort((a, b)=>a.first.start - b.first.start || a.name.localeCompare(b.name));
+  return hits[0] || null;
+}
 
 /* ====================================================================
    THE SCREEN: a pinned header (Home, In the store, the title, the view
@@ -542,9 +624,69 @@ function addSentence(wrap){
   return b.input;
 }
 
+
+/* ---------- the app's side of cook-ahead: one source, one done-state ----------
+   A session ticked done (in Prep, or on Home) is kept as a record with its covered meals: those meals then show
+   "{food} · prepped", and their uses no longer make new sessions. The record carries what it needs to be drawn
+   until its first meal has passed (so it can be unticked). */
+function preppedKeys(){ const s = new Set(); state.cookAhead.done.forEach(r=>r.covers.forEach(c=>s.add(c.foodId + "|" + c.iso + "|" + c.mealId))); return s; }
+function cookAhead(){
+  return deriveCookAhead(state.plans, state.pantry, now(), {timeOf:mealTime, isOffered:(m, d)=>mealOffered(m, d), done:state.cookAhead.done.map(r=>r.id), prepped:preppedKeys()});
+}
+function isPrepped(item, iso, mealId){ return preppedKeys().has(foodIdOf(item) + "|" + iso + "|" + mealId); }
+function markCooked(s){
+  if(state.cookAhead.done.some(r=>r.id===s.id)) return;
+  const iso = d=>new Date(d).toISOString();
+  state.cookAhead.done.push({id:s.id, at:now().toISOString(),
+    covers:s.items.flatMap(it=>it.covers.map(c=>({foodId:it.foodId, iso:c.iso, mealId:c.mealId}))),
+    session:{method:s.method, first:{iso:s.first.iso, mealId:s.first.m.id, slot:s.first.m.slot, label:s.first.m.label, start:iso(s.first.start)},
+             items:s.items.map(it=>({foodId:it.foodId, name:it.name, extra:it.extra})),
+             covers:s.covers.map(c=>({iso:c.iso, mealId:c.mealId, slot:c.slot, label:c.label, start:iso(c.start)}))}});
+}
+function unmarkCooked(id){ state.cookAhead.done = state.cookAhead.done.filter(r=>r.id!==id); }
+/* a done record, drawn like a live session */
+function recordSession(r){
+  const S = r.session, f = S.first;
+  return {id:r.id, method:S.method, done:true, items:S.items,
+          first:{iso:f.iso, date:localDate(f.iso), start:new Date(f.start), m:{id:f.mealId, slot:f.slot, label:f.label}},
+          covers:S.covers.map(c=>Object.assign({}, c, {start:new Date(c.start)}))};
+}
+/* Prep's list: what's still to cook ahead, and what's been ticked whose first meal hasn't passed */
+function prepSessions(){
+  const t = now();
+  state.cookAhead.done = state.cookAhead.done.filter(r=>!r.session || (t - new Date(r.session.first.start)) < 14 * 86400000);
+  const done = state.cookAhead.done.filter(r=>r.session && stillAhead({start:new Date(r.session.first.start)}, t)).map(recordSession);
+  return cookAhead().filter(s=>!s.done).concat(done).sort((a, b)=>a.first.start - b.first.start || a.method.localeCompare(b.method));
+}
+
 /* ---------- Prep ---------- */
+function prepRow(title, detail, right, f){
+  const r = el("div", "k-prep");
+  if(f) r.dataset.f = f;
+  const t = el("div", "k-prep-t");
+  t.append(el("span", "k-prep-title", title), el("span", "k-prep-detail", detail));
+  r.append(t, right);
+  return r;
+}
 function renderPrep(col){
+  const t = now();
+  const cook = section(col, "cook", "");
+  cook.appendChild(el("h2", "k-label", say("kitchen.cookAhead")));
+  const all = prepSessions(), shown = kitchenUI.morePrep ? all : all.slice(0, KITCHEN.MAX_PREP_SESSIONS);
+  if(!all.length) cook.appendChild(el("p", "k-quiet", say("kitchen.nothingToCook")));
+  shown.forEach(s=>{
+    const ringB = kRing(s.done, ()=>{ if(s.done) unmarkCooked(s.id); else markCooked(s); save(); haptic(); changed(); }, "cook:" + s.id);
+    const r = prepRow(sessionTitle(s, t), sessionDetail(s, t), ringB);
+    r.dataset.session = s.id;
+    cook.appendChild(r);
+  });
+  if(all.length > shown.length){
+    const more = textBtn(say("kitchen.showMore"), ()=>{ kitchenUI.morePrep = true; refresh("kitchen"); }, "small k-more"); more.dataset.f = "prep:more";
+    cook.appendChild(more);
+  }
+  cook.appendChild(el("p", "k-foot", storageNote()));
   const fz = section(col, "freezer", "");
+  fz.appendChild(el("h2", "k-label", say("kitchen.inFreezer")));
   state.freezer.forEach(f=>{
     const r = el("div", "row");
     r.appendChild(el("p", "row-t", say("kitchen.portions", {food:f.name, n:f.portions, date:fmtDayShort(localDate(f.madeOn))}))).style.margin = "0";
@@ -553,30 +695,7 @@ function renderPrep(col){
     r.appendChild(use);
     fz.appendChild(r);
   });
-  const tasks = prepTasks();
-  tasks.forEach(s=>{
-    const r = el("div", "row");
-    const t = el("p", "row-t"); t.style.margin = "0"; t.textContent = s.text;
-    r.appendChild(t);
-    r.appendChild(ring(false, say("kitchen.prepDone", {task:s.text}), ()=>donePrep(s), "prep:" + s.id));
-    fz.appendChild(r);
-  });
-  if(!state.freezer.length && !tasks.length) fz.appendChild(el("p", "quiet-line", say("kitchen.freezerEmpty")));
-  if(state.freezer.length || tasks.some(s=>s.kind==="freeze" || s.kind==="defrost")) fz.appendChild(el("p", "storage-note", storageNote()));
-}
-/* the prep left open: "While you're at it" for the meals still to come today and tomorrow */
-function prepTasks(){
-  const t = now(), refs = refsOn(t).concat(refsOn(tomorrowOf(t))).filter(x=>x.status==="upcoming" || x.status==="now");
-  const seen = new Set(), out = [];
-  refs.forEach(x=>alsoFor(x, 3).forEach(s=>{ if(s.kind==="salt" || seen.has(s.id)) return; seen.add(s.id); out.push(s); }));
-  return out;
-}
-function donePrep(s){
-  state.prepped = {date:todayISO(), done:prepDone().concat(s.id)};
-  const id = foodKey(baseName({name:s.food}));
-  if(s.kind==="freeze"){ const f = state.freezer.find(z=>z.foodId===id && z.madeOn===todayISO()); if(f) f.portions += 2; else state.freezer.push({foodId:id, name:baseName({name:s.food}), portions:2, madeOn:todayISO()}); }
-  if(s.kind==="defrost"){ const f = state.freezer.find(z=>z.foodId===id); if(f){ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); } }
-  save(); haptic(); changed();
+  if(!state.freezer.length) fz.appendChild(el("p", "k-quiet", say("kitchen.freezerEmpty")));
 }
 
 /* ---------- In the store: the Screen Wake Lock ----------
