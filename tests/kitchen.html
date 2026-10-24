@@ -140,18 +140,70 @@ f.onload = async () => {
     ok("…something that isn't a food adds nothing", E(`stockState("wipes")`) === null);
     E(`refresh("kitchen")`); await wait(20);
 
-    // 4. Freezer and prep
+    // 4. Prep: Cook ahead, then In the freezer
     await view("prep");
-    E(`state.freezer.push({foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-20"}); save(); refresh("kitchen")`); await wait(30);
-    const fz = () => $('[data-sec="freezer"]').textContent;
-    const made = E("fmtDayShort(localDate('2026-10-20'))");
-    ok("the freezer: 'Lentils · 2 portions · made 20 Oct' (in the reader's own date format)", fz().includes("Lentils · 2 portions · made " + made), fz().slice(0, 80));
+    ok("Prep: 'Cook ahead', then 'In the freezer'", $$('.k-view .k-label').map(x => x.textContent).join() === "Cook ahead,In the freezer");
+    const foot = $('[data-sec="cook"] .k-foot');
+    ok("the footnote, built from the constants: 'Fridge 2 days · freezer 1 month · reheat once, piping hot, then let it cool.'", foot && foot.textContent === E("storageNote()") && foot.textContent.startsWith("Fridge 2 days · freezer 1 month"));
+    // a week that cooks ahead a lot: four sessions
+    E(`(() => { const days = state.plan.days; const put = (day, slot, names) => { const m = days.find(d => d.name === day).meals.find(x => x.slot === slot); m.items = names.map(([n, q]) => it(n, q + " g", (FOOD_POOL.find(p => p.name === n) || {cats: ["vegetable"]}).cats.slice())); };
+      put("Thursday", "lunch", [["Pumpkin", 30], ["Carrots, soft-cooked", 30]]); put("Thursday", "dinner", [["Pumpkin", 30], ["Carrots, soft-cooked", 30], ["Lentils", 30], ["Whole wheat pasta", 40]]);
+      put("Friday", "lunch", [["Lentils", 30], ["Whole wheat pasta", 40], ["Beetroot, cooked", 30], ["Peas", 30]]); put("Friday", "dinner", [["Beetroot, cooked", 30], ["Peas", 30], ["Chicken", 30]]);
+      put("Saturday", "lunch", [["Chicken", 30], ["Pumpkin", 30]]); put("Saturday", "dinner", [["Banana", 30]]); state.cookAhead = {done: []}; save(); changed(); })()`); await wait(60);
+    const sessions = () => $$('[data-sec="cook"] .k-prep');
+    const all = E("prepSessions().length");
+    ok("at most three sessions, then 'Show more'", all > 3 && sessions().length === 3 && $('[data-f="prep:more"]').textContent === "Show more", [all, sessions().length]);
+    ok("…sorted by their first meal", E("prepSessions().slice(0, 3).map(s => +new Date(s.first.start))").every((t, i, a) => i === 0 || a[i - 1] <= t));
+    ok("each: '{Method} with {meal}', then the extras and what they cover", /^(Steam|Roast|Boil|Bake|Simmer) with (today's|tonight's|tomorrow's|[A-Z][a-z]+day's) [a-z]+$/.test(sessions()[0].querySelector(".k-prep-title").textContent) && /^[A-Z].* \+\d+ g( · .* \+\d+ g)*\. Covers .+\.$/.test(sessions()[0].querySelector(".k-prep-detail").textContent), sessions()[0].textContent);
+    ok("…never a raw food (no banana)", !/Banana/.test($('[data-sec="cook"]').textContent));
+    ok("the detail is at most two lines (the row three in all)", sessions().every(r => { const det = r.querySelector(".k-prep-detail"), lh = parseFloat(w.getComputedStyle(det).lineHeight); return det.getBoundingClientRect().height <= lh * 2 + 1 && r.getBoundingClientRect().height <= 17 * 1.25 + lh * 2 + 2 + 16 + 2; }), sessions().map(r => r.getBoundingClientRect().height));
+    $('[data-f="prep:more"]').click(); await wait(40);
+    ok("'Show more' shows the rest", sessions().length === all && !$('[data-f="prep:more"]'));
+    const ring1 = () => sessions()[0].querySelector(".ring-btn");
+    ring1().click(); await wait(40);
+    ok("the ring marks a session done (and it stays, filled, until its meal has passed)", ring1().classList.contains("on") && E("state.cookAhead.done.length") === 1);
+    ring1().click(); await wait(40);
+    ok("…a second tap undoes it", !ring1().classList.contains("on") && E("state.cookAhead.done.length") === 0);
+    E(`state.plan.days.forEach(d => d.meals.forEach(m => { m.items = m.items.filter(i => kitchenMeta(foodIdOf(i)).method === "raw"); })); save(); changed()`); await wait(40);
+    ok("nothing to cook ahead: 'Nothing to cook ahead.'", $('[data-sec="cook"] .k-quiet').textContent === "Nothing to cook ahead." && !sessions().length);
+
+    // In the freezer
+    const fz = () => $('[data-sec="freezer"]');
+    ok("an empty freezer: 'Nothing in the freezer yet.'", fz().querySelector(".k-quiet").textContent === "Nothing in the freezer yet.");
+    E(`state.freezer.push({foodId: "lentils", name: "Lentils", portions: 2, madeOn: "2026-10-20"}, {foodId: "pumpkin", name: "Pumpkin", portions: 1, madeOn: "2026-09-30"}); save(); refresh("kitchen")`); await wait(30);
+    const made = d => E(`fmtDayShort(localDate("${d}"))`);
+    const fzRow = id => $(`[data-f="frozen:${id}"]`).closest(".k-row");
+    ok("a frozen food: 'Lentils' / '2 portions · made 20 Oct' (the reader's date format), ROW_H", fzRow("lentils").querySelector(".k-meta").textContent === "2 portions · made " + made("2026-10-20") && fzRow("lentils").getBoundingClientRect().height === 56, fzRow("lentils").textContent);
+    ok("…from 21 days old it says 'use soon' (in words, never red)", fzRow("pumpkin").querySelector(".k-meta").textContent === "1 portion · made " + made("2026-09-30") + " · use soon" && !fzRow("lentils").textContent.includes("use soon"));
     $('[data-f="useone:lentils"]').click(); await wait(30);
-    ok("'Use one': 1 portion left", fz().includes("Lentils · 1 portion · made " + made));
+    ok("'Used one': 1 portion left", fzRow("lentils").querySelector(".k-meta").textContent.startsWith("1 portion ·"));
     $('[data-f="useone:lentils"]').click(); await wait(30);
-    ok("…and at none, it's gone", !/Lentils ·/.test(fz()));
-    const prep = $$('[data-sec="freezer"] .ring-btn');
-    ok("open prep tasks each have a done ring", prep.every(r => r.getAttribute("aria-pressed") === "false"), prep.length);
+    const u2 = () => d.querySelector("#scr-kitchen .k-undo");
+    ok("…the last one: the row goes, with 'Used the last lentils · Undo'", !$('[data-f="frozen:lentils"]') && u2() && u2().textContent === "Used the last lentils · Undo", u2() && u2().textContent);
+    u2().querySelector("button").click(); await wait(40);
+    ok("…Undo brings the last portion back", E(`state.freezer.find(f => f.foodId === "lentils").portions`) === 1 && !!$('[data-f="frozen:lentils"]'));
+    $('[data-f="frozen:lentils"]').click(); await wait(30);
+    $('[data-f="fzremove:lentils"]').click(); await wait(30);
+    ok("a tap on the row shows 'Remove', which takes it out", !E(`state.freezer.some(f => f.foodId === "lentils")`));
+    // Add a frozen portion
+    $('[data-f="frozen:add"]').click();
+    const fin = $('[data-f="frozen:food"]'), num = $('[data-f="frozen:portions"]');
+    ok("'Add a frozen portion' turns into 'Frozen: ____.' with a portions field, focused in the same tap", fin && fin.closest(".k-sentence").textContent.startsWith("Frozen:") && d.activeElement === fin && num.value === "2" && num.inputMode === "numeric" && parseFloat(w.getComputedStyle(num).fontSize) >= 16 && parseFloat(w.getComputedStyle(fin).fontSize) >= 16);
+    num.value = "3"; num.dispatchEvent(new w.Event("input", {bubbles: true}));
+    fin.value = "chick"; fin.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(20);
+    $('[data-f="fsug:Chickpeas"]').click(); await wait(40);
+    ok("…a suggestion adds it: 3 portions made today", E(`JSON.stringify(state.freezer.find(f => f.foodId === "chickpeas"))`) === JSON.stringify({foodId: "chickpeas", name: "Chickpeas", portions: 3, madeOn: "2026-10-22"}));
+    // the one freeze suggestion
+    E(`state.freezer = []; (() => { const days = state.plan.days; days.find(d => d.name === "Thursday").meals.find(x => x.slot === "dinner").items = [it("Chicken", "30 g", ["protein"])]; days.find(d => d.name === "Sunday").meals.find(x => x.slot === "lunch").items = [it("Chicken", "30 g", ["protein"])];
+      days.find(d => d.name === "Friday").meals.find(x => x.slot === "dinner").items = [it("Lentils", "30 g", ["protein"])]; days.find(d => d.name === "Monday").meals.find(x => x.slot === "lunch").items = [it("Lentils", "30 g", ["protein"])]; })(); save(); refresh("kitchen")`); await wait(40);
+    const sugRow = () => $('[data-f="freezesug"]');
+    ok("one suggestion above the freezer: 'Freeze some chicken' / 'It's in lunch on Sunday, beyond the fridge window.'", sugRow() && $$('[data-f="freezesug"]').length === 1 && sugRow().querySelector(".k-prep-title").textContent === "Freeze some chicken" && /^It's in lunch on [A-Z][a-z]+day, beyond the fridge window\.$/.test(sugRow().querySelector(".k-prep-detail").textContent), sugRow() && sugRow().textContent);
+    sugRow().querySelector(".ring-btn").click(); await wait(260);
+    ok("its ring freezes 2 portions today, with an Undo line", E(`JSON.stringify(state.freezer.map(f => [f.foodId, f.portions, f.madeOn]))`) === JSON.stringify([["chicken", 2, "2026-10-22"]]) && /Undo$/.test(u2().textContent));
+    ok("…and once it's frozen it isn't suggested again (the next food is)", !sugRow() || sugRow().querySelector(".k-prep-title").textContent !== "Freeze some chicken");
+    u2().querySelector("button").click(); await wait(40);
+    ok("…Undo takes the portions back out", !E("state.freezer.length") && !!sugRow());
+    E(`state.freezer = []; save(); refresh("kitchen")`);
 
     // 5. Send the list
     await view("buy");

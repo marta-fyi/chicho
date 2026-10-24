@@ -659,7 +659,7 @@ function prepSessions(){
   return cookAhead().filter(s=>!s.done).concat(done).sort((a, b)=>a.first.start - b.first.start || a.method.localeCompare(b.method));
 }
 
-/* ---------- Prep ---------- */
+/* ---------- Prep: Cook ahead, then In the freezer ---------- */
 function prepRow(title, detail, right, f){
   const r = el("div", "k-prep");
   if(f) r.dataset.f = f;
@@ -668,8 +668,9 @@ function prepRow(title, detail, right, f){
   r.append(t, right);
   return r;
 }
-function renderPrep(col){
+function renderPrep(col, list, e){
   const t = now();
+  // Cook ahead
   const cook = section(col, "cook", "");
   cook.appendChild(el("h2", "k-label", say("kitchen.cookAhead")));
   const all = prepSessions(), shown = kitchenUI.morePrep ? all : all.slice(0, KITCHEN.MAX_PREP_SESSIONS);
@@ -685,17 +686,87 @@ function renderPrep(col){
     cook.appendChild(more);
   }
   cook.appendChild(el("p", "k-foot", storageNote()));
+  // In the freezer
   const fz = section(col, "freezer", "");
   fz.appendChild(el("h2", "k-label", say("kitchen.inFreezer")));
+  const sug = deriveFreezeSuggestion(state.plans, state.freezer, t, {timeOf:mealTime, isOffered:(m, d)=>mealOffered(m, d)});
+  if(sug){
+    const ringB = kRing(false, ()=>{
+      ringB.classList.add("on");
+      const entry = {foodId:sug.foodId, name:sug.name, portions:KITCHEN.DEFAULT_PORTIONS, madeOn:todayISO()};
+      setTimeout(()=>{
+        state.freezer.push(entry);
+        setKitchenUndo(say("kitchen.frozeUndo", {food:sug.name}), ()=>{ state.freezer = state.freezer.filter(z=>z!==entry); });
+        save(); haptic(); changed();
+      }, 180);
+    }, "freeze:" + sug.foodId);
+    fz.appendChild(prepRow(say("kitchen.freezeSome", {food:lower1(sug.name)}),
+      say("kitchen.freezeWhy", {meal:String(sug.second.m.label).toLowerCase(), weekday:fmtWeekdayK(sug.second.date)}), ringB, "freezesug"));
+  }
   state.freezer.forEach(f=>{
-    const r = el("div", "row");
-    r.appendChild(el("p", "row-t", say("kitchen.portions", {food:f.name, n:f.portions, date:fmtDayShort(localDate(f.madeOn))}))).style.margin = "0";
-    const use = textBtn(say("kitchen.useOne"), ()=>{ f.portions--; if(f.portions <= 0) state.freezer = state.freezer.filter(z=>z!==f); save(); haptic(); refresh("kitchen"); }, "small");
-    use.dataset.f = "useone:" + f.foodId;
-    r.appendChild(use);
+    const key = f.foodId + "|" + f.madeOn, age = Math.round((localDate(todayISO()) - localDate(f.madeOn)) / 86400000);
+    const meta = say("kitchen.portionsMeta", {n:f.portions, date:fmtDayShort(localDate(f.madeOn))}) + (age >= KITCHEN.FREEZER_SOON_DAYS ? " · " + say("kitchen.useSoon") : "");
+    const use = textBtn(say("kitchen.usedOne"), ev=>{
+      ev.stopPropagation();
+      f.portions--;
+      if(f.portions <= 0){
+        const at = state.freezer.indexOf(f);
+        state.freezer = state.freezer.filter(z=>z!==f);
+        setKitchenUndo(say("kitchen.usedLast", {food:lower1(f.name)}), ()=>{ f.portions = 1; state.freezer.splice(Math.min(at, state.freezer.length), 0, f); });
+      }
+      save(); haptic(); changed();
+    }, "small k-act"); use.dataset.f = "useone:" + f.foodId;
+    const r = kRow(f.name, meta, use, ()=>{ kitchenUI.fzOpen = kitchenUI.fzOpen===key ? null : key; refresh("kitchen"); }, "frozen:" + f.foodId);
     fz.appendChild(r);
+    if(kitchenUI.fzOpen===key){
+      const acts = el("div", "k-acts");
+      const rm = textBtn(say("kitchen.remove"), ()=>{ state.freezer = state.freezer.filter(z=>z!==f); kitchenUI.fzOpen = null; save(); haptic(); changed(); }, "small"); rm.dataset.f = "fzremove:" + f.foodId;
+      acts.appendChild(rm); fz.appendChild(acts);
+    }
   });
   if(!state.freezer.length) fz.appendChild(el("p", "k-quiet", say("kitchen.freezerEmpty")));
+  fz.appendChild(addFrozen());
+}
+/* "Add a frozen portion": the sentence "Frozen: ____." with food suggestions, and how many portions (16px, numeric,
+   2 to start). Built and focused inside the tap. */
+function addFrozen(){
+  const wrap = el("div", "add-line k-add");
+  const link = textBtn(say("kitchen.addFrozen"), ()=>{ link.remove(); frozenSentence(wrap).focus(); }, "small"); link.dataset.f = "frozen:add";
+  wrap.appendChild(link);
+  return wrap;
+}
+function frozenSentence(wrap){
+  const list = el("div", "suggest-list");
+  const n = document.createElement("input");
+  n.type = "text"; n.inputMode = "numeric"; n.className = "k-num"; n.value = String(KITCHEN.DEFAULT_PORTIONS); n.maxLength = 2; n.dataset.f = "frozen:portions";
+  n.addEventListener("input", ()=>{ n.value = n.value.replace(/\D/g, ""); });
+  const matches = q=>{ const t = String(q || "").trim().toLowerCase(); return t.length < 2 ? [] : FOOD_POOL.filter(f=>f.name.toLowerCase().split(/[ ,]+/).some(w=>w.startsWith(t))).slice(0, 4); };
+  const put = f=>{
+    const id = foodKey(baseName(f)), portions = Math.max(1, Math.min(99, parseInt(n.value, 10) || KITCHEN.DEFAULT_PORTIONS)), iso = todayISO();
+    const same = state.freezer.find(z=>z.foodId===id && z.madeOn===iso);
+    if(same) same.portions += portions; else state.freezer.push({foodId:id, name:baseName(f), portions, madeOn:iso});
+    save(); haptic(); changed();
+  };
+  const fill = q=>{
+    list.innerHTML = "";
+    matches(q).forEach(f=>{
+      const sb = document.createElement("button");
+      sb.type = "button"; sb.className = "alt"; sb.dataset.f = "fsug:" + f.name; sb.textContent = baseName(f);
+      sb.addEventListener("click", ()=>put(f));
+      list.appendChild(sb);
+    });
+  };
+  const b = blank({min:8, maxLength:30, onInput:fill, onEnter:()=>{ const f = matches(b.input.value)[0]; if(f) put(f); }});
+  b.input.dataset.f = "frozen:food";
+  n.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); const f = matches(b.input.value)[0]; if(f) put(f); } });
+  const [before, after] = say("kitchen.frozenSentence").split("{blank}");
+  const l = document.createElement("label"); l.htmlFor = b.input.id; l.textContent = before.trim();
+  const s = el("p", "k-sentence"); s.append(l, " ", b.el, after || "");
+  const p = el("p", "k-portions"), pl = document.createElement("label");
+  n.id = "fz" + uid(); pl.htmlFor = n.id; pl.textContent = say("kitchen.portionsLabel");
+  p.append(pl, n);
+  wrap.append(s, p, list);
+  return b.input;
 }
 
 /* ---------- In the store: the Screen Wake Lock ----------

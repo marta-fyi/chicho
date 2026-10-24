@@ -142,8 +142,6 @@ const CONTENT = {
     state:{plenty:"Plenty", low:"Low", out:"Out"}, stockLabel:"{food}: {state}. Tap for {next}.",
     add:"Add something", addSentence:"Add to the kitchen: {blank}.", addToList:"Add to list", onList:"On the list", remove:"Remove",
     groupLow:"{n} · {m} low", added:"{food}: at home",
-    portions:{one:"{food} · {n} portion · made {date}", other:"{food} · {n} portions · made {date}"},
-    useOne:"Use one",
     /* Prep */
     cookAhead:"Cook ahead", inFreezer:"In the freezer", showMore:"Show more", nothingToCook:"Nothing to cook ahead.",
     freezerEmpty:"Nothing in the freezer yet.",

@@ -45,6 +45,12 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - **Done is a record** in `state.cookAhead.done`: the session's id, the meals it covers, and enough to draw it until its first meal has passed (so it can be unticked). Covered meals show "{food} · prepped" on Home and Shuffle, and their uses no longer make new sessions. Records go after 14 days.
 - `tools/check.mjs` now fails any "Make double"/"Cook double" and any storage number written into the copy.
 
+**Prep**
+
+- A ticked session stays in Cook ahead with a filled ring until its first meal has passed, so it can be unticked. "Show more" opens the rest of the list for the session.
+- **Freeze some {food}** freezes `DEFAULT_PORTIONS` dated today when ticked, with "{Food} · in the freezer · Undo" (the brief asks for "the Undo line" here without giving its words). Its detail names the second use, the one beyond the fridge window.
+- **The freezer's rows** are fixed-height like the others, so a long "use soon" meta ellipsizes beside "Used one" rather than wrapping. "Add a frozen portion" adds to a batch made the same day instead of making a second row.
+
 **Data**
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).
