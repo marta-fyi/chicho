@@ -1948,7 +1948,7 @@ function generateWeek(months, profile, opts){
   let foods = eligibleFoods(months, profile);
   if(st.picky) foods = withStaples(foods);
   const deal = makeDealer(foods, ctx);
-  const slots = MEAL_SLOTS.filter(ms=>slotsFor(months).includes(ms.id));
+  const slots = MEAL_SLOTS.filter(ms=>mealSlotsFor(months, profile).includes(ms.id));   // the family's meals (their snacks)
 
   const days = DAY_ORDER.slice(1).concat(DAY_ORDER[0]).map(name=>{   // Monday..Sunday
     const day = {taken:new Set(), colours:new Set(), newCount:0};

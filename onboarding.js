@@ -1195,7 +1195,7 @@ const DAY_SHORT = new Intl.DateTimeFormat(undefined, {weekday:"short"});
 /* the week starts today if any of today's meals is still to come (or happening now), else tomorrow */
 function weekStartsToday(){
   const t = now(), months = planMonths();
-  return slotsFor(months).some(slot=>t - atTime(t, mealTime(slot, t)) < NOW_WINDOW_MIN * 60000);
+  return mealSlotsFor(months, state.profile).some(slot=>t - atTime(t, mealTime(slot, t)) < NOW_WINDOW_MIN * 60000);
 }
 /* the draft's days from a start date: [{date, day}] (the plan's days are named by weekday) */
 function draftDays(week, start){
