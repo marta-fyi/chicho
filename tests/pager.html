@@ -188,7 +188,7 @@ const load = (hash, months) => new Promise(res => {
     const field = d.querySelector('[data-f="kitchen:adding"]');
     field.focus(); key("ArrowDown", field); key("ArrowUp", field); await settle();
     ok("not while typing in a field", cur() === "kitchen" && d.activeElement === field);
-    E("kitchenUI.adding = false; refresh('kitchen')");
+    E("refresh('kitchen')");
     await go("home");
     E("go('shuffle')"); await settle();
     ok("arriving, the screen's heading takes the focus", d.activeElement === d.getElementById("t-shuffle"), d.activeElement && d.activeElement.id);

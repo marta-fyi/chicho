@@ -246,8 +246,8 @@ function deriveFreezeSuggestion(plan, freezer, now, opts){
    ==================================================================== */
 const KITCHEN_VIEWS = ["buy","home","prep"];
 const KITCHEN_GROUPS = FOOD_GROUP_ORDER.concat("other");
-const kitchenUI = {view:savedView(), scroll:{buy:0, home:0, prep:0}, open:{}, adding:false, store:false, wakeOurs:false,
-                   expanded:null, showGot:false, undo:null};
+const kitchenUI = {view:savedView(), scroll:{buy:0, home:0, prep:0}, open:{}, store:false, wakeOurs:false,
+                   expanded:null, showGot:false, undo:null, morePrep:false, fzOpen:null};
 function savedView(){ try{ const v = sessionStorage.getItem("chicho.kitchenView"); return KITCHEN_VIEWS.includes(v) ? v : "buy"; }catch(e){ return "buy"; } }
 function keepView(v){ try{ sessionStorage.setItem("chicho.kitchenView", v); }catch(e){} }
 function groupName(c){ return c==="other" ? say("kitchen.other") : say("home.groups." + c); }

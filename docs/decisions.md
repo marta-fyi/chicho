@@ -15,6 +15,10 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## The name, always big (24 Oct 2026)
+
+Marta: the name is always big. Home's corner now draws the ink at Profile's 56px (it was 34px), and a typed name is 32px (it was 20px), the Kitchen title's size. The corner grows by about 22px. The fold budget, the header-inside-the-screen check and the 44px targets still pass on every device.
+
 ## Kitchen redesign (23 Oct 2026, supersedes every earlier Kitchen rule)
 
 Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a text switch. The four old sections (To buy, Running low, At home, Freezer and prep) are gone, and so is every Kitchen detail in the swipe-navigation section below. The code lives in `kitchen.js`; its numbers are one frozen object, `KITCHEN`.
