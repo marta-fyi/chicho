@@ -20,6 +20,30 @@ Where the brief's rules met each other, the principles won. Every number marked 
 
 Marta: the name is always big. Home's corner now draws the ink at Profile's 56px (it was 34px), and a typed name is 32px (it was 20px), the Kitchen title's size. The corner grows by about 22px. The fold budget, the header-inside-the-screen check and the 44px targets still pass on every device.
 
+## Bubbles that pop (25 Oct 2026, supersedes v3's allergen states and the family's-own cycle)
+
+Marta: "Already in the kitchen" moves into the first run after Meal times, with the allergens' bubbles in the glow's five food-group colours; the allergen bubbles get the same treatment; a tap pops a bubble like a balloon instead of turning it black; and both screens get a 2-second Undo.
+
+- **The flow is now** Draw → Spell → Birthday → Allergens → Meal times → **Kitchen** → Reveal → Done → Home, with six progress segments (Name, Birthday, Allergens, Meal times, Kitchen, Week). Under 6 months, both Meal times and Kitchen collapse, leaving four. Back from Done goes to the Kitchen. Kitchen basics leaves the late questions. Profile's "Kitchen basics" opens the same pile with Save and Close.
+- **One pile, `popPile`** (`onboarding.js`), on the same physics as before.
+  - Each bubble is a `<button>` filled with its group's glow colour (`GLOW` in `theme.js`). The text is `--ink-pastel`, #121212 in both themes, so it reads on the pastels in dark mode too. "Something else" stays a dashed outline.
+  - A tap pops it: the bubble swells to 1.12 and bursts to 1.4 as it fades (210 ms), and six shards of its colour fly out 14–22px (180 ms). The neighbours get a nudge, its body leaves the world, and the pile settles again. Transform and opacity only; reduced motion is a 150 ms fade.
+  - For 2 s (`POP_UNDO_MS`) the line under the pile says "Egg kept out. Undo" or "Oats at home. Undo". After that it lists everything popped ("Kept out: Egg, Fish."), each word a button that drops its bubble back in. Undo during the burst works (it used to leave the bubble out once the burst ended).
+- **Allergens.**
+  - A pop is Keep out (`profile.allergens` / `profile.diet`); bringing it back is Not yet. The three-state cycle and its black fill are gone.
+  - **"Tried, all fine" leaves the onboarding (Marta's choice).** Profile > Off the plate gains it on each Not yet allergen, and "Not yet" on one tried before Chicho. An allergen marked Tried shows "Tried" under its name in the pile; popping it keeps it out, and Undo puts Tried back.
+  - Colours (`ALLERGEN_GROUP`): egg, peanut, soy, fish, shellfish and meat are protein; milk, tree nuts and sesame are fats and dairy; wheat and gluten are grain.
+  - The family's own items ("Something else") are kept out as they're added, so they never get a bubble: they go straight to the line, with the same Undo, and their word in the line takes them off the list. `profile.fine` isn't set from here any more (old data is kept).
+- **Kitchen.**
+  - "Already in the kitchen…" · "Pop what's at home. The rest goes on the list." The staples (minus anything kept out) are text bubbles: the drawings are gone, as on every first-run screen. Dairy takes "fats and dairy" whatever group the food pool files it under.
+  - A pop means at home (Plenty, and `profile.staples`). Undo puts the pantry entry back exactly as it was.
+  - **"The rest goes to the buy list" needs no new code:** Buy already lists every food the coming days need that isn't at home, so an unpopped staple the week uses is on it and one it doesn't use stays off (Marta's choice).
+  - Untouched is an answer (nothing at home), so there's only Next; it drops the bubbles like Allergens does, then the Reveal.
+  - **Size:** 18 bubbles fit by sizing them to the zone (`fit`, 70% packing, 64–80px). That gives 69px at 375×667 and 80px from 390 wide, with labels at 11px and no tracking so "Chickpeas" and "Potatoes" fit.
+- **First-run time** (the same scripted run, now through the Kitchen untouched): **median 7.8 s over 12 runs (7.7–7.9 s)**, 25 Oct 2026, in `docs/firstrun.json`. It was 6.9 s before the Kitchen step; the extra time is the 18 bubbles falling in (70 ms apart) and the drop out. No target is set.
+- **Home's answers, two touch details:** focus moves to "Loved it" only when the pill was reached by keyboard (a tap left a ring on it), and "Offered. Undo" keeps its space in the flex footer.
+- **A birthday-column fix found on the way.** A keyboard step (arrows, Page Up/Down, Home/End, and so VoiceOver's adjust) took the chosen row back from the scroll position. WebKit doesn't always apply `scrollTo` at once, so a quick second key started from the old value: in the device run, "year up, year down" sometimes left next year, a 1-month-old, and no week. A step now sets the row it asked for directly.
+
 ## Home, meal first (25 Oct 2026)
 
 Marta, from a screenshot of a 10:30 snack: the headline should breathe, almost mid-screen; then what the meal is; then While you're at it; a clue only on the meal it applies to; and "Mark as offered" should turn into the three answers, keep the one chosen, and go.
@@ -260,6 +284,8 @@ Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms,
 - **The grain:** a static 34 KB tile; no paint or main-thread cost after the first paint (it never repaints: the breath scales and fades a composited layer above it).
 
 ## Check on a real iPhone
+
+Bubbles: the pop and its shards at 3× (crisp, not a flash), a thumb on 69px bubbles in an 18-bubble pile, the Undo line within reach and readable during the 2 s, and pile performance while 18 bodies fall and settle.
 
 Home, meal first: the headline's position at 3× with the notch and home indicator (a third of the way down, not crowded on a mini), the pill turning into the three answers under a thumb (no mis-tap on the answer that appears under it), the 800 ms hold then the fade into the next meal, and "Offered. Undo" in the footer within reach.
 

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · kitchen pile tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
+<body>
+<h1>Kitchen pile tests</h1>
+<p>"Already in the kitchen…", step 6 of the first run (seed 7): the staples as bubbles in their food group's glow colour (dairy as fats and
+dairy), all settling inside the zone at 375×667 and 390×844; a pop means it's at home (Plenty), with a 2-second Undo that puts the pantry
+back as it was, then a line whose words bring a bubble back; Next drops the rest and goes to the Reveal; after Love it, Buy has the planned
+staples that weren't popped and nothing the week doesn't use; Profile's form says Save and has Close. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear(); sessionStorage.clear();
+const frame = (W, H, setup) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = W; f.height = H; f.src = "../index.html?test&theme=light&seed=7&now=2026-10-22T09:15";
+  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; state.pantry = []; save(); ${setup}`); await wait(500); res(f); };
+  document.body.append(f);
+});
+const geometry = f => {
+  const d = f.contentDocument, z = d.querySelector(".pile").getBoundingClientRect();
+  const c = [...d.querySelectorAll(".pile .ab")].map(b => { const r = b.getBoundingClientRect(); return {x: r.left - z.left + r.width / 2, y: r.top - z.top + r.height / 2, r: r.width / 2}; });
+  let over = 0; c.forEach((a, i) => c.slice(i + 1).forEach(b => { over = Math.max(over, a.r + b.r - Math.hypot(a.x - b.x, a.y - b.y)); }));
+  return {over, out: c.filter(a => a.x - a.r < -1 || a.x + a.r > z.width + 1 || a.y + a.r > z.height + 1 || a.y - a.r < -1).length, n: c.length, d: c[0].r * 2};
+};
+(async () => {
+  try {
+    // two phones: 18 bubbles, all inside, no overlap, labels never cut
+    for (const [W, H] of [[375, 667], [390, 844]]) {
+      const f = await frame(W, H, `state.profile.onboardingStep = "athome"; save(); openOnboarding("athome")`);
+      const asleep = f.contentWindow.eval("pile.settle()"), g = geometry(f), d = f.contentDocument;
+      ok(`${W}×${H}: all ${g.n} staples asleep inside the zone (bubbles ${Math.round(g.d)}px)`, asleep && g.n === 18 && g.out === 0 && g.d >= 64, g);
+      ok(`${W}×${H}: no overlap over 2px (${g.over.toFixed(2)}px)`, g.over <= 2, g.over);
+      ok(`${W}×${H}: every label fits inside its bubble`, [...d.querySelectorAll(".pile .ab-l")].every(l => l.scrollWidth <= l.clientWidth + 1), [...d.querySelectorAll(".pile .ab-l")].filter(l => l.scrollWidth > l.clientWidth + 1).map(l => l.textContent));
+      f.remove();
+    }
+    const f = await frame(390, 844, `state.profile.onboardingStep = "athome"; save(); openOnboarding("athome")`);
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const bub = food => $(`.pile .ab[data-id="${food}"]`), slot = () => $(".pop-slot").textContent.replace(/\s+/g, " ").trim();
+    const bg = food => getComputedStyle(bub(food).firstChild).backgroundColor, rgb = g => "rgb(" + E(`hexRGB(GLOW.${g}.hex)`).join(", ") + ")";
+    ok("'Already in the kitchen…' · 'Pop what's at home. The rest goes on the list.' · Next only (no Skip)", $("#onbTitle").textContent === "Already in the kitchen…" && $(".al-line").textContent === "Pop what's at home. The rest goes on the list." && $("#onbFoot .btn-ink").textContent === "Next" && !$("#onbFoot .btn-text"));
+    ok("text only: no drawings on the bubbles", !$(".pile .food-art, .pile img, .pile svg"));
+    ok("the glow's colours: oats grain, carrots veg, bananas fruit, lentils protein, yogurt and cheese fats and dairy", bg("Oatmeal") === rgb("grain") && bg("Carrots, soft-cooked") === rgb("vegetable") && bg("Banana") === rgb("fruit") && bg("Lentils") === rgb("protein") && bg("Greek yogurt") === rgb("fat") && bg("Cheese, grated") === rgb("fat"), [bg("Greek yogurt"), bg("Cheese, grated")]);
+    E("POP_UNDO_MS = 600; pile.settle()");
+    E(`state.pantry.push({foodId: "rice", name: "Rice", state: "low", updatedAt: "2026-10-20T10:00:00Z"}); save()`);
+    bub("Rice, soft-cooked").click(); await wait(20);
+    ok("pop Rice: at home (Plenty), and 'Rice at home. Undo'", E("stockState('rice')") === "plenty" && E("state.profile.staples").includes("Rice, soft-cooked") && slot() === "Rice at home. Undo");
+    $(".pop-slot .pop-undo").click(); await wait(300);
+    ok("…Undo: the pantry as it was (Low), the bubble back", E("stockState('rice')") === "low" && !E("state.profile.staples").includes("Rice, soft-cooked") && $$('.pile .ab[data-id="Rice, soft-cooked"]').length === 1);
+    bub("Oatmeal").click(); await wait(250); bub("Banana").click(); await wait(800);
+    ok("two pops, the window gone: 'At home: Oats, Bananas.'", slot() === "At home: Oats, Bananas." && E("stockState('oatmeal')") === "plenty" && E("stockState('banana')") === "plenty", slot());
+    [...d.querySelectorAll(".pop-slot .pop-back")].find(b => b.textContent === "Bananas").click(); await wait(80);
+    ok("…a word brings it back: Bananas not at home (no pantry entry), its bubble back", E("stockState('banana')") === null && !!bub("Banana") && slot() === "At home: Oats.");
+    // Next: the rest drops out, then the Reveal; Love it applies the week
+    $("#onbFoot .btn-ink").click(); await wait(150);
+    ok("Next: the floor opens and the bubbles fall", E("pile.world.bodies.some(b => b.free)"));
+    await wait(1300);
+    ok("…then the Reveal", E("onb.step") === "reveal", E("onb.step"));
+    $(".wk-skip").click(); await wait(100);
+    $(".wk-love").click(); await wait(700);
+    const buy = E("buyRows().map(r => r.foodId)"), planned = E("[...new Set(state.plans.flatMap(p => p.days.flatMap(d => d.meals.flatMap(m => m.items.map(i => foodKey(baseName(i)))))))]");
+    const staples = E("STAPLES.map(([, food]) => foodKey(baseName({name: food})))");
+    // what the week needs within Buy's horizon, as if nothing were at home
+    const needed = E("deriveBuyList(state.plans, [], {manual: [], notThisWeek: [], got: []}, now(), {timeOf: mealTime, isOffered: () => false}).map(r => r.foodId)");
+    const expected = staples.filter(k => needed.includes(k) && k !== "oatmeal" && k !== "rice");   // oats popped; rice is Low (it covers the next meals)
+    const missing = expected.filter(k => !buy.includes(k));
+    ok("Buy: the staples the coming days need that weren't popped are on it", expected.length > 0 && missing.length === 0, {expected, missing});
+    ok("…oats (popped: at home) aren't", !buy.includes("oatmeal"));
+    ok("…and staples the week doesn't use aren't added", staples.filter(k => !planned.includes(k)).every(k => !buy.includes(k)), staples.filter(k => !planned.includes(k) && buy.includes(k)));
+    // Profile's form
+    E(`state.profile.onboarded = true; save(); openOnboarding("athome", {single: true})`); await wait(500);
+    ok("from Profile: the same pile, Save and Close, no progress", $("#onbFoot .btn-ink").textContent === "Save" && !d.getElementById("onbClose").hidden && d.getElementById("onbDots").hidden && !!$(".pile"));
+    ok("…what's at home is in the line, not in the pile", slot() === "At home: Oats." && !bub("Oatmeal"));
+    f.remove();
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · kitchen pile";
+})();
+</script>
+</body></html>

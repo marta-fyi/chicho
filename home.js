@@ -825,6 +825,7 @@ function renderOfferZone(ref, zone){
 }
 function toggleOffered(ref){
   const on = !mealOffered(ref.m, ref.date);
+  const byKeys = !!document.activeElement && document.activeElement.matches(":focus-visible");   // a tap shouldn't leave a ring
   // offered, the meal stays on Home (its three answers, Undo in the footer) until the next boundary
   if(on) picked = {key:ref.key, until:nextBoundary(refsOn(now()))};
   offerMeal(ref.m, ref.date, on); save(); haptic();
@@ -834,7 +835,7 @@ function toggleOffered(ref){
     announce(say("home.announce.offered", {meal:ref.m.label}));
   }else{ delete undoUntil[ref.key]; picked = null; announce(say("home.announce.unoffered", {meal:ref.m.label})); }
   changed();
-  if(on) focusLater(`out:${ref.key}:loved`);
+  if(on && byKeys) focusLater(`out:${ref.key}:loved`);
 }
 function undoOffer(ref){
   delete undoUntil[ref.key];

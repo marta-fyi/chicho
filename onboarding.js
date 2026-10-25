@@ -635,8 +635,10 @@ function bdWheel(o){
       e.style.transform = `scale(${(a[1] + (b[1] - a[1]) * f).toFixed(3)})`;
     });
   };
-  const end = ()=>{
-    const k = Math.max(0, Math.min(els.length - 1, Math.round(col.scrollTop / BD_ROW)));
+  // the row in the band: where the scroll came to rest, or (a key, a tap without smooth scrolling) the row asked for,
+  // since WebKit may not have applied scrollTo yet and a quick second key would otherwise start from the old value
+  const end = at=>{
+    const k = Math.max(0, Math.min(els.length - 1, typeof at==="number" ? at : Math.round(col.scrollTop / BD_ROW)));
     if(k===idx) return;
     idx = k; aria();
     if(!calm()) els[k].firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.04)"}, {transform:"scale(1)"}], {duration:120, easing:"ease-out"});
@@ -646,7 +648,7 @@ function bdWheel(o){
   const to = (k, smooth)=>{
     k = Math.max(0, Math.min(els.length - 1, k));
     col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"});
-    if(!smooth || calm()){ paint(); end(); }
+    if(!smooth || calm()){ paint(); end(k); }
   };
   col.addEventListener("scroll", ()=>{
     if(!raf) raf = requestAnimationFrame(paint);

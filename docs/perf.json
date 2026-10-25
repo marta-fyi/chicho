@@ -1,17 +1,17 @@
 {
   "profile": "Chromium, iPhone 14, 4× CPU, Slow 4G (150ms, 1.6 Mb/s)",
-  "firstHome": 1337,
-  "fcp": 760,
+  "firstHome": 1359,
+  "fcp": 764,
   "cls": 0,
-  "bytes": 226357,
+  "bytes": 229597,
   "breathOn": {
     "mainThreadMsPerSec": 0,
     "styleMsPerSec": 0,
-    "fps": 120.1,
+    "fps": 120,
     "worstFrameMs": 10
   },
   "breathOff": {
-    "mainThreadMsPerSec": 3,
+    "mainThreadMsPerSec": 5,
     "styleMsPerSec": 0
   }
 }

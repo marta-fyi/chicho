@@ -637,6 +637,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
   .foot-line{flex:none;display:flex;align-items:center;min-height:44px;margin:8px 0 0;padding-right:56px;font-size:15px;line-height:1.4;color:var(--ink-muted);}
   .foot-line[hidden]{display:none;}
+  .foot-line .btn-text.inline{margin-left:.6ch;}   /* "Offered. Undo": the flex line drops the space */
   .is-milk .now-meal, .is-milk .offer-zone, .is-empty .now-meal, .is-empty .offer-zone{display:none;}
 
   /* ---------- the other screens: a pinned header, native scroll, one primary pill ---------- */

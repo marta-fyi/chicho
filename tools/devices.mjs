@@ -7,7 +7,7 @@
 // Meal times (mealtimesRun) runs on the portrait devices too: a timed first run through Meal times (scripted taps, no
 // thinking time; the median goes to docs/firstrun.json, no target asserted), the axis never scrolling and an hour at
 // least MT.minHourPx tall, and (WebKit, both themes) the handoff from Allergens, the idle axis, mid-drag, typing, and
-// Done with five and three meals.
+// Done with five and three meals, plus each pile settled, a pop caught mid-burst and its Undo line (Allergens, Kitchen).
 // (Playwright isn't a dependency of this repo; point at any install, e.g. ~/dev/client/node_modules/playwright,
 // with its WebKit and Chromium browsers downloaded.)
 //
@@ -193,7 +193,11 @@ async function kitchenRun(page, tag, slug, shotK) {
    Done with five and three meals. */
 const firstRuns = [];
 async function mealtimesRun(page, tag, shot) {
-  const ready = async fn => page.waitForFunction(fn, null, {timeout: 15000, polling: 20});
+  // on a timeout, say where the onboarding was (the step, the pile, the sheet) before giving up
+  const ready = async fn => page.waitForFunction(fn, null, {timeout: 15000, polling: 20}).catch(async e => {
+    const at = await page.evaluate(`JSON.stringify({step: onb.step, hidden: document.getElementById("onboarding").hidden, pile: !!pile && {running: pile.running, exitAt: pile.exitAt, t: Math.round(pile.t), free: pile.world.bodies.filter(b => b.free).length, n: pile.world.bodies.length}, sheet: !!document.querySelector(".onb-sheet:not(.pad-sheet)"), calm: calm()})`).catch(() => "?");
+    throw new Error(`${tag}: waiting for ${fn} — ${at}`);
+  });
   const t9 = base.replace("T12:10", "T09:15");
   await page.goto(t9); await page.evaluate("localStorage.clear()"); await page.goto(t9);
   await ready("!document.getElementById('onboarding').hidden && onb.step === 'draw'");
@@ -210,15 +214,18 @@ async function mealtimesRun(page, tag, shot) {
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'mealtimes' && !!document.querySelector('.mt-axis')");
   await page.click("#onbFoot .btn-ink");
+  await ready("onb.step === 'athome' && !!document.querySelector('.pile .ab')");
+  await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'reveal' && onb.revealed && !document.getElementById('onbFoot').inert");
   await page.click(".wk-love");
   await ready("document.getElementById('onboarding').hidden");
   const ms = Date.now() - t0;
   firstRuns.push({tag, ms});
-  ok(`${tag}: a scripted first run reaches Home through Meal times (${(ms / 1000).toFixed(1)} s)`, await page.evaluate("state.profile.onboarded && state.profile.mealTimesSource === 'default' && state.plan.days.every(d => d.meals.length === 5)"));
+  ok(`${tag}: a scripted first run reaches Home through Meal times and the Kitchen (${(ms / 1000).toFixed(1)} s)`, await page.evaluate("state.profile.onboarded && state.profile.mealTimesSource === 'default' && state.plan.days.every(d => d.meals.length === 5)"));
   // the axis, from Allergens
   await page.evaluate(`state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
   await page.waitForTimeout(1600);
+  if (shot) { await page.waitForTimeout(1600); await page.evaluate("document.querySelector('.pile .ab[data-id=\"a:egg\"]').click()"); await page.waitForTimeout(110); await shot("allergens-pop", true); await page.waitForTimeout(300); await shot("allergens-undo"); }
   await page.click("#onbFoot .btn-ink");
   if (shot) { await page.waitForTimeout(220); await shot("mt-from-allergens", true); }
   await ready("onb.step === 'mealtimes'");
@@ -240,11 +247,18 @@ async function mealtimesRun(page, tag, shot) {
   await shot("mt-typing");
   await page.keyboard.press("Enter"); await page.waitForTimeout(200);
   await page.click(".mt-usual"); await page.waitForTimeout(200);
+  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'athome' && !!document.querySelector('.pile .ab')");
+  // the kitchen: the pile settled, then a pop caught mid-burst, then its Undo line
+  await page.waitForTimeout(2600); await shot("kitchen-pile");
+  await page.evaluate("document.querySelectorAll('.pile .ab')[4].click()"); await page.waitForTimeout(110); await shot("kitchen-pop", true);
+  await page.waitForTimeout(300); await shot("kitchen-undo");
   await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'reveal' && !!document.querySelector('.wk-skip')");
   await page.click(".wk-skip"); await page.waitForTimeout(300);
   await shot("done-5meals");
+  await page.click("#onbBack"); await ready("onb.step === 'athome'"); await page.waitForTimeout(300);
   await page.click("#onbBack"); await ready("onb.step === 'mealtimes'"); await page.waitForTimeout(400);
   for (const s of ["snack1", "snack2"]) await page.evaluate(`state.profile.mealTimesSel = "${s}"; save(); renderOnb(); document.querySelector(".mt-remove").click()`);
+  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'athome'"); await page.waitForTimeout(400);
   await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'reveal' && onb.revealed"); await page.waitForTimeout(300);
   await shot("done-3meals");
   await page.evaluate("closeOnboarding()");
