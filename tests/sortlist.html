@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: the place sheets and undo</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Sort the food: the place sheets and undo</h1>
+<p>Tapping a place with nothing selected opens its list: a bottom sheet with a scrim, Close and a swipe down, the place's name and meaning, a 44px row per food with Move (Keep out · Not a fan · Tried already · Untouched · Back to the pile); the family's own items have Remove; Keep out adds "Also skipped (they contain {allergen})". Every move shows the undo line and closes the row; Undo reverses only the latest change, for every kind of change; the undo line goes after 5 s. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const f = document.createElement("iframe");
+f.width = 390; f.height = 844; f.src = "../index.html?test&now=2026-10-22T09:15&sortseed=921436";
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    E(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
+    await wait(700);
+    const cell = p => $(`.sf-place[data-place="${p}"]`), status = () => $(".sf-status").textContent.replace(/\s+/g, " ").trim(), P = id => E(`state.profile.foodSort.placement["${id}"] || null`);
+    E(`sortUI.place(["milk", "egg"], "keepOut", {noUndo: true}); state.profile.foodSort.custom.push({id: "c:kiwi", label: "Kiwi", place: "keepOut", matchedFoodIds: ["kiwi"]}); sortUI.afterChange()`); await wait(50);
+    cell("keepOut").click(); await wait(500);
+    const sh = $(".sf-list");
+    ok("tap a place with nothing selected: its list, on a sheet with a scrim and Close", !!sh && !!$(".onb-scrim") && !!sh.querySelector(".sh-close") && sh.querySelector(".sh-title").textContent === "Keep out" && sh.querySelector(".sf-list-mean").textContent === "never planned");
+    ok("…44px rows: Egg and Milk with Move, Kiwi (their own) with Remove", $$(".sf-list .sf-row").map(r => r.querySelector(".sf-row-t").textContent + ":" + [...r.querySelectorAll(".sf-move, .sf-remove")].map(b => b.textContent).join()).join() === "Egg:Move,Milk:Move,Kiwi:Remove" && $$(".sf-list .sf-row").every(r => r.getBoundingClientRect().height >= 44), $$(".sf-list .sf-row").map(r => r.textContent));
+    ok("…'Also skipped (they contain milk)' lists the cheeses and the yogurt", $$(".sf-list .sf-also").map(h => h.textContent).join("|") === "Also skipped (they contain egg)|Also skipped (they contain milk)" && /Greek yogurt|greek yogurt/i.test($$(".sf-also-list")[1].textContent) && /cottage cheese/i.test($$(".sf-also-list")[1].textContent), $$(".sf-list .sf-also").map(h => h.textContent));
+    ok("…and the line about traces", $(".sf-traces").textContent === "Keeping a food out is not the same as protecting against traces or cross-contact.");
+    ok("…the sheet's scroll stays its own (overscroll-behavior: contain)", getComputedStyle(sh).overscrollBehaviorY === "contain");
+    const eggRow = () => $$(".sf-list .sf-row").find(r => r.dataset.id === "egg");
+    eggRow().querySelector(".sf-move").click(); await wait(20);
+    ok("Move opens inline: Not a fan · Tried already · Untouched · Back to the pile", eggRow().querySelector(".sf-moves").textContent.replace(/\s+/g, " ").trim() === "Not a fan · Tried already · Untouched · Back to the pile" && !eggRow().querySelector(".sf-moves").hidden);
+    [...eggRow().querySelectorAll(".sf-move-to")].find(b => b.textContent === "Tried already").click(); await wait(50);
+    ok("…a move: Egg is Tried already, its row gone from Keep out, the undo line shows", P("egg") === "tried" && !eggRow() && status() === "Egg → Tried already · Undo", [P("egg"), status()]);
+    $(".sf-status .sf-undo").click(); await wait(50);
+    ok("Undo: Egg back in Keep out, and in the open list", P("egg") === "keepOut" && !!eggRow());
+    const milkRow = () => $$(".sf-list .sf-row").find(r => r.dataset.id === "milk");
+    milkRow().querySelector(".sf-move").click();
+    [...milkRow().querySelectorAll(".sf-move-to")].find(b => b.textContent === "Back to the pile").click(); await wait(400);
+    ok("Back to the pile: Milk is unsorted and its shape is back in the field", P("milk") === null && !!$('.sf-field .sf-shape[data-id="milk"]') && status() === "Milk → Back to the pile · Undo", status());
+    $$(".sf-list .sf-row").find(r => r.dataset.custom === "c:kiwi").querySelector(".sf-remove").click(); await wait(50);
+    ok("Remove (their own): Kiwi goes, 'Kiwi removed · Undo'", !E("state.profile.foodSort.custom.length") && status() === "Kiwi removed · Undo", status());
+    $(".sf-status .sf-undo").click(); await wait(50);
+    ok("…Undo brings Kiwi back, kept out", E("state.profile.foodSort.custom.map(c => c.label + ':' + c.place).join()") === "Kiwi:keepOut" && E("allergyMatch('Kiwi', state.profile)"));
+    ok("Undo reverses only the latest change: Milk is still back in the pile", P("milk") === null);
+    // swipe down closes it
+    const r = sh.getBoundingClientRect(), ev = (type, y) => sh.dispatchEvent(new w.PointerEvent(type, {bubbles: true, pointerId: 3, pointerType: "touch", clientX: r.left + 40, clientY: y}));
+    ev("pointerdown", r.top + 10); ev("pointermove", r.top + 60); ev("pointermove", r.top + 140); ev("pointerup", r.top + 140); await wait(400);
+    ok("a swipe down closes the sheet", !$(".sf-list") && !$(".onb-scrim"));
+    cell("notFan").click(); await wait(450);
+    ok("an empty place: 'Nothing here yet.'", $(".sf-list .sf-list-none") && $(".sf-list .sf-list-none").textContent === "Nothing here yet.");
+    $(".sf-list .sh-close").click(); await wait(400);
+    ok("Close closes it", !$(".sf-list"));
+    // the undo line's life
+    E("sortUI.place(['soy'], 'notFan')"); await wait(20);
+    ok("the undo line shows after a sort…", /^Soy → Not a fan · Undo$/.test(status()));
+    await wait(E("SORT_CONFIG.UNDO_MS") + 200);
+    ok("…for 5 s, then the row moves on", !/Undo/.test(status()), status());
+    E("sortUI.place(['sesame'], 'tried'); sortUI.place(['fish'], 'untouched')"); await wait(20);
+    $(".sf-status .sf-undo").click(); await wait(20);
+    ok("two quick sorts, one Undo: only the latest (Fish) is reversed", P("fish") === null && P("sesame") === "tried");
+    ok("…and the selection's own Undo, after a send", (E("sortUI.tap('fish'); sortUI.tap('shellfish')"), $(".sf-place[data-place='tried']").click(), await wait(400), $(".sf-status .sf-undo").click(), await wait(400), P("fish") === null && P("shellfish") === null));
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+};
+</script>
+</body></html>

@@ -309,6 +309,7 @@ const CONTENT = {
     more:"+{n}",
     moved:"{food} → {place}",
     movedMany:"{n} foods → {place}",
+    removed:"{food} removed",
     undo:"Undo",
     selected:"{n} selected · tap a place to send",
     clear:"Clear",

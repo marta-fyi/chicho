@@ -120,6 +120,7 @@ function mountSortFood(o){
     if(u.restore) u.restore();
     persist();
     afterChange({undo:true});
+    if(ui.list) ui.list.paint();
   }
   ui.undoNow = undo;
   function afterChange(opts){
@@ -504,6 +505,72 @@ function mountSortFood(o){
   }
   ui.tapPlace = tapPlace;
 
+  /* ---------- a place's list: what's in it, each with Move (or Remove, for the family's own) ----------
+     A bottom sheet with a scrim, Close and a swipe down; 44px rows. Move opens inline into the other places and "Back to
+     the pile"; every move shows the undo line and closes the row. Keep out adds what's skipped with each allergen. */
+  function openList(pl){
+    const sh = onbSheet({modal:true, title:sfSay("places." + pl), cls:"sf-sheet sf-list", onClose:()=>{ ui.list = null; cells[pl].focus({preventScroll:true}); }});
+    const mean = document.createElement("p"); mean.className = "sh-hint sf-list-mean"; mean.textContent = sfSay("meaning." + pl);
+    sh.body.querySelector(".sh-title").after(mean);
+    const box = document.createElement("div"); box.className = "sf-list-box";
+    sh.body.appendChild(box);
+    ui.list = {place:pl, sheet:sh, paint};
+    function row(label, actions){
+      const r = document.createElement("div"); r.className = "sf-row";
+      const t = document.createElement("span"); t.className = "sf-row-t"; t.textContent = label;
+      r.append(t, ...actions);
+      return r;
+    }
+    function paint(){
+      box.innerHTML = "";
+      const ids = inPlace(pl), own = S.custom.filter(c=>c.place===pl);
+      if(!ids.length && !own.length){ const n = document.createElement("p"); n.className = "sf-list-none"; n.textContent = sfSay("nothingHere"); box.appendChild(n); }
+      ids.forEach(id=>{
+        const opts = document.createElement("div"); opts.className = "sf-moves"; opts.hidden = true;
+        SF_PLACES.filter(p=>p!==pl).map(p=>[p, sfSay("places." + p)]).concat([[null, sfSay("back")]]).forEach(([to, label], k)=>{
+          if(k) opts.append(" · ");
+          opts.appendChild(textButton(label, ()=>{ place([id], to); paint(); }, "small inline sf-move-to"));
+        });
+        const mv = textButton(sfSay("move"), ()=>{ box.querySelectorAll(".sf-moves").forEach(x=>{ if(x!==opts) x.hidden = true; }); opts.hidden = !opts.hidden; }, "small sf-move");
+        const r = row(sfLabel(id), [mv]); r.dataset.id = id;
+        r.appendChild(opts);
+        box.appendChild(r);
+      });
+      own.forEach(c=>{
+        const r = row(c.label, [textButton(sfSay("remove"), ()=>{ removeCustom(c.id); paint(); }, "small sf-remove")]);
+        r.dataset.custom = c.id;
+        box.appendChild(r);
+      });
+      if(pl==="keepOut"){
+        const fromBig = new Set(big.filter(a=>placeOf(a)==="keepOut"));
+        S.custom.filter(c=>c.place==="keepOut").forEach(c=>(c.matchedFoodIds || []).forEach(id=>{ if(big.includes(id)) fromBig.add(id); }));
+        fromBig.forEach(a=>{
+          const foods = FOODS.filter(f=>f.id!==a && f.group!=="other" && f.contains.includes(a)).map(f=>f.label);
+          if(!foods.length) return;
+          const h = document.createElement("h3"); h.className = "sf-also"; h.textContent = sfSay("alsoSkipped", {allergen:lower1(sfLabel(a))});
+          const p = document.createElement("p"); p.className = "sf-also-list"; p.textContent = listJoin(foods.map(lower1)).replace(/^./, c=>c.toUpperCase()) + ".";
+          box.append(h, p);
+        });
+        const tr = document.createElement("p"); tr.className = "sf-traces"; tr.textContent = sfSay("traces");
+        box.appendChild(tr);
+      }
+    }
+    paint();
+    sfSwipeToClose(sh);
+    return sh;
+  }
+  ui.openList = openList;
+  function removeCustom(id){
+    const k = S.custom.findIndex(c=>c.id===id);
+    if(k < 0) return;
+    const [c] = S.custom.splice(k, 1);
+    ui.sorted++;
+    persist();
+    setUndo({kind:"custom", text:sfSay("removed", {food:c.label}), restore:()=>{ S.custom.splice(Math.min(k, S.custom.length), 0, c); }});
+    afterChange();
+  }
+  ui.removeCustom = removeCustom;
+
   /* ---------- Always off the plate at this age: the stage's locked foods, each with its reason ---------- */
   function openLocked(){
     const sh = onbSheet({modal:true, title:sfSay("lockedTitle"), cls:"sf-sheet locked-sheet", onClose:()=>lockedBtn.focus()});
@@ -569,4 +636,30 @@ function sortTuneLoad(ui){
   const sc = document.createElement("script");
   sc.src = "tools/sorttune.js"; sc.onload = ()=>sortTune(ui);
   document.head.appendChild(sc);
+}
+
+/* a sheet that a swipe down closes (from its top, or anywhere while it's scrolled to the top): it follows the finger and
+   goes past 90px, or on a quick flick; otherwise it springs back */
+function sfSwipeToClose(sh){
+  const el = sh.el;
+  let y0 = null, t0 = 0, dy = 0, id = null;
+  el.addEventListener("pointerdown", e=>{
+    if(el.scrollTop > 0 || e.target.closest("button, input")) return;
+    y0 = e.clientY; t0 = performance.now(); dy = 0; id = e.pointerId;
+  });
+  el.addEventListener("pointermove", e=>{
+    if(y0===null || e.pointerId!==id) return;
+    dy = Math.max(0, e.clientY - y0);
+    if(dy > 6) el.style.transform = `translateY(${dy.toFixed(1)}px)`;
+  });
+  const end = e=>{
+    if(y0===null || e.pointerId!==id) return;
+    const fast = dy / Math.max(1, performance.now() - t0) > .6;
+    y0 = null;
+    if(dy > 90 || (fast && dy > 30)){ el.style.transform = ""; sh.close(); return; }
+    if(dy > 0) el.animate([{transform:`translateY(${dy.toFixed(1)}px)`}, {transform:"none"}], {duration:220, easing:"cubic-bezier(.25,1.1,.4,1)"});
+    el.style.transform = "";
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
 }

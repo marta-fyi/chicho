@@ -471,6 +471,16 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .sf-place.is-target .sf-pl-label{letter-spacing:.08em;}
   .sf-ripple{position:absolute;inset:6px;border:1.5px solid var(--ink);border-radius:18px;pointer-events:none;opacity:0;}
   .sf-sheet .sh-in{align-items:stretch;text-align:left;}
+  .sf-sheet{touch-action:pan-y;}
+  .sf-list-mean{margin:2px 0 8px;font-size:13px;}
+  .sf-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;min-height:44px;border-bottom:1px solid var(--hairline);font-size:16px;}
+  .sf-row-t{padding:10px 0;}
+  .sf-moves{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;padding:0 0 10px;font-size:14px;line-height:44px;color:var(--ink-muted);}
+  .sf-moves .btn-text.inline{font-size:14px;}
+  .sf-list-none{margin:8px 0;font-size:15px;color:var(--ink-muted);}
+  .sf-also{margin:16px 0 0;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);}
+  .sf-also-list{margin:4px 0 0;font-size:15px;line-height:1.45;}
+  .sf-traces{margin:16px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted);}
   /* the dev tuning panel (tools/sorttune.js, ?tune=1 on localhost only) */
   .sf-tune{position:fixed;left:8px;right:8px;top:8px;z-index:200;max-height:45vh;overflow:auto;padding:8px 12px;border-radius:14px;background:var(--sheet);color:var(--ink);font-size:11px;box-shadow:var(--shadow-sheet);}
   .sf-tune-h{margin:0 0 4px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);}
