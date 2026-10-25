@@ -71,6 +71,8 @@ function mountSortFood(o){
     return everyday.filter(id=>groupOf(id)===ui.tab && !placeOf(id)).slice(0, C.MAX_PILE - 1);
   };
   ui.pileIds = pileIds;
+  ui.pileItems = ()=>pileItems();
+  ui.pileSeed = ()=>pileSeed();
 
   /* ---------- the page ---------- */
   card.classList.add("fill", "sf");
@@ -79,7 +81,8 @@ function mountSortFood(o){
   const h = document.createElement("h1"); h.className = "sf-title"; h.id = "onbTitle"; h.tabIndex = -1;
   h.textContent = sfSay("title", {name:P.name || say("mealTimes.they")});
   const prog = document.createElement("span"); prog.className = "sf-prog";
-  const titleRow = document.createElement("div"); titleRow.className = "sf-trow"; titleRow.append(h, prog);
+  const side = document.createElement("div"); side.className = "sf-side"; side.appendChild(prog);
+  const titleRow = document.createElement("div"); titleRow.className = "sf-trow"; titleRow.append(h, side);
   const lockedBtn = textButton(sfSay("lockedLink"), ()=>openLocked(), "small inline sf-locked");
   head.append(titleRow, lockedBtn);
 
@@ -96,8 +99,8 @@ function mountSortFood(o){
   const pileHead = document.createElement("div"); pileHead.className = "sf-pilehead";
   const field = document.createElement("div"); field.className = "sf-field";
   const note = document.createElement("p"); note.className = "sf-note"; note.textContent = sfSay("note");
-  card.append(head, grid, status, pileHead, field);
-  ui.el = {head, h, prog, lockedBtn, grid, cells, status, pileHead, field, note};
+  card.append(head, grid, status, pileHead, note, field);
+  ui.el = {head, h, prog, side, lockedBtn, grid, cells, status, pileHead, field, note};
 
   const next = onbCta(card, o.single ? say("onb.save") : sfSay("next"), ()=>finish(), {ready:bigDone()});
   next.classList.add("sf-next");
@@ -137,7 +140,7 @@ function mountSortFood(o){
     if(ui.sorted===1 && ui.hint2==="idle") ui.hint2 = "armed";
     paintPlaces(); paintProgress(); paintStatus(); paintPileHead();
     next.ready(bigDone());
-    if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); paintPileHead(); paintProgress(); buildPile(); entrance(); }
+    if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); ui.secondT = null; paintPileHead(); paintProgress(); sortLayout(ui); buildPile(); entrance(); }
     else syncPile(opts);
     if(ui.view==="big" && bigDone()) firstPileDone();
     if(ui.onChange) ui.onChange(opts);
@@ -160,7 +163,7 @@ function mountSortFood(o){
       if(everyday.length){ ui.view = "everyday"; ui.tab = C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0]; }
       else{ ui.view = "none"; const m = Math.max(1, 6 - o.months); ui.noSolids = sfSay("noSolids", {n:m}); }
       ui.selected.clear();
-      paintPileHead(); paintProgress(); paintStatus(); buildPile(); entrance();
+      paintPileHead(); paintProgress(); paintStatus(); sortLayout(ui); buildPile(); entrance();
     }, first ? C.SECOND_PILE_MS : 0);
   }
   function showMoment(mode, text, ms){
@@ -269,6 +272,7 @@ function mountSortFood(o){
 
   /* ---------- the pile's header: its name (or the five tabs), and Select all ---------- */
   function paintPileHead(){
+    note.hidden = ui.view!=="big";
     pileHead.innerHTML = "";
     pileHead.classList.toggle("tabs", ui.view==="everyday");
     if(ui.view==="big"){
@@ -760,17 +764,46 @@ function sortLockedItems(months){
 
 /* ---------- the layout: the page never scrolls ----------
    The title block, the places, the status row and the pile's header take their heights; the field takes the rest.
-   The places' rows are 118px on a tall phone, 96px on a short one (never under 92), and the field the rest. */
+   The places' rows are 118px on a tall phone (800px and up), 96px on a short one, never under 92 (and the meaning
+   line hides in a cell under 100px). When the field is shorter than its minimum (220px tall, 170px short) or can't
+   pack its pile, the fallbacks go in order: hide the meaning lines, hide Keep out's "Skips" line, fold the "Always off
+   the plate" link into the title row, then let the pile go down to 150px. ui.fallbacks says which applied. */
 function sortLayout(ui){
-  const {card, grid, field} = Object.assign({card:ui.card}, ui.el);
+  const C = SORT_CONFIG, {grid, field, head, side, lockedBtn} = ui.el, card = ui.card;
   const tall = innerHeight >= 800;
-  const row = tall ? 118 : 96;
-  grid.style.setProperty("--row", row + "px");
-  grid.classList.toggle("no-mean", row < 100);
+  let min = tall ? 220 : 170;
+  ui.fallbacks = [];
+  grid.classList.remove("no-mean", "no-skips"); head.classList.remove("inline", "tight");
+  if(lockedBtn.parentNode!==head) head.appendChild(lockedBtn);
+  grid.style.setProperty("--row", (tall ? 118 : 96) + "px");
+  grid.classList.toggle("no-mean", !tall);   // 96px cells are under 100px: the meaning line goes first
   // the field reaches EDGE_INSET from the screen's edges, whatever the card's own padding
   const cr = card.getBoundingClientRect();
-  field.style.marginLeft = (SORT_CONFIG.EDGE_INSET - cr.left).toFixed(1) + "px";
-  field.style.marginRight = (SORT_CONFIG.EDGE_INSET - (innerWidth - cr.right)).toFixed(1) + "px";
+  field.style.marginLeft = (C.EDGE_INSET - cr.left).toFixed(1) + "px";
+  field.style.marginRight = (C.EDGE_INSET - (innerWidth - cr.right)).toFixed(1) + "px";
+  const short = ()=>{
+    const r = field.getBoundingClientRect();
+    if(r.height < min) return true;
+    const items = ui.pileItems();
+    return items.length > 0 && !pileFor(items, {w:r.width, h:r.height}, ui.pileSeed()).pack.ok;
+  };
+  const steps = [
+    ["meaning", ()=>{ grid.classList.add("no-mean"); grid.style.setProperty("--row", "92px"); }],
+    ["skips", ()=>grid.classList.add("no-skips")],
+    ["link", ()=>{ head.classList.add("inline"); side.appendChild(lockedBtn); }],
+    ["pile150", ()=>{ min = 150; }],
+    // past the brief's list: a long name can still leave the pile short, so the title gives up its 26px minimum
+    ["title", ()=>head.classList.add("tight")]
+  ];
+  if(!tall) ui.fallbacks.push("meaning");
+  for(const [name, apply] of steps){
+    if(!short()) break;
+    if(ui.fallbacks.includes(name) && name!=="meaning") continue;
+    apply();
+    if(!ui.fallbacks.includes(name)) ui.fallbacks.push(name);
+  }
+  if(ui.fallbacks.includes("meaning")) grid.style.setProperty("--row", (tall ? 118 : 96) <= 100 || short() ? "92px" : grid.style.getPropertyValue("--row"));
+  ui.short = short();
 }
 
 /* the dev tuning panel (?tune=1, on localhost only): sorttune.js is never part of the app's shell and never loads in

@@ -4,259 +4,259 @@
   "375x667": {
    "field": {
     "w": 327,
-    "h": 170
+    "h": 180
    },
    "seeds": [
-    661502,
-    181143,
-    169476,
-    418778,
-    502658,
-    790207,
+    85369,
+    615642,
+    502885,
+    242951,
+    497569,
+    723310,
+    808452,
+    887243,
+    762592,
     564466,
     559150,
-    723310,
-    502885,
-    227,
-    85369
+    514552
    ],
    "scores": [
     {
-     "seed": 661502,
-     "score": 0.518,
-     "inscribed": 82.5,
-     "quality": 0.721,
-     "balance": 0.888,
-     "overlap": 9.05,
-     "pass": false
-    },
-    {
-     "seed": 181143,
-     "score": 0.513,
-     "inscribed": 83,
-     "quality": 0.704,
-     "balance": 0.885,
-     "overlap": 9.71,
-     "pass": false
-    },
-    {
-     "seed": 169476,
-     "score": 0.513,
-     "inscribed": 83.8,
-     "quality": 0.713,
-     "balance": 0.848,
-     "overlap": 9.72,
-     "pass": false
-    },
-    {
-     "seed": 418778,
-     "score": 0.512,
-     "inscribed": 83.2,
+     "seed": 85369,
+     "score": 1.55,
+     "inscribed": 82.4,
      "quality": 0.701,
-     "balance": 0.842,
-     "overlap": 8.38,
-     "pass": false
+     "balance": 0.862,
+     "overlap": 4.08,
+     "pass": true
     },
     {
-     "seed": 502658,
-     "score": 0.512,
-     "inscribed": 83.3,
-     "quality": 0.713,
-     "balance": 0.838,
-     "overlap": 8.64,
-     "pass": false
-    },
-    {
-     "seed": 790207,
-     "score": 0.511,
-     "inscribed": 82.8,
-     "quality": 0.706,
-     "balance": 0.861,
-     "overlap": 8.65,
-     "pass": false
-    },
-    {
-     "seed": 564466,
-     "score": 0.511,
-     "inscribed": 82.9,
-     "quality": 0.704,
-     "balance": 0.839,
-     "overlap": 7.91,
-     "pass": false
-    },
-    {
-     "seed": 559150,
-     "score": 0.507,
-     "inscribed": 82.9,
-     "quality": 0.702,
-     "balance": 0.817,
-     "overlap": 7.44,
-     "pass": false
-    },
-    {
-     "seed": 723310,
-     "score": 0.505,
-     "inscribed": 81.7,
-     "quality": 0.711,
-     "balance": 0.89,
-     "overlap": 8.97,
-     "pass": false
+     "seed": 615642,
+     "score": 1.549,
+     "inscribed": 82.5,
+     "quality": 0.709,
+     "balance": 0.882,
+     "overlap": 5.4,
+     "pass": true
     },
     {
      "seed": 502885,
-     "score": 0.504,
+     "score": 1.542,
      "inscribed": 82.8,
      "quality": 0.704,
-     "balance": 0.856,
-     "overlap": 9.1,
-     "pass": false
+     "balance": 0.859,
+     "overlap": 5.39,
+     "pass": true
     },
     {
-     "seed": 227,
-     "score": 0.504,
+     "seed": 242951,
+     "score": 1.539,
+     "inscribed": 82.1,
+     "quality": 0.702,
+     "balance": 0.884,
+     "overlap": 5.63,
+     "pass": true
+    },
+    {
+     "seed": 497569,
+     "score": 1.537,
      "inscribed": 82.7,
-     "quality": 0.703,
-     "balance": 0.885,
-     "overlap": 10.11,
-     "pass": false
+     "quality": 0.707,
+     "balance": 0.84,
+     "overlap": 5.06,
+     "pass": true
     },
     {
-     "seed": 85369,
-     "score": 0.503,
-     "inscribed": 82.4,
-     "quality": 0.701,
-     "balance": 0.849,
-     "overlap": 8.29,
-     "pass": false
+     "seed": 723310,
+     "score": 1.537,
+     "inscribed": 81.7,
+     "quality": 0.711,
+     "balance": 0.878,
+     "overlap": 5.35,
+     "pass": true
+    },
+    {
+     "seed": 808452,
+     "score": 1.536,
+     "inscribed": 83.2,
+     "quality": 0.702,
+     "balance": 0.843,
+     "overlap": 5.93,
+     "pass": true
+    },
+    {
+     "seed": 887243,
+     "score": 1.529,
+     "inscribed": 81.8,
+     "quality": 0.705,
+     "balance": 0.857,
+     "overlap": 5.26,
+     "pass": true
+    },
+    {
+     "seed": 762592,
+     "score": 1.527,
+     "inscribed": 82.2,
+     "quality": 0.704,
+     "balance": 0.836,
+     "overlap": 5.13,
+     "pass": true
+    },
+    {
+     "seed": 564466,
+     "score": 1.52,
+     "inscribed": 82.9,
+     "quality": 0.704,
+     "balance": 0.802,
+     "overlap": 5.46,
+     "pass": true
+    },
+    {
+     "seed": 559150,
+     "score": 1.516,
+     "inscribed": 82.9,
+     "quality": 0.702,
+     "balance": 0.777,
+     "overlap": 4.91,
+     "pass": true
+    },
+    {
+     "seed": 514552,
+     "score": 1.512,
+     "inscribed": 81.2,
+     "quality": 0.706,
+     "balance": 0.836,
+     "overlap": 5.18,
+     "pass": true
     }
    ]
   },
   "390x844": {
    "field": {
     "w": 342,
-    "h": 220
+    "h": 259
    },
    "seeds": [
-    921436,
-    294127,
-    338725,
-    361024,
-    819084,
-    983017,
-    593343,
-    989595,
+    468692,
+    796785,
+    892559,
     711416,
-    129967,
+    960718,
+    791469,
+    983017,
+    639203,
+    344041,
+    384585,
     519868,
-    468692
+    507974
    ],
    "scores": [
     {
-     "seed": 921436,
-     "score": 1.524,
-     "inscribed": 83.1,
-     "quality": 0.71,
-     "balance": 0.675,
-     "overlap": 0.49,
+     "seed": 468692,
+     "score": 1.621,
+     "inscribed": 83.7,
+     "quality": 0.715,
+     "balance": 0.885,
+     "overlap": 0.31,
      "pass": true
     },
     {
-     "seed": 294127,
-     "score": 1.513,
-     "inscribed": 83.9,
-     "quality": 0.704,
-     "balance": 0.621,
-     "overlap": 0.5,
+     "seed": 796785,
+     "score": 1.62,
+     "inscribed": 83.4,
+     "quality": 0.701,
+     "balance": 0.901,
+     "overlap": 0.2,
      "pass": true
     },
     {
-     "seed": 338725,
-     "score": 1.511,
-     "inscribed": 83.9,
-     "quality": 0.705,
-     "balance": 0.615,
-     "overlap": 0.48,
-     "pass": true
-    },
-    {
-     "seed": 361024,
-     "score": 1.511,
-     "inscribed": 82.9,
-     "quality": 0.704,
-     "balance": 0.654,
-     "overlap": 0.47,
-     "pass": true
-    },
-    {
-     "seed": 819084,
-     "score": 1.511,
+     "seed": 892559,
+     "score": 1.618,
      "inscribed": 83,
      "quality": 0.718,
-     "balance": 0.637,
-     "overlap": 0.46,
-     "pass": true
-    },
-    {
-     "seed": 983017,
-     "score": 1.506,
-     "inscribed": 83.7,
-     "quality": 0.708,
-     "balance": 0.604,
-     "overlap": 0.47,
-     "pass": true
-    },
-    {
-     "seed": 593343,
-     "score": 1.504,
-     "inscribed": 82.6,
-     "quality": 0.7,
-     "balance": 0.649,
-     "overlap": 0.49,
-     "pass": true
-    },
-    {
-     "seed": 989595,
-     "score": 1.504,
-     "inscribed": 83.2,
-     "quality": 0.721,
-     "balance": 0.612,
-     "overlap": 0.45,
+     "balance": 0.895,
+     "overlap": 0,
      "pass": true
     },
     {
      "seed": 711416,
-     "score": 1.504,
+     "score": 1.618,
      "inscribed": 83.2,
      "quality": 0.715,
-     "balance": 0.614,
-     "overlap": 0.43,
+     "balance": 0.889,
+     "overlap": 0,
      "pass": true
     },
     {
-     "seed": 129967,
-     "score": 1.503,
+     "seed": 960718,
+     "score": 1.617,
+     "inscribed": 83,
+     "quality": 0.7,
+     "balance": 0.915,
+     "overlap": 0.39,
+     "pass": true
+    },
+    {
+     "seed": 791469,
+     "score": 1.617,
+     "inscribed": 83.2,
+     "quality": 0.71,
+     "balance": 0.889,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 983017,
+     "score": 1.617,
      "inscribed": 83.7,
-     "quality": 0.712,
-     "balance": 0.597,
-     "overlap": 0.47,
+     "quality": 0.708,
+     "balance": 0.877,
+     "overlap": 0.29,
+     "pass": true
+    },
+    {
+     "seed": 639203,
+     "score": 1.616,
+     "inscribed": 82.7,
+     "quality": 0.708,
+     "balance": 0.908,
+     "overlap": 0.03,
+     "pass": true
+    },
+    {
+     "seed": 344041,
+     "score": 1.616,
+     "inscribed": 82.8,
+     "quality": 0.701,
+     "balance": 0.909,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 384585,
+     "score": 1.616,
+     "inscribed": 83.5,
+     "quality": 0.701,
+     "balance": 0.892,
+     "overlap": 0.39,
      "pass": true
     },
     {
      "seed": 519868,
-     "score": 1.503,
-     "inscribed": 83.3,
+     "score": 1.615,
+     "inscribed": 83.5,
      "quality": 0.707,
-     "balance": 0.62,
-     "overlap": 0.58,
+     "balance": 0.877,
+     "overlap": 0,
      "pass": true
     },
     {
-     "seed": 468692,
-     "score": 1.503,
-     "inscribed": 83.3,
-     "quality": 0.715,
-     "balance": 0.608,
-     "overlap": 0.5,
+     "seed": 507974,
+     "score": 1.614,
+     "inscribed": 83.1,
+     "quality": 0.702,
+     "balance": 0.895,
+     "overlap": 0,
      "pass": true
     }
    ]
@@ -264,129 +264,129 @@
   "430x932": {
    "field": {
     "w": 382,
-    "h": 260
+    "h": 340
    },
    "seeds": [
-    311110,
-    338725,
+    639203,
     661502,
-    921436,
-    937157,
-    395217,
+    181143,
     468692,
-    203669,
-    141861,
-    17210,
-    276917,
-    367602
+    389901,
+    68386,
+    44825,
+    853050,
+    622220,
+    513290,
+    463376,
+    734977
    ],
    "scores": [
     {
-     "seed": 311110,
-     "score": 1.519,
-     "inscribed": 84.6,
-     "quality": 0.711,
-     "balance": 0.599,
-     "overlap": 0.35,
-     "pass": true
-    },
-    {
-     "seed": 338725,
-     "score": 1.509,
-     "inscribed": 83.9,
-     "quality": 0.705,
-     "balance": 0.596,
+     "seed": 639203,
+     "score": 1.833,
+     "inscribed": 97.1,
+     "quality": 0.708,
+     "balance": 0.911,
      "overlap": 0,
      "pass": true
     },
     {
      "seed": 661502,
-     "score": 1.508,
-     "inscribed": 84.5,
+     "score": 1.822,
+     "inscribed": 96.7,
      "quality": 0.721,
-     "balance": 0.558,
+     "balance": 0.89,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 921436,
-     "score": 1.507,
-     "inscribed": 83.7,
-     "quality": 0.71,
-     "balance": 0.605,
-     "overlap": 0.34,
-     "pass": true
-    },
-    {
-     "seed": 937157,
-     "score": 1.506,
-     "inscribed": 84,
-     "quality": 0.705,
-     "balance": 0.593,
-     "overlap": 0.3,
-     "pass": true
-    },
-    {
-     "seed": 395217,
-     "score": 1.504,
-     "inscribed": 83.6,
-     "quality": 0.714,
-     "balance": 0.602,
-     "overlap": 0.43,
+     "seed": 181143,
+     "score": 1.82,
+     "inscribed": 96.4,
+     "quality": 0.704,
+     "balance": 0.906,
+     "overlap": 0,
      "pass": true
     },
     {
      "seed": 468692,
-     "score": 1.504,
-     "inscribed": 84.5,
+     "score": 1.817,
+     "inscribed": 96.6,
      "quality": 0.715,
-     "balance": 0.562,
-     "overlap": 0.25,
-     "pass": true
-    },
-    {
-     "seed": 203669,
-     "score": 1.503,
-     "inscribed": 84.4,
-     "quality": 0.7,
-     "balance": 0.567,
+     "balance": 0.882,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 141861,
-     "score": 1.499,
-     "inscribed": 83.2,
-     "quality": 0.702,
-     "balance": 0.608,
-     "overlap": 0.33,
-     "pass": true
-    },
-    {
-     "seed": 17210,
-     "score": 1.498,
-     "inscribed": 84,
-     "quality": 0.708,
-     "balance": 0.565,
-     "overlap": 0,
-     "pass": true
-    },
-    {
-     "seed": 276917,
-     "score": 1.496,
-     "inscribed": 83.1,
+     "seed": 389901,
+     "score": 1.813,
+     "inscribed": 96.5,
      "quality": 0.701,
-     "balance": 0.606,
-     "overlap": 0.39,
+     "balance": 0.889,
+     "overlap": 0,
      "pass": true
     },
     {
-     "seed": 367602,
-     "score": 1.495,
-     "inscribed": 84.2,
-     "quality": 0.708,
-     "balance": 0.561,
-     "overlap": 0.37,
+     "seed": 68386,
+     "score": 1.803,
+     "inscribed": 95.9,
+     "quality": 0.716,
+     "balance": 0.876,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 44825,
+     "score": 1.803,
+     "inscribed": 96.1,
+     "quality": 0.704,
+     "balance": 0.874,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 853050,
+     "score": 1.798,
+     "inscribed": 95.6,
+     "quality": 0.711,
+     "balance": 0.877,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 622220,
+     "score": 1.797,
+     "inscribed": 95.6,
+     "quality": 0.703,
+     "balance": 0.88,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 513290,
+     "score": 1.796,
+     "inscribed": 94.2,
+     "quality": 0.725,
+     "balance": 0.915,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 463376,
+     "score": 1.795,
+     "inscribed": 96.4,
+     "quality": 0.701,
+     "balance": 0.849,
+     "overlap": 0,
+     "pass": true
+    },
+    {
+     "seed": 734977,
+     "score": 1.795,
+     "inscribed": 95.4,
+     "quality": 0.702,
+     "balance": 0.884,
+     "overlap": 0,
      "pass": true
     }
    ]

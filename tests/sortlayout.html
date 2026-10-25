@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: layout and fallbacks</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
+<body>
+<h1>Sort the food: layout and fallbacks</h1>
+<p>With the curated seeds, at 375×667, 390×844 and 430×932, light and dark: the page never scrolls, nothing overflows sideways, place cells are at least 140px wide, every shape's inscribed circle is at least 80px, the pill and the status row are on screen, every tap target is 44px; the field meets its minimum (220px tall, 170px short); at 375×667 the fallbacks apply in order (meaning lines, the Skips line, the link into the title row, then a 150px pile), and a long name still fits. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const frame = (w, h, q, name = "Lula") => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = w; f.height = h; f.src = "../index.html?test&now=2026-10-22T09:15" + q;
+  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: ${JSON.stringify(name)}, birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`); await wait(1100); res(f); };
+  document.body.append(f);
+});
+const ORDER = ["meaning", "skips", "link", "pile150", "title"];
+(async () => {
+  try {
+    const cur = await (await fetch("../curatedSeeds.json")).json();
+    for (const [W, H] of [[375, 667], [390, 844], [430, 932]]) for (const theme of ["light", "dark"]) {
+      const f = await frame(W, H, "&theme=" + theme), d = f.contentDocument, E = x => f.contentWindow.eval(x), tag = `${W}×${H} ${theme}`;
+      const seed = E("state.profile.foodSort.shapeSeed");
+      ok(`${tag}: the seed comes from this size's curated list`, cur.sizes[`${W}x${H}`].seeds.includes(seed), seed);
+      const sc = d.scrollingElement, card = d.getElementById("onbCard");
+      ok(`${tag}: the page never scrolls, no horizontal overflow`, sc.scrollHeight <= H && card.scrollHeight <= card.clientHeight + 1 && sc.scrollWidth <= W && d.body.scrollWidth <= W);
+      ok(`${tag}: place cells at least 140px wide, rows at least 92px`, [...d.querySelectorAll(".sf-place")].every(c => c.getBoundingClientRect().width >= 140 && c.getBoundingClientRect().height >= 92));
+      const ins = E("Math.min(...[...sortUI.shapes.values()].map(s => shapeInscribed(s.shape, s.w, s.h)))");
+      ok(`${tag}: every shape's inscribed circle at least 80px (${ins.toFixed(1)})`, ins >= 80, ins);
+      ok(`${tag}: the pile packs (${E("sortUI.pack.overlap").toFixed(1)}px overlap at most)`, E("sortUI.pack.ok"));
+      const fr = d.querySelector(".sf-field").getBoundingClientRect(), pill = d.querySelector("#onbFoot .btn-ink").getBoundingClientRect(), st = d.querySelector(".sf-status").getBoundingClientRect();
+      ok(`${tag}: the field is ${Math.round(fr.height)}px (minimum ${H >= 800 ? 220 : 170})`, fr.height >= (H >= 800 ? 220 : 170) - .5, fr.height);
+      ok(`${tag}: the pill (52px) and the status row (28px) are on screen`, pill.bottom <= H && Math.round(pill.height) === 52 && st.top > 0 && st.bottom < fr.top + 1 && Math.round(st.height) === 28);
+      const small = [...d.querySelectorAll("#onbCard button, #onbFoot button")].filter(b => b.offsetParent && !b.classList.contains("sf-shape")).filter(b => { const r = b.getBoundingClientRect(), a = getComputedStyle(b, "::after"); return r.height < 44 && !(a.content !== "none" && parseFloat(a.height) >= 44); });
+      ok(`${tag}: every tap target is at least 44px`, small.length === 0, small.map(b => b.className + ":" + b.getBoundingClientRect().height));
+      const fb = E("sortUI.fallbacks");
+      ok(`${tag}: fallbacks applied in order (${fb.join(", ") || "none"})`, JSON.stringify(fb) === JSON.stringify(ORDER.slice(0, fb.length)) && (H >= 800 ? fb.length === 0 : fb.length >= 1), fb);
+      if (H < 800) {
+        ok(`${tag}: …the meaning lines and the Skips line hidden, the link in the title row`, getComputedStyle(d.querySelector(".sf-pl-mean")).display === "none" && d.querySelector(".sf-places").classList.contains("no-skips") && d.querySelector(".sf-side .sf-locked") && fb.includes("link"));
+        ok(`${tag}: …the title keeps two lines`, d.querySelector(".sf-title").getBoundingClientRect().height < 2.4 * parseFloat(getComputedStyle(d.querySelector(".sf-title")).fontSize) * 1.15, d.querySelector(".sf-title").getBoundingClientRect().height);
+      } else ok(`${tag}: …nothing hidden: meaning lines shown`, getComputedStyle(d.querySelector(".sf-pl-mean")).display !== "none");
+      f.remove();
+    }
+    // a long name, at the small size: the fallbacks take the space, the page still never scrolls
+    const g = await frame(375, 667, "", "Maximiliana Josefina"), gd = g.contentDocument, G = x => g.contentWindow.eval(x);
+    ok("a long name at 375×667: still no scroll, the pill on screen", gd.scrollingElement.scrollHeight <= 667 && gd.getElementById("onbCard").scrollHeight <= gd.getElementById("onbCard").clientHeight + 1 && gd.querySelector("#onbFoot .btn-ink").getBoundingClientRect().bottom <= 667);
+    ok(`…fallbacks in order (${G("sortUI.fallbacks").join(", ")}), the pile at least 150px`, JSON.stringify(G("sortUI.fallbacks")) === JSON.stringify(ORDER.slice(0, G("sortUI.fallbacks").length)) && gd.querySelector(".sf-field").getBoundingClientRect().height >= 150, gd.querySelector(".sf-field").getBoundingClientRect().height);
+    g.remove();
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+})();
+</script>
+</body></html>
