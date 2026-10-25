@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: saved and resumed</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Sort the food: saved and resumed</h1>
+<p>Every change lands in profile.foodSort ({v: 1, placement, custom, firstPileComplete, completedAt, shapeSeed}); a reload restores the placements, the family's own, the pile (and its tab) and the seed, and packs the shapes again from the seed and what's left, to the same layout; schema 12 keeps only what a sort can hold; an older profile's answers become the sort the first time it opens. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const f = document.createElement("iframe");
+f.width = 390; f.height = 844; f.src = "../index.html?test&now=2026-10-22T09:15";
+document.body.append(f);
+const loaded = () => new Promise(r => { f.onload = r; });
+(async () => {
+  try {
+    await loaded();
+    let w = f.contentWindow, E = x => f.contentWindow.eval(x), $ = s => f.contentDocument.querySelector(s), $$ = s => [...f.contentDocument.querySelectorAll(s)];
+    E(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18), onboardingStep: "keepout"}); state.plans = []; save(); openOnboarding("keepout")`);
+    await wait(900);
+    const saved = () => JSON.parse(E("localStorage.getItem(STORE_KEY)")).profile.foodSort;
+    ok("opening the screen writes the sort down, with a seed from the curated list", saved() && saved().v === 1 && Number.isInteger(saved().shapeSeed) && E(`Object.values(SORT_SEEDS.sizes || {}).some(s => s.seeds.includes(${saved().shapeSeed}))`), saved());
+    E(`sortUI.place(["egg"], "keepOut"); sortUI.place(["milk", "soy"], "tried"); state.profile.foodSort.custom.push({id: "c:kiwi", label: "Kiwi", place: "keepOut", matchedFoodIds: ["kiwi"]}); syncLegacyFromSort(state.profile); save(); sortUI.afterChange()`); await wait(400);
+    ok("every change is saved at once", JSON.stringify(saved().placement) === JSON.stringify({egg: "keepOut", milk: "tried", soy: "tried"}) && saved().custom.length === 1);
+    const seed = saved().shapeSeed;
+    // reload, mid first pile
+    f.contentWindow.location.reload(); await loaded(); await wait(900);
+    ok("a reload goes back to the step ('Welcome back.')", E("onb.step") === "keepout" && !!$(".sf-title"));
+    ok("…the placements and their own, as they were", $('.sf-place[data-place="keepOut"] .sf-pl-names').textContent === "Egg, Kiwi" && $('.sf-place[data-place="tried"] .sf-pl-names').textContent === "Milk, Soy" && $(".sf-prog").textContent === "3 of 9 sorted", [$('.sf-place[data-place="keepOut"] .sf-pl-names').textContent, $(".sf-prog").textContent]);
+    ok("…the same seed, and the pile is what's left", E("state.profile.foodSort.shapeSeed") === seed && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "peanut,treenuts,wheat,fish,shellfish,sesame");
+    const fresh = E(`(() => { const fs = sortUI.fieldSize(); return pileFor(sortUI.pileIds().map(id => ({id, label: FOOD_BY_ID[id].label})), {w: fs.w, h: fs.h}, state.profile.foodSort.shapeSeed).pack.bodies.map(b => [b.id, Math.round(b.x), Math.round(b.y)].join()).join("|"); })()`);
+    ok("…its layout re-derived from the seed and the foods left: the same layout again", E("sortUI.world.bodies.map(b => [b.id, Math.round(b.x), Math.round(b.y)].join()).join('|')") === fresh);
+    // finish the first pile, go to a tab, reload
+    E(`sortUI.place(sortUI.pileIds(), "untouched", {noUndo: true})`); await wait(1500);
+    $(".sf-tab[data-tab='grains']").click(); await wait(200);
+    E(`sortUI.place(["pasta"], "notFan")`); await wait(200);
+    f.contentWindow.location.reload(); await loaded(); await wait(900);
+    ok("reloaded after the first pile: the everyday foods, on the same tab (Grains)", !!$(".sf-tabs") && $(".sf-tab[aria-pressed=true]").textContent === "Grains" && !$('.sf-shape[data-id="pasta"]') && E("state.profile.foodSort.firstPileComplete") === true);
+    ok("…Next ready, no second summary", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false" && !/kept out/.test($(".sf-status").textContent));
+    // schema 12 cleans what it doesn't know
+    E(`localStorage.setItem(STORE_KEY, JSON.stringify(Object.assign(JSON.parse(localStorage.getItem(STORE_KEY)), {schemaVersion: 11})))`);
+    const raw = JSON.parse(E("localStorage.getItem(STORE_KEY)"));
+    raw.profile.foodSort = {v: 1, placement: {egg: "keepOut", dragonfruit: "tried", milk: "eaten?"}, custom: [{label: "Kiwi", place: "keepOut", matchedFoodIds: ["kiwi", "nope"]}, {label: "", place: "keepOut"}, {label: "x", place: "maybe"}], firstPileComplete: true, completedAt: 5, shapeSeed: -3};
+    const m = E(`migrate(${JSON.stringify(raw)}).profile.foodSort`);
+    ok("schema 12 keeps only what a sort can hold", JSON.stringify(m.placement) === JSON.stringify({egg: "keepOut"}) && m.custom.length === 1 && m.custom[0].matchedFoodIds.join() === "kiwi" && m.firstPileComplete === false && m.completedAt === null && m.shapeSeed === null, m);
+    ok("…and a profile with no sort stays without one (null)", E(`migrate({schemaVersion: 11, profile: {name: "A", birthDate: "2025-01-01"}}).profile.foodSort`) === null);
+    // an older profile: its answers become the sort when the screen opens
+    E(`sortUI && sortUI.destroy(); closeOnboarding(); localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Ana", birthDate: birthDateFromMonths(18), onboarded: true, allergens: {egg: "avoid", wheat: "ok"}, avoid: [{name: "Banana", kind: "dislike"}], diet: {meat: "avoid"}}); save(); openOnboarding("keepout", {single: true})`);
+    await wait(800);
+    const fs = E("state.profile.foodSort");
+    ok("an older profile, opened: egg Keep out, wheat Tried, the rest Untouched, banana and Meat as their own", fs.placement.egg === "keepOut" && fs.placement.wheat === "tried" && fs.placement.milk === "untouched" && fs.custom.map(c => c.label + ":" + c.place).join() === "Banana:notFan,Meat:keepOut" && fs.firstPileComplete === true, fs);
+    ok("…and the plan says the same as it did", E("allergyMatch('Egg, well cooked', state.profile) && allergyMatch('Chicken', state.profile) && dislikeMatch('Banana', state.profile) && !allergyMatch('Whole wheat toast', state.profile)"));
+    $("#onbClose").click(); await wait(300);
+    ok("Close from Profile puts back what was there (no sort written)", E("state.profile.foodSort") === null);
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+})();
+</script>
+</body></html>

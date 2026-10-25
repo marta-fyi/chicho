@@ -6,11 +6,12 @@
    mountSortFood({card, foot, profile, months, single, onContinue}) builds it into the onboarding's card and foot; the
    top bar isn't its own. sortUI is the live screen (the tests reach in). */
 
-const SORT_SEEDS = {sizes:null};
-(function loadSeeds(){
-  if(typeof fetch!=="function") return;
-  fetch("curatedSeeds.json").then(r=>r.ok ? r.json() : null).then(j=>{ if(j && j.sizes) SORT_SEEDS.sizes = j.sizes; }).catch(()=>{});
-})();
+const SORT_SEEDS = {sizes:null, ready:Promise.resolve()};
+/* the list, loaded once (the service worker keeps it); ready settles either way, and within 800 ms at most */
+SORT_SEEDS.ready = typeof fetch!=="function" ? Promise.resolve() : Promise.race([
+  fetch("curatedSeeds.json").then(r=>r.ok ? r.json() : null).then(j=>{ if(j && j.sizes) SORT_SEEDS.sizes = j.sizes; }).catch(()=>{}),
+  new Promise(r=>setTimeout(r, 800))
+]);
 /* one of the curated seeds for this viewport (the nearest measured size), or a fresh one while the list loads */
 function pickSortSeed(){
   const sizes = SORT_SEEDS.sizes, q = new URLSearchParams(location.search).get("sortseed");
@@ -40,8 +41,9 @@ function mountSortFood(o){
   // the sort, written down the first time the screen opens (from the old fields, for a family that had none)
   if(!P.foodSort){ P.foodSort = JSON.parse(JSON.stringify(legacyFoodSort(P))); }
   const S = P.foodSort;
-  if(S.shapeSeed===null || S.shapeSeed===undefined) S.shapeSeed = pickSortSeed();
   const persist = ()=>{ syncLegacyFromSort(P); o.save(); };
+  // the seed: one of the curated ones, once the list is in (a fresh one if it never comes)
+  const seeded = S.shapeSeed===null || S.shapeSeed===undefined ? SORT_SEEDS.ready.then(()=>{ if(S.shapeSeed===null || S.shapeSeed===undefined){ S.shapeSeed = pickSortSeed(); persist(); } }) : Promise.resolve();
   persist();
 
   const ui = {o, P, S, card, view:"big", tab:C.groups[0][0], selected:new Set(), undo:null, sorted:0, hint2:"idle",
@@ -279,7 +281,7 @@ function mountSortFood(o){
         const b = document.createElement("button");
         b.type = "button"; b.className = "sf-tab"; b.dataset.tab = key; b.textContent = sfSay("tabs." + key);
         b.setAttribute("aria-pressed", String(ui.tab===key));
-        b.addEventListener("click", ()=>{ if(ui.tab===key) return; ui.tab = key; ui.selected.clear(); paintPileHead(); paintStatus(); buildPile(); });
+        b.addEventListener("click", ()=>{ if(ui.tab===key) return; ui.tab = key; try{ sessionStorage.setItem("sortTab", key); }catch(e){} ui.selected.clear(); paintPileHead(); paintStatus(); buildPile(); entrance(); });
         t.appendChild(b);
       });
       pileHead.appendChild(t);
@@ -729,11 +731,16 @@ function mountSortFood(o){
 
   /* ---------- first paint ---------- */
   ui.destroy = ()=>{ ui.gone = true; ui.timers.forEach(clearTimeout); if(ui.stopEngine) ui.stopEngine(); if(sortUI===ui) sortUI = null; };
-  if(bigDone() && S.firstPileComplete && everyday.length) ui.view = "everyday";
+  if(bigDone() && S.firstPileComplete && everyday.length){
+    // a reload comes back to the same pile and tab; the shapes are packed again from the seed and what's left
+    ui.view = "everyday";
+    let t = null; try{ t = sessionStorage.getItem("sortTab"); }catch(e){}
+    ui.tab = C.groups.some(([k])=>k===t) ? t : C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0];
+  }
   else if(bigDone() && S.firstPileComplete){ ui.view = "none"; ui.noSolids = sfSay("noSolids", {n:Math.max(1, 6 - o.months)}); }
   paintPlaces(); paintProgress(); paintPileHead(); paintStatus();
   if(ui.view==="big" && bigDone()) firstPileDone();
-  requestAnimationFrame(()=>{
+  Promise.all([seeded, new Promise(r=>requestAnimationFrame(r))]).then(()=>{
     if(ui.gone) return;
     sortLayout(ui); buildPile(); paintPlaces(); entrance();
     // a new size (a rotation, the keyboard, a font arriving): the pile is packed again for it

@@ -24,7 +24,7 @@ f.onload = () => {
     const v4 = M({schemaVersion: 4, createAge: 10, plan: week(), excludedFoods: ["Broccoli", "Honey", "Added salt or sugar", "Whole nuts"],
       grocery: [{id: "a", name: "Oatmeal", cat: "grain", checked: true, manual: false, entries: [{day: "Monday", qty: "40 g"}, {day: "Tuesday", qty: "60 g"}]},
                 {id: "b", name: "Diapers", qty: "1 pack", cat: "other", checked: true, manual: true}]});
-    ok("schema becomes 11", v4.schemaVersion === 11, v4.schemaVersion);
+    ok("schema becomes 12", v4.schemaVersion === 12, v4.schemaVersion);
     ok("createAge 10 → birth date 10 months ago", w.ageMonths(v4.profile.birthDate) === 10, [v4.profile.birthDate, w.ageMonths(v4.profile.birthDate)]);
     ok("createAge and excludedFoods are gone", !("createAge" in v4) && !("excludedFoods" in v4), Object.keys(v4));
     ok("Broccoli becomes a dislike", JSON.stringify(v4.profile.avoid) === JSON.stringify([{name: "Broccoli", kind: "dislike"}]), v4.profile.avoid);
@@ -49,7 +49,7 @@ f.onload = () => {
       stock: {"oatmeal": {name: "Oatmeal", g: 300, plenty: false}, "banana": {name: "Banana", g: 0, plenty: false}, "rice, soft-cooked": {name: "Rice, soft-cooked", g: null, plenty: false}},
       extras: [{id: "x", name: "Wipes", qty: "", checked: false}],
       profile: {name: "Lula", birthDate: "2025-04-01", onboarded: true, allergens: {}}});
-    ok("schema 8 → 11", v8.schemaVersion === 11);
+    ok("schema 8 → 12", v8.schemaVersion === 12);
     ok("weekStarted becomes the week's start date (and still reads as a view)", v8.plans[0].startsOn === "2026-10-19" && v8.weekStarted === "2026-10-19" && !Object.keys(v8).includes("weekStarted") && !Object.keys(v8).includes("plan"), [v8.plans[0].startsOn, Object.keys(v8)]);
     const ev = v8.offers;
     ok("Tuesday's offered meal: one event per food on Tue 20 Oct, 'nottoday' → 'not_today'", ev.filter(e => e.date === "2026-10-20").length === 2 && ev.filter(e => e.date === "2026-10-20").every(e => e.outcome === "not_today"), ev);

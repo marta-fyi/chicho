@@ -1683,7 +1683,7 @@ function defaultPlan(){
 
 /* ---------- state ---------- */
 const STORE_KEY = "toddlerMealPlanner.v1";
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 let state = loadState();
 
 function freshProfile(){
@@ -1704,7 +1704,8 @@ function freshProfile(){
           ink:null,          // the name as drawn on the pad: {w, h, strokes:[[x, y, x, y…]]}, on this device only
           cookDays:7,        // "We'll cook on {n} days" (New week)
           newFoods:null,     // "Try {n} new foods" (New week); null = the stage's default
-          appearance:"auto"};  // auto (follows the system) · light · dark
+          appearance:"auto",   // auto (follows the system) · light · dark
+          foodSort:null};      // Sort the food (sortcore.js): {v, placement, custom, firstPileComplete, completedAt, shapeSeed}; null = not opened yet
 }
 function freshState(){
   return withPlanAccessors({
@@ -1830,6 +1831,20 @@ function migrate(saved){
   Object.entries(prof.mealTimes || {}).forEach(([k,v])=>{ if(MEAL_SLOTS.some(ms=>ms.id===k) && hhmm(v)) mt[k] = fmtHHMM(hhmm(v)); });
   prof.mealTimes = mt;
   if(!(prof.timesToday && typeof prof.timesToday.date==="string" && prof.timesToday.times && typeof prof.timesToday.times==="object")) prof.timesToday = null;
+  // schema 12: Sort the food. Only what the sort can hold survives: known foods in the four places, the family's own
+  // (twelve at most, matched ids that exist), the flags and the seed. No sort yet stays null (read through legacyFoodSort).
+  const fs = prof.foodSort;
+  if(fs && typeof fs==="object" && fs.placement && typeof fs.placement==="object"){
+    const clean = freshFoodSort();
+    Object.entries(fs.placement).forEach(([id, p])=>{ if(FOOD_BY_ID[id] && SORT_PLACES.includes(p)) clean.placement[id] = p; });
+    clean.custom = (Array.isArray(fs.custom) ? fs.custom : []).filter(c=>c && typeof c.label==="string" && c.label.trim() && ["keepOut","notFan"].includes(c.place))
+      .slice(0, SORT_CONFIG.MAX_CUSTOM).map(c=>({id:typeof c.id==="string" ? c.id : "c:" + sortKey(c.label), label:c.label.trim().slice(0, 30), place:c.place,
+                                                   matchedFoodIds:(Array.isArray(c.matchedFoodIds) ? c.matchedFoodIds : []).filter(id=>FOOD_BY_ID[id])}));
+    clean.firstPileComplete = fs.firstPileComplete===true && SORT_CONFIG.bigFoods.every(id=>clean.placement[id]);
+    clean.completedAt = typeof fs.completedAt==="string" ? fs.completedAt : null;
+    clean.shapeSeed = Number.isInteger(fs.shapeSeed) && fs.shapeSeed >= 0 ? fs.shapeSeed : null;
+    prof.foodSort = clean;
+  }else prof.foodSort = null;
   s.profile = prof;
 
   // what's at home. Schema 5 turned the grocery list into stock (grams) and extras; schema 9 keeps only a
