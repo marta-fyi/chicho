@@ -571,6 +571,68 @@ function mountSortFood(o){
   }
   ui.removeCustom = removeCustom;
 
+  /* ---------- Something else: a food not on the board ----------
+     "Also keep out ____." with Keep out (the default) or Not a fan, and Add (Enter too; it waits while the field is
+     empty). The keyboard opens in the same tap (focus() inside the handler). What's typed is matched to the manifest;
+     the sheet says what it skips (or that it couldn't match it) for RESULT_MS, then closes. Same text again merges;
+     MAX_CUSTOM at most. */
+  function openCustom(){
+    let kind = "keepOut";
+    const sh = onbSheet({modal:true, cls:"sf-sheet else-sheet sf-custom", onClose:()=>{ ui.custom = null; }});
+    const p = document.createElement("p"); p.className = "sh-sent";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.className = "sh-input"; inp.maxLength = 30; inp.id = "sfElse"; inp.autocomplete = "off"; inp.enterKeyHint = "done";
+    inp.setAttribute("autocapitalize", "none"); inp.setAttribute("autocorrect", "off"); inp.spellcheck = false;
+    const [pre, post] = sfSay("alsoKeepOut").split("____");
+    const lb = document.createElement("label"); lb.htmlFor = inp.id; lb.textContent = pre.trim();
+    p.append(lb, " ", inp, post);
+    const kinds = document.createElement("div"); kinds.className = "kind-toggle sf-kinds";
+    ["keepOut", "notFan"].forEach(k=>{
+      const kb = document.createElement("button");
+      kb.type = "button"; kb.textContent = sfSay("places." + k); kb.dataset.kind = k; kb.setAttribute("aria-pressed", String(kind===k));
+      kb.addEventListener("click", ()=>{ kind = k; kinds.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed", String(z===kb))); inp.focus(); });
+      kinds.appendChild(kb);
+    });
+    const add = document.createElement("button");
+    add.type = "button"; add.className = "btn-ink sf-add"; add.textContent = sfSay("add");
+    const res = document.createElement("p"); res.className = "sf-result";
+    const full = S.custom.length >= C.MAX_CUSTOM;
+    const ready = ()=>{ const on = !!inp.value.trim() && !done; add.disabled = !on; add.classList.toggle("wait", !on); };
+    let done = false;
+    const commit = ()=>{
+      const v = inp.value.trim();
+      if(!v || done) return;
+      const key = sortKey(v), have = S.custom.find(c=>sortKey(c.label)===key);
+      if(!have && S.custom.length >= C.MAX_CUSTOM){ res.textContent = sfSay("full"); return; }
+      done = true; ready();
+      const ids = matchFood(v, FOODS), before = have ? Object.assign({}, have) : null;
+      if(have) Object.assign(have, {place:kind, matchedFoodIds:ids});
+      else S.custom.push({id:"c:" + key, label:v, place:kind, matchedFoodIds:ids});
+      ui.sorted++;
+      persist();
+      setUndo({kind:"custom", text:sfSay("moved", {food:v, place:sfSay("places." + kind)}), restore:()=>{
+        const k = S.custom.findIndex(c=>c.id===(before ? before.id : "c:" + key));
+        if(k < 0) return;
+        if(before) S.custom[k] = before; else S.custom.splice(k, 1);
+      }});
+      afterChange();
+      const reach = matchReach(ids, FOODS).map(id=>lower1(sfLabel(id)));
+      res.textContent = ids.length ? sfSay("skipsFoods", {foods:listJoin(reach)}) : sfSay("noMatch");
+      later(()=>sh.close(), C.RESULT_MS);
+    };
+    add.addEventListener("click", commit);
+    inp.addEventListener("input", ready);
+    inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
+    sh.body.append(p, kinds, add, res);
+    if(full) res.textContent = sfSay("full");
+    ready();
+    sfSwipeToClose(sh);
+    inp.focus();   // in the tap itself: iOS opens the keyboard only then
+    ui.custom = {sheet:sh, input:inp, add, result:res};
+    return sh;
+  }
+  ui.openCustom = openCustom;
+
   /* ---------- Always off the plate at this age: the stage's locked foods, each with its reason ---------- */
   function openLocked(){
     const sh = onbSheet({modal:true, title:sfSay("lockedTitle"), cls:"sf-sheet locked-sheet", onClose:()=>lockedBtn.focus()});

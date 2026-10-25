@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: something else</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
+<body>
+<h1>Sort the food: something else</h1>
+<p>The sheet: "Also keep out ____." with a 16px field (autocapitalize none, autocomplete off, enterkeyhint done, 30 characters), Keep out (default) and Not a fan, Add (Enter too; it waits while empty). A match says what it skips; no match says it'll be remembered; either way the sheet closes after 2 s, and the item is saved in its place with its matched ids. Duplicates merge; twelve at most; Undo. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const f = document.createElement("iframe");
+f.width = 390; f.height = 844; f.src = "../index.html?test&now=2026-10-22T09:15&sortseed=921436";
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s);
+    E(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
+    await wait(700);
+    E("SORT_CONFIG.RESULT_MS = 400");
+    const open = async () => { E("sortUI.openCustom()"); await wait(30); };
+    const type = (v) => { const i = $("#sfElse"); i.value = v; i.dispatchEvent(new w.Event("input", {bubbles: true})); };
+    const custom = () => E("state.profile.foodSort.custom.map(c => [c.label, c.place, c.matchedFoodIds.join('+')].join(':')).join('|')");
+    await open();
+    const inp = $("#sfElse");
+    ok("the sheet: 'Also keep out ____.' with the field in the blank", !!inp && $(".sf-custom .sh-sent").textContent.replace(/\s+/g, " ").trim() === "Also keep out .", $(".sf-custom .sh-sent").textContent);
+    ok("…the field: 16px or more, autocapitalize none, autocomplete off, enterkeyhint done, 30 characters at most", parseFloat(getComputedStyle(inp).fontSize) >= 16 && inp.getAttribute("autocapitalize") === "none" && inp.autocomplete === "off" && inp.enterKeyHint === "done" && inp.maxLength === 30);
+    ok("…focused at once (in the same call that opened it)", d.activeElement === inp);
+    ok("…Keep out (on) and Not a fan, then Add, waiting while the field is empty", [...d.querySelectorAll(".sf-kinds button")].map(b => b.textContent + "=" + b.getAttribute("aria-pressed")).join() === "Keep out=true,Not a fan=false" && $(".sf-add").textContent === "Add" && $(".sf-add").disabled);
+    type("Strawberries");
+    ok("…and ready once there's text", !$(".sf-add").disabled);
+    inp.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(30);
+    ok("Enter adds: 'Also skips strawberries.'", $(".sf-result").textContent === "Also skips strawberries.", $(".sf-result").textContent);
+    ok("…saved as their own, kept out, with the matched id", custom() === "Strawberries:keepOut:strawberries" && E("getFoodRules(state.profile, FOODS).neverIds.includes('strawberries')"));
+    ok("…shown in Keep out's cell, with the undo line", /Strawberries/.test($('.sf-place[data-place="keepOut"] .sf-pl-names').textContent) && /^Strawberries → Keep out · Undo$/.test($(".sf-status").textContent.replace(/\s+/g, " ").trim()));
+    await wait(800);
+    ok("…and the sheet closes after its moment", !$(".sf-custom"));
+    // a big one by another name: everything carrying it
+    await open(); type("peanuts"); $(".sf-add").click(); await wait(30);
+    ok("'peanuts': 'Also skips peanut and peanut butter.'", $(".sf-result").textContent === "Also skips peanut and peanut butter.", $(".sf-result").textContent);
+    await wait(800);
+    // accents, Not a fan
+    await open(); d.querySelectorAll(".sf-kinds button")[1].click(); type("Épinards"); $(".sf-add").click(); await wait(30);
+    ok("no match: 'Couldn't match this to a food we plan with. We'll still remember it.'", $(".sf-result").textContent === "Couldn't match this to a food we plan with. We'll still remember it.");
+    ok("…remembered anyway, as Not a fan, with no ids", /Épinards:notFan:$/.test(custom()), custom());
+    await wait(800);
+    await open(); d.querySelectorAll(".sf-kinds button")[1].click(); type("Crème fraîche spinach"); type("spinach "); $(".sf-add").click(); await wait(30);
+    ok("Not a fan, matched: spinach is avoided (only when nothing else fits)", E("getFoodRules(state.profile, FOODS).avoidIds.includes('spinach')"));
+    await wait(800);
+    // duplicates merge
+    await open(); type("  STRAWBERRY "); $(".sf-add").click(); await wait(30);
+    ok("the same food again ('  STRAWBERRY ') merges with Strawberries, no second entry", E("state.profile.foodSort.custom.filter(c => c.matchedFoodIds.includes('strawberries')).length") === 1, custom());
+    await wait(800);
+    // undo an add
+    await open(); type("mango"); $(".sf-add").click(); await wait(30);
+    $(".sf-status .sf-undo").click(); await wait(30);
+    ok("Undo takes an Add back", !/mango/i.test(custom()), custom());
+    await wait(800);
+    // twelve at most
+    E(`for (let k = state.profile.foodSort.custom.length; k < 12; k++) state.profile.foodSort.custom.push({id: "c:x" + k, label: "x" + k, place: "keepOut", matchedFoodIds: []}); save()`);
+    await open(); type("plum"); $(".sf-add").click(); await wait(30);
+    ok("twelve of their own: the thirteenth isn't added, and the sheet says why", E("state.profile.foodSort.custom.length") === 12 && $(".sf-result").textContent === "That's twelve of your own. Remove one to add another.", [E("state.profile.foodSort.custom.length"), $(".sf-result").textContent]);
+    $(".sf-custom .sh-close").click(); await wait(400);
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+};
+</script>
+</body></html>
