@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: shapes, seeds and packing</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Sort the food: shapes, seeds and packing</h1>
+<p>Every shape's eight radii inside RADIUS_RANGE, never all 50%, never too uneven; aspect and rest rotation in range; labels in two balanced lines at 11 to 14px; sizes cover the field and stay between MIN_D and MAX_D; packing inside the field with no more than 6px of overlap; the inscribed circle at least 80px; the same seed, the same pile; the curated seeds file. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test";
+f.style.cssText = "width:390px;height:400px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x), J = x => JSON.stringify(x), C = E("SORT_CONFIG");
+    // 2000 shapes
+    const shapes = E("Array.from({length: 2000}, (_, k) => makeShape(sortRng(k + 1)))");
+    ok("2000 shapes: every radius inside RADIUS_RANGE (38–62%)", shapes.every(s => s.radii.length === 8 && s.radii.every(r => r >= 38 && r <= 62)));
+    ok("…never all 50%, and the shortest radius at least 0.7 of the longest", shapes.every(s => !s.radii.every(r => r === 50) && Math.min(...s.radii) / Math.max(...s.radii) >= 0.7));
+    ok("…aspect inside ASPECT_RANGE, rest rotation within ±10°", shapes.every(s => s.aspect >= 0.85 && s.aspect <= 1.2 && Math.abs(s.rot) <= 10));
+    ok("…irregular: no two shapes alike in the first 200", new Set(shapes.slice(0, 200).map(s => s.radii.join())).size === 200);
+    ok("the CSS: eight percentages, horizontal / vertical", /^(\d+(\.\d)?% ){3}\d+(\.\d)?% \/ (\d+(\.\d)?% ){3}\d+(\.\d)?%$/.test(E("shapeRadiusCSS(makeShape(sortRng(3)))")), E("shapeRadiusCSS(makeShape(sortRng(3)))"));
+    ok("the same seed, the same shape", E("JSON.stringify(makeShape(sortRng(42))) === JSON.stringify(makeShape(sortRng(42)))"));
+    // labels
+    ok("labels: two balanced lines at most ('BUTTERNUT / SQUASH', 'GREEN / BEANS', 'TREE / NUTS'); one word stays one line", E("labelLines('Butternut squash').join('/')") === "BUTTERNUT/SQUASH" && E("labelLines('Tree nuts').join('/')") === "TREE/NUTS" && E("labelLines('Strawberries').length") === 1 && E("labelLines('Chia seeds').length") === 2);
+    const sizes = E(`FOODS.filter(f => f.group !== "other").map(f => { const d = sizeShapes([{label: f.label, shape: {aspect: 1}}], {w: 1, h: 1})[0]; return [f.label, d, labelSize(f.label, d)]; })`);
+    ok("every food's label fits its narrowest shape at 11–14px (LABEL_FIT of the width)", sizes.every(([l, d, px]) => px >= 11 && px <= 14 && Math.max(...E(`labelLines(${J(l)})`).map(x => x.length)) * 0.6 * px <= d * C.LABEL_FIT + .5), sizes.filter(([l, d, px]) => !(px >= 11 && px <= 14 && Math.max(...E(`labelLines(${J(l)})`).map(x => x.length)) * 0.6 * px <= d * C.LABEL_FIT + .5)));
+    // sizing and packing: the first pile and a twelve-shape everyday pile, at the three phones' fields
+    const big = E("SORT_CONFIG.bigFoods.map(id => ({id, label: FOOD_BY_ID[id].label}))");
+    const veg = E("sortEverydayFoods(24).filter(f => f.group === 'veg').slice(0, 11).map(f => ({id: f.id, label: f.label})).concat([{id: '+else', label: 'Something else'}])");
+    for (const [name, items, field] of [["first pile, 390×844", big, {w: 342, h: 300}], ["first pile, 430×932", big, {w: 382, h: 340}], ["twelve veg, 390×844", veg, {w: 342, h: 300}]]) {
+      const r = E(`(() => { const p = pileFor(${J(items)}, ${J(field)}, 921436); return {pack: p.pack, ins: Math.min(...p.pack.bodies.map((b, k) => shapeInscribed(p.items[k].shape, b.w, b.h)))}; })()`);
+      const B = r.pack.bodies, inside = B.every(b => { const h = E(`rotHalf(${b.w}, ${b.h}, ${b.rot})`); return b.x - h.x >= -0.5 && b.x + h.x <= field.w + 0.5 && b.y - h.y >= -0.5 && b.y + h.y <= field.h + 0.5; });
+      ok(`${name}: packed (${r.pack.tries} tries), overlap ${r.pack.overlap.toFixed(1)}px ≤ 6px`, r.pack.ok && r.pack.overlap <= 6, r.pack.overlap);
+      ok(`${name}: every shape fully inside the field`, inside);
+      ok(`${name}: shorter sides between MIN_D and MAX_D`, B.every(b => b.d >= C.MIN_D - .01 && b.d <= C.MAX_D + 30), B.map(b => Math.round(b.d)));
+      ok(`${name}: the smallest inscribed circle is ${r.ins.toFixed(1)}px (at least 80)`, r.ins >= 80, r.ins);
+    }
+    const cov = E(`(() => { const field = {w: 400, h: 900}; const p = pileFor(${J(big)}, field, 5); return p.pack.bodies.reduce((s, b) => s + Math.PI / 4 * b.w * b.h, 0) / (field.w * field.h); })()`);
+    ok(`sizes grow toward COVERAGE (0.6) and stop at MAX_D: a tall field covers ${cov.toFixed(2)} with every shape at most MAX_D`, cov > 0.3 && cov <= 0.62 && E(`pileFor(${J(big)}, {w: 400, h: 900}, 5).pack.bodies.every(b => b.d <= SORT_CONFIG.MAX_D + .01)`), cov);
+    const small = E(`pileFor(${J(big)}, {w: 327, h: 150}, 7).pack`);
+    ok("too small a field: it shrinks 4% at a time and stops at MIN_D, saying it failed", !small.ok && small.bodies.every(b => b.d >= C.MIN_D - .01), [small.ok, small.tries]);
+    ok("the same seed, the same layout (positions to the pixel)", E(`JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 77)) === JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 77))`));
+    ok("…and another seed, another layout", E(`JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 77).pack.bodies) !== JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 78).pack.bodies)`));
+    ok("a food keeps its own shape whatever else is in the pile", E(`JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 9).items[0].shape) === JSON.stringify(pileFor(${J(big.slice(0, 3))}, {w: 342, h: 300}, 9).items[0].shape)`));
+    // the curated seeds
+    const cur = await (await fetch("../curatedSeeds.json")).json();
+    ok("curatedSeeds.json: twelve seeds for each of 375×667, 390×844 and 430×932", ["375x667", "390x844", "430x932"].every(k => cur.sizes[k] && cur.sizes[k].seeds.length === C.SEED_KEEP && cur.sizes[k].seeds.every(Number.isInteger)), Object.keys(cur.sizes));
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+};
+</script>
+</body></html>

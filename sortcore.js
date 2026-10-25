@@ -97,3 +97,156 @@ function sortEverydayFoods(months){
   const big = new Set(SORT_CONFIG.bigFoods);
   return FOODS.filter(f=>f.group!=="other" && !big.has(f.id) && f.minMonths <= months);
 }
+
+/* ---------- the shapes: seeded blobs, sized to the field and packed into it ----------
+   A shape is a <button> whose CSS border-radius takes eight random percentages (each corner's horizontal and vertical
+   radius) from RADIUS_RANGE: irregular, always rounded. d is its shorter side; aspect stretches the other. */
+function sortRng(seed){
+  let a = seed >>> 0;
+  return ()=>{ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+/* a stable number for a string (a food's id), so each food keeps its own shape whatever else is in the pile */
+function sortHash(str, seed){
+  let h = 2166136261 ^ (seed >>> 0);
+  for(let k = 0; k < str.length; k++){ h ^= str.charCodeAt(k); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+const radiusRatio = r=>Math.min(...r) / Math.max(...r);
+function makeShape(rnd){
+  const C = SORT_CONFIG, [lo, hi] = C.RADIUS_RANGE;
+  let radii;
+  // drawn again while the radii are too uneven, or all exactly 50% (a plain ellipse)
+  do radii = Array.from({length:8}, ()=>Math.round((lo + rnd() * (hi - lo)) * 1000) / 10);
+  while(radiusRatio(radii) < C.RADIUS_RATIO_MIN || radii.every(r=>r===50));
+  const [a0, a1] = C.ASPECT_RANGE, aspect = a0 + rnd() * (a1 - a0);
+  const rot = (rnd() * 2 - 1) * C.REST_ROTATION;
+  return {radii, aspect, rot};
+}
+/* "TL% TR% BR% BL% / TL% TR% BR% BL%": the horizontal radii, then the vertical */
+const shapeRadiusCSS = s=>s.radii.slice(0, 4).map(r=>r + "%").join(" ") + " / " + s.radii.slice(4).map(r=>r + "%").join(" ");
+/* width and height for a shorter side d: aspect over 1 is wider than tall, under 1 taller */
+function shapeBox(s, d){ return {w:d * Math.max(1, s.aspect), h:d * Math.max(1, 1 / s.aspect)}; }
+/* The largest circle around the centre that stays inside the shape (px, a diameter): the outline is the CSS one,
+   radii scaled down as CSS does when a side's two radii add up to more than it, sampled at 2° steps. */
+function shapeInscribed(s, w, h){
+  const R = s.radii.map((r, k)=>r / 100 * (k < 4 ? w : h));
+  const [tlx, trx, brx, blx, tly, try_, bry, bly] = R;
+  const f = Math.min(1, w / (tlx + trx), w / (blx + brx), h / (tly + bly), h / (try_ + bry));
+  const c = [[tlx, tly, 0, 0, 1, 1], [trx, try_, w, 0, -1, 1], [brx, bry, w, h, -1, -1], [blx, bly, 0, h, 1, -1]].map(([rx, ry, x, y, sx, sy])=>({rx:rx * f, ry:ry * f, x, y, sx, sy}));
+  let best = Infinity;
+  for(let deg = 0; deg < 360; deg += 2){
+    const t = deg * Math.PI / 180, dx = Math.cos(t), dy = Math.sin(t);
+    // walk out from the centre to the outline: the box edge, or a corner's ellipse when the ray falls in its corner
+    let lo = 0, hi = Math.hypot(w, h);
+    for(let it = 0; it < 30; it++){
+      const m = (lo + hi) / 2, x = w / 2 + dx * m, y = h / 2 + dy * m;
+      let inside = x >= 0 && x <= w && y >= 0 && y <= h;
+      if(inside) for(const k of c){
+        const cx = k.x + k.sx * k.rx, cy = k.y + k.sy * k.ry;
+        if((x - cx) * k.sx < 0 && (y - cy) * k.sy < 0 && ((x - cx) / k.rx) ** 2 + ((y - cy) / k.ry) ** 2 > 1){ inside = false; break; }
+      }
+      if(inside) lo = m; else hi = m;
+    }
+    best = Math.min(best, lo);
+  }
+  return best * 2;
+}
+/* the label in at most two balanced lines: the split that keeps the longer line shortest */
+function labelLines(label){
+  const words = String(label).toUpperCase().split(/\s+/).filter(Boolean);
+  if(words.length < 2) return [words.join(" ")];
+  let best = null;
+  for(let k = 1; k < words.length; k++){
+    const a = words.slice(0, k).join(" "), b = words.slice(k).join(" "), m = Math.max(a.length, b.length);
+    if(!best || m < best.m) best = {m, lines:[a, b]};
+  }
+  return best.lines;
+}
+const MONO_ADVANCE = 0.6;   // JetBrains Mono: every glyph is 0.6em wide
+/* the label's size: as big as fits LABEL_FIT of the width, between 11 and 14px */
+function labelSize(label, w){
+  const C = SORT_CONFIG, n = Math.max(...labelLines(label).map(l=>l.length));
+  return Math.max(C.LABEL_PX[0], Math.min(C.LABEL_PX[1], Math.floor(w * C.LABEL_FIT / (n * MONO_ADVANCE) * 10) / 10));
+}
+/* the narrowest width that still fits the label at 11px */
+function labelNeed(label){ const n = Math.max(...labelLines(label).map(l=>l.length)); return n * MONO_ADVANCE * SORT_CONFIG.LABEL_PX[0] / SORT_CONFIG.LABEL_FIT; }
+
+/* Sizes for the pile: together they cover COVERAGE of the field, each weighted by its label's length
+   (0.8 + 0.04 per character), the shorter side between MIN_D and MAX_D and never too narrow for its label. scale < 1
+   is the packer shrinking them (never below MIN_D). */
+function sizeShapes(items, field, scale){
+  const C = SORT_CONFIG, area = field.w * field.h * C.COVERAGE;
+  const unit = items.reduce((s, it)=>{ const wt = 0.8 + 0.04 * it.label.length, b = shapeBox(it.shape, 1); return s + Math.PI / 4 * b.w * b.h * wt; }, 0);
+  const k = Math.sqrt(area / Math.max(unit, 1e-6));
+  return items.map(it=>{
+    const wt = 0.8 + 0.04 * it.label.length;
+    let d = Math.min(C.MAX_D, k * Math.sqrt(wt)) * (scale || 1);
+    const need = labelNeed(it.label) / Math.max(1, it.shape.aspect);   // the width is d × aspect when it's wider
+    d = Math.max(C.MIN_D, need, d);
+    return Math.min(Math.max(C.MAX_D, need), d);
+  });
+}
+/* half the box a shape needs at its angle (the outline sits inside its rotated box) */
+function rotHalf(w, h, deg){ const t = deg * Math.PI / 180, c = Math.abs(Math.cos(t)), s = Math.abs(Math.sin(t)); return {x:(w * c + h * s) / 2, y:(w * s + h * c) / 2}; }
+/* The packing: a jittered grid, then PACK_ITERATIONS rounds pushing overlapping collision circles apart, every shape
+   inside the field. Overlap over PACK_OVERLAP_MAX left: shrink 4% and go again (PACK_RETRIES times, never below MIN_D).
+   items: [{id, label, shape}]; field: {w, h}. Returns {ok, overlap, tries, bodies:[{id, x, y, w, h, d, r, rot}]} */
+function packShapes(items, field, rnd, start){
+  const C = SORT_CONFIG;
+  let result = null;
+  for(let t = 0, scale = 1; t <= C.PACK_RETRIES; t++, scale *= 1 - C.PACK_SHRINK){
+    const ds = sizeShapes(items, field, scale);
+    const B = items.map((it, k)=>{ const b = shapeBox(it.shape, ds[k]); return {id:it.id, w:b.w, h:b.h, d:ds[k], r:C.COLLISION_RADIUS * (b.w + b.h) / 4, rot:it.shape.rot, half:rotHalf(b.w, b.h, it.shape.rot)}; });
+    // the grid: as many columns as keep the cells near square, each shape jittered within its cell
+    const n = B.length, cols = Math.max(1, Math.round(Math.sqrt(n * field.w / Math.max(field.h, 1)))), rows = Math.ceil(n / Math.max(cols, 1));
+    const cw = field.w / cols, ch = field.h / rows, jr = rnd();
+    B.forEach((b, k)=>{
+      const was = start && start[b.id];
+      if(was){ b.x = was.x; b.y = was.y; return; }
+      const row = Math.floor(k / cols), inRow = Math.min(cols, n - row * cols), col = k % cols, off = (cols - inRow) * cw / 2;
+      b.x = off + (col + .5) * cw + (rnd() - .5) * cw * .3 + (row % 2 ? 1 : -1) * cw * .08 * jr;
+      b.y = (row + .5) * ch + (rnd() - .5) * ch * .3;
+    });
+    const clamp = b=>{ b.x = Math.min(field.w - b.half.x, Math.max(b.half.x, b.x)); b.y = Math.min(field.h - b.half.y, Math.max(b.half.y, b.y)); };
+    B.forEach(clamp);
+    let overlap = 0;
+    for(let it = 0; it < C.PACK_ITERATIONS; it++){
+      overlap = 0;
+      for(let i = 0; i < n; i++) for(let j = i + 1; j < n; j++){
+        const a = B[i], b = B[j]; let dx = b.x - a.x, dy = b.y - a.y, dd = Math.hypot(dx, dy);
+        const o = a.r + b.r - dd;
+        if(o <= 0) continue;
+        if(dd < 1e-6){ dx = rnd() - .5; dy = rnd() - .5; dd = Math.hypot(dx, dy); }
+        const push = o / 2 * 1.02;
+        a.x -= dx / dd * push; a.y -= dy / dd * push; b.x += dx / dd * push; b.y += dy / dd * push;
+      }
+      B.forEach(clamp);
+      for(let i = 0; i < n; i++) for(let j = i + 1; j < n; j++) overlap = Math.max(overlap, B[i].r + B[j].r - Math.hypot(B[j].x - B[i].x, B[j].y - B[i].y));
+      if(overlap <= 0.5) break;
+    }
+    result = {ok:overlap <= C.PACK_OVERLAP_MAX, overlap:Math.max(0, overlap), tries:t + 1, scale, bodies:B.map(b=>({id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, d:b.d, r:b.r, rot:b.rot}))};
+    if(result.ok || B.every(b=>b.d <= C.MIN_D + .01)) break;
+  }
+  return result;
+}
+/* the pile for a seed: one shape per item (seeded by the seed and the item's id), packed into the field */
+function pileFor(items, field, seed, start){
+  const placed = items.map(it=>Object.assign({}, it, {shape:makeShape(sortRng(sortHash(it.id, seed)))}));
+  const pack = packShapes(placed, field, sortRng(seed ^ 0x9E3779B9), start);
+  return {items:placed, pack};
+}
+/* A seed's score for a field (seeds.mjs keeps the best SEED_KEEP): it must pack; then the smallest inscribed circle,
+   the evenest shapes and a balanced pile (its area's centre near the field's, and both halves about as full) win. */
+function scoreSeed(items, field, seed){
+  const {items:placed, pack} = pileFor(items, field, seed);
+  const ins = Math.min(...pack.bodies.map((b, k)=>shapeInscribed(placed[k].shape, b.w, b.h)));
+  const quality = Math.min(...placed.map(p=>radiusRatio(p.shape.radii)));
+  const A = pack.bodies.map(b=>b.w * b.h), tot = A.reduce((s, a)=>s + a, 0);
+  const cx = pack.bodies.reduce((s, b, k)=>s + b.x * A[k], 0) / tot, cy = pack.bodies.reduce((s, b, k)=>s + b.y * A[k], 0) / tot;
+  const off = Math.hypot((cx - field.w / 2) / field.w, (cy - field.h / 2) / field.h);
+  const left = pack.bodies.reduce((s, b, k)=>s + (b.x < field.w / 2 ? A[k] : 0), 0) / tot;
+  const balance = Math.max(0, 1 - off * 4 - Math.abs(left - .5) * 2);
+  const pass = pack.ok && ins >= SORT_CONFIG.MIN_INSCRIBED;
+  const score = (pass ? 1 : 0) + .3 * Math.min(1, Math.max(0, (ins - SORT_CONFIG.MIN_INSCRIBED) / 20)) + .3 * quality + .4 * balance - pack.overlap / 100;
+  return {seed, score, pass, inscribed:ins, quality, balance, overlap:pack.overlap, tries:pack.tries};
+}

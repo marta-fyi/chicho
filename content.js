@@ -289,6 +289,56 @@ const CONTENT = {
     closing:{title:{one:"{name}'s table opens in {n} month.", other:"{name}'s table opens in {n} months."}, line:"Nothing to cook yet.", cta:"Look around"}
   },
 
+  /* ---------- Sort the food (sortfood.js): drag each food into one of four places ---------- */
+  sort:{
+    title:"Sort the food for {name}.",
+    progress:"{n} of {m} sorted",
+    lockedLink:"Always off the plate at this age",
+    lockedTitle:"Always off the plate at this age",
+    /* the stage's locked foods (CONTENT.stages[…].locked), one line each: drafts, to review with a pediatric or food-safety source */
+    lockedWhy:{
+      "honey":"It can carry spores a baby's gut can't handle before 12 months.",
+      "whole nuts":"Whole and chopped nuts are a choking risk. Smooth nut butters are fine.",
+      "whole grapes":"Round foods can block a small airway. Quarter them lengthways.",
+      "added salt and sugar":"Small kidneys can't take much salt, and sugar crowds out real food.",
+      "cow's milk as a drink":"Before 12 months it can crowd out iron. A little in cooking is fine."
+    },
+    places:{keepOut:"Keep out", notFan:"Not a fan", tried:"Tried already", untouched:"Untouched"},
+    meaning:{keepOut:"never planned", notFan:"avoided if possible", tried:"fine to plan", untouched:"introduced one at a time, with spacing"},
+    skips:{one:"Skips {n} more food.", other:"Skips {n} more foods."},
+    more:"+{n}",
+    moved:"{food} → {place}",
+    movedMany:"{n} foods → {place}",
+    undo:"Undo",
+    selected:"{n} selected · tap a place to send",
+    clear:"Clear",
+    gate:"Sort the big ones first · {n} to go",
+    hintDrag:"Drag {food} to where it belongs.",
+    hintTap:"Tap several, then tap a place.",
+    pileBig:"The big ones",
+    tabs:{veg:"Veg", fruit:"Fruit", grains:"Grains", protein:"Protein", dairyfats:"Dairy and fats"},
+    selectAll:"Select all",
+    next:"Next",
+    close:"Close",
+    move:"Move",
+    remove:"Remove",
+    back:"Back to the pile",
+    alsoSkipped:"Also skipped (they contain {allergen})",
+    nothingHere:"Nothing here yet.",
+    empty:"Nothing left to sort.",
+    somethingElse:"Something else",
+    alsoKeepOut:"Also keep out ____.",
+    add:"Add",
+    skipsFoods:"Also skips {foods}.",
+    noMatch:"Couldn't match this to a food we plan with. We'll still remember it.",
+    full:"That's twelve of your own. Remove one to add another.",
+    summary:{keepOut:"{n} kept out", notFan:"{n} not a fan", tried:"{n} tried", untouched:"{n} to introduce"},
+    noSolids:{one:"Solids start in {n} month. We'll plan around this then.", other:"Solids start in {n} months. We'll plan around this then."},
+    note:"Not medical advice. Your pediatrician has the final word on allergens.",
+    traces:"Keeping a food out is not the same as protecting against traces or cross-contact.",
+    tune:{title:"Tuning", copy:"Copy values", copied:"Copied"}
+  },
+
   /* Every word about a stage. name = the big tagline under the birthday fields;
      meals + textureShort make the small line beneath it ("3 meals · lumpy mash and finger foods");
      locked = the "always off the plate" line (the rules themselves live in LOCKED_RULES). */
