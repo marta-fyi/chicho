@@ -7,7 +7,7 @@
    localStorage, so it's already offline. Bump VERSION with every release
    so old caches go. */
 const VERSION = "chicho-v11";
-const SHELL = ["./", "index.html", "theme.js", "foods.js", "content.js", "sortconfig.js", "sortcore.js", "curatedSeeds.json", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "img/grain.png", "fonts/jbm-400.woff2", "fonts/jbm-500.woff2", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const SHELL = ["./", "index.html", "theme.js", "foods.js", "content.js", "sortconfig.js", "sortcore.js", "curatedSeeds.json", "onboarding.js", "sortfood.js", "mealtimes.js", "kitchen.js", "home.js", "img/grain.png", "fonts/jbm-400.woff2", "fonts/jbm-500.woff2", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(VERSION).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));

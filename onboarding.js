@@ -87,6 +87,7 @@ function closeOnboarding(){
   document.getElementById("app").inert = false; document.body.classList.remove("is-onb");
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
   if(pile){ pile.stop(); pile = null; }
+  if(sortUI) sortUI.destroy();
   onb.snapshot = null;
   homeChanged();
 }
@@ -259,6 +260,7 @@ function renderOnb(){
   card.scrollTop = 0;
   clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
   if(pile){ pile.stop(); pile = null; }
+  if(sortUI){ sortUI.destroy(); }
   if(key!=="mealtimes") onbGlow(ONB_GLOW[key] || "grain");   // meal times has the sun instead
   el.dataset.step = key;
   const glowNow = ()=>onbGlow(key==="reveal" && onb.revealed ? ONB_GLOW.done : ONB_GLOW[key] || "grain");
@@ -1047,136 +1049,18 @@ function dropOut(card, zone, done){
   pile.open(done, card.getBoundingClientRect().bottom - zone.getBoundingClientRect().top);
 }
 
-/* the locked line: the stage's list, each item a text button whose reason opens under the line, one at a time */
-const LOCKED_WORDS = {"honey":["honey"], "whole nuts":["nuts"], "whole grapes":["grapes"], "added salt and sugar":["salt","sugar"], "cow's milk as a drink":["cowsmilk"]};
-function lockedItems(months){
-  return stageFor(Math.max(6, months)).locked.split(", ").map(label=>({label, why:(LOCKED_WORDS[label] || []).map(id=>(LOCKED_RULES.find(r=>r.id===id) || {}).why).filter(Boolean).join(" ")}));
-}
+/* 4. Allergens: "Sort the food for {name}." (sortfood.js). Next: on to Meal times (or the closing screen under 6 months),
+   once the shapes have fallen out. */
 function onbKeepout(card, P){
-  const months = ageNow();
-  card.classList.add("fill", "al-step");
-  if(!Array.isArray(P.fine)) P.fine = [];
-  const live = document.createElement("p");
-  live.className = "sr-only"; live.setAttribute("aria-live", "polite");
-  // "Hold the ____." (the blank is the pile below it)
-  const [pre, post] = say("onb.keepOut.sentence").split("{blank}");
-  const h = document.createElement("h1");
-  h.className = "sent al-sent"; h.id = "onbTitle"; h.tabIndex = -1;
-  h.innerHTML = `${esc(pre)}<span class="al-blank" aria-hidden="true"></span>${esc(post)}`;
-  card.append(h, line(say("onb.keepOut.line"), "onb-line al-line"));
-  const items = lockedItems(months), short = innerHeight < 700;
-  const notes = [months >= 6 && months <= 11 ? say("onb.keepOut.spacing") : null, say("onb.keepOut.note")].filter(Boolean);
-  if(short){
-    const b = textButton(say("onb.keepOut.lockedOpen"), ()=>{
-      const sh = onbSheet({modal:true, title:say("onb.keepOut.lockedTitle"), cls:"locked-sheet", onClose:()=>b.focus()});
-      const ul = document.createElement("ul"); ul.className = "lk-list";
-      items.forEach(it=>{ const li = document.createElement("li"); li.innerHTML = `<b>${esc(upper1(it.label))}.</b> ${esc(it.why)}`; ul.appendChild(li); });
-      sh.body.append(ul, ...notes.map(t=>line(t, "al-note")));
-      requestAnimationFrame(()=>{ const t = sh.el.querySelector(".sh-title"); if(t){ t.tabIndex = -1; t.focus(); } });
-    }, "small al-locked-open");
-    card.appendChild(b);
-  }else{
-    const p = document.createElement("p");
-    p.className = "al-locked";
-    const why = document.createElement("p");
-    why.className = "al-why"; why.setAttribute("aria-live", "polite");
-    p.append(say("onb.keepOut.lockedPre") + " ");
-    items.forEach((it, k)=>{
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "lk inline"; b.textContent = it.label; b.setAttribute("aria-expanded", "false");
-      b.addEventListener("click", ()=>{
-        const open = b.getAttribute("aria-expanded")!=="true";
-        p.querySelectorAll(".lk").forEach(x=>x.setAttribute("aria-expanded", "false"));
-        b.setAttribute("aria-expanded", String(open));
-        why.textContent = open ? it.why : "";
-      });
-      const nb = document.createElement("span");   // an item keeps its comma: no line starts with one
-      nb.className = "lk-w"; nb.append(b, k < items.length - 1 ? "," : ".");
-      p.append(nb, k < items.length - 1 ? " " : "");
-    });
-    card.append(p, why);
-  }
-  // the pile: a pop keeps it out; the family's own go straight to the line
-  const zone = document.createElement("div");
-  zone.className = "pile" + (calm() ? " still" : "");
-  const slot = document.createElement("p");
-  slot.className = "pop-slot"; slot.setAttribute("aria-live", "polite");
-  if(!P.diet || typeof P.diet!=="object") P.diet = {};
-  const lab = id=>say("onb.keepOut.labels." + id);
-  const bubbles = [...ALLERGENS.map(a=>({id:"a:" + a.id, label:lab(a.id) || a.label, name:lab(a.id) || a.label, group:ALLERGEN_GROUP[a.id] || null, sub:P.allergens[a.id]==="ok" ? say("onb.keepOut.tried") : ""})),
-                 ...DIETS.map(g=>({id:"d:" + g.id, label:lab(g.id) || g.label, name:lab(g.id) || g.label, group:ALLERGEN_GROUP[g.id] || null}))];
-  const own = n=>"own:" + n.toLowerCase();
-  const popped = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>"a:" + a.id), ...DIETS.filter(g=>P.diet[g.id]==="avoid").map(g=>"d:" + g.id), ...P.avoid.map(x=>own(x.name))];
-  const was = {};   // an allergen's state before its pop ("ok" stays "ok" if the pop is undone)
-  const addBtn = document.createElement("button");
-  addBtn.type = "button"; addBtn.className = "ab plain add"; addBtn.dataset.name = say("onb.keepOut.add");
-  addBtn.innerHTML = `<span class="ab-in"><span class="ab-l">${esc(say("onb.keepOut.add"))}</span><span class="ab-s"></span></span>`;
-  addBtn.setAttribute("aria-label", say("onb.keepOut.add")); addBtn.setAttribute("aria-haspopup", "dialog");
-  const pp = popPile({zone, slot, live, items:bubbles, popped, extra:[addBtn], words:{popped:"onb.pop.keptOut", line:"onb.pop.keptOutLine"},
-    nameOf:id=>{ const x = P.avoid.find(a=>own(a.name)===id); return x ? x.name : id.replace(/^own:/, ""); },
-    onPop:id=>{
-      const [k, v] = id.split(":");
-      if(k==="a"){ was[v] = P.allergens[v]; P.allergens[v] = "avoid"; }
-      else if(k==="d") P.diet[v] = "avoid";
-      save();
-    },
-    onRestore:id=>{
-      const [k] = id.split(":"), v = id.slice(k.length + 1);
-      if(k==="a"){ if(was[v]==="ok") P.allergens[v] = "ok"; else delete P.allergens[v]; }
-      else if(k==="d") delete P.diet[v];
-      else P.avoid = P.avoid.filter(x=>own(x.name)!==id);
-      save();
+  card.classList.add("al-step");
+  mountSortFood({card, foot:document.getElementById("onbFoot"), profile:P, months:ageNow(), single:onb.single, save,
+    onContinue:()=>{
+      onb.draft = null;   // the week is built again from these answers
+      if(onb.single){ nextStep(); return; }
+      const to = stepAfter("keepout");
+      onb.mtEntrance = to==="mealtimes" && !calm();
+      goStep(to, null, {instant:true});
     }});
-  addBtn.addEventListener("click", ()=>{ if(!calm()){ addBtn.firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.08)"}, {transform:"scale(1)"}], {duration:220, easing:"cubic-bezier(.32,1.25,.5,1)"}); if(pile) pile.nudge(addBtn); } somethingElse(); });
-  function somethingElse(){
-    const sh = onbSheet({modal:true, cls:"else-sheet", onClose:()=>addBtn.focus()});
-    let kind = "allergy";
-    const p = document.createElement("p");
-    p.className = "sh-sent";
-    const inp = document.createElement("input");
-    inp.type = "text"; inp.className = "sh-input"; inp.maxLength = 30; inp.id = "else" + uid(); inp.autocomplete = "off"; inp.enterKeyHint = "done";
-    inp.setAttribute("autocapitalize", "sentences");
-    const [a, b] = say("onb.keepOut.alsoNot").split("{blank}");
-    const lb = document.createElement("label"); lb.htmlFor = inp.id; lb.textContent = a.trim();
-    p.append(lb, " ", inp, b);
-    const kinds = document.createElement("div");
-    kinds.className = "kind-toggle"; kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", `${say("onb.keepOut.allergy")} / ${say("onb.keepOut.dislike")}`);
-    ["allergy","dislike"].forEach(k=>{
-      const kb = document.createElement("button");
-      kb.type = "button"; kb.textContent = say("onb.keepOut." + k); kb.setAttribute("aria-pressed", String(kind===k));
-      kb.addEventListener("click", ()=>{ kind = k; kinds.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed", String(z===kb))); inp.focus(); });
-      kinds.appendChild(kb);
-    });
-    const add = document.createElement("button");
-    add.type = "button"; add.className = "btn-ink"; add.textContent = say("onb.keepOut.addIt");
-    const commit = ()=>{
-      const v = inp.value.trim();
-      if(!v){ inp.focus(); return; }
-      const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
-      if(have) have.kind = kind; else P.avoid.push({name:v, kind});
-      P.fine = (P.fine || []).filter(x=>x.name.toLowerCase()!==v.toLowerCase());
-      save();
-      pp.popOwn(own(v), v);   // kept out at once: it goes straight to the line (with Undo)
-      sh.close();
-    };
-    add.addEventListener("click", commit);
-    inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
-    sh.body.append(p, kinds, add);
-    requestAnimationFrame(()=>inp.focus());
-  }
-  card.append(zone, slot, live);
-  if(!short) notes.forEach(t=>card.appendChild(line(t, "al-note")));
-  const go = ()=>{
-    save();
-    onb.draft = null;   // the week is built again from these answers
-    const to = stepAfter("keepout");
-    if(onb.single){ nextStep(); return; }
-    if(noWeekYet()){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
-    // the circles fall out through the floor; once they are gone, the meal-times axis makes its entrance (the swap
-    // is synchronous, so no frame shows both)
-    dropOut(card, zone, ()=>{ onb.mtEntrance = to==="mealtimes" && !calm(); goStep(to, null, {instant:true}); });
-  };
-  onbCta(card, onb.single ? say("onb.save") : say("onb.next"), go);
 }
 
 /* 5. priorities: "This week, we care most about…" up to three, and how they steer the week */

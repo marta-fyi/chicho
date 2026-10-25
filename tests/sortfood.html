@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: the screen</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
+<body>
+<h1>Sort the food: the screen</h1>
+<p>The title and progress, the "Always off the plate" sheet, the four places in a 2×2 grid (labels, meaning lines, what's in each in two lines then "+n", Keep out's "Skips {n} more foods."), the status row's hint and gate, the pile's header, the shapes (buttons, labels fitted, inside the field), Next waiting for the big ones; at 375×667, 390×844 and 430×932, light and dark, the page never scrolls. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const frame = (w, h, setup, q = "") => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = w; f.height = h; f.src = "../index.html?test&now=2026-10-22T09:15&sortseed=921436" + q;
+  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); ${setup || ""} openOnboarding("keepout")`); await wait(700); res(f); };
+  document.body.append(f);
+});
+(async () => {
+  try {
+    for (const [W, H] of [[375, 667], [390, 844], [430, 932]]) for (const theme of ["light", "dark"]) {
+      const f = await frame(W, H, "", "&theme=" + theme), d = f.contentDocument, E = x => f.contentWindow.eval(x);
+      const tag = `${W}×${H} ${theme}`;
+      const sc = d.scrollingElement, card = d.getElementById("onbCard");
+      ok(`${tag}: the page never scrolls, no horizontal overflow`, sc.scrollHeight <= H && card.scrollHeight <= card.clientHeight + 1 && sc.scrollWidth <= W, [sc.scrollHeight, card.scrollHeight, card.clientHeight, sc.scrollWidth]);
+      const cells = [...d.querySelectorAll(".sf-place")];
+      ok(`${tag}: four places, 2×2, each at least 140px wide`, cells.length === 4 && cells.every(c => c.getBoundingClientRect().width >= 140) && cells[0].getBoundingClientRect().top === cells[1].getBoundingClientRect().top && cells[2].getBoundingClientRect().top > cells[0].getBoundingClientRect().top, cells.map(c => Math.round(c.getBoundingClientRect().width)));
+      const fr = d.querySelector(".sf-field").getBoundingClientRect();
+      const shapes = [...d.querySelectorAll(".sf-field .sf-shape")];
+      ok(`${tag}: nine shapes, every one inside the field (EDGE_INSET from the screen's edges)`, shapes.length === 9 && Math.round(fr.left) === 24 && Math.round(W - fr.right) === 24 && shapes.every(s => { const r = s.getBoundingClientRect(); return r.left >= fr.left - 2 && r.right <= fr.right + 2 && r.top >= fr.top - 2 && r.bottom <= fr.bottom + 2; }), [shapes.length, fr.left, W - fr.right]);
+      ok(`${tag}: every label fits inside its shape`, shapes.every(s => { const l = s.querySelector(".sf-lbl"); return l.scrollWidth <= s.offsetWidth * 0.8 + 1 && parseFloat(l.style.fontSize) >= 11 && parseFloat(l.style.fontSize) <= 14; }));
+      const pill = d.querySelector("#onbFoot .btn-ink").getBoundingClientRect(), st = d.querySelector(".sf-status").getBoundingClientRect();
+      ok(`${tag}: the pill and the status row are on screen`, pill.bottom <= H && st.top >= 0 && st.bottom <= fr.top + 1 && Math.round(st.height) === 28, [pill.bottom, st.height]);
+      if (H >= 800) ok(`${tag}: the field keeps its packing (overlap ≤ 6px)`, E("sortUI.pack.ok"), E("sortUI.pack.overlap"));
+      f.remove();
+    }
+
+    const f = await frame(390, 844), d = f.contentDocument, w = f.contentWindow, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    ok("the title: 'Sort the food for Lula.' (mono, 500, left), with '0 of 9 sorted' at its right in 12px", $(".sf-title").textContent === "Sort the food for Lula." && getComputedStyle($(".sf-title")).fontWeight === "500" && getComputedStyle($(".sf-title")).textAlign === "left" && $(".sf-prog").textContent === "0 of 9 sorted" && getComputedStyle($(".sf-prog")).fontSize === "12px");
+    ok("…its size: clamp(26px, 7.4vw, 32px)", Math.abs(parseFloat(getComputedStyle($(".sf-title")).fontSize) - 390 * 0.074) < .6, getComputedStyle($(".sf-title")).fontSize);
+    ok("the places, in order: Keep out · Not a fan / Tried already · Untouched, with their meaning lines", $$(".sf-place").map(c => c.querySelector(".sf-pl-label").textContent + "|" + c.querySelector(".sf-pl-mean").textContent).join(";") === "Keep out|never planned;Not a fan|avoided if possible;Tried already|fine to plan;Untouched|introduced one at a time, with spacing");
+    ok("…labels 12px uppercase with +0.06em tracking, weight 500; no fills (hairlines only)", (() => { const l = getComputedStyle($(".sf-pl-label")); return l.fontSize === "12px" && l.textTransform === "uppercase" && l.fontWeight === "500" && Math.abs(parseFloat(l.letterSpacing) - 0.72) < .05 && $$(".sf-place").every(c => getComputedStyle(c).backgroundColor === "rgba(0, 0, 0, 0)"); })());
+    ok("the status row's first hint: 'Drag Egg to where it belongs.'", $(".sf-status").textContent === "Drag Egg to where it belongs.", $(".sf-status").textContent);
+    ok("the pile's header: 'The big ones' and 'Select all'", $(".sf-pilename").textContent === "The big ones" && $(".sf-selall").textContent === "Select all" && Math.round($(".sf-pilehead").getBoundingClientRect().height) === 36);
+    ok("the shapes are <button>s, ink filled, with --bg labels", $$(".sf-shape").every(b => b.tagName === "BUTTON" && b.type === "button") && getComputedStyle($(".sf-shape")).backgroundColor === "rgb(18, 18, 18)");
+    ok("…each with eight radii", $$(".sf-shape").every(b => /\/ /.test(b.style.borderRadius)));
+    ok("…touch-action none on the shapes only; manipulation on the places and controls", getComputedStyle($(".sf-shape")).touchAction === "none" && getComputedStyle($(".sf-place")).touchAction === "manipulation");
+    ok("Next waits (dimmed) until the big ones are placed", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true");
+    $("#onbFoot .btn-ink").click(); await wait(30);
+    ok("…tapping it anyway shows the gate: 'Sort the big ones first · 9 to go'", $(".sf-status").textContent === "Sort the big ones first · 9 to go", $(".sf-status").textContent);
+    ok("text only: no <img>, <svg> or <canvas> in the screen", !d.querySelector("#onbCard img, #onbCard svg, #onbCard canvas, #onbFoot img, #onbFoot svg"));
+
+    // placing (the API the gestures use)
+    E(`sortUI.place(["egg"], "keepOut")`); await wait(30);
+    ok("a placement: 'Egg' in Keep out, the progress '1 of 9 sorted', the shape gone from the field", $('.sf-place[data-place="keepOut"] .sf-pl-names').textContent === "Egg" && $(".sf-prog").textContent === "1 of 9 sorted" && !$('.sf-shape[data-id="egg"]'));
+    const skips = E("getFoodRules(state.profile, FOODS).neverIds.filter(id => id !== 'egg').length");
+    ok(`…and Keep out's third line: 'Skips ${skips} more foods.' (meatballs)`, $('.sf-place[data-place="keepOut"] .sf-pl-skips').textContent === `Skips ${skips} more food${skips === 1 ? "" : "s"}.` && !$('.sf-place[data-place="keepOut"] .sf-pl-skips').hidden, $('.sf-place[data-place="keepOut"] .sf-pl-skips').textContent);
+    ok("…the undo line: 'Egg → Keep out · Undo'", $(".sf-status").textContent.replace(/\s+/g, " ").trim() === "Egg → Keep out · Undo", $(".sf-status").textContent);
+    E("sortUI.undoNow()"); await wait(20);
+    ok("…Undo puts Egg back in the pile", !E("state.profile.foodSort.placement.egg") && !!$('.sf-shape[data-id="egg"]'));
+    E("sortUI.place(['egg'], 'keepOut', {noUndo: true})"); await wait(20);
+    ok("…with no undo showing, the gate counts down: 'Sort the big ones first · 8 to go'", $(".sf-status").textContent === "Sort the big ones first · 8 to go", $(".sf-status").textContent);
+    E(`sortUI.place(["milk", "peanut", "treenuts", "wheat", "soy", "fish", "shellfish", "sesame"], "tried", {noUndo: true})`); await wait(30);
+    ok("all nine placed: Next is ready", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false");
+    const names = $('.sf-place[data-place="tried"] .sf-pl-names');
+    ok("a full place: two lines of names at most, then '+n'", /\+\d+$/.test(names.textContent) && names.getBoundingClientRect().height <= 15 * 1.3 * 2 + 1 && names.scrollHeight <= names.clientHeight + 1, [names.textContent, names.getBoundingClientRect().height]);
+    ok("…and every name that fits is a whole name, in the pile's order", names.textContent.startsWith("Milk, Peanut, Tree nuts"), names.textContent);
+
+    // Always off the plate at this age
+    $(".sf-locked").click(); await wait(500);
+    const sheet = $(".sf-sheet.locked-sheet");
+    ok("'Always off the plate at this age' (12px, underlined) opens a sheet of this stage's locked foods, each with a reason", !!sheet && getComputedStyle($(".sf-locked")).fontSize === "12px" && /underline/.test(getComputedStyle($(".sf-locked")).textDecorationLine) && sheet.querySelectorAll(".lk-list li").length === 3 && [...sheet.querySelectorAll(".lk-list li")].every(li => /\. \S/.test(li.textContent) && li.textContent.length > 30), sheet && sheet.textContent);
+    ok("…its tap target is 44px tall", Math.round($(".sf-locked").getBoundingClientRect().height) >= 44, $(".sf-locked").getBoundingClientRect().height);
+    f.remove();
+
+    // under 12 months, honey is in the list too
+    const g = await frame(390, 844, "state.profile.birthDate = birthDateFromMonths(8);");
+    g.contentDocument.querySelector(".sf-locked").click(); await wait(500);
+    ok("8 months: honey heads the locked list, with its reason", /^Honey\. It can carry spores/.test(g.contentDocument.querySelector(".lk-list li").textContent), g.contentDocument.querySelector(".lk-list li").textContent);
+    g.remove();
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+})();
+</script>
+</body></html>

@@ -51,7 +51,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     ok("back to 6 months or more: six again, the segments opening", segs() === 6 && E("ageNow()") >= 6 && $$("#onbDots i").some(i => i.getAnimations().length), [segs(), E("state.profile.birthDate")]);
     next().click(); await wait(500); path.push(step());
     ok("Allergens: the pill is 'Next'", next().textContent === "Next");
-    E("pile && pile.settle()");
+    E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); await wait(50);
     next().click(); await wait(1400); path.push(step());
     ok("…Next goes to Meal times, six segments with the fourth on", step() === "mealtimes" && segs() === 6 && $$("#onbDots i")[3].classList.contains("on"));
     ok("…'Lula usually eats around…', the name as its ink", $("#onbTitle").textContent === "Lula usually eats around…" && !!$("#onbTitle svg[data-ink]"));
@@ -101,7 +101,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     // 3. under 6 months: Allergens → Closing → Home; no Meal times, Reveal or Done
     use(await frame(`state.profile.name = "Ana"; state.profile.birthDate = birthDateFromMonths(3); save(); openOnboarding("keepout")`));
     ok("under 6: four segments", segs() === 4);
-    next().click(); await wait(600);
+    E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); next().click(); await wait(800);
     ok("Allergens → Closing (Meal times skipped)", step() === "reveal" && /table opens in 3 months/.test($("#onbTitle").textContent) && !$(".mt-axis") && !$(".wk-day"));
     back().click(); await wait(500);
     ok("Back from Closing: Allergens", step() === "keepout");
@@ -148,17 +148,17 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
 
     // 6. the handoff: the circles fall out first, then the axis arrives; no frame shows both
     use(await frame(`state.profile.name = "Lula"; state.profile.birthDate = birthDateFromMonths(18); save(); openOnboarding("keepout")`));
-    await wait(900);
+    await wait(900); E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); await wait(50);
     E(`window.__f = []; const card = document.getElementById("onbCard"); (function tick(){ const c = card.getBoundingClientRect();
-        const circles = [...document.querySelectorAll(".pile .ab")].some(e => { const r = e.getBoundingClientRect(); return e.isConnected && r.bottom > c.top && r.top < c.bottom; });
+        const circles = [...document.querySelectorAll(".sf-field .sf-shape")].some(e => { const r = e.getBoundingClientRect(); return e.isConnected && r.bottom > c.top && r.top < c.bottom; });
         const axis = document.querySelector(".mt-axis"); __f.push([performance.now(), circles, !!axis && axis.isConnected]); if(__f.length < 120) requestAnimationFrame(tick); })()`);
     next().click(); await wait(2200);
     const fr = E("__f"), firstAxis = fr.findIndex(x => x[2]);
-    ok("handoff: circles in the first frames, then the axis; no frame shows both", fr[1][1] && firstAxis > 0 && fr.every(x => !(x[1] && x[2])), fr.filter(x => x[1] && x[2]).length);
+    ok("handoff: the shapes (if any are left) in the first frames, then the axis; no frame shows both", (fr[1][1] || !E("document.querySelector('.sf-shape')")) && firstAxis > 0 && fr.every(x => !(x[1] && x[2])), fr.filter(x => x[1] && x[2]).length);
     ok("…the hairline draws from the top", w.getComputedStyle($(".mt-line")).transformOrigin.split(" ")[1] === "0px");
     f.remove();
     use(await frame(`state.profile.name = "Lula"; state.profile.birthDate = birthDateFromMonths(18); save(); openOnboarding("keepout")`));
-    await wait(900);
+    await wait(900); E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); await wait(50);
     next().click();
     const t0 = performance.now();
     await new Promise(r => { const k = () => (E("onb.step") === "mealtimes" ? r() : setTimeout(k, 10)); k(); });

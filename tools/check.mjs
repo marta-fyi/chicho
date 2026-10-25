@@ -1,7 +1,7 @@
 // The build: `node tools/check.mjs`. Nothing ships unless this passes.
 // 1. lint: no hover anywhere (no :hover, no @media (hover…), no hover-based listeners)
 // 2. voice: none of the banned words in the app's source (lines marked "legacy:" convert old saves and may name old fields),
-//    no "Show the week", no emoji or icons in the copy and the meal-times component, and no exclamation marks in the copy
+//    no "Show the week", no emoji or icons in the copy, the meal-times component and the sort, and no exclamation marks in the copy
 //    and colour: no colour outside the token block (light and dark share every component)
 // 3. every tests/*.html page (or those named on the command line), in headless Chrome over the DevTools protocol, must end with "ALL PASS"
 // No dependencies: Node's http server and fetch, and the Chrome already on this Mac.
@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js", "sortconfig.js", "sortcore.js"];
+const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js", "sortconfig.js", "sortcore.js", "sortfood.js"];
 const fails = [];
 
 // 1. hover
@@ -37,11 +37,11 @@ for (const f of SOURCES) readFileSync(join(root, f), "utf8").split("\n").forEach
   if (/Show the week/i.test(line)) fails.push(`voice ${f}:${i + 1}  the old "Show the week" label: ${line.trim().slice(0, 90)}`);
 });
 
-// 2d. text only: no emoji or pictographs in the copy or the meal-times component, and no icon markup in the component
+// 2d. text only: no emoji or pictographs in the copy, the meal-times component or the sort, and no icon markup in them
 //     (its one SVG is the family's drawn name, from inkSVG). The food data's emoji fields are stored, never shown.
-for (const f of ["content.js", "mealtimes.js"]) readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
+for (const f of ["content.js", "mealtimes.js", "sortfood.js", "sortcore.js", "sortconfig.js"]) readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
   if (/\p{Extended_Pictographic}/u.test(line)) fails.push(`lint  ${f}:${i + 1}  an emoji or pictograph: ${line.trim().slice(0, 90)}`);
-  if (f === "mealtimes.js" && /<svg|<img|\bicon\b/i.test(line) && !/inkSVG/.test(line)) fails.push(`lint  ${f}:${i + 1}  an icon: ${line.trim().slice(0, 90)}`);
+  if (f !== "content.js" && /<svg|<img|<canvas|\bicon\b/i.test(line) && !/inkSVG/.test(line)) fails.push(`lint  ${f}:${i + 1}  an icon: ${line.trim().slice(0, 90)}`);
 });
 
 // 2a. the voice is dry and warm: no exclamation marks in any of the copy (every string literal in content.js)
@@ -78,7 +78,7 @@ readFileSync(join(root, "content.js"), "utf8").split("\n").forEach((line, i) => 
     for (const d of m[2].matchAll(/([a-z-]+)\s*:/g)) if (!MOVES.has(d[1])) fails.push(`lint  index.html:${lineOf(m.index)}  @keyframes ${m[1]} animates "${d[1]}"`);
   }
   html.split("\n").forEach((line, i) => { if (/\binfinite\b/.test(line) && !/animation:breathe/.test(line) && !/^\s*(\/\*|\*)/.test(line)) fails.push(`lint  index.html:${i + 1}  an infinite animation that isn't the glow's breath`); });
-  for (const f of ["index.html", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js"]) {
+  for (const f of ["index.html", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "sortfood.js"]) {
     readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
       for (const m of line.matchAll(/\.animate\(\s*\[([^\]]*)\]/g)) for (const k of m[1].matchAll(/([a-zA-Z]+)\s*:/g))
         if (!["opacity", "transform", "offset", "easing", "translate", "scale"].includes(k[1])) fails.push(`lint  ${f}:${i + 1}  .animate() moves "${k[1]}"`);
