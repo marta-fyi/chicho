@@ -19,7 +19,7 @@ const FOODS = [
   {id:"beef",           label:"Beef",            group:"protein", tint:"#F4D2CC", emoji:"🥩", files:true, aliases:[]},
   {id:"meatballs",      label:"Meatballs",       group:"protein", tint:"#EFD3C6", emoji:"🧆", files:true, aliases:["beef meatballs, soft","beef meatballs"]},
   {id:"salmon",         label:"Salmon",          group:"protein", tint:"#FFD9C7", emoji:"🐟", files:true, aliases:[]},
-  {id:"white-fish",     label:"White fish",      group:"protein", tint:"#D9E8F2", emoji:"🐟", files:true, aliases:["fish","cod","hake"]},
+  {id:"white-fish",     label:"White fish",      group:"protein", tint:"#D9E8F2", emoji:"🐟", files:true, aliases:["cod","hake"]},
   {id:"lentils",        label:"Lentils",         group:"protein", tint:"#F1DDC4", emoji:"🫘", files:true, aliases:["lentil"]},
   {id:"chickpeas",      label:"Chickpeas",       group:"protein", tint:"#F5E6C8", emoji:"🫘", files:true, aliases:["chickpea"]},
   {id:"tofu",           label:"Tofu",            group:"protein", tint:"#F6F1E4", emoji:"🍢", files:true, aliases:["tofu, soft"]},
@@ -29,7 +29,7 @@ const FOODS = [
   {id:"cottage-cheese", label:"Cottage cheese",  group:"dairy",   tint:"#F3F0E6", emoji:"🥛", files:true, aliases:[]},
   {id:"ricotta",        label:"Ricotta",         group:"dairy",   tint:"#F5F2EA", emoji:"🥛", files:true, aliases:[]},
   {id:"cheese",         label:"Cheese",          group:"dairy",   tint:"#FFEBB8", emoji:"🧀", files:true, aliases:["cheese, grated","grated cheese"]},
-  {id:"milk",           label:"Milk",            group:"dairy",   tint:"#EEF1F6", emoji:"🍼", files:null, aliases:["breast milk","formula"]},
+  {id:"milk",           label:"Milk",            group:"dairy",   tint:"#EEF1F6", emoji:"🍼", files:null, aliases:["formula","dairy","cow's milk"]},
   // veg
   {id:"carrot",         label:"Carrots",         group:"veg",     tint:"#FFD8B8", emoji:"🥕", files:true, aliases:["carrots, soft-cooked","carrots"]},
   {id:"sweet-potato",   label:"Sweet potato",    group:"veg",     tint:"#FFD5BE", emoji:"🍠", files:true, aliases:[]},
@@ -71,6 +71,15 @@ const FOODS = [
   {id:"olive-oil",      label:"Olive oil",       group:"fats",    tint:"#ECEDC0", emoji:"🫒", files:true, aliases:["oil"]},
   {id:"chia",           label:"Chia seeds",      group:"fats",    tint:"#E9E4DC", emoji:"🌱", files:true, aliases:["chia seeds"]},
   {id:"peanut-butter",  label:"Peanut butter",   group:"fats",    tint:"#F1DAB8", emoji:"🥜", files:true, aliases:["smooth peanut butter"]},
+  // the big ones: the common allergens as foods of their own, so the sort can place them (they head the first pile,
+  // config.bigFoods in sortconfig.js; egg and milk above are two of them). No drawings: the sort is text only.
+  {id:"peanut",         label:"Peanut",          group:"fats",    tint:"#F1DAB8", emoji:"🥜", files:null, aliases:["peanuts","groundnut","groundnuts"]},
+  {id:"treenuts",       label:"Tree nuts",       group:"fats",    tint:"#EADBC8", emoji:"🌰", files:null, aliases:["tree nut","nuts","nut","almond","almonds","cashew","cashews","walnut","walnuts","hazelnut","hazelnuts","pistachio","pistachios","pecan","pecans"]},
+  {id:"wheat",          label:"Wheat",           group:"grains",  tint:"#F3E4C0", emoji:"🌾", files:null, aliases:["gluten","flour"]},
+  {id:"soy",            label:"Soy",             group:"protein", tint:"#EEF0D8", emoji:"🫘", files:null, aliases:["soya","edamame"]},
+  {id:"fish",           label:"Fish",            group:"protein", tint:"#D9E8F2", emoji:"🐟", files:null, aliases:[]},
+  {id:"shellfish",      label:"Shellfish",       group:"protein", tint:"#FCD9CF", emoji:"🦐", files:null, aliases:["shrimp","prawn","prawns","crab","lobster","mussel","mussels","clam","clams","squid"]},
+  {id:"sesame",         label:"Sesame",          group:"fats",    tint:"#F1E6CF", emoji:"🌱", files:null, aliases:["tahini","sesame seeds"]},
   // other
   {id:"plate",          label:"A plate",         group:"other",   tint:"#F2F0EC", emoji:"🍽️", files:null, aliases:[]}
 ];
@@ -120,6 +129,25 @@ const FOOD_META_KITCHEN = {
   "peanut-butter":"raw|2|0|10|pack|jar|jars|340"
 };
 
+/* the sort's layer (sortfood.js): what each food carries, and from what age it's on the board.
+   contains: the common allergens in it (ids of the big ones), possibly none. Keeping an allergen out keeps out every food
+             that contains it, so this list is a safety list: every entry is an assumption to verify (docs/decisions.md).
+   minMonths: the earliest age it's planned, the generator's own (FOOD_POOL.min; tests/foodsort.html checks they agree).
+   A food missing here has no contains at all, and the tests fail: there is deliberately no default. */
+const FOOD_SORT = {
+  egg:"egg|6", chicken:"|6", turkey:"|6", beef:"|6", meatballs:"egg,wheat|12", salmon:"fish|6", "white-fish":"fish|6",
+  lentils:"|6", chickpeas:"|6", tofu:"soy|6", hummus:"sesame|12",
+  "greek-yogurt":"milk|6", "cottage-cheese":"milk|6", ricotta:"milk|6", cheese:"milk|6", milk:"milk|6",
+  carrot:"|6", "sweet-potato":"|6", pumpkin:"|6", "butternut-squash":"|6", zucchini:"|6", "green-beans":"|6", peas:"|6",
+  cauliflower:"|6", potato:"|6", spinach:"|6", beetroot:"|6", cucumber:"|12", tomato:"|12",
+  banana:"|6", pear:"|6", apple:"|6", peach:"|6", plum:"|12", mango:"|6", melon:"|6", kiwi:"|6", blueberries:"|6",
+  strawberries:"|6", raspberries:"|6", grapes:"|12",
+  oatmeal:"wheat|6", "baby-rice":"|6", toast:"wheat|6", pasta:"wheat|6", rice:"|6", quinoa:"|6", couscous:"wheat|12",
+  avocado:"|6", "olive-oil":"|6", chia:"|6", "peanut-butter":"peanut|12",
+  peanut:"peanut|6", treenuts:"treenuts|6", wheat:"wheat|6", soy:"soy|6", fish:"fish|6", shellfish:"shellfish|6", sesame:"sesame|6",
+  plate:"|0"
+};
+
 /* the welcome screen's crossfade, in order; foods without a drawing are skipped */
 const HERO_FOODS = ["banana","carrot","mango","white-fish","egg","avocado","oatmeal"];
 
@@ -129,6 +157,7 @@ FOODS.forEach(f=>{
   f.scale = f.scale || 1;
   const [method, min] = (COOK[f.id] || "raw:0").split(":");
   f.cook = {method, min:+min};
+  if(FOOD_SORT[f.id]!==undefined){ const [has, months] = FOOD_SORT[f.id].split("|"); f.contains = has ? has.split(",") : []; f.minMonths = +months; }
   f.files = f.files ? {
     w64:`img/food/${f.id}-64.webp`, w192:`img/food/${f.id}-192.webp`, w384:`img/food/${f.id}-384.webp`, png:`img/food/${f.id}-384.png`
   } : null;

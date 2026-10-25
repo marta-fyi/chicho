@@ -16,6 +16,16 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Sort the food (25 Oct 2026, supersedes "Bubbles that pop" for the Allergens step)
+
+Marta's brief: the parent drags the foods into four places (Keep out, Not a fan, Tried already, Untouched), and the plan reads one selector, `getFoodRules(profile, catalog)` (`sortcore.js`). Every number is in `sortconfig.js`.
+
+- **The manifest carries the sort's layer** (`FOOD_SORT` in `foods.js`): `contains` (the big ones in each food, possibly none) and `minMonths` (the generator's own minimum; a test fails if they drift apart). There is no default: a food missing from `FOOD_SORT` has no `contains`, and `tests/foodsort.html` fails.
+- **The big ones are foods of their own**: peanut, tree nuts, wheat, soy, fish, shellfish and sesame join egg and milk in the manifest, with no drawing (the sort is text only). White fish gave the bare alias "fish" to the allergen; milk lost "breast milk" (it isn't the allergen) and gained "dairy" and "cow's milk".
+- **One set per food**: never beats avoid, avoid beats the food's own place, and the food's own place beats what its allergens say (milk Tried, cheese Kept out: cheese is never). A food is free through its allergens only when all of them were tried (meatballs need egg and wheat). An unsorted big one is untouched.
+- **Not a fan on an allergen** avoids every food that contains it (they're used only when a slot has nothing else); a typed "Keep out" that matches a big one ("peanuts") keeps out everything containing it.
+- **Matching what's typed**: trimmed, lower-cased, accents and apostrophes dropped, then simple plurals word by word (berries → berry, peaches → peach, tomatoes → tomato, grapes → grape; hummus and couscous keep their s), against every food's label, id and aliases.
+
 ## The name, always big (24 Oct 2026)
 
 Marta: the name is always big. Home's corner now draws the ink at Profile's 56px (it was 34px), and a typed name is 32px (it was 20px), the Kitchen title's size. The corner grows by about 22px. The fold budget, the header-inside-the-screen check and the 44px targets still pass on every device.
@@ -130,7 +140,7 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 
 - **foodMeta** is one line per food in the manifest (`FOOD_META_KITCHEN`, foods.js): method, fridge days, freezable, portion grams, shop unit, unit labels, grams per pack. `kitchenMeta(foodId)` reads it by the pantry's key (`"carrots"` finds the manifest's `carrot` through its aliases).
 - **The brief's methods** are raw · steam · roast · boil · bake · simmer. The cooking layer (`COOK`, which writes the one-line hows) also has `toast` and `none` (stirred in); both are **raw** here, because there's nothing to cook ahead. Toast is made fresh, and canned chickpeas, yogurt and oil are opened, not cooked. The hows keep their own wording.
-- Defaulted foodMeta (each takes its food group's unit and its method from the cooking layer; check the packs against a real shop): `turkey`, `beef`, `milk`, `oatmeal`, `pasta`, `quinoa`, `couscous`, `plate`.
+- Defaulted foodMeta (each takes its food group's unit and its method from the cooking layer; check the packs against a real shop): `turkey`, `beef`, `milk`, `oatmeal`, `pasta`, `quinoa`, `couscous`, `plate`, and the sort's big ones that are never planned or bought themselves, `peanut`, `treenuts`, `wheat`, `soy`, `fish`, `shellfish`, `sesame`.
 
 - **A legacy non-food** in the pantry (an old "Wipes" extra) has the group "other": one pack, no plan need. It still shows in At home, under "Everything else", only when there is one.
 - **Grams in Buy.** The brief says Buy shows no grams, and also that a `weight` food rounds up to the next 100 g (200 g at least). A shopping weight is a unit at the counter, not the plan's portion grams, so `weight` foods read "300 g". The plan's own grams ("35 g") never reach Buy, and the tests check that every gram value in a Buy row is a whole 100 g of a `weight` food.
@@ -316,6 +326,8 @@ The Kitchen redesign: `backdrop-filter` blur performance while scrolling (and th
 
 ## Needs a pediatric source (verify)
 
+- **Sort the food, the first pile** (`SORT_CONFIG.bigFoods`): egg, milk, peanut, tree nuts, wheat, soy, fish, shellfish, sesame, as the set every family must place.
+
 - Stage boundaries: milk only 0–5 months; first tastes 6–8; fingers first 9–11; family table 12–23; 24–36.
 - Starting with **one meal at 6 months** and adding breakfast at 7.
 - Default meal anchors per stage (08:00 / 10:30 / 12:30 / 16:00 / 19:00; dinner 18:30 at 9–11 months).
@@ -329,6 +341,8 @@ The Kitchen redesign: `backdrop-filter` blur performance while scrolling (and th
 - **Corrected age** for a baby born early: the due date's age, used for every stage decision until 24 months, from 1 to 20 weeks early.
 
 ## Needs a food-safety source (verify)
+
+- **The allergen map** (`FOOD_SORT` in `foods.js`), every line of it: egg (egg); meatballs (egg, wheat: breadcrumbs and egg as binder); salmon and white fish (fish); tofu (soy); hummus (sesame: tahini); Greek yogurt, cottage cheese, ricotta, cheese and milk (milk); oatmeal (wheat: oats aren't wheat, but most carry gluten from shared mills, as the app already assumed); toast, pasta and couscous (wheat); peanut butter (peanut); and none for every other food, including baby rice, quinoa, chia and olive oil. Keeping an allergen out keeps out every food listed with it, so a missing entry is a food that gets through.
 
 - The **Meat** and **Gluten** word lists (`DIETS`, index.html): whether oats belong under Gluten (cross-contamination), and what else gives meat or gluten away in a food's name.
 

@@ -954,6 +954,8 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
 <script src="theme.js"></script>
 <script src="foods.js"></script>
 <script src="content.js"></script>
+<script src="sortconfig.js"></script>
+<script src="sortcore.js"></script>
 <script>
 /* ---------- the clock ----------
    Everything that depends on the time reads now(), never new Date(), so
@@ -1998,7 +2000,7 @@ function generateWeek(months, profile, opts){
    day (today). A food bringing a second new allergen too soon is swapped for
    one from its group that brings none. Introduced = offered before, or marked
    "tried and loved" in onboarding. (Spacing: check with a pediatric source.) */
-const ALLERGEN_SPACING_DAYS = 3;
+const ALLERGEN_SPACING_DAYS = SORT_CONFIG.ALLERGEN_SPACING_DAYS;
 function introducedAllergens(profile){
   const done = new Set(Object.entries(profile.allergens || {}).filter(([,v])=>v==="ok").map(([k])=>k));
   knownFoods().forEach(k=>allergensOf(upper1(k)).forEach(a=>done.add(a)));

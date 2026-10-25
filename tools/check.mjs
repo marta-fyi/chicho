@@ -3,7 +3,7 @@
 // 2. voice: none of the banned words in the app's source (lines marked "legacy:" convert old saves and may name old fields),
 //    no "Show the week", no emoji or icons in the copy and the meal-times component, and no exclamation marks in the copy
 //    and colour: no colour outside the token block (light and dark share every component)
-// 3. every tests/*.html page, in headless Chrome over the DevTools protocol, must end with "ALL PASS"
+// 3. every tests/*.html page (or those named on the command line), in headless Chrome over the DevTools protocol, must end with "ALL PASS"
 // No dependencies: Node's http server and fetch, and the Chrome already on this Mac.
 import { createServer } from "node:http";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js"];
+const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js", "sortconfig.js", "sortcore.js"];
 const fails = [];
 
 // 1. hover
@@ -97,7 +97,9 @@ const server = createServer((req, res) => {
 }).listen(0, "127.0.0.1");
 await new Promise(r => server.on("listening", r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const pages = readdirSync(join(root, "tests")).filter(f => f.endsWith(".html")).sort();
+// `node tools/check.mjs foodsort home` runs only the pages whose names contain one of the words (lint always runs)
+const only = process.argv.slice(2);
+const pages = readdirSync(join(root, "tests")).filter(f => f.endsWith(".html") && (!only.length || only.some(w => f.includes(w)))).sort();
 
 const chromePath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9400 + Math.floor(Math.random() * 400);
