@@ -20,6 +20,15 @@ Where the brief's rules met each other, the principles won. Every number marked 
 
 Marta: the name is always big. Home's corner now draws the ink at Profile's 56px (it was 34px), and a typed name is 32px (it was 20px), the Kitchen title's size. The corner grows by about 22px. The fold budget, the header-inside-the-screen check and the 44px targets still pass on every device.
 
+## Home, meal first (25 Oct 2026)
+
+Marta, from a screenshot of a 10:30 snack: the headline should breathe, almost mid-screen; then what the meal is; then While you're at it; a clue only on the meal it applies to; and "Mark as offered" should turn into the three answers, keep the one chosen, and go.
+
+- **The order.** Corners → air → headline → the meal (foods, the how, a first allergen, While you're at it) → the moment line → the pill → the footer. The air is `.home-air` (18svh, `flex-shrink:1000`, so on a short phone it gives way before anything else, then the footer goes, then the meal scrolls inside itself as before). The headline is `clamp(38px, 11.5vw, 50px)` (was 32–40px), so at 390×844 its top is about 27% of the way down; the glow follows it as before. The moment line ("3 things to pick up", the stage line, late questions, tips) moved from under the headline to below the meal, so nothing comes between the headline and what the meal is. The meal block has a 12px bottom pad because an inline text button's 44px tap pad on its last line would otherwise count as overflow and hide the footer.
+- **A first allergen belongs to its meal.** "Wheat, for the first time…" with "What to watch for" used to be a moment-line rule for the whole day (`firstAllergensToday`), so a raspberry snack said it because breakfast had toast. It's now a calm line in the meal block (`firstAllergensIn(ref)`), after the how and before While you're at it, only when that meal brings an allergen for the first time. Known means met before that day or carried by another meal already offered that day, so a second wheat meal isn't a first. While you're at it was already per meal (cook-ahead whose first meal is this one, salt at lunch and dinner). The "Make double raspberries and freeze half" in her screenshot was copy from before the Kitchen redesign (the lint bans it; cook-ahead now skips raw foods): her phone was running a cached build. The service worker is now `chicho-v10`.
+- **Offering answers itself.** "Mark as offered" becomes Loved it · Ate some · Not today in the same 48px slot (equal width and weight, rising 60 ms apart), and the footer reads "Offered. Undo" for 5 s, so nothing moves. An answer is kept at once and announced ("Lunch: Loved it"). The chosen one fills for 800 ms, then the meal, the moment line and the answers fade (300 ms) and Home moves on to the next meal. Left unanswered, the answers wait with the meal until its window ends, then Home moves on with no outcome: how it went stays optional and equal. **This retires** the outcome row timing out into "Add how it went" (20 s) and the pill's "Offered · Undo".
+- At 320px wide the three answers shrink equally (2px padding, still 8px apart) so "Not today" fits.
+
 ## Meal times in onboarding (24 Oct 2026, supersedes the "late question" status of meal times)
 
 Draw → Spell → Birthday → Allergens → Meal times → Reveal → Done → Home; under 6 months, Allergens → Closing → Home. Meal times are a day axis, one component (`mealtimes.js`) with two hosts: the onboarding's step 5, and Profile > Settings > Meal times (Save, Close).
@@ -251,6 +260,8 @@ Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms,
 - **The grain:** a static 34 KB tile; no paint or main-thread cost after the first paint (it never repaints: the breath scales and fades a composited layer above it).
 
 ## Check on a real iPhone
+
+Home, meal first: the headline's position at 3× with the notch and home indicator (a third of the way down, not crowded on a mini), the pill turning into the three answers under a thumb (no mis-tap on the answer that appears under it), the 800 ms hold then the fade into the next meal, and "Offered. Undo" in the footer within reach.
 
 Meal times: the handoff from the falling allergen circles into the axis's entrance (no gap that reads as a glitch, no overlap); drag feel and hit-testing at 60-minute spacing with one thumb (picking the marker you meant when two are 22px apart, the push, the rubber band at 6:00 and 21:00, no page or Safari gesture taking over); the keyboard transition while typing a time (it opens on "Type a time", the field stays above it, the axis doesn't jump, Done closes it); and glow performance during drags (the sun repainting its colour as the hour changes, at 3×).
 

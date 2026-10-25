@@ -92,14 +92,17 @@ function allergensKnownBefore(iso){
   liveOffers().forEach(e=>{ if(e.date < iso) allergensOf(foodInfo(e.foodId).name).forEach(a=>known.add(a)); });
   return known;
 }
-/* the common allergens meeting {name} for the first time today: [{id, label, foods}] */
-function firstAllergensToday(){
-  const iso = todayISO(), known = allergensKnownBefore(iso), out = {};
-  mealsOn(now()).forEach(x=>x.m.items.forEach(i=>allergensOf(i.name).forEach(a=>{
+/* the common allergens this meal brings {name} for the first time: [{id, label, foods}]. Known: met before its day,
+   or carried by another meal already offered that day (a second wheat meal isn't a first). Only this meal's: a
+   raspberry snack never says wheat because breakfast had toast. */
+function firstAllergensIn(ref){
+  const iso = isoOf(ref.date), known = allergensKnownBefore(iso), out = {};
+  liveOffers().forEach(e=>{ if(e.date===iso && e.mealId!==ref.m.id) allergensOf(foodInfo(e.foodId).name).forEach(a=>known.add(a)); });
+  ref.m.items.forEach(i=>allergensOf(i.name).forEach(a=>{
     if(known.has(a)) return;
     const al = ALLERGENS.find(z=>z.id===a);
     (out[a] = out[a] || {id:a, label:al ? al.label.split(" /")[0] : a, foods:[]}).foods.push(i);
-  })));
+  }));
   return Object.values(out);
 }
 /* the allergen record, separate from preferences: notyet · introduced (on a date, maybe no reaction noted) · keepout */
@@ -161,9 +164,6 @@ function momentLine(){
   // a boundary that changes the meals: "{name} is {n} months. New meals, new times. Set them?" → Meal times, in Profile
   if(st.solids && mealSlotsStale(months, st) && open("stage"))
     return L("stage", say("moment.stage", {name, months}), [[say("moment.set"), ()=>openOnboarding("mealtimes", {single:true})], [say("moment.later"), putAway("stage")]]);
-  const firsts = firstAllergensToday();
-  if(firsts.length) return L("allergen:" + firsts[0].id, say("moment.allergen", {allergen:firsts[0].label, name}),
-                              [[say("moment.allergenAction"), ()=>go("profile", {section:"offplate"})]], "calm");
   if(!today.length) return L("noplan", say("moment.noPlan", {name}), [[say("moment.noPlanAction"), ()=>go("week")]]);
   if(weekDone()) return L("weekdone", say("moment.weekDone"), [[say("moment.weekNext"), ()=>go("week")]]);
   // a planned food that's run out, for a meal still to come today: swap it on Shuffle
@@ -633,10 +633,7 @@ function ring(on, label, fn, f){
    line, and the map in the corner. Everything else lives one swipe away.
    ==================================================================== */
 let homeKey = null, momentKey = null, picked = null, firstDraw = true, layoutSig = "";
-const undoUntil = {};    // meal key → ms when its "Offered · Undo" window ends
-const outcomeUntil = {}; // meal key → ms when its outcome row turns into "Add how it went"
-let OUTCOME_MS = 20000;  // how long "Loved it · Ate some · Not today" stays if ignored
-const OUTCOME_AFTER_MS = 1600;   // …and after an answer, long enough to see it taken
+const undoUntil = {};    // meal key → ms when its "Offered. Undo" window ends
 const homeUI = {allFoods:false, howOpen:false, key:null};
 function refsOn(date){ return mealsOn(date).map(x=>Object.assign(x, {key:isoOf(date) + "|" + x.m.id})); }
 /* the meal that's shown by default: the now meal, otherwise the next */
@@ -723,7 +720,7 @@ const FOOD_LINES_MAX = 4;
 function renderNowMeal(ref, today){
   const box = $("nowMeal"), zone = $("offerZone"), foot = $("footLine");
   const sig = !ref ? "none" : [ref.key, ref.status, ref.time, ref.m.items.map(i=>i.id).join(","), mealOffered(ref.m, ref.date), mealOutcome(ref.m, ref.date),
-               undoUntil[ref.key] > Date.now(), outcomeUntil[ref.key] > Date.now(), homeUI.allFoods, homeUI.howOpen, prepDone().length, state.cookAhead.done.length, offersVersion].join("|");
+               undoUntil[ref.key] > Date.now(), answering, homeUI.allFoods, homeUI.howOpen, prepDone().length, state.cookAhead.done.length, offersVersion].join("|");
   if(sig===layoutSig) return;
   const focus = focusMemo();
   layoutSig = sig;
@@ -763,6 +760,14 @@ function renderNowMeal(ref, today){
       }
     });
   }
+  // a first allergen in this meal (only this meal's): calm, with what to watch for
+  const firsts = firstAllergensIn(ref);
+  if(firsts.length){
+    const p = el("p", "meal-first", say("moment.allergen", {allergen:firsts[0].label, name:state.profile.name || ""}));
+    const b = textBtn(say("moment.allergenAction"), ()=>go("profile", {section:"offplate"}), "inline"); b.dataset.f = "meal:watch";
+    p.append(" "); p.appendChild(b);
+    box.appendChild(p);
+  }
   const also = !mealOffered(m, ref.date) ? alsoFor(ref, 1)[0] : null;
   if(also){
     const p = el("p", "meal-also"); p.innerHTML = `<b>${esc(say("home.also"))}:</b> ${esc(also.text)}`;
@@ -773,8 +778,16 @@ function renderNowMeal(ref, today){
   renderOfferZone(ref, zone);
   // the footer line: the meal after this one
   const after = homeAfter(ref, today);
-  foot.textContent = after ? say(isoOf(after.date)===todayISO() ? "home.next" : "home.nextTomorrow", {meal:after.m.label, time:fmtTime(after.start)}) : "";
-  foot.hidden = !after;
+  delete foot.dataset.undo;
+  if(undoUntil[ref.key] > Date.now() && mealOffered(m, ref.date) && answering!==ref.key){
+    // just offered: "Offered. Undo" for 5 s, where the footer is (nothing moves)
+    foot.textContent = say("meal.offeredUndo") + " ";
+    const u = textBtn(say("meal.undo"), ()=>undoOffer(ref), "inline"); u.dataset.f = "undo";
+    foot.appendChild(u); foot.dataset.undo = "1"; foot.hidden = false;
+  }else{
+    foot.textContent = after ? say(isoOf(after.date)===todayISO() ? "home.next" : "home.nextTomorrow", {meal:after.m.label, time:fmtTime(after.start)}) : "";
+    foot.hidden = !after;
+  }
   setGlow(m.items[0] ? m.items[0].cats[0] : null);
   focusRestore(focus);
   fitHome();
@@ -794,10 +807,14 @@ function homeAfter(ref, today){
   const list = today.concat(tm).filter(x=>x.start > ref.start && x.key!==ref.key);
   return list[0] || null;
 }
-/* "Mark as offered" → at once "Offered · Undo" (5 s) and how it went rising under it (optional, equal) → after
-   20 s if ignored, a quiet "Add how it went" */
+/* "Mark as offered" becomes how it went, in its place: Loved it · Ate some · Not today (optional and equal), with
+   "Offered. Undo" in the footer for 5 s. An answer is kept, shows as chosen for a moment, then the meal fades and
+   Home moves on to the next one. Unanswered, the three stay with the meal until its window ends. */
+const ANSWER_HOLD_MS = 800, ANSWER_FADE_MS = 300;
+let answering = null;   // the meal key whose answer is showing before Home moves on
 function renderOfferZone(ref, zone){
-  const m = ref.m, on = mealOffered(m, ref.date), undo = undoUntil[ref.key] > Date.now();
+  const m = ref.m, on = mealOffered(m, ref.date);
+  if(on && (!mealOutcome(m, ref.date) || answering===ref.key)){ zone.appendChild(outcomeRow(ref)); return; }
   const bar = el("div", "offer-bar");
   const pill = document.createElement("button");
   pill.type = "button"; pill.className = "offer-pill"; pill.dataset.f = "offer";
@@ -805,47 +822,50 @@ function renderOfferZone(ref, zone){
   pill.textContent = on ? say("meal.offered") : say("meal.offer");
   pill.addEventListener("click", ()=>toggleOffered(ref));
   bar.appendChild(pill);
-  if(on && undo){
-    const u = textBtn(say("meal.undo"), ()=>{ delete undoUntil[ref.key]; delete outcomeUntil[ref.key]; offerMeal(m, ref.date, false); save(); announce(say("home.announce.unoffered", {meal:m.label})); picked = null; changed(); focusLater("offer"); }, "undo");
-    u.dataset.f = "undo";
-    bar.appendChild(u);
-  }
   zone.appendChild(bar);
-  if(!on) return;
-  if(outcomeUntil[ref.key] > Date.now()) zone.appendChild(outcomeRow(ref));
-  else if(undo) return;
-  else if(!mealOutcome(m, ref.date)){
-    const p = el("p", "how-went");
-    const b = textBtn(say("meal.addHow"), ()=>{ showOutcome(ref.key, OUTCOME_MS); layoutSig = ""; renderHome(); focusLater(`out:${ref.key}:loved`); }, "inline quiet");
-    b.dataset.f = "howwent";
-    p.appendChild(b);
-    zone.appendChild(p);
-  }
 }
 function toggleOffered(ref){
   const on = !mealOffered(ref.m, ref.date);
-  // offered, the meal stays on Home (Undo, then how it went) until the next boundary
+  // offered, the meal stays on Home (its three answers, Undo in the footer) until the next boundary
   if(on) picked = {key:ref.key, until:nextBoundary(refsOn(now()))};
   offerMeal(ref.m, ref.date, on); save(); haptic();
   if(on){
-    pulseGlow(); undoUntil[ref.key] = Date.now() + 5000; showOutcome(ref.key, OUTCOME_MS);
+    pulseGlow(); undoUntil[ref.key] = Date.now() + 5000;
     setTimeout(()=>{ layoutSig = ""; renderHome(); }, 5050);
     announce(say("home.announce.offered", {meal:ref.m.label}));
-  }else{ delete undoUntil[ref.key]; delete outcomeUntil[ref.key]; picked = null; announce(say("home.announce.unoffered", {meal:ref.m.label})); }
+  }else{ delete undoUntil[ref.key]; picked = null; announce(say("home.announce.unoffered", {meal:ref.m.label})); }
   changed();
+  if(on) focusLater(`out:${ref.key}:loved`);
 }
-/* the outcome row: rises once, and gives way to "Add how it went" when ignored */
+function undoOffer(ref){
+  delete undoUntil[ref.key];
+  offerMeal(ref.m, ref.date, false); save();
+  announce(say("home.announce.unoffered", {meal:ref.m.label}));
+  picked = null; changed(); focusLater("offer");
+}
+/* an answer: kept at once, shown as chosen, then the meal fades and Home moves on */
+function answerOffered(ref, v){
+  if(answering) return;
+  answering = ref.key;
+  delete undoUntil[ref.key];
+  setOutcome(ref.m, ref.date, v); save(); haptic();
+  announce(say("home.announce.outcome", {meal:ref.m.label, outcome:say("meal.outcome." + v)}));
+  changed();
+  const moveOn = ()=>{
+    answering = null;
+    if(picked && picked.key===ref.key) picked = null;
+    changed();
+    if(!calm()) [$("nowMeal"), $("moment"), $("offerZone")].forEach(e=>e.animate([{opacity:0}, {opacity:1}], {duration:240, easing:"ease-out"}));
+  };
+  if(calm()){ setTimeout(moveOn, ANSWER_HOLD_MS); return; }
+  setTimeout(()=>{
+    const parts = [$("nowMeal"), $("moment"), $("offerZone")];
+    const fades = parts.map(e=>e.animate([{opacity:1}, {opacity:0}], {duration:ANSWER_FADE_MS, easing:"ease-in", fill:"forwards"}));
+    fades[0].onfinish = ()=>{ fades.forEach(a=>a.cancel()); moveOn(); };
+  }, ANSWER_HOLD_MS);
+}
+/* the three answers: they rise once, a beat apart, where the pill was */
 const outcomeRisen = new Set();
-function showOutcome(key, ms){
-  outcomeUntil[key] = Date.now() + ms;
-  clearTimeout(showOutcome[key]);
-  showOutcome[key] = setTimeout(()=>{
-    const row = document.querySelector(`.outcomes[data-key="${CSS.escape(key)}"]`);
-    const done = ()=>{ delete outcomeUntil[key]; outcomeRisen.delete(key); layoutSig = ""; renderHome(); };
-    if(row && !calm()) row.animate([{opacity:1}, {opacity:0, transform:"translateY(-4px)"}], {duration:400, easing:"ease-in", fill:"forwards"}).onfinish = done;
-    else done();
-  }, ms);
-}
 function outcomeRow(ref){
   const m = ref.m, g = el("div", "outcomes");
   g.dataset.key = ref.key; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
@@ -855,10 +875,9 @@ function outcomeRow(ref){
     ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${ref.key}:${v}`;
     ob.setAttribute("aria-pressed", String(cur===v));
     ob.textContent = say("meal.outcome." + v);
-    ob.addEventListener("click", ()=>{ setOutcome(m, ref.date, v); save(); haptic(); showOutcome(ref.key, OUTCOME_AFTER_MS); changed(); });
+    ob.addEventListener("click", ()=>answerOffered(ref, v));
     g.appendChild(ob);
   });
-  // it rises once, its three answers a beat apart
   if(!outcomeRisen.has(ref.key)){ outcomeRisen.add(ref.key); if(!calm()) requestAnimationFrame(()=>[...g.children].forEach((b, k)=>b.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}], {duration:320, delay:k * 60, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}))); }
   return g;
 }
@@ -869,7 +888,7 @@ function fitHome(){
   if(!box || !box.firstChild || pg.cur!=="home" && !mounted.has("home")) return;
   box.classList.remove("scrolls");
   if(foot.textContent) foot.hidden = false;
-  if(box.scrollHeight > box.clientHeight + 1 && foot.textContent) foot.hidden = true;
+  if(box.scrollHeight > box.clientHeight + 1 && foot.textContent && !foot.dataset.undo) foot.hidden = true;
   if(box.scrollHeight > box.clientHeight + 1) box.classList.add("scrolls");
   // the glow sits behind the headline
   const hl = $("headline"), r = hl.getBoundingClientRect(), s = screenEl("home").getBoundingClientRect();

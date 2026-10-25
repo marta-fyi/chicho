@@ -56,18 +56,29 @@ f.onload = async () => {
     setup(13, at(15, 0), `state.profile.lastStage = "textures";`);
     ok("only in the month the stage changes (13 months: no line)", M().key !== "stage", M().key);
 
-    // 3. a first allergen today: calm, never playful
-    setup(18, at(15, 0), `state.profile.allergens = {}; state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`);
-    m = M();
-    ok("egg for the first time: the calm line", /^Egg, for the first time\. A small taste, then keep an eye on how Lula feels\.$/.test(m.text) && m.tone === "calm", m);
-    ok("…with 'What to watch for'", JSON.stringify(actions(m)) === JSON.stringify(["What to watch for"]));
-    ok("…which goes to Profile, Off the plate, with the note: 'Not medical advice…'", await goTo(m.actions[0][1]) === "profile" && d.activeElement && d.activeElement.dataset.sec === "offplate" && /Not medical advice\./.test(d.querySelector('[data-sec="offplate"]').textContent));
+    // 3. a first allergen: not a moment line any more; it's in the meal block, only on the meal that carries it
+    const egg = `state.profile.allergens = {}; ALLERGENS.forEach(a => { if (a.id !== "egg") state.profile.allergens[a.id] = "ok"; });
+      const day = state.plan.days[planDayIndex(now())]; day.meals.find(m => m.slot === "snack2").items = [it("Raspberries", "40 g", ["fruit"])];
+      day.meals.find(m => m.slot === "dinner").items = [it("Egg, well cooked", "30 g", ["protein"]), it("Peas", "30 g", ["vegetable"])];`;
+    const first = () => { const p = d.querySelector("#nowMeal .meal-first"); return p ? p.textContent : null; };
+    setup(18, at(15, 0), egg); E("picked = null; changed()"); await wait(80);
+    ok("a raspberry snack the day egg first comes (at dinner): no egg line on it, and none as the moment line", /Snack/.test(d.getElementById("headline").textContent) && first() === null && !/first time/.test(M().text), [d.getElementById("headline").textContent, first(), M().text]);
+    ok("…and no 'While you're at it' on a raw snack (nothing to cook ahead, no salt at a snack)", !d.querySelector("#nowMeal .meal-also"), (d.querySelector("#nowMeal .meal-also") || {}).textContent);
+    E(`setClock(${at(18, 50)}); picked = null; changed()`); await wait(500);
+    ok("the dinner with the egg: 'Egg, for the first time. A small taste, then keep an eye on how Lula feels.' in the meal block", /Dinner/.test(d.getElementById("headline").textContent) && /^Egg, for the first time\. A small taste, then keep an eye on how Lula feels\. What to watch for$/.test(first()), first());
+    ok("…after the foods, before the moment line (headline → foods → the line → moment)", (() => { const f = d.querySelector("#nowMeal .meal-foods"), l = d.querySelector("#nowMeal .meal-first"); return f.compareDocumentPosition(l) === 4 && l.getBoundingClientRect().bottom <= d.getElementById("moment").getBoundingClientRect().top + 1; })());
+    d.querySelector('[data-f="meal:watch"]').click(); await wait(500);
+    ok("…'What to watch for' goes to Profile, Off the plate, with the note: 'Not medical advice…'", E("pg.cur") === "profile" && d.activeElement && d.activeElement.dataset.sec === "offplate" && /Not medical advice\./.test(d.querySelector('[data-sec="offplate"]').textContent));
     await home();
-    setup(18, at(15, 0), `state.profile.allergens = {}; state.offers.push({id: "o2", at: "2026-10-20T08:00", date: "2026-10-20", mealId: "legacy", itemId: null, foodId: "egg", outcome: null, firstOfFood: true, firstAllergen: true}); offersChanged();
-      ALLERGENS.forEach(a => { if (a.id !== "egg") state.profile.allergens[a.id] = "ok"; });
-      state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`);
-    ok("egg introduced on an earlier day (from the log): no allergen line", !/^allergen/.test(M().key), M().key);
-    ok("the stage line comes before the allergen line", (setup(12, at(15, 0), `state.profile.lastStage = "textures"; state.profile.allergens = {}; state.plan.days[planDayIndex(now())].meals[0].items.unshift(it("Egg, well cooked", "30 g", ["protein"]));`), M().key) === "stage");
+    setup(18, at(18, 50), egg + `state.offers.push({id: "o2", at: "2026-10-20T08:00", date: "2026-10-20", mealId: "legacy", itemId: null, foodId: "egg", outcome: null, firstOfFood: true, firstAllergen: true}); offersChanged();`);
+    E("picked = null; changed()"); await wait(80);
+    ok("egg introduced on an earlier day (from the log): no line", first() === null, first());
+    setup(18, at(18, 50), egg + `day.meals.find(m => m.slot === "snack2").items.push(it("Egg, well cooked", "20 g", ["protein"])); offerMeal(day.meals.find(m => m.slot === "snack2"), now(), true);`);
+    E("picked = null; changed()"); await wait(80);
+    ok("a second egg meal the same day, after the first was offered: no line (it isn't a first)", first() === null, first());
+    setup(12, at(18, 50), `state.profile.lastStage = "textures"; ` + egg);
+    E("picked = null; changed()"); await wait(80);
+    ok("the stage line and the allergen line can both show: the stage below the meal, the allergen in it", M().key === "stage" && /^Egg, for the first time/.test(first() || ""), [M().key, first()]);
 
     // 4. no plan for today
     setup(18, at(15, 0), `state.plan.days[planDayIndex(now())].meals.forEach(m => m.items = []);`);

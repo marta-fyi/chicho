@@ -30,7 +30,7 @@ const CONTENT = {
       tomorrow:"{meal} tomorrow around {time} · Chicho"
     },
     /* said once by the polite live region when the state changes, never every minute */
-    announce:{now:"{meal} time", offered:"{meal} offered", unoffered:"{meal} not offered", copied:"List copied", done:"That's today done"},
+    announce:{now:"{meal} time", offered:"{meal} offered", unoffered:"{meal} not offered", outcome:"{meal}: {outcome}", copied:"List copied", done:"That's today done"},
     rowWhen:"{meal} · around {time}",
     mealTitle:"{meal} · around {time}",
     mealTitleTomorrow:"{meal} tomorrow · around {time}",
@@ -58,7 +58,7 @@ const CONTENT = {
     undo:"Undo",
     outcome:{loved:"Loved it", some:"Ate some", not_today:"Not today"},
     outcomeLabel:"How it went",
-    addHow:"Add how it went"
+    offeredUndo:"Offered."
   },
 
   /* ---------- the moment line: one line at a time, never two ---------- */

@@ -80,8 +80,8 @@ const fit = (d, W, H) => {
       ok(`${W}×${H}, all open: the page still doesn't scroll and the pill stays on screen`, r.pageScroll <= 0 && r.bodyScroll <= 0 && r.inside, r);
       ok(`${W}×${H}, all open: overflow scrolls inside the meal block, never cropped`, !r.cropped && (!r.overflowing || r.scrolls), r);
       ok(`${W}×${H}, all open: the footer line went first`, !r.overflowing || r.footHidden, r);
-      // the outcome row (below the pill) never pushes anything off screen either
-      w.eval("toggleOffered(homeRef().ref); showOutcome(homeRef().ref.key, 60000); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); await wait(120);
+      // the answers (in the pill's place) never push anything off screen either
+      w.eval("toggleOffered(homeRef().ref); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); await wait(120);
       r = fit(d, W, H);
       ok(`${W}×${H}, with the outcome row: still no scroll, the row on screen, nothing cropped`, r.pageScroll <= 0 && !r.cropped && $$2(".outcome").length === 3 && $$2(".outcome").every(b => R(b).bottom <= H + .5), r);
       f.remove();
@@ -90,7 +90,7 @@ const fit = (d, W, H) => {
     // no horizontal scroll from 320px
     let f = await load(320, 640), d = f.contentDocument;
     ok("320×640: no horizontal scroll, no page scroll", d.documentElement.scrollWidth <= d.documentElement.clientWidth && d.documentElement.scrollHeight <= 640, [d.documentElement.scrollWidth, d.documentElement.scrollHeight]);
-    ok("320×640: the outcome pills fit side by side", (() => { f.contentWindow.eval("toggleOffered(homeRef().ref); showOutcome(homeRef().ref.key, 60000); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); const o = [...d.querySelectorAll(".outcome")]; return o.length === 3 && o.every(b => R(b).right <= d.documentElement.clientWidth - 19); })());
+    ok("320×640: the outcome pills fit side by side", (() => { f.contentWindow.eval("toggleOffered(homeRef().ref); delete undoUntil[homeRef().ref.key]; layoutSig = ''; renderHome();"); const o = [...d.querySelectorAll(".outcome")]; return o.length === 3 && o.every(b => R(b).right <= d.documentElement.clientWidth - 19); })());
     f.remove();
     // landscape: the same centred column
     f = await load(844, 390); d = f.contentDocument;

@@ -281,11 +281,11 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
         for (const name of ["shuffle", "kitchen", "week", "profile"]) { await go(name); await shot(name); }
         await go("home");
         if (full) {
-          // Home: offered, then how it went, then the quiet line
-          await page.evaluate("document.querySelector('.offer-pill').click()"); await page.waitForTimeout(400); await shot("home-offered-undo");
-          await page.evaluate("Object.keys(undoUntil).forEach(k => { undoUntil[k] = 0; showOutcome(k, 20000); }); layoutSig = ''; renderHome()"); await page.waitForTimeout(400); await shot("home-outcomes");
-          await page.evaluate("Object.keys(outcomeUntil).forEach(k => delete outcomeUntil[k]); layoutSig = ''; renderHome()"); await page.waitForTimeout(200); await shot("home-addhow");
-          await page.evaluate("const r = homeRef().ref; offerMeal(r.m, r.date, false); picked = null; save(); changed()"); await page.waitForTimeout(300);
+          // Home: the pill becomes the three answers ("Offered. Undo" in the footer); one is chosen; Home moves on
+          await page.evaluate("document.querySelector('.offer-pill').click()"); await page.waitForTimeout(500); await shot("home-answers");
+          await page.evaluate("document.querySelector('.outcome').click()"); await page.waitForTimeout(250); await shot("home-answered");
+          await page.waitForTimeout(1300); await shot("home-next");
+          await page.evaluate("state.offers = []; offersChanged(); picked = null; save(); changed()"); await page.waitForTimeout(300);
           // a mid-swipe: halfway to the Kitchen (the backdrop at 0.3x)
           await page.evaluate("applyCamera(0, .5)"); await page.waitForTimeout(150); await shot("swipe-half"); await page.evaluate("applyCamera(0, 0)");
           // Shuffle: the meal's stock said per food, then one-at-a-time Change
