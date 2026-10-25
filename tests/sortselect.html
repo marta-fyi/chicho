@@ -55,7 +55,7 @@ f.onload = async () => {
     ok("…'Clear' clears", E("sortUI.selected.size") === 0 && $(".sf-selall").textContent === "Select all");
     $(".sf-selall").click(); cell("untouched").click(); await wait(900);
     ok("Select all, then a place: the whole pile is sorted, Next is ready", E("SORT_CONFIG.bigFoods.every(id => state.profile.foodSort.placement[id] === 'untouched')") && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false");
-    ok("…'9 foods → Untouched · Undo'", status() === "9 foods → Untouched · Undo", status());
+    ok("…the first pile done, so the summary holds the row: '9 to introduce.'", status() === "9 to introduce.", status());
   } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
   document.getElementById("o").textContent = out.join("\n");
   document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";

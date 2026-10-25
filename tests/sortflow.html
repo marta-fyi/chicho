@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: two piles</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
+<body>
+<h1>Sort the food: two piles</h1>
+<p>The entrance (a 200 ms fade, one wiggle after 1.2 s untouched); the gate; the first pile done: the glow pulses once and the summary holds the status row; 1.2 s later the everyday foods, a tab at a time, twelve at most with "Something else", refilling as they're sorted, "Nothing left to sort." when a tab is empty; a big one sent back brings the first pile back; under 6 months, no second pile but the line about solids; Next: the shapes fall out, taps are ignored, onContinue comes exactly once. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
+localStorage.clear(); sessionStorage.clear();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const frame = (months) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = 390; f.height = 844; f.src = "../index.html?test&theme=light&now=2026-10-22T09:15&sortseed=921436";
+  f.onload = () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(${months})}); state.plans = []; save(); openOnboarding("keepout")`); res(f); };
+  document.body.append(f);
+});
+(async () => {
+  try {
+    const f = await frame(18), w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+    const status = () => $(".sf-status").textContent.replace(/\s+/g, " ").trim();
+    await wait(120);
+    const fade = $(".sf-field").getAnimations().find(a => a.effect.getTiming().duration === 200);
+    ok("the pile arrives composed, with a 200 ms fade", !!fade && +fade.effect.getKeyframes()[0].opacity === 0);
+    await wait(1250);
+    ok("1.2 s untouched: the first shape (Egg) wiggles once", E("sortUI.wiggled") === "egg");
+    await wait(600);
+    ok("…once (it's still again after)", E("[...sortUI.shapes.values()].every(s => !s.wiggle)"));
+    E(`sortUI.place(["egg", "milk"], "keepOut", {noUndo: true}); sortUI.place(["peanut", "treenuts", "wheat"], "tried", {noUndo: true}); sortUI.place(["soy"], "notFan", {noUndo: true})`); await wait(20);
+    ok("the gate counts down: 'Sort the big ones first · 3 to go', Next waits", status() === "Sort the big ones first · 3 to go" && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true", status());
+    const pulses = E("sortUI.pulsed || 0");
+    E(`sortUI.place(["fish", "shellfish", "sesame"], "untouched", {noUndo: true})`); await wait(30);
+    ok("the first pile done: the glow pulses once (opacity and scale, 900 ms)", E("sortUI.pulsed") === pulses + 1 && d.querySelector("#onboarding .glow-plane").getAnimations().some(a => a.effect.getTiming().duration === 900 && a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p)))));
+    ok("…the summary: '2 kept out · 1 not a fan · 3 tried · 3 to introduce.'", status() === "2 kept out · 1 not a fan · 3 tried · 3 to introduce.", status());
+    ok("…saved: firstPileComplete", E("state.profile.foodSort.firstPileComplete") === true);
+    ok("…Next is ready", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false");
+    await wait(1300);
+    ok("1.2 s later: the everyday foods, tabbed: Veg · Fruit · Grains · Protein · Dairy and fats, Veg underlined", $(".sf-tabs").textContent.replace(/\s+/g, " ") === "Veg · Fruit · Grains · Protein · Dairy and fats" && $(".sf-tab[aria-pressed=true]").textContent === "Veg" && /underline/.test(getComputedStyle($(".sf-tab[aria-pressed=true]")).textDecorationLine));
+    ok("…a 44px header", Math.round($(".sf-pilehead").getBoundingClientRect().height) === 44);
+    ok("…the summary still holds the row (4 s)", /kept out/.test(status()));
+    const veg = E("sortEverydayFoods(18).filter(f => f.group === 'veg').map(f => f.id)");
+    ok(`…twelve shapes at most: eleven veg of ${veg.length} and 'Something else' (dashed)`, $$(".sf-field .sf-shape").length === 12 && $$(".sf-field .sf-shape").filter(b => b.dataset.id !== "+else").every(b => veg.includes(b.dataset.id)) && !!$(".sf-shape.else") && getComputedStyle($(".sf-shape.else")).borderStyle === "dashed", $$(".sf-field .sf-shape").map(b => b.dataset.id));
+    const shown = $$(".sf-field .sf-shape").map(b => b.dataset.id).filter(id => id !== "+else");
+    E(`sortUI.place(${JSON.stringify(shown.slice(0, 2))}, "tried", {noUndo: true})`); await wait(450);
+    ok("sorting refills: the next veg come in, twelve again", $$(".sf-field .sf-shape").length === Math.min(12, veg.length - 2 + 1) && veg.filter(id => !shown.includes(id)).some(id => $(`.sf-shape[data-id="${id}"]`)), $$(".sf-field .sf-shape").length);
+    ok("…and the plan reads them: those two are free", shown.slice(0, 2).every(id => E(`getFoodRules(state.profile, FOODS).freeIds.includes("${id}")`)));
+    // a whole tab sorted
+    $(".sf-tab[data-tab='fruit']").click(); await wait(300);
+    ok("the Fruit tab: its own shapes, a different pile", $(".sf-tab[aria-pressed=true]").textContent === "Fruit" && $$(".sf-field .sf-shape").filter(b => b.dataset.id !== "+else").every(b => E(`FOOD_BY_ID["${b.dataset.id}"].group`) === "fruit"));
+    ok("…grapes show the way they're served ('Grapes, quartered'), never as a locked food", (() => { const g = $('.sf-shape[data-id="grapes"]'); return !g || /QUARTERED/.test(g.textContent); })() && $$(".sf-field .sf-shape").every(b => !E(`lockedRule(${JSON.stringify(b.getAttribute("aria-label"))}, 18)`)));
+    E(`sortUI.place(sortEverydayFoods(18).filter(f => f.group === "fruit").map(f => f.id), "tried", {noUndo: true})`); await wait(450);
+    ok("a sorted tab: 'Nothing left to sort.' (17px, centred), Something else still there", $(".sf-empty") && $(".sf-empty").textContent === "Nothing left to sort." && getComputedStyle($(".sf-empty")).fontSize === "17px" && $$(".sf-field .sf-shape").length === 1 && !!$(".sf-shape.else"));
+    ok("…and Select all hides (nothing to select)", $(".sf-selall").hidden);
+    // a big one back to the pile: the first pile again
+    E(`sortUI.place(["egg"], null)`); await wait(300);
+    ok("a big one back in the pile: 'The big ones' again, the gate, Next waiting", $(".sf-pilename") && $(".sf-pilename").textContent === "The big ones" && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "egg" && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true");
+    E(`sortUI.place(["egg"], "keepOut")`); await wait(120);
+    ok("…placed again: straight back to the everyday foods, no second summary or pulse", !!$(".sf-tabs") && E("sortUI.pulsed") === pulses + 1);
+    // Next: the fall, once
+    E(`window.__cont = 0; const real = sortUI.o.onContinue; sortUI.o.onContinue = () => { __cont++; real(); }`);
+    $(".sf-tab[data-tab='grains']").click(); await wait(250);
+    const n = $$(".sf-field .sf-shape").length;
+    $("#onbFoot .btn-ink").click(); await wait(40);
+    const falls = $$(".sf-field .sf-shape").map(b => b.getAnimations()[0]).filter(Boolean);
+    ok(`Next: the ${n} shapes fall out through the bottom (transform only, staggered)`, falls.length === n && new Set(falls.map(a => a.effect.getTiming().delay)).size === n && falls.every(a => a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "transform"].includes(p)))), falls.length);
+    $("#onbFoot .btn-ink").click(); $(".sf-place").click(); await wait(20);
+    ok("…taps are ignored meanwhile (no sheet, no second Next)", !$(".sf-list") && E("__cont") === 0);
+    await wait(700);
+    ok("…then onContinue(), exactly once: on to Meal times", E("__cont") === 1 && E("onb.step") === "mealtimes", [E("__cont"), E("onb.step")]);
+    ok("completedAt is saved", typeof E("state.profile.foodSort.completedAt") === "string");
+    f.remove();
+
+    // under 6 months
+    const g = await frame(4), G = x => g.contentWindow.eval(x), gd = g.contentDocument;
+    await wait(700);
+    ok("4 months: the big ones, at every age", gd.querySelectorAll(".sf-field .sf-shape").length === 9);
+    G(`sortUI.place(SORT_CONFIG.bigFoods, "untouched", {noUndo: true})`); await wait(1400 + 4200);
+    ok("…done: no second pile, and 'Solids start in 2 months. We'll plan around this then.'", !gd.querySelector(".sf-tabs") && !gd.querySelector(".sf-field .sf-shape") && gd.querySelector(".sf-status").textContent === "Solids start in 2 months. We'll plan around this then.", gd.querySelector(".sf-status").textContent);
+    g.remove();
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+})();
+</script>
+</body></html>

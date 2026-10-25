@@ -43,6 +43,7 @@ f.onload = async () => {
     // in the page
     E(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
     await wait(700);
+    E("sortUI.cancelWiggle()");   // the entrance's one wiggle (tests/sortflow.html) would wake it at 1.2 s
     ok("composed and still: the world is asleep and nothing runs until it's touched", E("sortUI.world.asleep && !sortUI.running()"));
     const pos = E("JSON.stringify(sortUI.world.bodies.map(b => [b.x, b.y, b.a]))"), fr0 = E("sortUI.frames");
     await wait(600);

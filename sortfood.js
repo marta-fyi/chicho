@@ -25,6 +25,14 @@ let sortUI = null;
 const SF_PLACES = SORT_PLACES;
 const sfSay = (k, v)=>say("sort." + k, v);
 const sfLabel = id=>(FOOD_BY_ID[id] || {}).label || id;
+/* a shape's label: the food's name, or, where that name alone reads as a locked food ("Grapes"), the way the plan
+   serves it ("Grapes, quartered") */
+function sfShapeLabel(id, months){
+  const f = FOOD_BY_ID[id];
+  if(!f || SORT_CONFIG.bigFoods.includes(id) || !lockedRule(f.label, months)) return sfLabel(id);
+  const pool = FOOD_POOL.find(p=>foodOf(p.name)===f);
+  return pool ? pool.name : f.label;
+}
 
 function mountSortFood(o){
   const C = SORT_CONFIG, P = o.profile, card = o.card;
@@ -127,9 +135,58 @@ function mountSortFood(o){
     if(ui.sorted===1 && ui.hint2==="idle") ui.hint2 = "armed";
     paintPlaces(); paintProgress(); paintStatus(); paintPileHead();
     next.ready(bigDone());
-    syncPile(opts);
+    if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); paintPileHead(); paintProgress(); buildPile(); entrance(); }
+    else syncPile(opts);
+    if(ui.view==="big" && bigDone()) firstPileDone();
     if(ui.onChange) ui.onChange(opts);
   }
+  /* ---------- the first pile done: the glow pulses once, the summary holds the status row for SUMMARY_MS, and
+     SECOND_PILE_MS later the everyday foods come in (or, before solids, the line that says when) ---------- */
+  function firstPileDone(){
+    if(ui.secondT) return;
+    const first = !S.firstPileComplete;
+    if(first){
+      S.firstPileComplete = true; persist();
+      pulseGlow();
+      const n = p=>big.filter(id=>placeOf(id)===p).length;
+      const parts = SF_PLACES.map(p=>[p, n(p)]).filter(([, k])=>k > 0).map(([p, k])=>sfSay("summary." + p, {n:k}));
+      showMoment("summary", parts.join(" · ") + ".", C.SUMMARY_MS);
+    }
+    ui.secondT = later(()=>{
+      ui.secondT = null;
+      if(!bigDone() || ui.finishing) return;
+      if(everyday.length){ ui.view = "everyday"; ui.tab = C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0]; }
+      else{ ui.view = "none"; const m = Math.max(1, 6 - o.months); ui.noSolids = sfSay("noSolids", {n:m}); }
+      ui.selected.clear();
+      paintPileHead(); paintProgress(); paintStatus(); buildPile(); entrance();
+    }, first ? C.SECOND_PILE_MS : 0);
+  }
+  function showMoment(mode, text, ms){
+    clearTimeout(ui.momentT);
+    ui.moment = {mode, text};
+    paintStatus();
+    ui.momentT = later(()=>{ ui.moment = null; paintStatus(); }, ms);
+  }
+  function pulseGlow(){
+    const g = document.querySelector("#onboarding .glow-plane");
+    if(!g || calm()) return;
+    g.animate([{opacity:1, transform:"scale(1)"}, {opacity:1, transform:"scale(1.14)", offset:.35}, {opacity:1, transform:"scale(1)"}], {duration:C.PULSE_MS, easing:"cubic-bezier(.22,.61,.36,1)"});
+    ui.pulsed = (ui.pulsed || 0) + 1;
+  }
+  /* ---------- a pile's entrance: composed, a 200 ms fade; if nothing's touched in 1.2 s, the first shape wiggles once ---------- */
+  function entrance(){
+    if(!calm()) field.animate([{opacity:0}, {opacity:1}], {duration:C.ENTRANCE_MS});
+    clearTimeout(ui.wiggleT);
+    ui.touched = false;
+    ui.wiggleT = later(()=>{
+      if(ui.touched || ui.press || calm()) return;
+      const first = [...ui.shapes.values()].find(x=>x.id!=="+else");
+      if(!first) return;
+      first.wiggle = performance.now(); ui.wiggled = first.id;
+      ui.wake();
+    }, C.WIGGLE_AFTER_MS);
+  }
+  ui.cancelWiggle = ()=>{ clearTimeout(ui.wiggleT); ui.shapes.forEach(x=>{ x.wiggle = null; }); };
   ui.afterChange = afterChange;
 
   /* ---------- the places: a label, a meaning, then what's in each (two lines at most, then "+n") ---------- */
@@ -248,7 +305,7 @@ function mountSortFood(o){
   function shapeEl(id, s, d){
     const b = document.createElement("button");
     b.type = "button"; b.className = "sf-shape"; b.dataset.id = id;
-    const box = shapeBox(s, d), label = id==="+else" ? sfSay("somethingElse") : sfLabel(id);
+    const box = shapeBox(s, d), label = id==="+else" ? sfSay("somethingElse") : sfShapeLabel(id, o.months);
     if(id==="+else") b.classList.add("else");
     b.style.width = box.w.toFixed(1) + "px"; b.style.height = box.h.toFixed(1) + "px";
     b.style.borderRadius = shapeRadiusCSS(s);
@@ -262,7 +319,9 @@ function mountSortFood(o){
     const b = s.body;
     let k = 1;
     if(s.grow){ const t = Math.min(1, (performance.now() - s.grow.t0) / C.FLOW_MS); k = s.grow.from + (1 - s.grow.from) * (1 - Math.pow(1 - t, 3)); if(t >= 1) s.grow = null; }
-    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg)` + (k!==1 ? ` scale(${k.toFixed(3)})` : "");
+    let wig = 0;
+    if(s.wiggle){ const t = (performance.now() - s.wiggle) / C.WIGGLE_MS; if(t >= 1) s.wiggle = null; else { wig = C.WIGGLE_DEG * Math.sin(t * Math.PI * 2) * (1 - t * .3); world.still = 0; } }
+    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${(bodyDeg(b) + wig).toFixed(2)}deg)` + (k!==1 ? ` scale(${k.toFixed(3)})` : "");
   }
   ui.render = render;
   const paintBodies = ()=>ui.shapes.forEach(render);
@@ -292,7 +351,7 @@ function mountSortFood(o){
   const onVis = ()=>{ if(document.hidden){ if(raf) cancelAnimationFrame(raf); raf = 0; } else if(!world.asleep) ui.wake(); };
   document.addEventListener("visibilitychange", onVis);
   function pileItems(){
-    const ids = pileIds().map(id=>({id, label:sfLabel(id)}));
+    const ids = pileIds().map(id=>({id, label:sfShapeLabel(id, o.months)}));
     if(ui.view==="everyday") ids.push({id:"+else", label:sfSay("somethingElse")});
     return ids;
   }
@@ -649,18 +708,34 @@ function mountSortFood(o){
     if(!S.completedAt) S.completedAt = new Date().toISOString();
     persist();
     const done = ()=>{ if(ui.gone) return; ui.gone = true; o.onContinue(); };
-    if(ui.fall) ui.fall(done); else done();
+    fall(done);
   }
   ui.finish = finish;
+  /* the remaining shapes fall out through the bottom of the field (about FALL_MS, staggered, transform only); taps
+     are ignored meanwhile (ui.finishing) */
+  function fall(done){
+    ui.cancelWiggle(); ui.stopEngine();
+    const list = [...ui.shapes.values()].sort((a, b)=>b.body.y - a.body.y);
+    if(!list.length || calm()){ done(); return; }
+    const H = field.getBoundingClientRect().height, step = Math.min(40, (C.FALL_MS * .4) / list.length);
+    let last = null;
+    list.forEach((x, k)=>{
+      const from = x.el.style.transform, dy = H - x.body.y + x.h + 40;
+      last = x.el.animate([{transform:from}, {transform:`translate3d(0, ${dy.toFixed(0)}px, 0) ` + from}], {duration:C.FALL_MS * .6, delay:k * step, easing:"cubic-bezier(.55,0,.9,.4)", fill:"forwards"});
+    });
+    ui.falling = true;
+    last.onfinish = done;
+  }
 
   /* ---------- first paint ---------- */
   ui.destroy = ()=>{ ui.gone = true; ui.timers.forEach(clearTimeout); if(ui.stopEngine) ui.stopEngine(); if(sortUI===ui) sortUI = null; };
   if(bigDone() && S.firstPileComplete && everyday.length) ui.view = "everyday";
-  else if(bigDone() && S.firstPileComplete) ui.view = "none";
+  else if(bigDone() && S.firstPileComplete){ ui.view = "none"; ui.noSolids = sfSay("noSolids", {n:Math.max(1, 6 - o.months)}); }
   paintPlaces(); paintProgress(); paintPileHead(); paintStatus();
+  if(ui.view==="big" && bigDone()) firstPileDone();
   requestAnimationFrame(()=>{
     if(ui.gone) return;
-    sortLayout(ui); buildPile(); paintPlaces();
+    sortLayout(ui); buildPile(); paintPlaces(); entrance();
     // a new size (a rotation, the keyboard, a font arriving): the pile is packed again for it
     let was = ui.fieldSize();
     ui.ro = new ResizeObserver(()=>{ const n = ui.fieldSize(); if(Math.abs(n.w - was.w) > 1 || Math.abs(n.h - was.h) > 1){ was = n; buildPile(); ui.wake(); } });
