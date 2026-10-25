@@ -1266,6 +1266,16 @@ function renderProfile(){
                : rec.on ? say("allergenNote.introduced", {date:fmtDayMonth(localDate(rec.on))}) : say("allergenNote.introducedBefore");
     t.appendChild(el("span", "row-sub", word));
     r.appendChild(t);
+    // "Tried, all fine" lives here now (the onboarding's pile only keeps things out): Not yet ↔ tried before Chicho
+    if(rec.state==="notyet" || (rec.state==="introduced" && !rec.on)){
+      const tried = rec.state==="notyet";
+      const b = textBtn(say(tried ? "allergenNote.markTried" : "allergenNote.markNotYet"), ()=>{
+        if(tried) P.allergens[a.id] = "ok"; else delete P.allergens[a.id];
+        save(); haptic(); refresh("profile"); focusLater("tried:" + a.id);
+      }, "small");
+      b.dataset.f = "tried:" + a.id; b.setAttribute("aria-label", say(tried ? "allergenNote.markTriedFor" : "allergenNote.markNotYetFor", {allergen:a.label.split(" /")[0]}));
+      r.appendChild(b);
+    }
     if(rec.state==="introduced" && !rec.noReactionOn && rec.on){
       const b = textBtn(say("allergenNote.markNoReaction"), ()=>{ state.allergyNotes[a.id] = {noReactionOn:todayISO()}; save(); haptic(); refresh("profile"); focusLater("noreact:" + a.id); }, "small");
       b.dataset.f = "noreact:" + a.id; b.setAttribute("aria-label", say("allergenNote.markFor", {allergen:a.label.split(" /")[0]}));

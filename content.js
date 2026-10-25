@@ -184,7 +184,8 @@ const CONTENT = {
   allergenNote:{
     note:"Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.",
     notYet:"Not yet", introduced:"Introduced on {date}", introducedBefore:"Introduced", noReaction:"Introduced, no reaction noted on {date}",
-    markNoReaction:"No reaction noted", markFor:"No reaction noted for {allergen}", keepOut:"Keep out"
+    markNoReaction:"No reaction noted", markFor:"No reaction noted for {allergen}", keepOut:"Keep out",
+    markTried:"Tried, all fine", markTriedFor:"{allergen}: tried, all fine", markNotYet:"Not yet", markNotYetFor:"{allergen}: not yet"
   },
   people:{
     title:"People",

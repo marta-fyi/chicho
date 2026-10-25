@@ -59,6 +59,12 @@ f.onload = async () => {
     $('[data-f="noreact:egg"]').click(); await wait(30);
     ok("'No reaction noted': 'Introduced, no reaction noted on {today}'", recs().Egg === "Introduced, no reaction noted on " + E("fmtDayMonth(now())") && E("state.allergyNotes.egg.noReactionOn") === "2026-10-22" && !$('[data-f="noreact:egg"]'));
     ok("…with the not-medical-advice note", /Not medical advice\./.test(sec("offplate").textContent));
+    // "Tried, all fine" lives here (the onboarding's pile only keeps things out)
+    ok("Not yet has 'Tried, all fine'; tried before Chicho has 'Not yet'; Keep out and introduced-by-offer have neither", $('[data-f="tried:shellfish"]').textContent === "Tried, all fine" && $('[data-f="tried:milk"]').textContent === "Not yet" && !$('[data-f="tried:peanut"]') && !$('[data-f="tried:egg"]'));
+    $('[data-f="tried:shellfish"]').click(); await wait(60);
+    ok("…'Tried, all fine': Shellfish is introduced (before Chicho), and the button turns to 'Not yet'", E("state.profile.allergens.shellfish") === "ok" && recs().Shellfish === "Introduced" && $('[data-f="tried:shellfish"]').textContent === "Not yet" && d.activeElement === $('[data-f="tried:shellfish"]'));
+    $('[data-f="tried:shellfish"]').click(); await wait(60);
+    ok("…and back: Not yet", !("shellfish" in E("state.profile.allergens")) && recs().Shellfish === "Not yet");
 
     // firsts
     const firsts = [...sec("firsts").querySelectorAll(".row .row-t")].map(p => p.textContent);
