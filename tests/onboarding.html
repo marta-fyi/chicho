@@ -28,7 +28,7 @@ f.onload = async () => {
     ok("'Pull up a chair for ____.' is the title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent.replace(/\s+/g, " ").trim() === "Pull up a chair for ." && d.activeElement === d.getElementById("onbTitle"), d.getElementById("onbTitle").textContent);
     ok("…'Pull up a chair for' on one line (up to 40px, smaller where it wouldn't fit)", d.querySelector(".draw-lead").getClientRects().length === 1 && d.querySelector(".draw-lead").getBoundingClientRect().height < parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) * 1.5 && parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) <= 40);
     ok("no Back on Draw, no Close on a first run", d.getElementById("onbBack").hidden && d.getElementById("onbClose").hidden);
-    ok("progress: five hairline segments, the first on; 'Step 1 of 5: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 5 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 5: Name");
+    ok("progress: six hairline segments, the first on; 'Step 1 of 6: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 6 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 6: Name");
     await wait(700);
     const sheet = d.querySelector(".onb-sheet.pad-sheet");
     ok("the pad's sheet rises: 'Sign here', 'Big letters. Wobbly is perfect.'", sheet && !sheet.hidden && sheet.querySelector(".sh-title").textContent === "Sign here" && sheet.querySelector(".sh-hint").textContent === "Big letters. Wobbly is perfect.");
@@ -58,7 +58,7 @@ f.onload = async () => {
     // Spell
     ok("Done goes to Spell, the ink above 'Spelled for the grown-ups: ____.'", step() === "spell" && !!d.querySelector(".spell-ink svg[data-ink]") && d.getElementById("onbTitle").textContent.startsWith("Spelled for the grown-ups:"));
     ok("…'So we can say hello properly.'", d.querySelector("#onbCard .onb-line").textContent === "So we can say hello properly.");
-    ok("…Back is a text 'Back', top-left; the first segment is still on", !d.getElementById("onbBack").hidden && d.getElementById("onbBack").textContent === "Back" && d.getElementById("onbProgress").textContent === "Step 1 of 5: Name");
+    ok("…Back is a text 'Back', top-left; the first segment is still on", !d.getElementById("onbBack").hidden && d.getElementById("onbBack").textContent === "Back" && d.getElementById("onbProgress").textContent === "Step 1 of 6: Name");
     const nameIn = d.querySelector(".blank-input");
     ok("the words before the blank label it", d.querySelector(`label[for="${nameIn.id}"]`).textContent === "Spelled for the grown-ups:");
     ok("the blank has no placeholder", !nameIn.placeholder);
@@ -75,7 +75,7 @@ f.onload = async () => {
     // birthday: three columns, nothing counts until each is touched
     ok("Enter continues to the birthday", step() === "birthday");
     ok("'Lula showed up on…', the name as its ink (and its spelling for screen readers)", d.getElementById("onbTitle").textContent === "Lula showed up on…" && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
-    ok("progress: 'Step 2 of 5: Birthday'", d.getElementById("onbProgress").textContent === "Step 2 of 5: Birthday");
+    ok("progress: 'Step 2 of 6: Birthday'", d.getElementById("onbProgress").textContent === "Step 2 of 6: Birthday");
     await wait(300);
     const cols = () => [...d.querySelectorAll(".bd-col")], col = k => d.querySelector(`.bd-col[data-key="${k}"]`);
     ok("three spinbuttons in the locale's order", JSON.stringify(cols().map(c => c.dataset.key)) === JSON.stringify(E("bdOrder()")) && cols().every(c => c.getAttribute("role") === "spinbutton"));
@@ -103,36 +103,34 @@ f.onload = async () => {
     ok("Back keeps what was chosen, touched", step() === "birthday" && col("month").getAttribute("aria-valuetext") === "December" && !col("year").classList.contains("untouched"));
     next().click(); await settle();
 
-    // allergens: the pile
-    ok("'Hold the ____.' with its support line", step() === "keepout" && d.getElementById("onbTitle").textContent === "Hold the ." && d.querySelector(".al-line").textContent === "Tap to keep it out. We'll never suggest it.", d.getElementById("onbTitle").textContent);
+    // allergens: the pile; a tap pops a bubble (kept out), with 2 s to undo
+    ok("'Hold the ____.' with its support line", step() === "keepout" && d.getElementById("onbTitle").textContent === "Hold the ." && d.querySelector(".al-line").textContent === "Pop what to keep out. We'll never suggest it.", d.getElementById("onbTitle").textContent);
     const circles = [...d.querySelectorAll(".pile .ab")];
-    ok("twelve circles in a fixed order: the nine, Meat and Gluten, then 'Something else'", circles.length === 12 && JSON.stringify(circles.map(b => b.dataset.name)) === JSON.stringify(["Egg", "Milk", "Peanut", "Tree nuts", "Wheat", "Soy", "Fish", "Shellfish", "Sesame", "Meat", "Gluten", "Something else"]), circles.map(b => b.dataset.name));
-    const meat = d.querySelector('.ab[data-id="meat"]');
-    meat.click(); ok("Meat: Keep out keeps every meat off the plate", E("state.profile.diet.meat") === "avoid" && E("allergyMatch('Chicken, shredded', state.profile) && allergyMatch('Beef meatballs, soft', state.profile) && !allergyMatch('Lentils', state.profile)"));
-    meat.click(); ok("…and a second tap lets it back (two states: it's a choice, not a first taste)", !("meat" in E("state.profile.diet")) && meat.dataset.state === "");
-    const egg = d.querySelector('.ab[data-id="egg"]');
-    ok("each is a button saying its state: 'Egg: Not yet. Tap to change.'", egg.tagName === "BUTTON" && egg.getAttribute("aria-label") === "Egg: Not yet. Tap to change.");
-    egg.click(); ok("tap once: Keep out (filled, struck through, the word)", E("state.profile.allergens.egg") === "avoid" && egg.dataset.state === "out" && egg.querySelector(".ab-s").textContent === "Keep out" && getComputedStyle(egg.querySelector(".ab-l")).textDecorationLine === "line-through");
-    ok("…and says so: 'Egg: Keep out'", d.querySelector(".al-step .sr-only[aria-live]").textContent === "Egg: Keep out");
-    egg.click(); ok("tap twice: Tried, all fine (underlined)", E("state.profile.allergens.egg") === "ok" && egg.querySelector(".ab-s").textContent === "Tried, all fine" && getComputedStyle(egg.querySelector(".ab-l")).textDecorationLine === "underline");
-    egg.click(); ok("tap three times: Not yet", !("egg" in E("state.profile.allergens")) && egg.dataset.state === "");
+    ok("twelve bubbles in a fixed order: the nine, Meat and Gluten, then 'Something else'", circles.length === 12 && JSON.stringify(circles.map(b => b.dataset.name)) === JSON.stringify(["Egg", "Milk", "Peanut", "Tree nuts", "Wheat", "Soy", "Fish", "Shellfish", "Sesame", "Meat", "Gluten", "Something else"]), circles.map(b => b.dataset.name));
+    d.querySelector('.ab[data-id="d:meat"]').click(); await wait(300);
+    ok("pop Meat: every meat is kept off the plate, its bubble gone", E("state.profile.diet.meat") === "avoid" && E("allergyMatch('Chicken, shredded', state.profile) && !allergyMatch('Lentils', state.profile)") && !d.querySelector('.ab[data-id="d:meat"]'));
+    ok("…'Meat kept out. Undo' under the pile", d.querySelector(".pop-slot").textContent.replace(/\s+/g, " ").trim() === "Meat kept out. Undo");
+    d.querySelector(".pop-slot .pop-undo").click(); await wait(100);
+    ok("…Undo lets it back, bubble and all", !("meat" in E("state.profile.diet")) && !!d.querySelector('.ab[data-id="d:meat"]'));
     d.querySelector(".ab.add").click(); await wait(400);
     const also = d.querySelector(".else-sheet input");
     ok("'Something else' opens a sheet: 'Also keep out ____.', Allergy / Not a fan, Add", !!also && d.querySelector(`label[for="${also.id}"]`).textContent === "Also keep out" && [...d.querySelectorAll(".else-sheet .kind-toggle button")].map(b => b.textContent).join() === "Allergy,Not a fan" && d.querySelector(".else-sheet .btn-ink").textContent === "Add");
     d.querySelectorAll(".else-sheet .kind-toggle button")[1].click();
     type(also, "Kiwi"); enter(also); await wait(400);
-    ok("…Enter adds it as a not-a-fan, a new circle at Keep out", JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Kiwi", kind: "dislike"}]) && d.querySelector('.ab.own[data-name="Kiwi"]').dataset.state === "out" && !d.querySelector(".else-sheet"));
-    ok("…placed before 'Something else' in the list", d.querySelector('.ab.own[data-name="Kiwi"]').nextElementSibling === d.querySelector(".ab.add"));
+    ok("…Enter keeps it out as a not-a-fan, straight to the line (no bubble)", JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Kiwi", kind: "dislike"}]) && !d.querySelector('.ab[data-name="Kiwi"]') && /^Kiwi kept out\./.test(d.querySelector(".pop-slot").textContent) && !d.querySelector(".else-sheet"));
     ok("the locked line names this stage's rules, each a button", /^Always off the plate: honey, whole nuts, whole grapes, added salt and sugar\.$/.test(d.querySelector(".al-locked").textContent.trim()) && d.querySelectorAll(".al-locked .lk").length === 4, d.querySelector(".al-locked").textContent);
     next().click(); await wait(1000);
 
-    // ask late: a first run skips priorities and the kitchen; meal times come before the week, since it's built from them
-    ok("after the allergens: meal times (priorities and the kitchen are asked later)", step() === "mealtimes", step());
-    ok("…five segments, the fourth on", d.querySelectorAll("#onbDots i").length === 5 && d.querySelectorAll("#onbDots i")[3].classList.contains("on"));
+    // meal times, then the kitchen, before the week (it's built from them); priorities are asked later
+    ok("after the allergens: meal times", step() === "mealtimes", step());
+    ok("…six segments, the fourth on", d.querySelectorAll("#onbDots i").length === 6 && d.querySelectorAll("#onbDots i")[3].classList.contains("on"));
     ok("…Back is there, and Next is ready with the usual untouched", !d.getElementById("onbBack").hidden && next().getAttribute("aria-disabled") === "false");
     next().click(); await wait(600);
     ok("…Next with the usual untouched is an answer: 'default'", E("state.profile.mealTimesSource") === "default", E("state.profile.mealTimesSource"));
-    ok("…then the week; five segments, the last on", step() === "reveal" && d.querySelectorAll("#onbDots i").length === 5 && d.querySelectorAll("#onbDots i")[4].classList.contains("on"));
+    ok("then the kitchen: 'Already in the kitchen…', the fifth segment on, Next only (no Skip)", step() === "athome" && d.getElementById("onbTitle").textContent === "Already in the kitchen…" && d.querySelectorAll("#onbDots i")[4].classList.contains("on") && next().textContent === "Next" && !d.querySelector("#onbFoot .btn-text"));
+    await wait(1800);
+    next().click(); await wait(1400);
+    ok("…then the week; six segments, the last on", step() === "reveal" && d.querySelectorAll("#onbDots i").length === 6 && d.querySelectorAll("#onbDots i")[5].classList.contains("on"));
 
     // reveal, then the week, applied only on Love it
     ok("the reveal: three statements from the answers, one at a time", step() === "reveal" && JSON.stringify([...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent)) === JSON.stringify(["Fingers first.", "Without kiwi.", "Three meals a day, seven days."]), [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textContent));

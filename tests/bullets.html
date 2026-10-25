@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Line-art bullet tests</h1>
-<p>Home is text only, so it carries no bullets; the drawings stay where they already were outside it (Kitchen basics' pills, the caretaker's snapshot). Each drawing is one file, drawn through mask-image and filled with the ink, so it serves both themes; an ink pill fills it with --on-ink; without masks it falls back to the image forced to the ink. Every line should be PASS.</p>
+<p>Home is text only, so it carries no bullets; the drawings stay where they already were outside it (the caretaker's snapshot; Kitchen basics is a pile of coloured bubbles now). Each drawing is one file, drawn through mask-image and filled with the ink, so it serves both themes; an ink pill fills it with --on-ink; without masks it falls back to the image forced to the ink. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -22,23 +22,6 @@ const frame = src => new Promise(res => { const f = document.createElement("ifra
     ok("…nor do Shuffle and Kitchen's lists (they're text too)", (E("go('shuffle', {quiet: true})"), await wait(450), !$("#scr-shuffle .food-art")) && (E("go('kitchen', {quiet: true})"), await wait(450), !$("#scr-kitchen .food-art")));
     E("go('home', {quiet: true})"); await wait(450);
 
-    // Kitchen basics' pills keep their drawings, masked, and an ink pill fills its bullet with --on-ink
-    // (the v3 onboarding screens are text only; this late step, from Profile, isn't part of them)
-    E("state.profile.staples = []; openOnboarding('athome', {single: true})"); await wait(1200);
-    const masked = $$(".onb .pill-o picture.food-art");
-    ok("Kitchen basics' pills keep their bullets, switched to masks once loaded", masked.length > 0 && masked.every(p => p.classList.contains("masked")), masked.map(p => p.className));
-    const p = masked[0], cs = w.getComputedStyle(p), img = p.querySelector("img");
-    ok("…the mask is the very file the image loaded (nothing loads twice)", (cs.webkitMaskImage || cs.maskImage).includes(img.currentSrc.split("/").pop()), [cs.webkitMaskImage || cs.maskImage, img.currentSrc]);
-    ok("…the image itself is transparent (it only carries alt, size and loading)", w.getComputedStyle(img).opacity === "0");
-    const pill = $$(".pill-o").find(b => b.querySelector("picture.masked") && b.getAttribute("aria-pressed") === "false");
-    ok("…filled with --ink in the light theme", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(18, 18, 18)", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor);
-    d.documentElement.dataset.theme = "dark";
-    ok("dark theme: the same file, filled white", w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(255, 255, 255)");
-    d.documentElement.dataset.theme = "light";
-    pill.click(); await wait(50);
-    ok("on an ink pill the bullet takes --on-ink", pill.getAttribute("aria-pressed") === "true" && w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor === "rgb(246, 246, 244)", [pill.getAttribute("aria-pressed"), w.getComputedStyle(pill.querySelector(".food-art")).backgroundColor]);
-    pill.click(); await wait(20);
-    E("closeOnboarding()");
     // the fallback
     const probe = d.createElement("div");
     probe.innerHTML = E("foodArt('Banana', {size: 28})");
@@ -57,6 +40,12 @@ const frame = src => new Promise(res => { const f = document.createElement("ifra
     await wait(1500);
     const sd = s.contentDocument, sp = [...sd.querySelectorAll(".snap-food picture.food-art")];
     ok("the snapshot: each food with its bullet, masked once loaded", sd.querySelectorAll(".snap-food").length > 0 && sp.length > 0 && sp.every(p => p.classList.contains("masked")), [sd.querySelectorAll(".snap-food").length, sp.length, sp.map(p => p.className).slice(0, 3)]);
+    const sw = s.contentWindow, p = sp[0], cs = sw.getComputedStyle(p), img = p.querySelector("img");
+    ok("…the mask is the very file the image loaded (nothing loads twice)", (cs.webkitMaskImage || cs.maskImage).includes(img.currentSrc.split("/").pop()), [cs.webkitMaskImage || cs.maskImage, img.currentSrc]);
+    ok("…the image itself is transparent (it only carries alt, size and loading)", sw.getComputedStyle(img).opacity === "0");
+    ok("…filled with --ink in the light theme", sw.getComputedStyle(p).backgroundColor === "rgb(18, 18, 18)", sw.getComputedStyle(p).backgroundColor);
+    sd.documentElement.dataset.theme = "dark";
+    ok("…dark theme: the same file, filled white", sw.getComputedStyle(p).backgroundColor === "rgb(255, 255, 255)", sw.getComputedStyle(p).backgroundColor);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

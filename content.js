@@ -87,7 +87,6 @@ const CONTENT = {
     quietOne:"{meal} tomorrow: {food1}.",
     ask:{
       priorities:"Anything to lean on this week, like iron or quick meals?",
-      kitchen:"Anything already in the kitchen we should use up?",
       people:"Anyone else looking after {name}?"
     },
     set:"Set"
@@ -239,7 +238,10 @@ const CONTENT = {
     save:"Save",
     skip:"Skip",
     welcomeBack:"Welcome back.",
-    progress:{names:["Name","Birthday","Allergens","Meal times","Week"], step:"Step {n} of {total}: {name}"},
+    progress:{names:["Name","Birthday","Allergens","Meal times","Kitchen","Week"], step:"Step {n} of {total}: {name}"},
+    /* the bubbles (Allergens and the Kitchen): a tap pops one; 2 s to undo; then a line of what's popped */
+    pop:{aria:"{x}. Tap to pop.", undo:"Undo", back:"{x} is back", bringBack:"Bring back {x}",
+         keptOut:"{x} kept out.", keptOutLine:"Kept out: {list}.", atHome:"{x} at home.", atHomeLine:"At home: {list}."},
     draw:{sentence:"Pull up a chair for {blank}.", title:"Sign here", hint:"Big letters. Wobbly is perfect.",
           erase:"Erase", done:"Done", undo:"Undo", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
     spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},
@@ -261,14 +263,9 @@ const CONTENT = {
     },
     keepOut:{
       sentence:"Hold the {blank}.",
-      line:"Tap to keep it out. We'll never suggest it.",
+      line:"Pop what to keep out. We'll never suggest it.",
       labels:{egg:"Egg", milk:"Milk", peanut:"Peanut", treenuts:"Tree nuts", wheat:"Wheat", soy:"Soy", fish:"Fish", shellfish:"Shellfish", sesame:"Sesame", meat:"Meat", gluten:"Gluten"},
-      notYet:"Not yet",
-      out:"Keep out",
-      fine:"Tried, all fine",
-      aria:"{food}: {state}. Tap to change.",
-      said:"{food}: {state}",
-      removed:"{food} removed",
+      tried:"Tried",
       add:"Something else",
       alsoNot:"Also keep out {blank}.",
       allergy:"Allergy",
@@ -282,7 +279,7 @@ const CONTENT = {
       note:"Not medical advice. Your pediatrician has the final word on allergens."
     },
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
-    atHome:{title:"Already in the kitchen…", line:"Skip if you like. We'll plan around it.", cta:"Next", skip:"Skip"},
+    atHome:{title:"Already in the kitchen…", line:"Pop what's at home. The rest goes on the list."},
     reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.",
             days:{one:"One meal a day, seven days.", other:"{count} meals a day, seven days."}},
     done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",

@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Allergens tests</h1>
-<p>The pile (seed 7): it settles inside its walls and floor with no overlap over 2px at 375×667, 390×844 and 430×932; the loop stops once asleep and wakes on a tap or a new circle; the states and what's said; Meat and Gluten; the family's own; a fixed DOM order; reduced motion; the floor opening. Every line should be PASS.</p>
+<p>The pile (seed 7): it settles inside its walls and floor with no overlap over 2px at 375×667, 390×844 and 430×932; the loop stops once asleep and wakes on a tap or a new circle; the food-group colours; a tap pops a bubble (kept out) with a 2-second Undo, then the line that brings it back; Meat and Gluten; the family's own (straight to the line); a fixed DOM order; reduced motion; the floor opening. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -47,36 +47,54 @@ const geometry = f => {
     ok("it goes to sleep by itself (within 9 s; measured ~3 s)", E("pile.world.asleep") && !E("pile.running"), t);
     const f0 = E("pile.frames"); await wait(600);
     ok("asleep: no more requestAnimationFrame callbacks", E("pile.frames") === f0, [f0, E("pile.frames")]);
-    const egg = d.querySelector('.ab[data-id="egg"]');
+    E("POP_UNDO_MS = 600");
+    ok("each bubble takes its food group's glow colour (ALLERGEN_GROUP); Something else stays an outline", E("ALLERGEN_GROUP.egg") === "protein" && E("ALLERGEN_GROUP.milk") === "fat" && E("ALLERGEN_GROUP.wheat") === "grain" && E("ALLERGEN_GROUP.gluten") === "grain" && !d.querySelector(".ab.add .ab-in").style.background);
+    const bg = id => getComputedStyle(d.querySelector(`.ab[data-id="${id}"] .ab-in`)).backgroundColor, rgb = hex => "rgb(" + E(`hexRGB("${hex}")`).join(", ") + ")";
+    ok("…exactly the glow's hex (egg = protein, milk = fats and dairy)", bg("a:egg") === rgb(E("GLOW.protein.hex")) && bg("a:milk") === rgb(E("GLOW.fat.hex")), [bg("a:egg"), bg("a:milk")]);
+    ok("…dark ink on every colour, in both themes (a token, not --ink)", getComputedStyle(d.querySelector('.ab[data-id="a:egg"] .ab-in')).color === "rgb(18, 18, 18)");
+    const egg = d.querySelector('.ab[data-id="a:egg"]');
     egg.click();
+    const popAnims = d.querySelector(".pile").getAnimations({subtree: true});
+    ok("a pop: the bubble swells and bursts, six shards fly; transform and opacity only", popAnims.length >= 7 && d.querySelectorAll(".pile .ab-shard").length === 6 && popAnims.every(a => a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p)))), popAnims.length);
     ok("a tap wakes it (the neighbours are nudged)", E("pile.running"));
     t = 0; while (!E("pile.world.asleep") && t < 6000) { await wait(200); t += 200; }
     ok("…and it sleeps again", E("pile.world.asleep") && !E("pile.running"));
-    // the three states, in words
-    ok("Egg after one tap: Keep out, said and shown", egg.dataset.state === "out" && egg.getAttribute("aria-label") === "Egg: Keep out. Tap to change." && E("state.profile.allergens.egg") === "avoid");
-    egg.click(); ok("two: Tried, all fine", egg.dataset.state === "ok" && egg.querySelector(".ab-s").textContent === "Tried, all fine" && E("state.profile.allergens.egg") === "ok");
-    egg.click(); ok("three: Not yet (no state word)", egg.dataset.state === "" && egg.querySelector(".ab-s").textContent === "" && !("egg" in E("state.profile.allergens")));
-    ok("every change is announced politely", d.querySelector(".al-step .sr-only[aria-live='polite']").textContent === "Egg: Not yet");
+    // a pop: kept out, the bubble gone, 2 s (here 600 ms) to undo, then a line that brings it back
+    ok("the popped bubble is gone: Egg kept out, one body fewer", !d.querySelector('.ab[data-id="a:egg"]') && E("state.profile.allergens.egg") === "avoid" && E("pile.world.bodies.length") === 11);
+    ok("…after the undo window the line lists it: 'Kept out: Egg.'", d.querySelector(".pop-slot").textContent === "Kept out: Egg.", d.querySelector(".pop-slot").textContent);
+    d.querySelector(".pop-slot .pop-back").click(); await wait(80);
+    d.querySelector('.ab[data-id="a:egg"]').click(); await wait(20);
+    ok("a pop says what happened, with Undo: 'Egg kept out. Undo', and politely aloud", d.querySelector(".pop-slot").textContent.replace(/\s+/g, " ").trim() === "Egg kept out. Undo" && d.querySelector(".al-step .sr-only[aria-live='polite']").textContent === "Egg kept out.");
+    d.querySelector(".pop-slot .pop-undo").click(); await wait(80);
+    await wait(300);
+    ok("Undo (even mid-burst): Not yet again, and the bubble drops back in, in its place in the list", !("egg" in E("state.profile.allergens")) && d.querySelectorAll('.ab[data-id="a:egg"]').length === 1 && d.querySelector(".pile .ab").dataset.id === "a:egg" && E("pile.world.bodies.length") === 12);
+    d.querySelector('.ab[data-id="a:egg"]').click(); await wait(250);
+    d.querySelector('.ab[data-id="a:fish"]').click(); await wait(800);
+    ok("after the undo window: 'Kept out: Egg, Fish.', each word a button", d.querySelector(".pop-slot").textContent === "Kept out: Egg, Fish." && d.querySelectorAll(".pop-slot .pop-back").length === 2, [d.querySelector(".pop-slot").textContent, E("JSON.stringify(state.profile.allergens)")]);
+    d.querySelector(".pop-slot .pop-back").click(); await wait(80);
+    ok("…a word brings its bubble back: Egg is Not yet, 'Kept out: Fish.'", !("egg" in E("state.profile.allergens")) && !!d.querySelector('.ab[data-id="a:egg"]') && d.querySelector(".pop-slot").textContent === "Kept out: Fish.");
     ok("Space or Enter works too (they're buttons)", [...d.querySelectorAll(".pile .ab")].every(b => b.tagName === "BUTTON" && b.type === "button"));
+    E("state.profile.allergens.milk = 'ok'; save(); renderOnb()"); await wait(500);
+    ok("an allergen marked Tried in Profile says 'Tried' under its name; popping it keeps it out, Undo puts Tried back", d.querySelector('.ab[data-id="a:milk"] .ab-s').textContent === "Tried" &&
+       (d.querySelector('.ab[data-id="a:milk"]').click(), E("state.profile.allergens.milk") === "avoid"));
+    await wait(250); d.querySelector(".pop-slot .pop-undo").click(); await wait(80);
+    ok("…(Tried again)", E("state.profile.allergens.milk") === "ok");
     // Meat and Gluten
-    const gl = d.querySelector('.ab[data-id="gluten"]');
-    gl.click(); ok("Gluten: Keep out takes bread, pasta and oats off", E("state.profile.diet.gluten") === "avoid" && E("['Whole wheat toast', 'Whole wheat pasta', 'Oatmeal'].every(n => allergyMatch(n, state.profile)) && !allergyMatch('Rice, soft-cooked', state.profile)"));
-    gl.click(); ok("…a second tap: back to Not yet", !("gluten" in E("state.profile.diet")));
-    // the family's own
-    const order0 = [...d.querySelectorAll(".pile .ab")].map(b => b.dataset.name).join();
+    d.querySelector('.ab[data-id="d:gluten"]').click(); await wait(250);
+    ok("Gluten popped: bread, pasta and oats off", E("state.profile.diet.gluten") === "avoid" && E("['Whole wheat toast', 'Whole wheat pasta', 'Oatmeal'].every(n => allergyMatch(n, state.profile)) && !allergyMatch('Rice, soft-cooked', state.profile)"));
+    d.querySelector(".pop-slot .pop-undo").click(); await wait(80);
+    ok("…Undo: back", !("gluten" in E("state.profile.diet")));
+    // the family's own: kept out at once, straight to the line
     d.querySelector(".ab.add").click(); await wait(400);
     const inp = d.querySelector(".else-sheet input");
     ok("'Something else' opens a modal sheet, its field focused, with a Close", !!inp && d.activeElement === inp && d.querySelector(".onb-scrim") && d.querySelector(".else-sheet .sh-close").textContent === "Close");
     ok("…the screen behind is inert", d.getElementById("onbCard").inert && d.getElementById("onbFoot").inert);
     inp.value = "Strawberries and cream"; inp.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(400);
-    const own = d.querySelector('.ab.own[data-name="Strawberries and cream"]');
-    ok("Enter adds it, as an allergy, at Keep out", !!own && own.dataset.state === "out" && JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Strawberries and cream", kind: "allergy"}]));
-    ok("…its label cut at 14 characters, the full name in its label", own.querySelector(".ab-l").textContent === "Strawberries…" && own.getAttribute("aria-label").startsWith("Strawberries and cream:"));
-    ok("…it drops in: the pile wakes for it", E("pile.running") || E("pile.world.bodies.length") === 13);
-    ok("…and the list's order is fixed: it sits just before 'Something else'", [...d.querySelectorAll(".pile .ab")].map(b => b.dataset.name).join() === order0.replace("Something else", "Strawberries and cream,Something else"));
-    own.click(); ok("its next tap: Tried, all fine (kept in profile.fine, out of the keep-out list)", own.dataset.state === "ok" && E("state.profile.avoid.length") === 0 && E("state.profile.fine[0].name") === "Strawberries and cream");
-    own.click(); await wait(350);
-    ok("its third: it goes", !d.querySelector('.ab.own') && E("state.profile.fine.length") === 0 && E("pile.world.bodies.length") === 12);
+    ok("Enter keeps it out (an allergy), no bubble: 'Strawberries and cream kept out. Undo'", JSON.stringify(E("state.profile.avoid")) === JSON.stringify([{name: "Strawberries and cream", kind: "allergy"}]) && !d.querySelector('.ab[data-name="Strawberries and cream"]') && /^Strawberries and cream kept out\. Undo$/.test(d.querySelector(".pop-slot").textContent.replace(/\s+/g, " ").trim()));
+    await wait(700);
+    ok("…then it's in the line", d.querySelector(".pop-slot").textContent === "Kept out: Fish, Strawberries and cream.", d.querySelector(".pop-slot").textContent);
+    [...d.querySelectorAll(".pop-slot .pop-back")].find(b => b.textContent === "Strawberries and cream").click(); await wait(80);
+    ok("…its word takes it off the list altogether", E("state.profile.avoid.length") === 0 && d.querySelector(".pop-slot").textContent === "Kept out: Fish.");
     // the floor opens
     E("pile.settle()");
     d.querySelector("#onbFoot .btn-ink").click(); await wait(150);
@@ -89,6 +107,8 @@ const geometry = f => {
     const gd = g.contentDocument;
     ok("reduced motion: no physics at all", g.contentWindow.eval("pile") === null && gd.querySelector(".pile").classList.contains("still"));
     ok("…the same twelve buttons, wrapped and centred, 12px apart", gd.querySelectorAll(".pile .ab").length === 12 && getComputedStyle(gd.querySelector(".pile")).flexWrap === "wrap" && getComputedStyle(gd.querySelector(".pile")).columnGap === "12px");
+    gd.querySelector('.ab[data-id="a:soy"]').click(); await wait(250);
+    ok("…a pop there is a quiet 150 ms fade, the same Keep out and Undo", !gd.querySelector('.ab[data-id="a:soy"]') && g.contentWindow.eval("state.profile.allergens.soy") === "avoid" && !!gd.querySelector(".pop-slot .pop-undo"));
     // a short phone: the locked line folds into a sheet
     g.style.height = "667px"; g.contentWindow.eval("renderOnb()"); await wait(300);
     ok("under 700px tall: 'What's always off the plate' instead of the line", !!gd.querySelector(".al-locked-open") && !gd.querySelector(".al-locked"));

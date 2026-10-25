@@ -1,15 +1,16 @@
 // The onboarding: one sentence per screen (index.html holds the data, the generator and the stages).
 /* ---------- onboarding (v3) ----------
-   Draw → Spell → Birthday → Allergens → Meal times → Reveal → Done → Home (under 6 months: Allergens → Closing → Home).
+   Draw → Spell → Birthday → Allergens → Meal times → Kitchen → Reveal → Done → Home (under 6 months: Allergens →
+   Closing → Home).
    One sentence per screen, completed by you.
    Every answer is saved as it's given (and the step on every advance), so a reload resumes where it was,
    with "Welcome back." once. Nothing about the plan changes until "Love it". A replay or an edit from
    Profile works on the live profile, and Close puts back what was there when it opened. */
-const ONB_STEPS = ["draw","spell","birthday","keepout","mealtimes","reveal","priorities","athome"];
+const ONB_STEPS = ["draw","spell","birthday","keepout","mealtimes","athome","reveal","priorities"];
 /* legacy: the step order before v3, for a save that stopped mid-flow (onboardingStep was an index) */
 const ONB_STEPS_V2 = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
-/* the five progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
-const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, mealtimes:3, reveal:4, done:4};
+/* the six progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
+const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, mealtimes:3, athome:4, reveal:5, done:5};
 /* the glow behind each step (light theme): Reveal cycles through all five */
 const ONB_GLOW = {draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
 const STAPLES = [
@@ -29,11 +30,11 @@ function planMonths(){
   return m < 6 && state.profile.exploreEarly ? 6 : m;
 }
 /* Ask late: a first run (or a replay) asks what safety needs (name, birthday, allergens) and, since the week is built
-   from them, the meal times; the rest is asked later, in context, one at a time, from Profile. Spell only follows a
-   drawn name. Meal times need meals (6 months and up). */
-const LATE_STEPS = ["priorities","athome"];
+   from them, the meal times and what's already in the kitchen; priorities are asked later, in context, from Profile.
+   Spell only follows a drawn name. Meal times and the kitchen need meals (6 months and up). */
+const LATE_STEPS = ["priorities"];
 function stepApplies(key){
-  if(key==="mealtimes" && planMonths() < 6) return false;
+  if((key==="mealtimes" || key==="athome") && planMonths() < 6) return false;
   if(key==="spell" && !(state.profile.ink && state.profile.ink.strokes && state.profile.ink.strokes.length)) return false;
   return !LATE_STEPS.includes(key) || !!onb.single;
 }
@@ -181,9 +182,9 @@ function onbGlow(cat){
   document.getElementById("onboarding").dataset.glow = group;
 }
 
-/* progress: five hairline segments, no numbers, no labels (none for an edit from Profile). Before the birthday is known
-   there are five; under 6 months there are no meal times to set, so four. */
-function onbSegs(){ return state.profile.birthDate && noWeekYet() ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]; }
+/* progress: six hairline segments, no numbers, no labels (none for an edit from Profile). Before the birthday is known
+   there are six; under 6 months there are no meal times or kitchen to set, so four. */
+function onbSegs(){ return state.profile.birthDate && noWeekYet() ? [0, 1, 2, 5] : [0, 1, 2, 3, 4, 5]; }
 /* animate: the birthday just changed which it is, so the Meal times segment collapses (or opens) over 250 ms, its
    neighbours sliding to their new places (transform and opacity only) */
 function paintProgress(animate){
@@ -804,11 +805,12 @@ function onbBirthday(card, P){
   check();
 }
 
-/* 4. Allergens: "Hold the ____." The blank is the pile: ten circles that fall in, settle and can be tapped.
-   Each cycles Not yet → Keep out → Tried, all fine → Not yet (in words and type, never colour alone). A family's
-   own item ("Something else") starts at Keep out, then Tried, all fine, then goes. The DOM order is a fixed list,
-   so focus and screen readers never follow the physics. Reduced motion: the same buttons, wrapped, still. */
+/* 4. Allergens: "Hold the ____." The blank is the pile: circles that fall in, settle and can be tapped. A tap pops
+   one like a balloon: kept out (popPile). The DOM order is a fixed list, so focus and screen readers never follow
+   the physics. Reduced motion: the same buttons, wrapped, still. */
 const PILE_D = 92;   // a circle's diameter (88 below 700px of height, never less)
+/* each allergen bubble takes the glow colour of the food group it comes in (fats and dairy for milk, nuts and sesame) */
+const ALLERGEN_GROUP = {egg:"protein", milk:"fat", peanut:"protein", treenuts:"fat", wheat:"grain", soy:"protein", fish:"protein", shellfish:"protein", sesame:"fat", meat:"protein", gluten:"grain"};
 const PILE = {g:2400, e:.25, damp:.6, slop:.5, maxPush:6, passes:6, dt:1 / 120, sleepV:2, sleepMs:500, bounceV:80, friction:.8, restV:25, restK:.85, nudge:40};
 function mulberry32(a){ return ()=>{ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 /* the physics, DOM-free: circles under gravity between two walls and a floor. Positions are integrated, then pushed
@@ -865,7 +867,7 @@ function pileSpawn(w, b){
 /* the pile in the page: a fixed 1/120 s step with an accumulator, translate3d per button, and no rAF at all while
    it sleeps or the tab is hidden. pile.frames counts rAF callbacks (the tests check it stops). */
 let pile = null;
-function makePile(zone, els, seed){
+function makePile(zone, els, seed, gap){
   const w = {W:0, H:0, floor:true, bodies:[], still:0, asleep:false};
   const rnd = mulberry32(seed);
   const p = {world:w, frames:0, running:false, raf:0, acc:0, last:0, t:0, onExit:null};
@@ -879,7 +881,7 @@ function makePile(zone, els, seed){
     el.style.transform = `translate3d(${(b.x - b.r).toFixed(1)}px, ${(b.y - b.r).toFixed(1)}px, 0)`;
     return b;
   };
-  els.forEach((el, k)=>add(el, k * 110));
+  els.forEach((el, k)=>add(el, k * (gap || 110)));
   const render = ()=>w.bodies.forEach(b=>{ b.el.style.transform = `translate3d(${(b.x - b.r).toFixed(1)}px, ${(b.y - b.r).toFixed(1)}px, 0)`; });
   const step = ()=>{
     w.bodies.forEach(b=>{ if(!b.live && p.t >= b.at) pileSpawn(w, b); });
@@ -927,6 +929,122 @@ function makePile(zone, els, seed){
   addEventListener("orientationchange", ()=>p.wake());
   return p;
 }
+/* ---------- the bubbles: one pile for Allergens and the Kitchen ----------
+   Each bubble is a <button> filled with its food group's glow colour (no group: a dashed outline). A tap pops it like
+   a balloon (it swells, bursts into a few shards and leaves the pile, which settles again). For POP_UNDO_MS the line
+   under the pile says what happened, with Undo; then it lists everything popped, each word a button that drops its
+   bubble back in. Transform and opacity only.
+   o: {zone, slot (the line), live, items:[{id, label, name, group, sub}], popped:[ids], words:{popped, line},
+       nameOf(id), onPop(id), onRestore(id), extra:[elements that stay in the pile last], fit:{max, min} (size to the
+       zone) or none (CSS sizes them), gap (ms between drops)} */
+let POP_UNDO_MS = 2000;
+function popPile(o){
+  const items = o.items, zone = o.zone;
+  let popped = o.popped.slice(), undoFor = null, undoT = 0;
+  const nameOf = id=>(items.find(x=>x.id===id) || {}).name || o.nameOf(id);
+  const bubble = it=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ab" + (it.group ? "" : " plain"); b.dataset.id = it.id; b.dataset.name = it.name;
+    b.innerHTML = `<span class="ab-in"${it.group ? ` style="background:${GLOW[it.group].hex}"` : ""}><span class="ab-l">${esc(it.label)}</span><span class="ab-s">${esc(it.sub || "")}</span></span>`;
+    b.setAttribute("aria-label", say("onb.pop.aria", {x:it.name}));
+    b.addEventListener("click", ()=>pop(it, b));
+    return b;
+  };
+  // the shards: six small dots of the bubble's colour flying out from where it was
+  const burst = (b, it)=>{
+    const z = zone.getBoundingClientRect(), r = b.getBoundingClientRect(), cx = r.left - z.left + r.width / 2, cy = r.top - z.top + r.height / 2;
+    for(let k = 0; k < 6; k++){
+      const a = k / 6 * Math.PI * 2 + .4, d = r.width / 2 + 14 + (k % 3) * 4, sh = document.createElement("i");
+      sh.className = "ab-shard"; sh.setAttribute("aria-hidden", "true");
+      if(it.group) sh.style.background = GLOW[it.group].hex;
+      sh.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0)`;
+      zone.appendChild(sh);
+      sh.animate([{transform:`translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0) scale(1)`, opacity:1},
+                  {transform:`translate3d(${(cx + Math.cos(a) * d).toFixed(1)}px, ${(cy + Math.sin(a) * d).toFixed(1)}px, 0) scale(.4)`, opacity:0}],
+                 {duration:180, delay:70, easing:"cubic-bezier(.2,.8,.2,1)", fill:"both"}).onfinish = ()=>sh.remove();
+    }
+  };
+  const pop = (it, b)=>{
+    if(b.dataset.popping) return;
+    b.dataset.popping = "1";
+    o.onPop(it.id);
+    popped = popped.filter(x=>x!==it.id).concat(it.id);
+    haptic(); showUndo(it.id);
+    o.live.textContent = say(o.words.popped, {x:it.name});
+    if(pile) pile.nudge(b);
+    const gone = ()=>{ if(pile) pile.remove(b); b.remove(); };
+    if(calm()){ b.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = gone; return; }
+    burst(b, it);
+    b.firstChild.animate([{transform:"scale(1)", opacity:1}, {transform:"scale(1.12)", opacity:1, offset:.43}, {transform:"scale(1.4)", opacity:0}],
+                         {duration:210, easing:"ease-out", fill:"forwards"}).onfinish = gone;
+  };
+  // a bubble comes back where it belongs in the fixed order (before the next one present, or before the extras)
+  const putBack = it=>{
+    const b = bubble(it), k = items.indexOf(it);
+    const after = items.slice(k + 1).map(x=>zone.querySelector(`.ab[data-id="${CSS.escape(x.id)}"]:not([data-popping])`)).find(Boolean) || (o.extra || [])[0] || null;
+    zone.insertBefore(b, after && after.parentNode===zone ? after : null);
+    if(pile) pile.add(b);
+    return b;
+  };
+  const restore = id=>{
+    o.onRestore(id);
+    popped = popped.filter(x=>x!==id);
+    const it = items.find(x=>x.id===id);
+    if(it && !zone.querySelector(`.ab[data-id="${CSS.escape(id)}"]:not([data-popping])`)) putBack(it);   // one still bursting doesn't count
+    o.live.textContent = say("onb.pop.back", {x:nameOf(id)});
+    haptic(); paintSlot();
+  };
+  const showUndo = id=>{ clearTimeout(undoT); undoFor = id; paintSlot(); undoT = setTimeout(()=>{ undoFor = null; paintSlot(); }, POP_UNDO_MS); };
+  // the line slot: "Egg kept out. Undo" for 2 s; then "Kept out: Egg, Fish." (each word brings its bubble back)
+  const paintSlot = ()=>{
+    const slot = o.slot;
+    slot.innerHTML = "";
+    slot.dataset.mode = undoFor ? "undo" : popped.length ? "line" : "";
+    if(undoFor){
+      slot.append(say(o.words.popped, {x:nameOf(undoFor)}) + " ");
+      const u = textButton(say("onb.pop.undo"), ()=>{ const id = undoFor; clearTimeout(undoT); undoFor = null; restore(id); }, "small inline pop-undo");
+      slot.appendChild(u);
+      return;
+    }
+    if(!popped.length) return;
+    const [pre, post] = say(o.words.line).split("{list}");
+    slot.append(pre);
+    popped.forEach((id, k)=>{
+      const b = textButton(nameOf(id), ()=>restore(id), "small inline pop-back");
+      b.setAttribute("aria-label", say("onb.pop.bringBack", {x:nameOf(id)}));
+      slot.appendChild(b);
+      if(k < popped.length - 1) slot.append(", ");
+    });
+    slot.append(post);
+  };
+  const els = items.filter(it=>!popped.includes(it.id)).map(it=>{ const b = bubble(it); zone.appendChild(b); return b; });
+  (o.extra || []).forEach(e=>{ zone.appendChild(e); els.push(e); });
+  paintSlot();
+  if(pile) pile.stop();
+  pile = null;
+  const fit = ()=>{
+    if(!o.fit) return;
+    const r = zone.getBoundingClientRect(), n = Math.max(1, items.length + (o.extra || []).length);
+    const d = Math.max(o.fit.min, Math.min(o.fit.max, Math.floor(Math.sqrt(r.width * r.height * .7 / n))));
+    zone.style.setProperty("--ab", d + "px");
+  };
+  if(!calm()){
+    // seeded, so the tests can count on where things land: ?seed=, or a fresh one each time
+    const q = new URLSearchParams(location.search).get("seed");
+    requestAnimationFrame(()=>{ if(!zone.isConnected) return; fit(); pile = makePile(zone, els, q ? +q : (Date.now() & 0xffff), o.gap); pile.wake(); });
+  }else requestAnimationFrame(fit);
+  return {
+    // an item that never had a bubble (the family's own): straight to the line, with the same Undo
+    popOwn(id, name){ popped = popped.filter(x=>x!==id).concat(id); showUndo(id); o.live.textContent = say(o.words.popped, {x:name}); },
+    get popped(){ return popped.slice(); }
+  };
+}
+/* the drop out at Next: the floor opens and the bubbles fall; once they're gone, done() (synchronous swap) */
+function dropOut(card, zone, done){
+  if(calm() || !pile){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = done; return; }
+  pile.open(done, card.getBoundingClientRect().bottom - zone.getBoundingClientRect().top);
+}
+
 /* the locked line: the stage's list, each item a text button whose reason opens under the line, one at a time */
 const LOCKED_WORDS = {"honey":["honey"], "whole nuts":["nuts"], "whole grapes":["grapes"], "added salt and sugar":["salt","sugar"], "cow's milk as a drink":["cowsmilk"]};
 function lockedItems(months){
@@ -976,95 +1094,49 @@ function onbKeepout(card, P){
     });
     card.append(p, why);
   }
-  // the pile
+  // the pile: a pop keeps it out; the family's own go straight to the line
   const zone = document.createElement("div");
   zone.className = "pile" + (calm() ? " still" : "");
-  const word = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.fine") : "";
-  const label = st=>st==="avoid" ? say("onb.keepOut.out") : st==="ok" ? say("onb.keepOut.fine") : say("onb.keepOut.notYet");
-  const circle = (text, full, cls)=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "ab" + (cls ? " " + cls : "");
-    b.innerHTML = `<span class="ab-in"><span class="ab-l">${esc(text)}</span><span class="ab-s"></span></span>`;
-    b.dataset.name = full;
-    return b;
-  };
-  const pulse = b=>{ if(!calm()){ b.firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.08)"}, {transform:"scale(1)"}], {duration:220, easing:"cubic-bezier(.32,1.25,.5,1)"}); if(pile) pile.nudge(b); } };
-  const paintA = (b, st)=>{
-    b.dataset.state = st==="avoid" ? "out" : st==="ok" ? "ok" : "";
-    b.querySelector(".ab-s").textContent = word(st);
-    b.setAttribute("aria-label", say("onb.keepOut.aria", {food:b.dataset.name, state:label(st)}));
-  };
-  const els = [];
-  ALLERGENS.forEach(a=>{
-    const name = say("onb.keepOut.labels." + a.id) || a.label;
-    const b = circle(name, name);
-    b.dataset.id = a.id;
-    paintA(b, P.allergens[a.id]);
-    b.addEventListener("click", ()=>{
-      const st = P.allergens[a.id];
-      const next = !st ? "avoid" : st==="avoid" ? "ok" : null;
-      if(next) P.allergens[a.id] = next; else delete P.allergens[a.id];
-      save(); paintA(b, next); haptic(); pulse(b);
-      live.textContent = say("onb.keepOut.said", {food:name, state:label(next)});
-    });
-    zone.appendChild(b); els.push(b);
-  });
-  // Meat and Gluten: kept out by choice (or for a condition), so just Not yet ↔ Keep out
+  const slot = document.createElement("p");
+  slot.className = "pop-slot"; slot.setAttribute("aria-live", "polite");
   if(!P.diet || typeof P.diet!=="object") P.diet = {};
-  DIETS.forEach(g=>{
-    const name = say("onb.keepOut.labels." + g.id) || g.label;
-    const b = circle(name, name, "diet");
-    b.dataset.id = g.id;
-    paintA(b, P.diet[g.id]);
-    b.addEventListener("click", ()=>{
-      const next = P.diet[g.id]==="avoid" ? null : "avoid";
-      if(next) P.diet[g.id] = next; else delete P.diet[g.id];
-      save(); paintA(b, next); haptic(); pulse(b);
-      live.textContent = say("onb.keepOut.said", {food:name, state:label(next)});
-    });
-    zone.appendChild(b); els.push(b);
-  });
-  // the family's own: Keep out (P.avoid) → Tried, all fine (P.fine) → gone
-  const ownCircle = (item, st)=>{
-    const short_ = item.name.length > 14 ? item.name.slice(0, 13).trimEnd() + "…" : item.name;
-    const b = circle(short_, item.name, "own");
-    paintA(b, st);
-    b.addEventListener("click", ()=>{
-      const was = b.dataset.state;
-      if(was==="out"){
-        P.avoid = P.avoid.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase());
-        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase()).concat({name:item.name});
-        paintA(b, "ok"); pulse(b);
-        live.textContent = say("onb.keepOut.said", {food:item.name, state:label("ok")});
-      }else{
-        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==item.name.toLowerCase());
-        live.textContent = say("onb.keepOut.removed", {food:item.name});
-        const gone = ()=>{ if(pile) pile.remove(b); b.remove(); addBtn.focus(); };
-        if(calm()) gone(); else b.firstChild.animate([{transform:"scale(1)", opacity:1}, {transform:"scale(0)", opacity:0}], {duration:200, fill:"forwards"}).onfinish = gone;
-      }
-      save(); haptic();
-    });
-    zone.insertBefore(b, addBtn);
-    return b;
-  };
-  const addBtn = circle(say("onb.keepOut.add"), say("onb.keepOut.add"), "add");
-  addBtn.setAttribute("aria-label", say("onb.keepOut.add"));
-  addBtn.setAttribute("aria-haspopup", "dialog");
-  zone.appendChild(addBtn); els.push(addBtn);
-  P.avoid.forEach(x=>els.splice(els.length - 1, 0, ownCircle(x, "avoid")));
-  P.fine.forEach(x=>els.splice(els.length - 1, 0, ownCircle(x, "ok")));
-  addBtn.addEventListener("click", ()=>{ pulse(addBtn); somethingElse(); });
+  const lab = id=>say("onb.keepOut.labels." + id);
+  const bubbles = [...ALLERGENS.map(a=>({id:"a:" + a.id, label:lab(a.id) || a.label, name:lab(a.id) || a.label, group:ALLERGEN_GROUP[a.id] || null, sub:P.allergens[a.id]==="ok" ? say("onb.keepOut.tried") : ""})),
+                 ...DIETS.map(g=>({id:"d:" + g.id, label:lab(g.id) || g.label, name:lab(g.id) || g.label, group:ALLERGEN_GROUP[g.id] || null}))];
+  const own = n=>"own:" + n.toLowerCase();
+  const popped = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>"a:" + a.id), ...DIETS.filter(g=>P.diet[g.id]==="avoid").map(g=>"d:" + g.id), ...P.avoid.map(x=>own(x.name))];
+  const was = {};   // an allergen's state before its pop ("ok" stays "ok" if the pop is undone)
+  const addBtn = document.createElement("button");
+  addBtn.type = "button"; addBtn.className = "ab plain add"; addBtn.dataset.name = say("onb.keepOut.add");
+  addBtn.innerHTML = `<span class="ab-in"><span class="ab-l">${esc(say("onb.keepOut.add"))}</span><span class="ab-s"></span></span>`;
+  addBtn.setAttribute("aria-label", say("onb.keepOut.add")); addBtn.setAttribute("aria-haspopup", "dialog");
+  const pp = popPile({zone, slot, live, items:bubbles, popped, extra:[addBtn], words:{popped:"onb.pop.keptOut", line:"onb.pop.keptOutLine"},
+    nameOf:id=>{ const x = P.avoid.find(a=>own(a.name)===id); return x ? x.name : id.replace(/^own:/, ""); },
+    onPop:id=>{
+      const [k, v] = id.split(":");
+      if(k==="a"){ was[v] = P.allergens[v]; P.allergens[v] = "avoid"; }
+      else if(k==="d") P.diet[v] = "avoid";
+      save();
+    },
+    onRestore:id=>{
+      const [k] = id.split(":"), v = id.slice(k.length + 1);
+      if(k==="a"){ if(was[v]==="ok") P.allergens[v] = "ok"; else delete P.allergens[v]; }
+      else if(k==="d") delete P.diet[v];
+      else P.avoid = P.avoid.filter(x=>own(x.name)!==id);
+      save();
+    }});
+  addBtn.addEventListener("click", ()=>{ if(!calm()){ addBtn.firstChild.animate([{transform:"scale(1)"}, {transform:"scale(1.08)"}, {transform:"scale(1)"}], {duration:220, easing:"cubic-bezier(.32,1.25,.5,1)"}); if(pile) pile.nudge(addBtn); } somethingElse(); });
   function somethingElse(){
-    const sh = onbSheet({modal:true, cls:"else-sheet", onClose:()=>{ if(!added) addBtn.focus(); }});
-    let kind = "allergy", added = null;
+    const sh = onbSheet({modal:true, cls:"else-sheet", onClose:()=>addBtn.focus()});
+    let kind = "allergy";
     const p = document.createElement("p");
     p.className = "sh-sent";
     const inp = document.createElement("input");
     inp.type = "text"; inp.className = "sh-input"; inp.maxLength = 30; inp.id = "else" + uid(); inp.autocomplete = "off"; inp.enterKeyHint = "done";
     inp.setAttribute("autocapitalize", "sentences");
     const [a, b] = say("onb.keepOut.alsoNot").split("{blank}");
-    const lab = document.createElement("label"); lab.htmlFor = inp.id; lab.textContent = a.trim();
-    p.append(lab, " ", inp, b);
+    const lb = document.createElement("label"); lb.htmlFor = inp.id; lb.textContent = a.trim();
+    p.append(lb, " ", inp, b);
     const kinds = document.createElement("div");
     kinds.className = "kind-toggle"; kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", `${say("onb.keepOut.allergy")} / ${say("onb.keepOut.dislike")}`);
     ["allergy","dislike"].forEach(k=>{
@@ -1079,43 +1151,28 @@ function onbKeepout(card, P){
       const v = inp.value.trim();
       if(!v){ inp.focus(); return; }
       const have = P.avoid.find(f=>f.name.toLowerCase()===v.toLowerCase());
-      if(have) have.kind = kind;
-      else{
-        P.fine = P.fine.filter(x=>x.name.toLowerCase()!==v.toLowerCase());
-        zone.querySelectorAll(".ab.own").forEach(x=>{ if(x.dataset.name.toLowerCase()===v.toLowerCase()){ if(pile) pile.remove(x); x.remove(); } });
-        P.avoid.push({name:v, kind});
-        added = ownCircle({name:v}, "avoid");
-        if(pile) pile.add(added); 
-      }
+      if(have) have.kind = kind; else P.avoid.push({name:v, kind});
+      P.fine = (P.fine || []).filter(x=>x.name.toLowerCase()!==v.toLowerCase());
       save();
-      live.textContent = say("onb.keepOut.said", {food:v, state:label("avoid")});
+      pp.popOwn(own(v), v);   // kept out at once: it goes straight to the line (with Undo)
       sh.close();
-      if(added) requestAnimationFrame(()=>added.focus({preventScroll:true}));
     };
     add.addEventListener("click", commit);
     inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } });
     sh.body.append(p, kinds, add);
     requestAnimationFrame(()=>inp.focus());
   }
-  card.append(zone, live);
+  card.append(zone, slot, live);
   if(!short) notes.forEach(t=>card.appendChild(line(t, "al-note")));
-  if(pile) pile.stop();
-  pile = null;
-  if(!calm()){
-    // seeded, so the tests can count on where things land: ?seed=, or a fresh one each time
-    const q = new URLSearchParams(location.search).get("seed");
-    requestAnimationFrame(()=>{ if(!zone.isConnected) return; pile = makePile(zone, els, q ? +q : (Date.now() & 0xffff)); pile.wake(); });
-  }
   const go = ()=>{
     save();
     onb.draft = null;   // the week is built again from these answers
     const to = stepAfter("keepout");
     if(onb.single){ nextStep(); return; }
-    if(calm() || !pile || noWeekYet()){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
+    if(noWeekYet()){ card.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>goStep(to, null, {instant:true}); return; }
     // the circles fall out through the floor; once they are gone, the meal-times axis makes its entrance (the swap
     // is synchronous, so no frame shows both)
-    const clip = card.getBoundingClientRect().bottom - zone.getBoundingClientRect().top;
-    pile.open(()=>{ onb.mtEntrance = to==="mealtimes"; goStep(to, null, {instant:true}); }, clip);
+    dropOut(card, zone, ()=>{ onb.mtEntrance = to==="mealtimes" && !calm(); goStep(to, null, {instant:true}); });
   };
   onbCta(card, onb.single ? say("onb.save") : say("onb.next"), go);
 }
@@ -1150,30 +1207,49 @@ function onbPriorities(card, P){
   onbCta(card, say("onb.priorities.cta"), nextStep);
 }
 
-/* 6. at home: "Already in the kitchen…" picks land in stock at their usual pack size */
+/* 6. Kitchen: "Already in the kitchen…" after Meal times. The staples as bubbles in their food group's colour; a pop
+   means it's at home (Plenty in the Kitchen). The rest needs nothing: whatever the week uses and isn't at home is on
+   Buy already. Untouched is an answer too (nothing at home), so there's only Next. */
 function onbAtHome(card, P){
+  card.classList.add("fill", "al-step", "kp-step");
+  const live = document.createElement("p");
+  live.className = "sr-only"; live.setAttribute("aria-live", "polite");
   const h = document.createElement("h1");
-  h.className = "sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.atHome.title");
-  card.append(h, line(say("onb.atHome.line")));
-  const pills = document.createElement("div");
-  pills.className = "pills";
-  STAPLES.filter(([,food])=>!allergyMatch(food, P)).forEach(([label, food])=>{
-    const b = pillBtn(label, food);
-    const on = ()=>P.staples.includes(food);
-    b.setAttribute("aria-pressed", String(on()));
-    b.addEventListener("click", ()=>{
-      P.staples = on() ? P.staples.filter(x=>x!==food) : P.staples.concat(food);
-      b.setAttribute("aria-pressed", String(on())); save(); haptic();
-    });
-    pills.appendChild(b);
-  });
-  card.appendChild(pills);
-  // what's picked is at home: Plenty in the Kitchen (unless it's already marked)
-  const stock = ()=>{
-    P.staples.forEach(food=>{ const k = foodKey(baseName({name:food})); if(!stockState(k) || stockState(k)==="out") setStock(k, baseName({name:food}), "plenty"); });
+  h.className = "sent al-sent"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.atHome.title");
+  card.append(h, line(say("onb.atHome.line"), "onb-line al-line"));
+  const zone = document.createElement("div");
+  zone.className = "pile" + (calm() ? " still" : "");
+  const slot = document.createElement("p");
+  slot.className = "pop-slot"; slot.setAttribute("aria-live", "polite");
+  const key = food=>foodKey(baseName({name:food}));
+  // the glow's five colours: dairy takes "fats and dairy", whatever the pool files it under
+  const groupOf = food=>{ const f = foodOf(food); return f && f.group==="dairy" ? "fat" : foodGroup(key(food)); };
+  const items = STAPLES.filter(([,food])=>!allergyMatch(food, P)).map(([label, food])=>{ const g = groupOf(food); return {id:food, label, name:label, group:GLOW[g] ? g : null}; });
+  const prev = {};   // the pantry entry before its pop, for Undo
+  popPile({zone, slot, live, items, popped:(P.staples || []).filter(f=>items.some(x=>x.id===f)), words:{popped:"onb.pop.atHome", line:"onb.pop.atHomeLine"},
+    nameOf:id=>id, fit:{max:80, min:64}, gap:70,
+    onPop:food=>{
+      const k = key(food), p = pantryOf(k);
+      prev[food] = p ? Object.assign({}, p) : null;
+      setStock(k, baseName({name:food}), "plenty");
+      P.staples = (P.staples || []).filter(x=>x!==food).concat(food);
+      save();
+    },
+    onRestore:food=>{
+      const k = key(food);
+      P.staples = (P.staples || []).filter(x=>x!==food);
+      state.pantry = state.pantry.filter(p=>p.foodId!==k);
+      if(prev[food] && prev[food].state!=="plenty") state.pantry.push(prev[food]);
+      delete prev[food];
+      save();
+    }});
+  card.append(zone, slot, live);
+  const go = ()=>{
     save();
+    if(onb.single){ nextStep(); return; }
+    dropOut(card, zone, ()=>goStep(stepAfter("athome"), null, {instant:true}));
   };
-  onbCta(card, say("onb.atHome.cta"), ()=>{ stock(); nextStep(); }, {extra:[{label:say("onb.atHome.skip"), on:nextStep}]});
+  onbCta(card, onb.single ? say("onb.save") : say("onb.next"), go);
 }
 
 /* Meal times: the day axis (mealtimes.js), the same in Profile (Save, Close) as here. "Next" with the usual untouched

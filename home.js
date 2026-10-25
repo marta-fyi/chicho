@@ -143,7 +143,7 @@ function anotherWay(foodId){
 /* ---------- the moment line: one line, picked by the first rule that applies. It's also the router: its
    text action goes to the screen that does the job ---------- */
 const QUIET_FROM_MIN = 21*60 + 30;   // after 21:30 only tomorrow's first meal, no actions
-const LATE_QUESTIONS = ["priorities","kitchen","people"];   // meal times are asked in the onboarding, never late
+const LATE_QUESTIONS = ["priorities","people"];   // meal times and the kitchen are asked in the onboarding, never late
 function momentLine(){
   const P = state.profile, t = now(), iso = todayISO(), name = P.name || "", st = stageNow(), months = ageNow();
   const later = state.moment && state.moment.date===iso ? state.moment.later || [] : [];
@@ -227,7 +227,7 @@ function lateQuestion(today){
   if(A.day===iso) return A.today && !A[A.today] && !(state.moment.later || []).includes("ask:" + A.today) ? A.today : null;
   const weekOld = isoOf(addDays(localDate(P.firstDay), 7)) <= iso;
   const want = {priorities:weekOld && !(P.priorities || []).length,
-                kitchen:toBuyList().length > 0 && !state.pantry.length, people:!!A.shared && !P.people.length};
+                people:!!A.shared && !P.people.length};
   const q = LATE_QUESTIONS.find(k=>want[k] && !A[k]);
   if(!q) return null;
   state.asked = Object.assign({}, A, {day:iso, today:q});
@@ -238,7 +238,6 @@ function markAsked(q, answered){ state.asked = Object.assign({}, state.asked, an
 function answerLate(q){
   markAsked(q, true);
   if(q==="priorities") openOnboarding("priorities", {single:true});
-  else if(q==="kitchen") openOnboarding("athome", {single:true});
   else go("profile", {section:"people"});
 }
 

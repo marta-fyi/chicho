@@ -68,6 +68,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     --scrim:rgba(18,18,18,.28);
     --glow:#FFE56B;                  /* the glow (the open meal's food group sets it) */
     --glow-core:#83838A;             /* its grey nucleus */
+    --ink-pastel:#121212;            /* text on a food-group colour (the bubbles), the same in both themes */
     --on-ink:var(--sheet);           /* text on an ink-filled pill */
     --handle:rgba(18,18,18,.25);
     --shadow-sheet:0 -18px 48px -24px rgba(18,18,18,.28);
@@ -88,6 +89,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     --hairline:rgba(255,255,255,.2);
     --sheet:#1C2342;
     --scrim:rgba(4,8,24,.5);
+    --ink-pastel:#121212;
     --handle:rgba(255,255,255,.3);
     --shadow-sheet:0 -18px 48px -24px rgba(0,0,0,.6);
     --art-ink:brightness(0) invert(1);   /* …or to white */
@@ -396,11 +398,12 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
         display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
   .ab-s{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;}
   .ab-s:empty{display:none;}
-  .ab[data-state="out"] .ab-in{background:var(--ink);color:var(--on-ink);}
-  .ab[data-state="out"] .ab-l{text-decoration:line-through;text-decoration-thickness:1.5px;}
-  .ab[data-state="ok"] .ab-in{border-width:2px;}
-  .ab[data-state="ok"] .ab-l{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+  .ab:not(.plain) .ab-in{border:none;color:var(--ink-pastel);}   /* filled with its food group's glow colour (inline) */
   .ab.add .ab-in{border-style:dashed;}
+  .ab-shard{position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--ink);pointer-events:none;}
+  .pop-slot{flex:none;position:relative;z-index:2;min-height:1.5em;margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink-85);text-wrap:balance;}
+  .kp-step .ab-l{font-size:11px;letter-spacing:0;}
+  .kp-step .al-line{margin-bottom:4px;}
   @media (max-height:700px){ .al-step{--ab:88px;padding-top:0;} .al-sent{font-size:30px;margin-top:0;} .al-line{font-size:15px;margin-top:4px;} .al-locked-open{margin-top:0;} .al-step .pile{margin-top:0;} .onb-foot{padding-top:6px;padding-bottom:calc(env(safe-area-inset-bottom) + 12px);} }
   .ab:focus-visible{outline:none;}
   .ab:focus-visible .ab-in{outline:2px solid var(--ink);outline-offset:3px;}

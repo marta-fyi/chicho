@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
 <body>
 <h1>First run tests</h1>
-<p>Meal times as step 5 of the onboarding: the paths (6 months and up, under 6, typed), the five segments and their collapse, Back, what
+<p>Meal times (step 5) and the Kitchen (step 6) in the onboarding: the paths (6 months and up, under 6, typed), the six segments and their collapse, Back, what
 "Next" records, the week built from the chosen meals and times (three, four, five a day), Reveal's count and Done's rows, resume, the
 circles-to-axis handoff, and the late questions afterwards. Every line should be PASS.</p>
 <pre id="o">running…</pre>
@@ -35,25 +35,25 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     // 1. the path at 6 months and up (drawn name): Draw, Spell, Birthday, Allergens, Meal times, Reveal, Done, Home
     use(await frame(`openOnboarding()`));
     const path = [step()];
-    ok("before the birthday is known: five segments", segs() === 5);
+    ok("before the birthday is known: six segments", segs() === 6);
     E(`state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 80, 20, 80, 100]]}; save(); renderOnb()`); await wait(700);
     $(".pad-row .btn-ink").click(); await wait(500); path.push(step());
     type($("#onbCard .blank-input"), "Lula"); next().click(); await wait(500); path.push(step());
-    ok("…still five on the birthday", segs() === 5);
+    ok("…still six on the birthday", segs() === 6);
     key("day", "ArrowDown"); key("month", "ArrowUp", 2); key("year", "ArrowUp"); key("year", "ArrowDown");   // 14 December 2025: 10 months
-    ok("10 months: five segments", segs() === 5 && E("ageNow()") === 10);
+    ok("10 months: six segments", segs() === 6 && E("ageNow()") === 10);
     key("year", "ArrowUp"); key("month", "Home"); key("month", "PageUp"); await wait(20);   // 14 June 2026: 4 months
-    ok("the birthday puts the baby under 6 months: the Meal times segment collapses (250 ms) and four are left", segs() === 4 && E("noWeekYet()") && !!$("#onbDots i.gone") && $("#onbDots i.gone").getAnimations().length === 1 && $("#onbDots i.gone").getAnimations()[0].effect.getTiming().duration === 250, [segs(), E("state.profile.birthDate")]);
+    ok("the birthday puts the baby under 6 months: the Meal times and Kitchen segments collapse (250 ms) and four are left", segs() === 4 && E("noWeekYet()") && !!$("#onbDots i.gone") && $("#onbDots i.gone").getAnimations().length === 1 && $("#onbDots i.gone").getAnimations()[0].effect.getTiming().duration === 250, [segs(), E("state.profile.birthDate")]);
     ok("…no numbers and no labels on the line", $("#onbDots").textContent.trim() === "");
     await wait(300);
     ok("…and the stand-in is gone after it", !$("#onbDots i.gone") && $$("#onbDots i").length === 4);
     key("month", "Home"); await wait(20);   // 14 January 2026: 9 months
-    ok("back to 6 months or more: five again, the segment opening", segs() === 5 && E("ageNow()") >= 6 && $$("#onbDots i").some(i => i.getAnimations().length), [segs(), E("state.profile.birthDate")]);
+    ok("back to 6 months or more: six again, the segments opening", segs() === 6 && E("ageNow()") >= 6 && $$("#onbDots i").some(i => i.getAnimations().length), [segs(), E("state.profile.birthDate")]);
     next().click(); await wait(500); path.push(step());
     ok("Allergens: the pill is 'Next'", next().textContent === "Next");
     E("pile && pile.settle()");
     next().click(); await wait(1400); path.push(step());
-    ok("…Next goes to Meal times, five segments with the fourth on", step() === "mealtimes" && segs() === 5 && $$("#onbDots i")[3].classList.contains("on"));
+    ok("…Next goes to Meal times, six segments with the fourth on", step() === "mealtimes" && segs() === 6 && $$("#onbDots i")[3].classList.contains("on"));
     ok("…'Lula usually eats around…', the name as its ink", $("#onbTitle").textContent === "Lula usually eats around…" && !!$("#onbTitle svg[data-ink]"));
     ok("…Back top-left, no Close, Next ready with no interaction", !back().hidden && d.getElementById("onbClose").hidden && next().getAttribute("aria-disabled") === "false" && next().textContent === "Next");
     ok("…markers start at the stage's defaults: breakfast, lunch, dinner at 10 months", $$(".mt-m").map(m => m.dataset.slot).join() === "breakfast,lunch,dinner" && E("mtIsDefault(10, mtCurrent(10, state.profile).slots, mtCurrent(10, state.profile).times)"));
@@ -69,16 +69,20 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     ok("…an afternoon snack, at its usual time", $$(".mt-m").map(m => m.dataset.slot).join() === "breakfast,lunch,snack2,dinner" && E("mtCurrent(10, state.profile).times[2]") === 960);
     next().click(); await wait(600); path.push(step());
     ok("any change: mealTimesSource 'custom'", E("state.profile.mealTimesSource") === "custom");
+    ok("then the kitchen (step 6 of the first run)", step() === "athome" && segs() === 6 && $$("#onbDots i")[4].classList.contains("on"));
+    await wait(1500); next().click(); await wait(1400); path.push(step());
     ok("the week is made at Reveal, from the chosen meals: four a day, all seven days", E("onb.draft.days.every(d => d.meals.length === 4 && d.meals.map(m => m.slot).join() === 'breakfast,lunch,snack2,dinner')"));
     ok("Reveal: 'Four meals a day, seven days.'", statements()[2] === "Four meals a day, seven days.", statements());
     $(".wk-skip").click(); await wait(100);
     ok("Done: four rows a day; lunch says the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 4) && $$(".wk-day")[0].querySelectorAll(".wk-meal")[1].querySelector(".wk-mt").textContent === "around " + E("clockTime(new Date(2026, 9, 22, 12, 0))"));
     back().click(); await wait(600);
-    ok("Back from Done: Meal times, with the snack and time intact", step() === "mealtimes" && $$(".mt-m").length === 4 && E("state.profile.mealTimes.lunch") === "12:00");
-    next().click(); await wait(600);
+    ok("Back from Done: the kitchen", step() === "athome");
+    back().click(); await wait(600);
+    ok("…Back again: Meal times, with the snack and time intact", step() === "mealtimes" && $$(".mt-m").length === 4 && E("state.profile.mealTimes.lunch") === "12:00");
+    next().click(); await wait(600); next().click(); await wait(1400);
     ok("…on again: straight to Done (no second reveal), the week made again", step() === "reveal" && E("onb.revealed") && !$(".wk-say"));
     $(".wk-love").click(); await wait(700); path.push("home");
-    ok("the path: Draw, Spell, Birthday, Allergens, Meal times, Reveal, Done, Home", path.join() === "draw,spell,birthday,keepout,mealtimes,reveal,home" && d.getElementById("onboarding").hidden && E("state.profile.onboarded"), path);
+    ok("the path: Draw, Spell, Birthday, Allergens, Meal times, Kitchen, Reveal, Done, Home", path.join() === "draw,spell,birthday,keepout,mealtimes,athome,reveal,home" && d.getElementById("onboarding").hidden && E("state.profile.onboarded"), path);
     ok("…the plan has four meals a day, and Home's clock reads the chosen time", E("state.plan.days.every(d => d.meals.length === 4)") && E("mealTime('lunch', now())") === "12:00");
     // late questions: never meal times again
     E(`state.profile.firstDay = "2026-10-01"; state.profile.mealTimesSource = null; state.asked = {}; state.profile.priorities = ["iron"]; save()`);
@@ -117,13 +121,13 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
 
     // 4. five a day (defaults), and three when both snacks go
     use(await frame(`state.profile.name = "Lula"; state.profile.birthDate = birthDateFromMonths(18); state.profile.onboardingStep = "mealtimes"; save(); openOnboarding("mealtimes")`));
-    next().click(); await wait(600);
+    next().click(); await wait(600); next().click(); await wait(1400);
     ok("18 months untouched: 'default', 'Five meals a day, seven days.', five rows a day", E("state.profile.mealTimesSource") === "default" && statements()[2] === "Five meals a day, seven days." && $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 5), statements());
-    $(".wk-skip").click(); await wait(100); back().click(); await wait(600);
+    $(".wk-skip").click(); await wait(100); back().click(); await wait(600); back().click(); await wait(600);
     ["snack1", "snack2"].forEach(s => { axisTap(s); $(".mt-remove").click(); });
     ok("both snacks removed: three markers, no free-slot problem ('Add a snack' is back)", $$(".mt-m").length === 3 && !!$(".mt-add"));
     axisDrag("dinner", 30);
-    next().click(); await wait(600);
+    next().click(); await wait(600); next().click(); await wait(1400);
     ok("…'custom'; exactly three meals a day for all seven days", E("state.profile.mealTimesSource") === "custom" && E("onb.draft.days.length === 7 && onb.draft.days.every(d => d.meals.length === 3 && d.meals.map(m => m.slot).join() === 'breakfast,lunch,dinner')"));
     ok("…Done shows three rows a day, dinner at the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 3) && $$(".wk-day")[1].querySelectorAll(".wk-meal")[2].querySelector(".wk-mt").textContent === "around " + E("clockTime(new Date(2026, 9, 23, 19, 30))"));
     ok("…and the plan's times are the chosen ones", E("mealTime('dinner', now())") === "19:30" && E("mealTime('lunch', now())") === "12:30");
