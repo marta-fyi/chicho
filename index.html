@@ -463,6 +463,13 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .sf-shape.is-sel{outline:3px solid var(--ink);outline-offset:4px;}
   .sf-shape.is-held{box-shadow:0 0 0 2px var(--bg);z-index:5;}
   .sf-shape:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
+  /* a drag over the places: the one it would land in swells with a faint wash and its label sharpens; the others dim */
+  .sf-place::before{content:"";position:absolute;inset:0;background:var(--ink);opacity:0;transition:opacity 160ms var(--ease-out);pointer-events:none;}
+  .sf-places.is-aiming .sf-place{opacity:.5;}
+  .sf-places.is-aiming .sf-place.is-target{opacity:1;transform:scale(1.03);z-index:2;}
+  .sf-place.is-target::before{opacity:.06;}
+  .sf-place.is-target .sf-pl-label{letter-spacing:.08em;}
+  .sf-ripple{position:absolute;inset:6px;border:1.5px solid var(--ink);border-radius:18px;pointer-events:none;opacity:0;}
   .sf-sheet .sh-in{align-items:stretch;text-align:left;}
   /* the dev tuning panel (tools/sorttune.js, ?tune=1 on localhost only) */
   .sf-tune{position:fixed;left:8px;right:8px;top:8px;z-index:200;max-height:45vh;overflow:auto;padding:8px 12px;border-radius:14px;background:var(--sheet);color:var(--ink);font-size:11px;box-shadow:var(--shadow-sheet);}

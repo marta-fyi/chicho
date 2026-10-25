@@ -259,7 +259,9 @@ function mountSortFood(o){
   ui.shapeEl = shapeEl;
   function render(s){
     const b = s.body;
-    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg)`;
+    let k = 1;
+    if(s.grow){ const t = Math.min(1, (performance.now() - s.grow.t0) / C.FLOW_MS); k = s.grow.from + (1 - s.grow.from) * (1 - Math.pow(1 - t, 3)); if(t >= 1) s.grow = null; }
+    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg)` + (k!==1 ? ` scale(${k.toFixed(3)})` : "");
   }
   ui.render = render;
   const paintBodies = ()=>ui.shapes.forEach(render);
@@ -293,20 +295,22 @@ function mountSortFood(o){
     if(ui.view==="everyday") ids.push({id:"+else", label:sfSay("somethingElse")});
     return ids;
   }
+  /* each pile's seed: the family's, and the tab's place among the five */
+  const pileSeed = ()=>(S.shapeSeed + (ui.view==="everyday" ? 7919 * (C.groups.findIndex(g=>g[0]===ui.tab) + 1) : 0)) >>> 0;
   /* the pile from scratch: new shapes, packed from the seed (a new pile, a tab, a resize) */
   function buildPile(){
     field.querySelectorAll(".sf-shape, .sf-empty").forEach(x=>x.remove());
     ui.shapes.clear();
     const items = pileItems(), fs = ui.fieldSize();
     if(!fs.w || !fs.h) return;
-    const seed = (S.shapeSeed + (ui.view==="everyday" ? 7919 * (C.groups.findIndex(g=>g[0]===ui.tab) + 1) : 0)) >>> 0;
-    const pile = pileFor(items, {w:fs.w, h:fs.h}, seed);
+    const pile = pileFor(items, {w:fs.w, h:fs.h}, pileSeed());
     ui.pack = pile.pack;
     world.W = fs.w; world.H = fs.h; world.bodies = [];
     pile.items.forEach((it, k)=>{
       const b = pile.pack.bodies[k], el = shapeEl(it.id, it.shape, b.d);
       const body = sortBody({id:it.id, x:b.x, y:b.y, w:b.w, h:b.h, rot:b.rot});
-      const s = {id:it.id, el, shape:it.shape, w:b.w, h:b.h, d:b.d, body};
+      const s = {id:it.id, label:it.label, el, shape:it.shape, w:b.w, h:b.h, d:b.d, body};
+      bindShape(s);
       world.bodies.push(body);
       ui.shapes.set(it.id, s);
       field.appendChild(el);
@@ -326,15 +330,162 @@ function mountSortFood(o){
   }
   /* after a change: shapes that left the pile go, the rest stay where they are (the physics and the re-flow take over
      in later layers); a change that brings one back rebuilds */
-  function syncPile(){
-    const want = new Set(pileItems().map(x=>x.id));
-    let missing = false;
-    want.forEach(id=>{ if(!ui.shapes.has(id)) missing = true; });
-    ui.shapes.forEach((s, id)=>{ if(!want.has(id)){ s.el.remove(); ui.shapes.delete(id); world.bodies = world.bodies.filter(b=>b!==s.body); } });
-    if(missing) buildPile();
+  function syncPile(opts){
+    const items = pileItems(), want = new Set(items.map(x=>x.id));
+    let changed = !!(opts && opts.dropped);
+    ui.shapes.forEach((s, id)=>{ if(!want.has(id)){ s.el.remove(); detach(id); changed = true; } });
+    const back = items.filter(x=>!ui.shapes.has(x.id));
+    if(back.length){ addShapes(back); changed = true; }
+    if(changed) reflow();
     paintEmpty();
   }
+  /* shapes coming (back) into the pile: their own shape, rising from the field's lower middle, then the re-flow */
+  function addShapes(items){
+    const fs = ui.fieldSize(), seed = pileSeed();
+    items.forEach((it, k)=>{
+      const shape = makeShape(sortRng(sortHash(it.id, seed))), d = C.MIN_D, box = shapeBox(shape, d);
+      const el = shapeEl(it.id, shape, d);
+      const body = sortBody({id:it.id, x:fs.w / 2 + (k - (items.length - 1) / 2) * 30, y:fs.h - box.h / 2, w:box.w, h:box.h, rot:shape.rot});
+      const s = {id:it.id, label:it.label, el, shape, w:box.w, h:box.h, d, body};
+      bindShape(s);
+      world.bodies.push(body); ui.shapes.set(it.id, s); field.appendChild(el); render(s);
+      if(!calm()) el.animate([{opacity:0}, {opacity:1}], {duration:C.FLOW_MS});
+    });
+    paintSelection();
+  }
+  function detach(id){
+    const s = ui.shapes.get(id);
+    if(!s) return null;
+    ui.shapes.delete(id); world.bodies = world.bodies.filter(b=>b!==s.body);
+    return s;
+  }
+  /* the rest of the pile grows toward the same coverage (MAX_D at most) and glides to its new packing, FLOW_MS */
+  function reflow(){
+    const list = [...ui.shapes.values()];
+    if(!list.length) return;
+    const fs = ui.fieldSize(), start = {};
+    list.forEach(x=>{ start[x.id] = {x:x.body.x, y:x.body.y}; });
+    const pack = packShapes(list.map(x=>({id:x.id, label:x.label, shape:x.shape})), {w:fs.w, h:fs.h}, sortRng(S.shapeSeed ^ list.length), start);
+    pack.bodies.forEach(b=>{
+      const x = ui.shapes.get(b.id), body = x.body;
+      if(x.held || body.held) return;
+      if(Math.abs(b.d - x.d) > .5){
+        // the new size at once, drawn at the old size and scaled up to it (the label scales with it)
+        x.grow = {from:x.w / b.w, t0:performance.now()};
+        x.w = b.w; x.h = b.h; x.d = b.d;
+        x.el.style.width = b.w.toFixed(1) + "px"; x.el.style.height = b.h.toFixed(1) + "px";
+        x.el.firstChild.style.fontSize = labelSize(x.label, b.w) + "px";
+        Object.assign(body, sortBody({id:b.id, x:body.x, y:body.y, w:b.w, h:b.h, rot:body.rot0}), {a:body.a});
+      }
+      body.flow = {x0:body.x, y0:body.y, x1:b.x, y1:b.y, t0:world.t, ms:C.FLOW_MS};
+    });
+    ui.wake();
+  }
+  ui.reflow = reflow;
   ui.syncPile = syncPile;
+
+  /* ---------- the gestures: a press on a shape is a tap or a drag ----------
+     Pointer capture; past DRAG_THRESHOLD the shape lifts and follows the finger 1:1 (keeping where it was held) and
+     pushes what it meets; a drag never changes the selection. While it's held, the place under the finger (or the
+     nearest within SNAP_RADIUS) swells and the other three dim; let go over it and the food is sorted there; let go
+     anywhere else and the shape stays where it stops. */
+  function bindShape(s){
+    s.el.addEventListener("pointerdown", e=>down(s, e));
+    s.el.addEventListener("click", e=>{ if(e.detail===0) keyTap(s); });   // Enter or Space: a tap
+  }
+  const toField = (cx, cy)=>{ const r = field.getBoundingClientRect(); return {x:cx - r.left, y:cy - r.top}; };
+  function down(s, e){
+    if(ui.finishing || ui.press || !ui.shapes.has(s.id)) return;
+    e.preventDefault();
+    try{ s.el.setPointerCapture(e.pointerId); }catch(err){}
+    const p = toField(e.clientX, e.clientY), b = s.body;
+    ui.touched = true;
+    ui.press = {s, id:e.pointerId, x0:e.clientX, y0:e.clientY, t0:performance.now(), dx:p.x - b.x, dy:p.y - b.y, lifted:false,
+                moving:Math.hypot(b.vx, b.vy) > C.TAP_MOVING_SPEED || !!b.flow};
+    const move = ev=>{ if(ev.pointerId===ui.press.id) drag(ev); };
+    const up = ev=>{ if(ev.pointerId!==ui.press.id) return; s.el.removeEventListener("pointermove", move); s.el.removeEventListener("pointerup", up); s.el.removeEventListener("pointercancel", up); release(ev, ev.type==="pointercancel"); };
+    s.el.addEventListener("pointermove", move);
+    s.el.addEventListener("pointerup", up);
+    s.el.addEventListener("pointercancel", up);
+  }
+  function drag(e){
+    const pr = ui.press, s = pr.s;
+    if(!pr.lifted){
+      if(Math.hypot(e.clientX - pr.x0, e.clientY - pr.y0) <= C.DRAG_THRESHOLD) return;
+      pr.lifted = true;
+      if(ui.cancelWiggle) ui.cancelWiggle();
+      s.held = true; s.body.held = true; s.body.flow = null;
+      s.el.classList.add("is-held");
+      field.appendChild(s.el);   // the top layer
+    }
+    const p = toField(e.clientX, e.clientY);
+    s.body.tx = p.x - pr.dx; s.body.ty = p.y - pr.dy;
+    ui.wake();
+    target(placeAt(e.clientX, e.clientY));
+  }
+  function release(e, cancelled){
+    const pr = ui.press, s = pr.s;
+    ui.press = null;
+    if(pr.lifted){
+      const to = cancelled ? null : placeAt(e.clientX, e.clientY);
+      target(null);
+      s.held = false; s.body.held = false;
+      s.el.classList.remove("is-held");
+      if(to && s.id!=="+else"){ drop([s.id], to); return; }
+      ui.wake();   // it keeps the finger's speed, then stops where it stops
+      return;
+    }
+    if(cancelled) return;
+    if(performance.now() - pr.t0 > C.TAP_MAX_MS || pr.moving) return;   // too long, or it was still moving
+    tap(s);
+  }
+  function keyTap(s){ if(!ui.press) tap(s); }
+  function tap(s){ if(ui.onTap) ui.onTap(s); }
+  /* the place under (cx, cy), or the nearest within SNAP_RADIUS */
+  function placeAt(cx, cy){
+    let best = null, bd = Infinity;
+    SF_PLACES.forEach(pl=>{
+      const r = cells[pl].getBoundingClientRect();
+      const dx = Math.max(r.left - cx, 0, cx - r.right), dy = Math.max(r.top - cy, 0, cy - r.bottom), d = Math.hypot(dx, dy);
+      if(d < bd){ bd = d; best = pl; }
+    });
+    return bd <= C.SNAP_RADIUS ? best : null;
+  }
+  ui.placeAt = placeAt;
+  function target(pl){
+    if(ui.target===pl) return;
+    ui.target = pl;
+    grid.classList.toggle("is-aiming", !!pl);
+    SF_PLACES.forEach(k=>cells[k].classList.toggle("is-target", k===pl));
+    if(pl) haptic();
+  }
+  ui.aim = target;
+  /* the drop: each shape shrinks and fades into its cell (DROP_MS, a spring, DROP_STAGGER_MS apart), one ring ripples
+     out from the cell, and the food is sorted at once (its name in the list, the counts, the re-flow) */
+  function drop(ids, to){
+    const cell = cells[to], cr = cell.getBoundingClientRect(), fr = field.getBoundingClientRect();
+    const cx = cr.left + cr.width / 2 - fr.left, cy = cr.top + cr.height / 2 - fr.top;
+    ids.forEach((id, k)=>{
+      const s = detach(id);
+      if(!s) return;
+      s.el.classList.remove("is-sel", "is-held");
+      s.el.style.pointerEvents = "none";
+      const from = s.el.style.transform, b = s.body;
+      const toT = `translate3d(${(cx - s.w / 2).toFixed(1)}px, ${(cy - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg) scale(.2)`;
+      const a = s.el.animate([{transform:from, opacity:1}, {transform:toT, opacity:0}], {duration:C.DROP_MS, delay:k * C.DROP_STAGGER_MS, easing:"cubic-bezier(.32,1.25,.5,1)", fill:"both"});
+      a.onfinish = ()=>s.el.remove();
+    });
+    ripple(cell, (ids.length - 1) * C.DROP_STAGGER_MS + C.DROP_MS * .6);
+    haptic();
+    place(ids, to, {dropped:true});
+  }
+  ui.drop = drop;
+  function ripple(cell, delay){
+    const r = document.createElement("i");
+    r.className = "sf-ripple";
+    cell.appendChild(r);
+    r.animate([{transform:"scale(.6)", opacity:.5}, {transform:"scale(1.25)", opacity:0}], {duration:420, delay, easing:"cubic-bezier(.22,.61,.36,1)", fill:"both"}).onfinish = ()=>r.remove();
+  }
 
   /* ---------- tapping a place: send the selection, or open its list ---------- */
   function tapPlace(place){
