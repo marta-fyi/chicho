@@ -18,43 +18,42 @@ const frame = (W, H, setup) => new Promise(res => {
   f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18), foodSort: Object.assign(freshFoodSort(), {placement: Object.fromEntries(FOODS.map(f => [f.id, "tried"])), firstPileComplete: true})}); state.plans = []; state.pantry = []; save(); ${setup}`); await wait(500); res(f); };
   document.body.append(f);
 });
+// the Kitchen's pile is Sort the food's shapes (blobField): packed, inside the zone, at most 6px of collision overlap
 const geometry = f => {
-  const d = f.contentDocument, z = d.querySelector(".pile").getBoundingClientRect();
-  const c = [...d.querySelectorAll(".pile .ab")].map(b => { const r = b.getBoundingClientRect(); return {x: r.left - z.left + r.width / 2, y: r.top - z.top + r.height / 2, r: r.width / 2}; });
-  let over = 0; c.forEach((a, i) => c.slice(i + 1).forEach(b => { over = Math.max(over, a.r + b.r - Math.hypot(a.x - b.x, a.y - b.y)); }));
-  return {over, out: c.filter(a => a.x - a.r < -1 || a.x + a.r > z.width + 1 || a.y + a.r > z.height + 1 || a.y - a.r < -1).length, n: c.length, d: c[0].r * 2};
+  const d = f.contentDocument, z = d.querySelector(".pile").getBoundingClientRect(), F = f.contentWindow.eval("onb.kitchen.field");
+  const out = [...d.querySelectorAll(".pile .sf-shape")].filter(b => { const r = b.getBoundingClientRect(); return r.left < z.left - 2 || r.right > z.right + 2 || r.top < z.top - 2 || r.bottom > z.bottom + 2; }).length;
+  return {over: F.pack.overlap, ok: F.pack.ok, out, n: d.querySelectorAll(".pile .sf-shape").length, d: Math.min(...F.pack.bodies.map(b => b.d))};
 };
 (async () => {
   try {
     // two phones: 18 bubbles, all inside, no overlap, labels never cut
     for (const [W, H] of [[375, 667], [390, 844]]) {
       const f = await frame(W, H, `state.profile.onboardingStep = "athome"; save(); openOnboarding("athome")`);
-      const asleep = f.contentWindow.eval("pile.settle()"), g = geometry(f), d = f.contentDocument;
-      ok(`${W}×${H}: all ${g.n} staples asleep inside the zone (bubbles ${Math.round(g.d)}px)`, asleep && g.n === 18 && g.out === 0 && g.d >= 64, g);
-      ok(`${W}×${H}: no overlap over 2px (${g.over.toFixed(2)}px)`, g.over <= 2, g.over);
-      ok(`${W}×${H}: every label fits inside its bubble`, [...d.querySelectorAll(".pile .ab-l")].every(l => l.scrollWidth <= l.clientWidth + 1), [...d.querySelectorAll(".pile .ab-l")].filter(l => l.scrollWidth > l.clientWidth + 1).map(l => l.textContent));
+      const g = geometry(f), d = f.contentDocument;
+      ok(`${W}×${H}: all ${g.n} staples as shapes, still, inside the zone (shorter sides ${Math.round(g.d)}px)`, f.contentWindow.eval("onb.kitchen.field.world.asleep && !onb.kitchen.field.running()") && g.n === 18 && g.out === 0 && g.d >= 84, g);
+      ok(`${W}×${H}: packed (${g.over.toFixed(2)}px overlap at most 6)`, g.ok && g.over <= 6, g.over);
+      ok(`${W}×${H}: every label fits inside its shape`, [...d.querySelectorAll(".pile .sf-shape")].every(s => s.querySelector(".sf-lbl").scrollWidth <= s.offsetWidth * .8 + 1));
       f.remove();
     }
     const f = await frame(390, 844, `state.profile.onboardingStep = "athome"; save(); openOnboarding("athome")`);
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
-    const bub = food => $(`.pile .ab[data-id="${food}"]`), slot = () => $(".pop-slot").textContent.replace(/\s+/g, " ").trim();
-    const bg = food => getComputedStyle(bub(food).firstChild).backgroundColor, rgb = g => "rgb(" + E(`hexRGB(GLOW.${g}.hex)`).join(", ") + ")";
+    const bub = food => $(`.pile .sf-shape[data-id="${CSS.escape(food)}"]:not([data-popping])`), slot = () => $(".pop-slot").textContent.replace(/\s+/g, " ").trim();
     ok("'Already in the kitchen…' · 'Pop what's at home. The rest goes on the list.' · Next only (no Skip)", $("#onbTitle").textContent === "Already in the kitchen…" && $(".al-line").textContent === "Pop what's at home. The rest goes on the list." && $("#onbFoot .btn-ink").textContent === "Next" && !$("#onbFoot .btn-text"));
-    ok("text only: no drawings on the bubbles", !$(".pile .food-art, .pile img, .pile svg"));
-    ok("the glow's colours: oats grain, carrots veg, bananas fruit, lentils protein, yogurt and cheese fats and dairy", bg("Oatmeal") === rgb("grain") && bg("Carrots, soft-cooked") === rgb("vegetable") && bg("Banana") === rgb("fruit") && bg("Lentils") === rgb("protein") && bg("Greek yogurt") === rgb("fat") && bg("Cheese, grated") === rgb("fat"), [bg("Greek yogurt"), bg("Cheese, grated")]);
-    E("POP_UNDO_MS = 600; pile.settle()");
+    ok("text only: no drawings on the shapes", !$(".pile .food-art, .pile img, .pile svg"));
+    ok("the shapes are Sort the food's: ink <button>s with eight radii", [...d.querySelectorAll(".pile .sf-shape")].every(b => b.tagName === "BUTTON" && /\//.test(b.style.borderRadius)) && getComputedStyle($(".pile .sf-shape")).backgroundColor === getComputedStyle(d.querySelector("#onbFoot .btn-ink")).backgroundColor);
+    E("POP_UNDO_MS = 600");
     E(`state.pantry.push({foodId: "rice", name: "Rice", state: "low", updatedAt: "2026-10-20T10:00:00Z"}); save()`);
     bub("Rice, soft-cooked").click(); await wait(20);
     ok("pop Rice: at home (Plenty), and 'Rice at home. Undo'", E("stockState('rice')") === "plenty" && E("state.profile.staples").includes("Rice, soft-cooked") && slot() === "Rice at home. Undo");
     $(".pop-slot .pop-undo").click(); await wait(300);
-    ok("…Undo: the pantry as it was (Low), the bubble back", E("stockState('rice')") === "low" && !E("state.profile.staples").includes("Rice, soft-cooked") && $$('.pile .ab[data-id="Rice, soft-cooked"]').length === 1);
+    ok("…Undo: the pantry as it was (Low), the shape back", E("stockState('rice')") === "low" && !E("state.profile.staples").includes("Rice, soft-cooked") && $$('.pile .sf-shape[data-id="Rice, soft-cooked"]:not([data-popping])').length === 1);
     bub("Oatmeal").click(); await wait(250); bub("Banana").click(); await wait(800);
     ok("two pops, the window gone: 'At home: Oats, Bananas.'", slot() === "At home: Oats, Bananas." && E("stockState('oatmeal')") === "plenty" && E("stockState('banana')") === "plenty", slot());
     [...d.querySelectorAll(".pop-slot .pop-back")].find(b => b.textContent === "Bananas").click(); await wait(80);
     ok("…a word brings it back: Bananas not at home (no pantry entry), its bubble back", E("stockState('banana')") === null && !!bub("Banana") && slot() === "At home: Oats.");
     // Next: the rest drops out, then the Reveal; Love it applies the week
     $("#onbFoot .btn-ink").click(); await wait(150);
-    ok("Next: the floor opens and the bubbles fall", E("pile.world.bodies.some(b => b.free)"));
+    ok("Next: what's left falls out", E("onb.kitchen.field.falling") === true);
     await wait(1300);
     ok("…then the Reveal", E("onb.step") === "reveal", E("onb.step"));
     $(".wk-skip").click(); await wait(100);

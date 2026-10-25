@@ -16,6 +16,10 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## The Kitchen's shapes (25 Oct 2026, supersedes the Kitchen's bubbles in "Bubbles that pop")
+
+Marta: the Kitchen step's bubbles become Sort the food's shapes, with the same behaviour, except that a tap pops the shape. So "Already in the kitchen…" now packs the eighteen staples as seeded ink blobs on the sort's engine (`blobField`, `sortfood.js`): no gravity and no fall-in, a drag lifts a shape and pushes the others, and a quick tap pops it (it swells, bursts into ink shards and fades in 210 ms; the rest re-flow), with the same 2-second Undo and the line whose words bring a shape back. Next drops what's left out through the bottom, as the sort does. The food-group colours are gone with the circles, since the sort's shapes are ink; putting them back is one inline background per shape. The physics and the bubbles stay in `popPile`/`makePile` for nothing else now, and are kept only as the fallback when `o.blobs` isn't set.
+
 ## Sort the food (25 Oct 2026, supersedes "Bubbles that pop" for the Allergens step)
 
 Marta's brief: the parent drags the foods into four places (Keep out, Not a fan, Tried already, Untouched), and the plan reads one selector, `getFoodRules(profile, catalog)` (`sortcore.js`). Every number is in `sortconfig.js`.

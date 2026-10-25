@@ -856,3 +856,128 @@ function sfSwipeToClose(sh){
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", end);
 }
+
+/* ---------- the same shapes elsewhere: a field of blobs that a tap pops (the Kitchen step) ----------
+   blobField(zone, items:[{id, label}], seed, {onTap(id, el)}) packs the items as Sort the food's shapes, on the same
+   engine: a drag past DRAG_THRESHOLD lifts a shape and pushes the others, a quick tap calls onTap. Returns
+   {els, add(item), remove(id), stop(), fall(done), world, running(), frames}. */
+function blobField(zone, items, seed, o){
+  const C = SORT_CONFIG, shapes = new Map(), world = sortWorld(0, 0);
+  const api = {world, frames:0, shapes};
+  let raf = 0, last = 0, acc = 0, press = null;
+  const size = ()=>{ const r = zone.getBoundingClientRect(); return {w:r.width, h:r.height}; };
+  const render = s=>{
+    const b = s.body;
+    let k = 1;
+    if(s.grow){ const t = Math.min(1, (performance.now() - s.grow.t0) / C.FLOW_MS); k = s.grow.from + (1 - s.grow.from) * (1 - Math.pow(1 - t, 3)); if(t >= 1) s.grow = null; }
+    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg)` + (k!==1 ? ` scale(${k.toFixed(3)})` : "");
+  };
+  const paint = ()=>shapes.forEach(render);
+  const frame = t=>{
+    raf = 0; api.frames++;
+    if(document.hidden || !zone.isConnected) return;
+    const dt = Math.min(.1, (t - (last || t)) / 1000); last = t; acc += dt;
+    let asleep = false;
+    while(acc >= C.DT){ acc -= C.DT; asleep = sortStep(world); if(asleep) break; }
+    paint();
+    if(asleep){ last = 0; acc = 0; return; }
+    raf = requestAnimationFrame(frame);
+  };
+  const wake = ()=>{ world.still = 0; world.asleep = false; if(raf || document.hidden) return; last = 0; acc = 0; raf = requestAnimationFrame(frame); };
+  api.wake = wake; api.running = ()=>!!raf;
+  api.stop = ()=>{ if(raf) cancelAnimationFrame(raf); raf = 0; };
+  const el = (it, shape, d)=>{
+    const b = document.createElement("button"), box = shapeBox(shape, d);
+    b.type = "button"; b.className = "sf-shape ab-blob"; b.dataset.id = it.id; b.dataset.name = it.name || it.label;
+    b.style.width = box.w.toFixed(1) + "px"; b.style.height = box.h.toFixed(1) + "px"; b.style.borderRadius = shapeRadiusCSS(shape);
+    b.innerHTML = `<span class="sf-lbl" style="font-size:${labelSize(it.label, box.w)}px">${labelLines(it.label).map(esc).join("<br>")}</span>`;
+    if(it.aria) b.setAttribute("aria-label", it.aria);
+    return b;
+  };
+  const toZone = (cx, cy)=>{ const r = zone.getBoundingClientRect(); return {x:cx - r.left, y:cy - r.top}; };
+  const bind = s=>{
+    s.el.addEventListener("pointerdown", e=>{
+      if(press || s.gone) return;
+      e.preventDefault();
+      try{ s.el.setPointerCapture(e.pointerId); }catch(err){}
+      s.pressedAt = performance.now();
+      const p = toZone(e.clientX, e.clientY), b = s.body;
+      press = {s, id:e.pointerId, x0:e.clientX, y0:e.clientY, t0:performance.now(), dx:p.x - b.x, dy:p.y - b.y, lifted:false, moving:Math.hypot(b.vx, b.vy) > C.TAP_MOVING_SPEED || !!b.flow};
+      const move = ev=>{
+        if(!press || ev.pointerId!==press.id) return;
+        if(!press.lifted){ if(Math.hypot(ev.clientX - press.x0, ev.clientY - press.y0) <= C.DRAG_THRESHOLD) return; press.lifted = true; b.held = true; b.flow = null; s.el.classList.add("is-held"); zone.appendChild(s.el); }
+        const q = toZone(ev.clientX, ev.clientY); b.tx = q.x - press.dx; b.ty = q.y - press.dy; wake();
+      };
+      const up = ev=>{
+        if(!press || ev.pointerId!==press.id) return;
+        s.el.removeEventListener("pointermove", move); s.el.removeEventListener("pointerup", up); s.el.removeEventListener("pointercancel", up);
+        const pr = press; press = null;
+        if(pr.lifted){ b.held = false; s.el.classList.remove("is-held"); wake(); return; }
+        if(ev.type==="pointercancel" || performance.now() - pr.t0 > C.TAP_MAX_MS || pr.moving) return;
+        o.onTap(s.id, s.el);
+      };
+      s.el.addEventListener("pointermove", move); s.el.addEventListener("pointerup", up); s.el.addEventListener("pointercancel", up);
+    });
+    // Enter or Space (a click no press came before)
+    s.el.addEventListener("click", ()=>{ if(performance.now() - (s.pressedAt || -1e9) > 800 && !s.gone) o.onTap(s.id, s.el); });
+  };
+  const make = (it, shape, d, x, y)=>{
+    const node = el(it, shape, d), box = shapeBox(shape, d);
+    const s = {id:it.id, label:it.label, el:node, shape, w:box.w, h:box.h, d, body:sortBody({id:it.id, x, y, w:box.w, h:box.h, rot:shape.rot})};
+    bind(s); shapes.set(it.id, s); world.bodies.push(s.body); zone.appendChild(node); render(s);
+    return s;
+  };
+  const reflow = ()=>{
+    const list = [...shapes.values()].filter(s=>!s.gone);
+    if(!list.length) return;
+    const fs = size(), start = {};
+    list.forEach(s=>{ start[s.id] = {x:s.body.x, y:s.body.y}; });
+    const its = list.map(s=>({id:s.id, label:s.label, shape:s.shape}));
+    let pack = packShapes(its, fs, sortRng(seed ^ list.length), start, C.PACK_ROOMY);
+    if(!(pack.ok && pack.scale===1)) pack = packShapes(its, fs, sortRng(seed ^ list.length), start);
+    pack.bodies.forEach(b=>{
+      const s = shapes.get(b.id), body = s.body;
+      if(body.held) return;
+      if(Math.abs(b.d - s.d) > .5){
+        s.grow = {from:s.w / b.w, t0:performance.now()}; s.w = b.w; s.h = b.h; s.d = b.d;
+        s.el.style.width = b.w.toFixed(1) + "px"; s.el.style.height = b.h.toFixed(1) + "px"; s.el.firstChild.style.fontSize = labelSize(s.label, b.w) + "px";
+        Object.assign(body, sortBody({id:b.id, x:body.x, y:body.y, w:b.w, h:b.h, rot:body.rot0}), {a:body.a});
+      }
+      body.flow = {x0:body.x, y0:body.y, x1:b.x, y1:b.y, t0:world.t, ms:C.FLOW_MS};
+    });
+    wake();
+  };
+  const fs = size();
+  world.W = fs.w; world.H = fs.h;
+  const pile = pileFor(items.map(it=>({id:it.id, label:it.label})), fs, seed);
+  pile.items.forEach((p, k)=>{ const b = pile.pack.bodies[k]; make(items[k], p.shape, b.d, b.x, b.y); });
+  api.pack = pile.pack;
+  api.els = items.map(it=>shapes.get(it.id).el);
+  /* a shape leaves (popped): the rest re-flow */
+  api.remove = id=>{ const s = shapes.get(id); if(!s) return; s.gone = true; shapes.delete(id); world.bodies = world.bodies.filter(b=>b!==s.body); reflow(); };
+  /* one comes back: it rises from the lower middle and the re-flow finds it a place */
+  api.add = it=>{
+    if(shapes.has(it.id)) return shapes.get(it.id).el;
+    const z = size(), shape = makeShape(sortRng(sortHash(it.id, seed))), d = C.MIN_D, box = shapeBox(shape, d);
+    const s = make(it, shape, d, z.w / 2, z.h - box.h / 2);
+    if(!calm()) s.el.animate([{opacity:0}, {opacity:1}], {duration:C.FLOW_MS});
+    reflow();
+    return s.el;
+  };
+  api.reflow = reflow;
+  /* Next: what's left falls out through the bottom (transform only), then done() */
+  api.fall = done=>{
+    api.stop();
+    const list = [...shapes.values()].sort((a, b)=>b.body.y - a.body.y);
+    if(!list.length || calm()){ done(); return; }
+    const H = size().h, step = Math.min(40, C.FALL_MS * .4 / list.length);
+    let lastA = null;
+    list.forEach((s, k)=>{ const from = s.el.style.transform, dy = H - s.body.y + s.h + 40;
+      lastA = s.el.animate([{transform:from}, {transform:`translate3d(0, ${dy.toFixed(0)}px, 0) ` + from}], {duration:C.FALL_MS * .6, delay:k * step, easing:"cubic-bezier(.55,0,.9,.4)", fill:"forwards"}); });
+    api.falling = true;
+    lastA.onfinish = done;
+  };
+  new ResizeObserver(()=>{ const n = size(); if(Math.abs(n.w - world.W) > 1 || Math.abs(n.h - world.H) > 1){ world.W = n.w; world.H = n.h; reflow(); } }).observe(zone);
+  document.addEventListener("visibilitychange", ()=>{ if(document.hidden) api.stop(); else if(!world.asleep && zone.isConnected) wake(); });
+  return api;
+}

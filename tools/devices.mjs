@@ -217,7 +217,7 @@ async function mealtimesRun(page, tag, shot) {
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'mealtimes' && !!document.querySelector('.mt-axis')");
   await page.click("#onbFoot .btn-ink");
-  await ready("onb.step === 'athome' && !!document.querySelector('.pile .ab')");
+  await ready("onb.step === 'athome' && !!document.querySelector('.pile .sf-shape')");
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'reveal' && onb.revealed && !document.getElementById('onbFoot').inert");
   await page.click(".wk-love");
@@ -251,10 +251,10 @@ async function mealtimesRun(page, tag, shot) {
   await shot("mt-typing");
   await page.keyboard.press("Enter"); await page.waitForTimeout(200);
   await page.click(".mt-usual"); await page.waitForTimeout(200);
-  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'athome' && !!document.querySelector('.pile .ab')");
+  await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'athome' && !!document.querySelector('.pile .sf-shape')");
   // the kitchen: the pile settled, then a pop caught mid-burst, then its Undo line
   await page.waitForTimeout(2600); await shot("kitchen-pile");
-  await page.evaluate("document.querySelectorAll('.pile .ab')[4].click()"); await page.waitForTimeout(110); await shot("kitchen-pop", true);
+  await page.evaluate("document.querySelectorAll('.pile .sf-shape')[4].click()"); await page.waitForTimeout(110); await shot("kitchen-pop", true);
   await page.waitForTimeout(300); await shot("kitchen-undo");
   await page.click("#onbFoot .btn-ink"); await ready("onb.step === 'reveal' && !!document.querySelector('.wk-skip')");
   await page.click(".wk-skip"); await page.waitForTimeout(300);

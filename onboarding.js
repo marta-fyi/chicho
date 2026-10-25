@@ -944,7 +944,7 @@ function makePile(zone, els, seed, gap){
 let POP_UNDO_MS = 2000;
 function popPile(o){
   const items = o.items, zone = o.zone;
-  let popped = o.popped.slice(), undoFor = null, undoT = 0;
+  let popped = o.popped.slice(), undoFor = null, undoT = 0, field = null;   // field: o.blobs, Sort the food's shapes (blobField)
   const nameOf = id=>(items.find(x=>x.id===id) || {}).name || o.nameOf(id);
   const bubble = it=>{
     const b = document.createElement("button");
@@ -975,6 +975,17 @@ function popPile(o){
     popped = popped.filter(x=>x!==it.id).concat(it.id);
     haptic(); showUndo(it.id);
     o.live.textContent = say(o.words.popped, {x:it.name});
+    if(field){
+      // a shape: it leaves the field at once (the rest re-flow) and pops where it was: swells, bursts, fades
+      b.style.pointerEvents = "none";
+      const from = b.style.transform;
+      field.remove(it.id);
+      if(calm()){ b.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = ()=>b.remove(); return; }
+      burst(b, {});
+      b.animate([{transform:from, opacity:1}, {transform:from + " scale(1.12)", opacity:1, offset:.43}, {transform:from + " scale(1.4)", opacity:0}],
+                {duration:210, easing:"ease-out", fill:"forwards"}).onfinish = ()=>b.remove();
+      return;
+    }
     if(pile) pile.nudge(b);
     const gone = ()=>{ if(pile) pile.remove(b); b.remove(); };
     if(calm()){ b.animate([{opacity:1}, {opacity:0}], {duration:150, fill:"forwards"}).onfinish = gone; return; }
@@ -984,6 +995,7 @@ function popPile(o){
   };
   // a bubble comes back where it belongs in the fixed order (before the next one present, or before the extras)
   const putBack = it=>{
+    if(field) return field.add(blobItem(it));
     const b = bubble(it), k = items.indexOf(it);
     const after = items.slice(k + 1).map(x=>zone.querySelector(`.ab[data-id="${CSS.escape(x.id)}"]:not([data-popping])`)).find(Boolean) || (o.extra || [])[0] || null;
     zone.insertBefore(b, after && after.parentNode===zone ? after : null);
@@ -994,7 +1006,7 @@ function popPile(o){
     o.onRestore(id);
     popped = popped.filter(x=>x!==id);
     const it = items.find(x=>x.id===id);
-    if(it && !zone.querySelector(`.ab[data-id="${CSS.escape(id)}"]:not([data-popping])`)) putBack(it);   // one still bursting doesn't count
+    if(it && !zone.querySelector(`[data-id="${CSS.escape(id)}"]:not([data-popping])`)) putBack(it);   // one still bursting doesn't count
     o.live.textContent = say("onb.pop.back", {x:nameOf(id)});
     haptic(); paintSlot();
   };
@@ -1021,11 +1033,24 @@ function popPile(o){
     });
     slot.append(post);
   };
-  const els = items.filter(it=>!popped.includes(it.id)).map(it=>{ const b = bubble(it); zone.appendChild(b); return b; });
-  (o.extra || []).forEach(e=>{ zone.appendChild(e); els.push(e); });
+  const blobItem = it=>({id:it.id, label:it.label, name:it.name, aria:say("onb.pop.aria", {x:it.name})});
   paintSlot();
   if(pile) pile.stop();
   pile = null;
+  if(o.blobs){
+    // Sort the food's shapes, on its engine: packed from a seed, a drag pushes, a tap pops
+    zone.classList.add("blobs");
+    const q = new URLSearchParams(location.search).get("seed");
+    requestAnimationFrame(()=>{
+      if(!zone.isConnected) return;
+      field = blobField(zone, items.filter(it=>!popped.includes(it.id)).map(blobItem), q ? +q : (Date.now() & 0xffff), {onTap:(id, el)=>{ const it = items.find(x=>x.id===id); if(it) pop(it, el); }});
+      if(!calm()) zone.animate([{opacity:0}, {opacity:1}], {duration:SORT_CONFIG.ENTRANCE_MS});
+    });
+    return {popOwn(id, name){ popped = popped.filter(x=>x!==id).concat(id); showUndo(id); o.live.textContent = say(o.words.popped, {x:name}); },
+            get popped(){ return popped.slice(); }, get field(){ return field; }};
+  }
+  const els = items.filter(it=>!popped.includes(it.id)).map(it=>{ const b = bubble(it); zone.appendChild(b); return b; });
+  (o.extra || []).forEach(e=>{ zone.appendChild(e); els.push(e); });
   const fit = ()=>{
     if(!o.fit) return;
     const r = zone.getBoundingClientRect(), n = Math.max(1, items.length + (o.extra || []).length);
@@ -1112,8 +1137,8 @@ function onbAtHome(card, P){
   const groupOf = food=>{ const f = foodOf(food); return f && f.group==="dairy" ? "fat" : foodGroup(key(food)); };
   const items = STAPLES.filter(([,food])=>!allergyMatch(food, P)).map(([label, food])=>{ const g = groupOf(food); return {id:food, label, name:label, group:GLOW[g] ? g : null}; });
   const prev = {};   // the pantry entry before its pop, for Undo
-  popPile({zone, slot, live, items, popped:(P.staples || []).filter(f=>items.some(x=>x.id===f)), words:{popped:"onb.pop.atHome", line:"onb.pop.atHomeLine"},
-    nameOf:id=>id, fit:{max:80, min:64}, gap:70,
+  const pp = popPile({zone, slot, live, items, popped:(P.staples || []).filter(f=>items.some(x=>x.id===f)), words:{popped:"onb.pop.atHome", line:"onb.pop.atHomeLine"},
+    nameOf:id=>id, blobs:true,
     onPop:food=>{
       const k = key(food), p = pantryOf(k);
       prev[food] = p ? Object.assign({}, p) : null;
@@ -1130,10 +1155,12 @@ function onbAtHome(card, P){
       save();
     }});
   card.append(zone, slot, live);
+  onb.kitchen = pp;   // the tests reach the field through it
   const go = ()=>{
     save();
     if(onb.single){ nextStep(); return; }
-    dropOut(card, zone, ()=>goStep(stepAfter("athome"), null, {instant:true}));
+    const f = pp.field, to = ()=>goStep(stepAfter("athome"), null, {instant:true});
+    if(f) f.fall(to); else to();
   };
   onbCta(card, onb.single ? say("onb.save") : say("onb.next"), go);
 }
