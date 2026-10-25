@@ -47,6 +47,11 @@ f.onload = async () => {
     ok("a food keeps its own shape whatever else is in the pile", E(`JSON.stringify(pileFor(${J(big)}, {w: 342, h: 300}, 9).items[0].shape) === JSON.stringify(pileFor(${J(big.slice(0, 3))}, {w: 342, h: 300}, 9).items[0].shape)`));
     // the curated seeds
     const cur = await (await fetch("../curatedSeeds.json")).json();
+    const fields = await (await fetch("../docs/sortfields.json")).json();
+    for (const k of ["375x667", "390x844", "430x932"]) {
+      const res = cur.sizes[k].seeds.map(sd => E(`scoreSeed(${J(big)}, ${J(fields[k])}, ${sd})`));
+      ok(`${k}: every curated seed passes the scoring thresholds at the measured field (${fields[k].w}×${fields[k].h}): it packs, every inscribed circle ≥ 80px`, res.every(r => r.pass) && JSON.stringify(cur.sizes[k].field) === JSON.stringify(fields[k]), res.filter(r => !r.pass).map(r => r.seed));
+    }
     ok("curatedSeeds.json: twelve seeds for each of 375×667, 390×844 and 430×932", ["375x667", "390x844", "430x932"].every(k => cur.sizes[k] && cur.sizes[k].seeds.length === C.SEED_KEEP && cur.sizes[k].seeds.every(Number.isInteger)), Object.keys(cur.sizes));
   } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
   document.getElementById("o").textContent = out.join("\n");

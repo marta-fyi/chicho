@@ -50,6 +50,10 @@ Marta's brief: the parent drags the foods into four places (Keep out, Not a fan,
 - **The everyday pile counts "Something else" in its twelve** (eleven foods and it). A food whose plain name would read as a locked one shows how the plan serves it: "Grapes" is "Grapes, quartered".
 - **The wiggle** (±6°, 500 ms) goes to the first shape of a pile left untouched for 1.2 s, each time a pile arrives. **The fall at Next** drops the remaining shapes from the lowest up, over about 500 ms; onContinue() comes when the last has gone, once.
 - **Saved and resumed** (schema 12): `profile.foodSort` is exactly the brief's shape, saved on every change. Schema 12 keeps only known foods in the four places, at most twelve of their own (with matched ids that exist), `firstPileComplete` only when all nine are placed, and a whole, non-negative seed; a profile that never opened the sort keeps `null` and reads through `legacyFoodSort`. The pile itself isn't saved: a reload re-derives it (the first pile, or the everyday foods once it's complete) and packs it again from the seed and what's left; the open tab is kept for the visit in sessionStorage. The seed waits up to 800 ms for `curatedSeeds.json`, then takes a fresh one.
+- **Roomy packing first**: at the brief's 0.82 circles, a neighbour can cover the end of a label ("CARROTS", "ZUCCHINI" in the first screenshots). A composed pile packs with 0.92 circles when that fits without shrinking (`PACK_ROOMY`), and with 0.82 otherwise (the first pile at 375×667). The engine always collides at 0.82, so pushes still let outlines overlap a little.
+- **MAX_PILE is a maximum**: an everyday tab shows as many as pack (Something else included), so 375×667 holds fewer than twelve; the rest come in as shapes are sorted.
+- **The tabs scroll sideways**: "Veg · Fruit · Grains · Protein · Dairy and fats" and "Select all" don't fit one 342px line in mono at 13px, so the tab line scrolls (no scrollbar) and keeps the open tab in view.
+- **The touch run** (`tools/sortdevices.mjs`): taps are real touchscreen taps; drags are touch pointer events dispatched on the shape, since Playwright has no touch-move. A tap's own click arrives with `detail: 0` in Chromium, so a click within 800 ms of a press on the same shape is that press's, never a second tap.
 - **Matching what's typed**: trimmed, lower-cased, accents and apostrophes dropped, then simple plurals word by word (berries → berry, peaches → peach, tomatoes → tomato, grapes → grape; hummus and couscous keep their s), against every food's label, id and aliases; and a name that holds the typed words as a whole word counts too ("beef" is the meatballs as well, "cheese" is cottage cheese, "potato" is sweet potato), so a kept-out word never lets a food through under a longer name.
 
 ## The name, always big (24 Oct 2026)
@@ -321,6 +325,8 @@ Chromium as an iPhone 14, 4× CPU slowdown (a mid-range phone), Slow 4G (150 ms,
 
 ## Check on a real iPhone
 
+Sort the food: drag and tap accuracy on the smallest shapes (84px, overlapping a little at 375×667 where the field is 180px), a thumb telling a tap from a short drag (10px, 500 ms), the push and tumble feel (half-lives 120/150 ms, friction 0.5: tune with `?tune=1` on localhost), the 48px snap into the four places with the swell and dim under a thumb, packing at 375×667 (dense: three fallbacks already apply), the keyboard opening on the first tap of "Something else", the swipe down on the sheets against Safari's own gestures, the fall at Next into Meal times, and battery (the loop sleeps 500 ms after the last motion; check it does with Safari's timeline).
+
 Bubbles: the pop and its shards at 3× (crisp, not a flash), a thumb on 69px bubbles in an 18-bubble pile, the Undo line within reach and readable during the 2 s, and pile performance while 18 bodies fall and settle.
 
 Home, meal first: the headline's position at 3× with the notch and home indicator (a third of the way down, not crowded on a mini), the pill turning into the three answers under a thumb (no mis-tap on the answer that appears under it), the 800 ms hold then the fade into the next meal, and "Offered. Undo" in the footer within reach.
@@ -351,6 +357,9 @@ The Kitchen redesign: `backdrop-filter` blur performance while scrolling (and th
 - **The read-only view** replaces the app (no ticks, no editing, no onboarding), disables `save()` and blocks `localStorage.setItem` for the page, and adds `<meta name="robots" content="noindex">`. A damaged link says "This link looks incomplete. Ask for it to be sent again."
 
 ## Needs a pediatric source (verify)
+
+- **Sort the food's introduction rules** (`sortconfig.js`): `ALLERGEN_SPACING_DAYS = 3` (at most one first-time allergen per window), untouched allergens planned only from `ALLERGENS_FROM_MONTHS = 6`, and `NEW_FOODS_PER_MEAL = 1` for every other untouched food.
+- **The locked foods' reasons** on "Always off the plate at this age" (`sort.lockedWhy`, content.js): drafts for honey, whole nuts, whole grapes, added salt and sugar, and cow's milk as a drink, to review with a pediatric or food-safety source.
 
 - **Sort the food, the first pile** (`SORT_CONFIG.bigFoods`): egg, milk, peanut, tree nuts, wheat, soy, fish, shellfish, sesame, as the set every family must place.
 

@@ -21,6 +21,7 @@ const SORT_CONFIG = {
   EDGE_INSET: 24,            // px from the left and right screen edges
   // packing
   PACK_ITERATIONS: 80,
+  PACK_ROOMY: 0.92,          // a composed pile packs with these circles when the field allows (labels stay clear)
   PACK_OVERLAP_MAX: 6,       // px of collision-circle overlap still accepted
   PACK_SHRINK: 0.04, PACK_RETRIES: 10,
   // seeds (tools/seeds.mjs)

@@ -191,12 +191,12 @@ function rotHalf(w, h, deg){ const t = deg * Math.PI / 180, c = Math.abs(Math.co
 /* The packing: a jittered grid, then PACK_ITERATIONS rounds pushing overlapping collision circles apart, every shape
    inside the field. Overlap over PACK_OVERLAP_MAX left: shrink 4% and go again (PACK_RETRIES times, never below MIN_D).
    items: [{id, label, shape}]; field: {w, h}. Returns {ok, overlap, tries, bodies:[{id, x, y, w, h, d, r, rot}]} */
-function packShapes(items, field, rnd, start){
-  const C = SORT_CONFIG;
+function packShapes(items, field, rnd, start, radius){
+  const C = SORT_CONFIG, cr = radius || C.COLLISION_RADIUS;
   let result = null;
   for(let t = 0, scale = 1; t <= C.PACK_RETRIES; t++, scale *= 1 - C.PACK_SHRINK){
     const ds = sizeShapes(items, field, scale);
-    const B = items.map((it, k)=>{ const b = shapeBox(it.shape, ds[k]); return {id:it.id, w:b.w, h:b.h, d:ds[k], r:C.COLLISION_RADIUS * (b.w + b.h) / 4, rot:it.shape.rot, half:rotHalf(b.w, b.h, it.shape.rot)}; });
+    const B = items.map((it, k)=>{ const b = shapeBox(it.shape, ds[k]); return {id:it.id, w:b.w, h:b.h, d:ds[k], r:cr * (b.w + b.h) / 4, rot:it.shape.rot, half:rotHalf(b.w, b.h, it.shape.rot)}; });
     // the grid: as many columns as keep the cells near square, each shape jittered within its cell
     const n = B.length, cols = Math.max(1, Math.round(Math.sqrt(n * field.w / Math.max(field.h, 1)))), rows = Math.ceil(n / Math.max(cols, 1));
     const cw = field.w / cols, ch = field.h / rows, jr = rnd();
@@ -224,7 +224,7 @@ function packShapes(items, field, rnd, start){
       for(let i = 0; i < n; i++) for(let j = i + 1; j < n; j++) overlap = Math.max(overlap, B[i].r + B[j].r - Math.hypot(B[j].x - B[i].x, B[j].y - B[i].y));
       if(overlap <= 0.5) break;
     }
-    result = {ok:overlap <= C.PACK_OVERLAP_MAX, overlap:Math.max(0, overlap), tries:t + 1, scale, bodies:B.map(b=>({id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, d:b.d, r:b.r, rot:b.rot}))};
+    result = {ok:overlap <= C.PACK_OVERLAP_MAX, overlap:Math.max(0, overlap), tries:t + 1, scale, radius:cr, bodies:B.map(b=>({id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, d:b.d, r:b.r, rot:b.rot}))};
     if(result.ok || B.every(b=>b.d <= C.MIN_D + .01)) break;
   }
   return result;
@@ -232,7 +232,9 @@ function packShapes(items, field, rnd, start){
 /* the pile for a seed: one shape per item (seeded by the seed and the item's id), packed into the field */
 function pileFor(items, field, seed, start){
   const placed = items.map(it=>Object.assign({}, it, {shape:makeShape(sortRng(sortHash(it.id, seed)))}));
-  const pack = packShapes(placed, field, sortRng(seed ^ 0x9E3779B9), start);
+  // roomy first (PACK_ROOMY: neighbours never cover a label), the brief's 0.82 when the field is too small for that
+  const roomy = packShapes(placed, field, sortRng(seed ^ 0x9E3779B9), start, SORT_CONFIG.PACK_ROOMY);
+  const pack = roomy.ok && roomy.scale===1 ? roomy : packShapes(placed, field, sortRng(seed ^ 0x9E3779B9), start);
   return {items:placed, pack};
 }
 /* A seed's score for a field (seeds.mjs keeps the best SEED_KEEP): it must pack; then the smallest inscribed circle,

@@ -4,129 +4,129 @@
   "375x667": {
    "field": {
     "w": 327,
-    "h": 180
+    "h": 181
    },
    "seeds": [
-    85369,
     615642,
-    502885,
+    85369,
+    424094,
+    434499,
     242951,
+    971350,
     497569,
     723310,
     808452,
+    502885,
     887243,
-    762592,
-    564466,
-    559150,
-    514552
+    926752
    ],
    "scores": [
     {
-     "seed": 85369,
-     "score": 1.55,
-     "inscribed": 82.4,
-     "quality": 0.701,
-     "balance": 0.862,
-     "overlap": 4.08,
-     "pass": true
-    },
-    {
      "seed": 615642,
-     "score": 1.549,
+     "score": 1.553,
      "inscribed": 82.5,
      "quality": 0.709,
      "balance": 0.882,
-     "overlap": 5.4,
+     "overlap": 4.94,
      "pass": true
     },
     {
-     "seed": 502885,
-     "score": 1.542,
+     "seed": 85369,
+     "score": 1.552,
+     "inscribed": 82.4,
+     "quality": 0.701,
+     "balance": 0.863,
+     "overlap": 3.89,
+     "pass": true
+    },
+    {
+     "seed": 424094,
+     "score": 1.55,
      "inscribed": 82.8,
      "quality": 0.704,
-     "balance": 0.859,
-     "overlap": 5.39,
+     "balance": 0.884,
+     "overlap": 5.73,
+     "pass": true
+    },
+    {
+     "seed": 434499,
+     "score": 1.543,
+     "inscribed": 83.5,
+     "quality": 0.704,
+     "balance": 0.843,
+     "overlap": 5.69,
      "pass": true
     },
     {
      "seed": 242951,
-     "score": 1.539,
+     "score": 1.543,
      "inscribed": 82.1,
      "quality": 0.702,
      "balance": 0.884,
-     "overlap": 5.63,
-     "pass": true
-    },
-    {
-     "seed": 497569,
-     "score": 1.537,
-     "inscribed": 82.7,
-     "quality": 0.707,
-     "balance": 0.84,
-     "overlap": 5.06,
-     "pass": true
-    },
-    {
-     "seed": 723310,
-     "score": 1.537,
-     "inscribed": 81.7,
-     "quality": 0.711,
-     "balance": 0.878,
-     "overlap": 5.35,
-     "pass": true
-    },
-    {
-     "seed": 808452,
-     "score": 1.536,
-     "inscribed": 83.2,
-     "quality": 0.702,
-     "balance": 0.843,
-     "overlap": 5.93,
-     "pass": true
-    },
-    {
-     "seed": 887243,
-     "score": 1.529,
-     "inscribed": 81.8,
-     "quality": 0.705,
-     "balance": 0.857,
      "overlap": 5.26,
      "pass": true
     },
     {
-     "seed": 762592,
-     "score": 1.527,
-     "inscribed": 82.2,
-     "quality": 0.704,
-     "balance": 0.836,
-     "overlap": 5.13,
+     "seed": 971350,
+     "score": 1.543,
+     "inscribed": 83.3,
+     "quality": 0.703,
+     "balance": 0.848,
+     "overlap": 5.64,
      "pass": true
     },
     {
-     "seed": 564466,
-     "score": 1.52,
-     "inscribed": 82.9,
-     "quality": 0.704,
-     "balance": 0.802,
-     "overlap": 5.46,
+     "seed": 497569,
+     "score": 1.541,
+     "inscribed": 82.7,
+     "quality": 0.707,
+     "balance": 0.838,
+     "overlap": 4.56,
      "pass": true
     },
     {
-     "seed": 559150,
-     "score": 1.516,
-     "inscribed": 82.9,
+     "seed": 723310,
+     "score": 1.54,
+     "inscribed": 81.7,
+     "quality": 0.711,
+     "balance": 0.877,
+     "overlap": 4.95,
+     "pass": true
+    },
+    {
+     "seed": 808452,
+     "score": 1.539,
+     "inscribed": 83.2,
      "quality": 0.702,
-     "balance": 0.777,
-     "overlap": 4.91,
+     "balance": 0.844,
+     "overlap": 5.62,
      "pass": true
     },
     {
-     "seed": 514552,
-     "score": 1.512,
-     "inscribed": 81.2,
-     "quality": 0.706,
-     "balance": 0.836,
-     "overlap": 5.18,
+     "seed": 502885,
+     "score": 1.537,
+     "inscribed": 82.8,
+     "quality": 0.704,
+     "balance": 0.843,
+     "overlap": 5.3,
+     "pass": true
+    },
+    {
+     "seed": 887243,
+     "score": 1.534,
+     "inscribed": 81.8,
+     "quality": 0.705,
+     "balance": 0.862,
+     "overlap": 4.97,
+     "pass": true
+    },
+    {
+     "seed": 926752,
+     "score": 1.534,
+     "inscribed": 82.3,
+     "quality": 0.712,
+     "balance": 0.86,
+     "overlap": 5.77,
      "pass": true
     }
    ]
@@ -134,39 +134,48 @@
   "390x844": {
    "field": {
     "w": 342,
-    "h": 259
+    "h": 260
    },
    "seeds": [
-    468692,
-    796785,
-    892559,
     711416,
-    960718,
-    791469,
-    983017,
     639203,
-    344041,
     384585,
-    519868,
-    507974
+    892559,
+    468692,
+    350619,
+    338725,
+    734977,
+    344041,
+    791469,
+    897875,
+    181143
    ],
    "scores": [
     {
-     "seed": 468692,
-     "score": 1.621,
-     "inscribed": 83.7,
+     "seed": 711416,
+     "score": 1.622,
+     "inscribed": 83.2,
      "quality": 0.715,
-     "balance": 0.885,
-     "overlap": 0.31,
+     "balance": 0.912,
+     "overlap": 0.5,
      "pass": true
     },
     {
-     "seed": 796785,
+     "seed": 639203,
      "score": 1.62,
-     "inscribed": 83.4,
+     "inscribed": 82.7,
+     "quality": 0.708,
+     "balance": 0.929,
+     "overlap": 0.42,
+     "pass": true
+    },
+    {
+     "seed": 384585,
+     "score": 1.619,
+     "inscribed": 83.5,
      "quality": 0.701,
-     "balance": 0.901,
-     "overlap": 0.2,
+     "balance": 0.9,
+     "overlap": 0.38,
      "pass": true
     },
     {
@@ -174,89 +183,80 @@
      "score": 1.618,
      "inscribed": 83,
      "quality": 0.718,
-     "balance": 0.895,
-     "overlap": 0,
+     "balance": 0.901,
+     "overlap": 0.25,
      "pass": true
     },
     {
-     "seed": 711416,
-     "score": 1.618,
-     "inscribed": 83.2,
-     "quality": 0.715,
-     "balance": 0.889,
-     "overlap": 0,
-     "pass": true
-    },
-    {
-     "seed": 960718,
-     "score": 1.617,
-     "inscribed": 83,
-     "quality": 0.7,
-     "balance": 0.915,
-     "overlap": 0.39,
-     "pass": true
-    },
-    {
-     "seed": 791469,
-     "score": 1.617,
-     "inscribed": 83.2,
-     "quality": 0.71,
-     "balance": 0.889,
-     "overlap": 0,
-     "pass": true
-    },
-    {
-     "seed": 983017,
+     "seed": 468692,
      "score": 1.617,
      "inscribed": 83.7,
-     "quality": 0.708,
-     "balance": 0.877,
-     "overlap": 0.29,
+     "quality": 0.715,
+     "balance": 0.881,
+     "overlap": 0.49,
      "pass": true
     },
     {
-     "seed": 639203,
-     "score": 1.616,
-     "inscribed": 82.7,
-     "quality": 0.708,
-     "balance": 0.908,
-     "overlap": 0.03,
+     "seed": 350619,
+     "score": 1.617,
+     "inscribed": 83.6,
+     "quality": 0.7,
+     "balance": 0.892,
+     "overlap": 0.47,
+     "pass": true
+    },
+    {
+     "seed": 338725,
+     "score": 1.615,
+     "inscribed": 83.9,
+     "quality": 0.705,
+     "balance": 0.87,
+     "overlap": 0.35,
+     "pass": true
+    },
+    {
+     "seed": 734977,
+     "score": 1.614,
+     "inscribed": 83.4,
+     "quality": 0.702,
+     "balance": 0.894,
+     "overlap": 0.49,
      "pass": true
     },
     {
      "seed": 344041,
-     "score": 1.616,
+     "score": 1.614,
      "inscribed": 82.8,
      "quality": 0.701,
-     "balance": 0.909,
-     "overlap": 0,
+     "balance": 0.913,
+     "overlap": 0.37,
      "pass": true
     },
     {
-     "seed": 384585,
-     "score": 1.616,
-     "inscribed": 83.5,
-     "quality": 0.701,
-     "balance": 0.892,
-     "overlap": 0.39,
-     "pass": true
-    },
-    {
-     "seed": 519868,
-     "score": 1.615,
-     "inscribed": 83.5,
-     "quality": 0.707,
-     "balance": 0.877,
-     "overlap": 0,
-     "pass": true
-    },
-    {
-     "seed": 507974,
+     "seed": 791469,
      "score": 1.614,
-     "inscribed": 83.1,
-     "quality": 0.702,
-     "balance": 0.895,
-     "overlap": 0,
+     "inscribed": 83.2,
+     "quality": 0.71,
+     "balance": 0.894,
+     "overlap": 0.49,
+     "pass": true
+    },
+    {
+     "seed": 897875,
+     "score": 1.613,
+     "inscribed": 83,
+     "quality": 0.706,
+     "balance": 0.901,
+     "overlap": 0.41,
+     "pass": true
+    },
+    {
+     "seed": 181143,
+     "score": 1.613,
+     "inscribed": 83,
+     "quality": 0.704,
+     "balance": 0.901,
+     "overlap": 0.4,
      "pass": true
     }
    ]
@@ -264,36 +264,36 @@
   "430x932": {
    "field": {
     "w": 382,
-    "h": 340
+    "h": 342
    },
    "seeds": [
     639203,
     661502,
     181143,
-    468692,
     389901,
+    468692,
     68386,
     44825,
-    853050,
     622220,
+    853050,
     513290,
-    463376,
-    734977
+    734977,
+    463376
    ],
    "scores": [
     {
      "seed": 639203,
-     "score": 1.833,
-     "inscribed": 97.1,
+     "score": 1.838,
+     "inscribed": 97.4,
      "quality": 0.708,
-     "balance": 0.911,
+     "balance": 0.912,
      "overlap": 0,
      "pass": true
     },
     {
      "seed": 661502,
-     "score": 1.822,
-     "inscribed": 96.7,
+     "score": 1.826,
+     "inscribed": 97,
      "quality": 0.721,
      "balance": 0.89,
      "overlap": 0,
@@ -301,35 +301,35 @@
     },
     {
      "seed": 181143,
-     "score": 1.82,
-     "inscribed": 96.4,
+     "score": 1.824,
+     "inscribed": 96.7,
      "quality": 0.704,
      "balance": 0.906,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 468692,
-     "score": 1.817,
-     "inscribed": 96.6,
-     "quality": 0.715,
-     "balance": 0.882,
-     "overlap": 0,
-     "pass": true
-    },
-    {
      "seed": 389901,
-     "score": 1.813,
-     "inscribed": 96.5,
+     "score": 1.817,
+     "inscribed": 96.7,
      "quality": 0.701,
      "balance": 0.889,
      "overlap": 0,
      "pass": true
     },
     {
+     "seed": 468692,
+     "score": 1.817,
+     "inscribed": 96.9,
+     "quality": 0.715,
+     "balance": 0.88,
+     "overlap": 0.28,
+     "pass": true
+    },
+    {
      "seed": 68386,
-     "score": 1.803,
-     "inscribed": 95.9,
+     "score": 1.808,
+     "inscribed": 96.2,
      "quality": 0.716,
      "balance": 0.876,
      "overlap": 0,
@@ -337,55 +337,55 @@
     },
     {
      "seed": 44825,
-     "score": 1.803,
-     "inscribed": 96.1,
+     "score": 1.807,
+     "inscribed": 96.4,
      "quality": 0.704,
      "balance": 0.874,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 853050,
-     "score": 1.798,
-     "inscribed": 95.6,
-     "quality": 0.711,
-     "balance": 0.877,
-     "overlap": 0,
-     "pass": true
-    },
-    {
      "seed": 622220,
-     "score": 1.797,
-     "inscribed": 95.6,
+     "score": 1.801,
+     "inscribed": 95.9,
      "quality": 0.703,
      "balance": 0.88,
      "overlap": 0,
      "pass": true
     },
     {
+     "seed": 853050,
+     "score": 1.801,
+     "inscribed": 95.8,
+     "quality": 0.711,
+     "balance": 0.875,
+     "overlap": 0,
+     "pass": true
+    },
+    {
      "seed": 513290,
-     "score": 1.796,
-     "inscribed": 94.2,
+     "score": 1.8,
+     "inscribed": 94.4,
      "quality": 0.725,
      "balance": 0.915,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 463376,
-     "score": 1.795,
-     "inscribed": 96.4,
-     "quality": 0.701,
-     "balance": 0.849,
+     "seed": 734977,
+     "score": 1.799,
+     "inscribed": 95.7,
+     "quality": 0.702,
+     "balance": 0.885,
      "overlap": 0,
      "pass": true
     },
     {
-     "seed": 734977,
-     "score": 1.795,
-     "inscribed": 95.4,
-     "quality": 0.702,
-     "balance": 0.884,
+     "seed": 463376,
+     "score": 1.799,
+     "inscribed": 96.6,
+     "quality": 0.701,
+     "balance": 0.848,
      "overlap": 0,
      "pass": true
     }

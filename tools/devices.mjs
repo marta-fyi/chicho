@@ -7,7 +7,7 @@
 // Meal times (mealtimesRun) runs on the portrait devices too: a timed first run through Meal times (scripted taps, no
 // thinking time; the median goes to docs/firstrun.json, no target asserted), the axis never scrolling and an hour at
 // least MT.minHourPx tall, and (WebKit, both themes) the handoff from Allergens, the idle axis, mid-drag, typing, and
-// Done with five and three meals, plus each pile settled, a pop caught mid-burst and its Undo line (Allergens, Kitchen).
+// Done with five and three meals, plus the Kitchen pile settled, a pop caught mid-burst and its Undo line (Sort the food has its own run: tools/sortdevices.mjs).
 // (Playwright isn't a dependency of this repo; point at any install, e.g. ~/dev/client/node_modules/playwright,
 // with its WebKit and Chromium browsers downloaded.)
 //
@@ -210,7 +210,10 @@ async function mealtimesRun(page, tag, shot) {
   for (const [k, keys] of [["day", ["ArrowDown"]], ["month", ["ArrowDown"]], ["year", ["ArrowUp", "ArrowDown"]]]) { await page.focus(`.bd-col[data-key="${k}"]`); for (const key of keys) await page.keyboard.press(key); }
   await ready("document.querySelector('#onbFoot .btn-ink').getAttribute('aria-disabled') === 'false'");
   await page.click("#onbFoot .btn-ink");
-  await ready("onb.step === 'keepout' && !!document.querySelector('.pile .ab')");
+  await ready("onb.step === 'keepout' && !!document.querySelector('.sf-field .sf-shape')");
+  // Sort the food: two taps sort the big ones (Select all, then a place)
+  await page.click(".sf-selall"); await page.click('.sf-place[data-place="untouched"]');
+  await ready("document.querySelector('#onbFoot .btn-ink').getAttribute('aria-disabled') === 'false'");
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'mealtimes' && !!document.querySelector('.mt-axis')");
   await page.click("#onbFoot .btn-ink");
@@ -225,7 +228,8 @@ async function mealtimesRun(page, tag, shot) {
   // the axis, from Allergens
   await page.evaluate(`state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`);
   await page.waitForTimeout(1600);
-  if (shot) { await page.waitForTimeout(1600); await page.evaluate("document.querySelector('.pile .ab[data-id=\"a:egg\"]').click()"); await page.waitForTimeout(110); await shot("allergens-pop", true); await page.waitForTimeout(300); await shot("allergens-undo"); }
+  await ready("!!document.querySelector('.sf-field .sf-shape')");
+  await page.evaluate(`sortUI.place(SORT_CONFIG.bigFoods, "untouched", {noUndo: true})`); await page.waitForTimeout(1500);
   await page.click("#onbFoot .btn-ink");
   if (shot) { await page.waitForTimeout(220); await shot("mt-from-allergens", true); }
   await ready("onb.step === 'mealtimes'");

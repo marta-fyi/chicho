@@ -51,7 +51,7 @@ f.onload = async () => {
     const [mx, my] = centre(shape("milk")), [px, py] = centre(shape("peanut"));
     const before = E("(() => { const b = sortUI.world.bodies.find(b => b.id === 'peanut'); return [b.x, b.y]; })()");
     let spun = 0;
-    await drag("milk", px + 8, py + 30, async () => { for (let k = 0; k < 6; k++) { spun = Math.max(spun, E("Math.abs(sortUI.world.bodies.find(b => b.id === 'peanut').w)")); await wait(16); } });
+    await drag("milk", px + 50, py + 10, async () => { for (let k = 0; k < 6; k++) { spun = Math.max(spun, E("Math.abs(sortUI.world.bodies.find(b => b.id === 'peanut').w)")); await wait(16); } });
     await wait(100); spun = Math.max(spun, E("Math.abs(sortUI.world.bodies.find(b => b.id === 'peanut').w)"));
     const after = E("(() => { const b = sortUI.world.bodies.find(b => b.id === 'peanut'); return [b.x, b.y]; })()");
     ok(`a dragged shape pushes the one in its way (moved ${Math.round(Math.hypot(after[0] - before[0], after[1] - before[1]))}px)`, Math.hypot(after[0] - before[0], after[1] - before[1]) > 10, [before, after]);

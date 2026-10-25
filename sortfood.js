@@ -68,7 +68,7 @@ function mountSortFood(o){
      Something else counting as one) */
   const pileIds = ()=>{
     if(ui.view==="big") return bigLeft();
-    return everyday.filter(id=>groupOf(id)===ui.tab && !placeOf(id)).slice(0, C.MAX_PILE - 1);
+    return everyday.filter(id=>groupOf(id)===ui.tab && !placeOf(id)).slice(0, (ui.room || C.MAX_PILE) - 1);
   };
   ui.pileIds = pileIds;
   ui.pileItems = ()=>pileItems();
@@ -289,6 +289,8 @@ function mountSortFood(o){
         t.appendChild(b);
       });
       pileHead.appendChild(t);
+      const on = t.querySelector('[aria-pressed="true"]');
+      if(on) requestAnimationFrame(()=>{ t.scrollLeft = Math.max(0, on.offsetLeft - (t.clientWidth - on.offsetWidth) / 2); });
     }else return;
     const ids = pileIds();
     const all = ids.length && ids.every(id=>ui.selected.has(id));
@@ -364,11 +366,22 @@ function mountSortFood(o){
   /* each pile's seed: the family's, and the tab's place among the five */
   const pileSeed = ()=>(S.shapeSeed + (ui.view==="everyday" ? 7919 * (C.groups.findIndex(g=>g[0]===ui.tab) + 1) : 0)) >>> 0;
   /* the pile from scratch: new shapes, packed from the seed (a new pile, a tab, a resize) */
+  /* MAX_PILE is a maximum: an everyday pile shows as many as pack in this field (a small phone holds fewer) */
+  function roomFor(fs){
+    if(ui.view!=="everyday") return C.MAX_PILE;
+    for(let n = C.MAX_PILE; n > 4; n--){
+      ui.room = n;
+      if(pileFor(pileItems(), {w:fs.w, h:fs.h}, pileSeed()).pack.ok) return n;
+    }
+    return 4;
+  }
   function buildPile(){
     field.querySelectorAll(".sf-shape, .sf-empty").forEach(x=>x.remove());
     ui.shapes.clear();
-    const items = pileItems(), fs = ui.fieldSize();
+    const fs = ui.fieldSize();
     if(!fs.w || !fs.h) return;
+    ui.room = roomFor(fs);
+    const items = pileItems();
     const pile = pileFor(items, {w:fs.w, h:fs.h}, pileSeed());
     ui.pack = pile.pack;
     world.W = fs.w; world.H = fs.h; world.bodies = [];
@@ -431,7 +444,9 @@ function mountSortFood(o){
     if(!list.length) return;
     const fs = ui.fieldSize(), start = {};
     list.forEach(x=>{ start[x.id] = {x:x.body.x, y:x.body.y}; });
-    const pack = packShapes(list.map(x=>({id:x.id, label:x.label, shape:x.shape})), {w:fs.w, h:fs.h}, sortRng(S.shapeSeed ^ list.length), start);
+    const its = list.map(x=>({id:x.id, label:x.label, shape:x.shape})), rr = sortRng(S.shapeSeed ^ list.length);
+    let pack = packShapes(its, {w:fs.w, h:fs.h}, rr, start, C.PACK_ROOMY);
+    if(!(pack.ok && pack.scale===1)) pack = packShapes(its, {w:fs.w, h:fs.h}, sortRng(S.shapeSeed ^ list.length), start);
     pack.bodies.forEach(b=>{
       const x = ui.shapes.get(b.id), body = x.body;
       if(x.held || body.held) return;
@@ -457,7 +472,8 @@ function mountSortFood(o){
      anywhere else and the shape stays where it stops. */
   function bindShape(s){
     s.el.addEventListener("pointerdown", e=>down(s, e));
-    s.el.addEventListener("click", e=>{ if(e.detail===0) keyTap(s); });   // Enter or Space: a tap
+    // Enter or Space: a tap. A click that follows a press (any pointer) is that press's own, already handled
+    s.el.addEventListener("click", ()=>{ if(performance.now() - (s.pressedAt || -1e9) > 800) keyTap(s); });
   }
   const toField = (cx, cy)=>{ const r = field.getBoundingClientRect(); return {x:cx - r.left, y:cy - r.top}; };
   function down(s, e){
@@ -465,7 +481,7 @@ function mountSortFood(o){
     e.preventDefault();
     try{ s.el.setPointerCapture(e.pointerId); }catch(err){}
     const p = toField(e.clientX, e.clientY), b = s.body;
-    ui.touched = true;
+    ui.touched = true; s.pressedAt = performance.now();
     ui.press = {s, id:e.pointerId, x0:e.clientX, y0:e.clientY, t0:performance.now(), dx:p.x - b.x, dy:p.y - b.y, lifted:false,
                 moving:Math.hypot(b.vx, b.vy) > C.TAP_MOVING_SPEED || !!b.flow};
     const move = ev=>{ if(ev.pointerId===ui.press.id) drag(ev); };

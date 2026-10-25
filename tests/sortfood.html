@@ -48,6 +48,9 @@ const frame = (w, h, setup, q = "") => new Promise(res => {
     $("#onbFoot .btn-ink").click(); await wait(30);
     ok("…tapping it anyway shows the gate: 'Sort the big ones first · 9 to go'", $(".sf-status").textContent === "Sort the big ones first · 9 to go", $(".sf-status").textContent);
     ok("text only: no <img>, <svg> or <canvas> in the screen", !d.querySelector("#onbCard img, #onbCard svg, #onbCard canvas, #onbFoot img, #onbFoot svg"));
+    ok("…no emoji or pictographs anywhere in its text", !/\p{Extended_Pictographic}/u.test(d.getElementById("onbCard").textContent + d.getElementById("onbFoot").textContent));
+    ok("…no hover styles: no :hover rule in any stylesheet the page loads", [...d.styleSheets].every(sh => { try { return [...sh.cssRules].every(r => !/:hover/.test(r.cssText)); } catch (e) { return true; } }));
+    ok("…none of the banned words in what it says", !/\b(eaten|missed|cleared|streak)\b/i.test(d.getElementById("onbCard").textContent));
 
     // placing (the API the gestures use)
     E(`sortUI.place(["egg"], "keepOut")`); await wait(30);
