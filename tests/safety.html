@@ -114,7 +114,8 @@ f.onload = () => {
       for (let t = 0; t < 120; t++) w.generateWeek(18, prof).days.forEach(d => d.meals.forEach(ml => ml.items.forEach(i => { all++; if (i.name === "Banana") hit++; })));
       return hit / all; };
     const bNone = bananaShare(P({})), bDis = bananaShare(P({avoid: [{name: "Banana", kind: "dislike"}]})), bAll = bananaShare(P({avoid: [{name: "Banana", kind: "allergy"}]}));
-    ok(`a dislike makes banana rarer (${(bNone*100).toFixed(1)}% → ${(bDis*100).toFixed(1)}%) but doesn't remove it`, bDis < bNone * .7 && bDis > 0, [bNone, bDis]);
+    // Sort the food: Not a fan comes only when its slot has nothing else, and banana's slots always have other fruit
+    ok(`a dislike takes banana off while other fruit fits (${(bNone*100).toFixed(1)}% → ${(bDis*100).toFixed(1)}%)`, bNone > 0 && bDis === 0, [bNone, bDis]);
     ok("an allergy removes banana entirely (0 in 120 weeks)", bAll === 0, bAll);
 
     // swaps go through the same gate

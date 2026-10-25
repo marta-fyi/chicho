@@ -19,7 +19,7 @@ f.onload = async () => {
     const $ = s => d.querySelector("#scr-shuffle " + s), $$ = s => [...d.querySelectorAll("#scr-shuffle " + s)];
     E(`state.profile = Object.assign(freshProfile(), {name: "Lula", onboarded: true, birthDate: birthDateFromMonths(18), firstDay: "2026-10-01", mealTimesSource: "default"});
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
-       state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
+       state.plan = generateWeek(18, Object.assign({}, state.profile, {foodSort: Object.assign(freshFoodSort(), {placement: Object.fromEntries(FOODS.map(f => [f.id, "tried"])), firstPileComplete: true})})); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
        state.pantry = []; state.offers = []; offersChanged(); [19, 20, 21].forEach(n => mealsOn(new Date(2026, 9, n)).forEach(x => offerMeal(x.m, x.date, true))); state.hints = {kitchen: "2026-10-01", shuffle: "2026-10-01"}; save(); closeOnboarding(); go("shuffle", {quiet: true});`);
     await wait(500);
     const lunchM = () => E(`mealsOn(now()).find(x => x.m.slot === "lunch").m`);
@@ -98,7 +98,7 @@ f.onload = async () => {
           if (dislikeMatch(i.name, state.profile)) bad.push("not a fan " + i.name);
           if (newAllergens(i.name, intro).length) bad.push("first allergen " + i.name);
           if ((i.tex || null) !== textureFor(f, st)) bad.push("texture " + i.name); });
-        if (items.filter(i => !known.has(foodIdOf(i))).length > 1) bad.push("two new " + items.map(i => i.name).join("+"));
+        if (items.filter(i => isNewForPlan(i, state.profile, known)).length > 1) bad.push("two new " + items.map(i => i.name).join("+"));
       } return bad; })()`);
     ok("200 shuffles: allergies and not-a-fans out, the locked rules, stage textures, no first allergen, at most one new food a meal", bad.length === 0, bad.slice(0, 5));
     ok("…per-food alternatives keep the same rules", E(`mealsOn(now()).every(x => x.m.items.every((_, k) => alternatives(x.m, k, 8).every(f => isAllowed(f, planMonths(), state.profile) && !dislikeMatch(f.name, state.profile) && !newAllergens(f.name, introducedAllergens(state.profile)).length)))`));

@@ -1339,25 +1339,89 @@ function allergensOf(name){
   const ids = ALLERGENS.filter(a=>a.words.some(w=>hasWord(name, w))).map(a=>a.id);
   return [...new Set(ids.concat(HIDDEN_ALLERGENS[name] || []))];
 }
-/* Allergy is strict: the food never appears. A typed allergy ("kiwi")
-   blocks foods with that word; one naming an allergen ("egg") blocks
-   everything carrying it. */
+/* ---------- the sort's rules (getFoodRules, sortcore.js): the only thing the plan reads from Sort the food ----------
+   As sets, worked out once per change of the sort. A profile from before the sort reads through legacyFoodSort. */
+let RULES_MEMO = null;
+function foodRules(profile){
+  const P = profile || {}, key = JSON.stringify([P.foodSort || null, P.allergens, P.avoid, P.diet, P.fine, P.onboarded]);
+  if(RULES_MEMO && RULES_MEMO.key===key) return RULES_MEMO.rules;
+  const r = getFoodRules(P, FOODS);
+  const rules = {never:new Set(r.neverIds), avoid:new Set(r.avoidIds), free:new Set(r.freeIds), introduce:new Set(r.introduceIds), introAllergens:new Set(r.introduceAllergenIds), raw:r};
+  RULES_MEMO = {key, rules};
+  return rules;
+}
+/* a pool food's manifest id ("Egg, well cooked" → egg) */
+const poolId = food=>{ const f = foodOf(food.name); return f ? f.id : null; };
+/* the sort as it stood before there was one: allergens (avoid → Keep out, ok → Tried already), the family's own keep-outs
+   and not-a-fans as custom entries, the Meat and Gluten diets as custom Keep outs, "Tried, all fine" as Tried already.
+   An onboarded family already answered the allergens: the rest of the big ones are Untouched. */
+function legacyFoodSort(P){
+  const s = freshFoodSort();
+  Object.entries(P.allergens || {}).forEach(([a, v])=>{ if(SORT_CONFIG.bigFoods.includes(a) && (v==="avoid" || v==="ok")) s.placement[a] = v==="avoid" ? "keepOut" : "tried"; });
+  (Array.isArray(P.avoid) ? P.avoid : []).forEach(x=>{
+    if(!x || !x.name) return;
+    s.custom.push({id:"c:" + sortKey(x.name), label:x.name, place:x.kind==="allergy" ? "keepOut" : "notFan", matchedFoodIds:matchFood(x.name, FOODS)});
+  });
+  DIETS.forEach(g=>{
+    if((P.diet || {})[g.id]!=="avoid") return;
+    const ids = FOODS.filter(f=>f.group!=="other" && [f.label, ...f.aliases].some(n=>g.words.some(w=>hasWord(n, w)))).map(f=>f.id);
+    s.custom.push({id:"c:" + g.id, label:g.label, place:"keepOut", matchedFoodIds:ids});
+  });
+  (Array.isArray(P.fine) ? P.fine : []).forEach(x=>x && matchFood(x.name, FOODS).forEach(id=>{ if(!s.placement[id]) s.placement[id] = "tried"; }));
+  if(P.onboarded){ SORT_CONFIG.bigFoods.forEach(a=>{ if(!s.placement[a]) s.placement[a] = "untouched"; }); s.firstPileComplete = true; }
+  return s;
+}
+/* Kept out is strict: the food never appears. A manifest food answers from the rules; any other name (typed by hand)
+   is kept out when it carries a kept-out allergen or holds a custom Keep out's words. */
 function allergyMatch(name, profile){
-  if(dietOut(profile).some(g=>g.words.some(w=>hasWord(name, w)))) return true;
-  const own = allergensOf(name);
-  if(own.some(a=>(profile.allergens||{})[a]==="avoid")) return true;
-  return (profile.avoid||[]).some(x=>x.kind==="allergy" && (
-    hasWord(name, x.name) || ALLERGENS.some(a=>a.words.some(w=>hasWord(x.name, w)) && own.includes(a.id))));
+  const f = foodOf(name), R = foodRules(profile);
+  if(f && f.group!=="other") return R.never.has(f.id);
+  if(ALLERGENS.some(a=>R.never.has(a.id) && a.words.some(w=>hasWord(name, w)))) return true;
+  return sortOf(profile).custom.some(c=>c.place==="keepOut" && hasWord(name, c.label));
 }
-/* Dislike is soft: it just comes up less often. */
+/* Not a fan is soft: only when nothing else fits */
 function dislikeMatch(name, profile){
-  return (profile.avoid||[]).some(x=>x.kind==="dislike" && hasWord(name, x.name));
+  const f = foodOf(name), R = foodRules(profile);
+  if(f && f.group!=="other") return R.avoid.has(f.id);
+  return sortOf(profile).custom.some(c=>c.place==="notFan" && hasWord(name, c.label));
 }
-/* the single gate every food passes: the generator, swaps, hand-added */
+/* new to them, for the plan: Untouched (sorted there, or never sorted) and not offered yet. One per meal. */
+function isNewForPlan(food, profile, known, rules){
+  const id = poolId(food);
+  if(!id || !(rules || foodRules(profile)).introduce.has(id)) return false;
+  return !(known || knownFoods()).has(foodKey(baseName(food)));
+}
+/* the single gate every food passes: the generator, swaps, hand-added. Untouched allergens wait for 6 months. */
 function isAllowed(food, months, profile){
   if(food.min > months || (food.max && food.max < months)) return false;
   if(lockedRule(food.name, months)) return false;
-  return !allergyMatch(food.name, profile);
+  const f = foodOf(food.name), R = foodRules(profile);
+  if(!f) return !allergyMatch(food.name, profile);
+  if(R.never.has(f.id)) return false;
+  return !(months < SORT_CONFIG.ALLERGENS_FROM_MONTHS && f.contains.some(a=>R.introAllergens.has(a)));
+}
+/* a big one's place, from Profile ("Tried, all fine" / "Not yet"): the sort once there is one, else the old record */
+function setBigPlace(P, id, place){
+  if(P.foodSort){
+    if(place) P.foodSort.placement[id] = place; else delete P.foodSort.placement[id];
+    syncLegacyFromSort(P);
+  }else if(place==="tried") P.allergens[id] = "ok";
+  else if(place==="keepOut") P.allergens[id] = "avoid";
+  else delete P.allergens[id];
+}
+/* The rest of the app (Profile's Off the plate, Home's allergen firsts, the snapshot link) still reads the old fields;
+   once there's a sort they are only its mirror, written here after every change. */
+function syncLegacyFromSort(P){
+  const s = P.foodSort;
+  if(!s) return;
+  P.allergens = {};
+  SORT_CONFIG.bigFoods.forEach(a=>{ const p = s.placement[a]; if(p==="keepOut") P.allergens[a] = "avoid"; else if(p==="tried" || p==="notFan") P.allergens[a] = "ok"; });
+  P.avoid = s.custom.map(c=>({name:c.label, kind:c.place==="keepOut" ? "allergy" : "dislike"}));
+  Object.entries(s.placement).forEach(([id, p])=>{
+    const f = FOOD_BY_ID[id];
+    if(f && !SORT_CONFIG.bigFoods.includes(id) && (p==="keepOut" || p==="notFan")) P.avoid.push({name:f.label, kind:p==="keepOut" ? "allergy" : "dislike"});
+  });
+  P.diet = {};
 }
 
 /* ---------- priorities: what matters most right now ---------- */
@@ -1883,7 +1947,6 @@ function weightFor(f, ctx, day){
   let w = 1;
   // strong enough to see in a week: each meal only draws from its own food
   // groups and repeats are penalised, which dilutes any single weight
-  if(dislikeMatch(f.name, ctx.profile)) w *= .3;
   if(P.has("iron") && f.iron) w *= 4;
   if(P.has("colours") && m.colour && !day.colours.has(m.colour)) w *= 2.5;
   if(P.has("quick")) w *= m.quick ? 2.5 : .35;
@@ -1901,8 +1964,11 @@ function weightFor(f, ctx, day){
 }
 function makeDealer(foods, ctx){
   const uses = {};
-  return function deal(cat, slot, day){
-    const fits = foods.filter(f=>f.cats[0]===cat && f.slots.includes(slot));
+  return function deal(cat, slot, day, plate){
+    let fits = foods.filter(f=>f.cats[0]===cat && f.slots.includes(slot));
+    const liked = fits.filter(f=>!ctx.R.avoid.has(poolId(f)));   // Not a fan: only when the slot has nothing else
+    if(liked.length) fits = liked;
+    if(plate && plate.newCount >= SORT_CONFIG.NEW_FOODS_PER_MEAL) fits = fits.filter(f=>!ctx.isNew(f));   // one new food a meal
     const cands = fits.filter(f=>!day.taken.has(f.name));
     const pool = cands.length ? cands : fits;
     if(!pool.length) return null;
@@ -1912,6 +1978,7 @@ function makeDealer(foods, ctx){
     const f = pool[k];
     uses[f.name] = (uses[f.name] || 0) + 1;
     day.taken.add(f.name);
+    if(plate && ctx.isNew(f)) plate.newCount++;
     const m = metaOf(f.name);
     if(m.colour) day.colours.add(m.colour);
     const fk = foodKey(f.name.split(",")[0]);
@@ -1927,10 +1994,12 @@ function dish(food, st){ return it(food.name, portionFor(food, st), food.cats, t
 
 /* Near-family weeks keep three familiar grains (one for breakfast, two for
    lunch and dinner) so each plate has a staple next to anything new. */
-function withStaples(foods){
+function withStaples(foods, R){
   const grains = foods.filter(f=>f.cats[0]==="grain");
-  const bfast = shuffled(grains.filter(f=>f.slots.includes("breakfast"))).slice(0,1);
-  const main = shuffled(grains.filter(f=>!bfast.includes(f) && (f.slots.includes("lunch") || f.slots.includes("dinner")))).slice(0,2);
+  // Not a fan stays a last resort here too: the staples come from what they like, when there's enough
+  const first = a=>R ? a.filter(f=>!R.avoid.has(poolId(f))).concat(a.filter(f=>R.avoid.has(poolId(f)))) : a;
+  const bfast = first(shuffled(grains.filter(f=>f.slots.includes("breakfast")))).slice(0,1);
+  const main = first(shuffled(grains.filter(f=>!bfast.includes(f) && (f.slots.includes("lunch") || f.slots.includes("dinner"))))).slice(0,2);
   const keep = new Set(bfast.concat(main));
   return foods.filter(f=>f.cats[0]!=="grain" || keep.has(f));
 }
@@ -1942,7 +2011,8 @@ function planContext(months, profile){
   const known = knownFoods();
   const priorities = new Set(profile.priorities || []);
   if((profile.cookDays || 7) <= 4) priorities.add("batch");   // fewer cooking days: dishes that keep
-  return {st, profile, priorities, atHome, known, newSeen:new Set(),
+  const R = foodRules(profile);
+  return {st, profile, priorities, atHome, known, newSeen:new Set(), R, isNew:f=>isNewForPlan(f, profile, known, R),
           newLimit:known.size ? newFoodsFor(profile, st) : null,   // a first week is all new
           finger:["textures","family","nearfamily"].includes(st.id)};
 }
@@ -1956,16 +2026,16 @@ function generateWeek(months, profile, opts){
   const st = ctx.st;
   if(!st.solids) return null;
   let foods = eligibleFoods(months, profile);
-  if(st.picky) foods = withStaples(foods);
+  if(st.picky) foods = withStaples(foods, ctx.R);
   const deal = makeDealer(foods, ctx);
   const slots = MEAL_SLOTS.filter(ms=>mealSlotsFor(months, profile).includes(ms.id));   // the family's meals (their snacks)
 
   const days = DAY_ORDER.slice(1).concat(DAY_ORDER[0]).map(name=>{   // Monday..Sunday
     const day = {taken:new Set(), colours:new Set(), newCount:0};
     const meals = slots.map(ms=>{
-      const items = [];
+      const items = [], plate = {newCount:0};
       (st.perMeal ? ms.cats.slice(0, st.perMeal) : ms.cats).forEach(cat=>{
-        const food = deal(cat, ms.slot, day);
+        const food = deal(cat, ms.slot, day, plate);
         if(food) items.push(dish(food, st));
       });
       return meal(ms.label, ms.icon, items, ms.id);
@@ -1974,9 +2044,10 @@ function generateWeek(months, profile, opts){
   });
 
   const week = {days};
-  ensureIron(week, foods, st);
+  ensureIron(week, foods, st, ctx);
   const startIdx = Math.max(0, days.findIndex(d=>d.name===DAY_ORDER[startDay]));
-  scheduleAllergens(week, foods, st, profile, startIdx);
+  scheduleAllergens(week, foods, st, profile, startIdx, ctx);
+  fillMeals(week, foods, st, ctx, introducedAllergens(profile));
   cookOn(week, profile.cookDays || 7, startIdx);
   // after scheduling, so the repeat is the same dish (a first allergen on Monday is no longer first on Wednesday)
   // batch-cook: Monday's and Thursday's dinners come round again two days later
@@ -1998,11 +2069,11 @@ function generateWeek(months, profile, opts){
 /* First tastes of the common allergens come one at a time: at most one new
    allergen a day, ALLERGEN_SPACING_DAYS apart, counted from the plan's first
    day (today). A food bringing a second new allergen too soon is swapped for
-   one from its group that brings none. Introduced = offered before, or marked
-   "tried and loved" in onboarding. (Spacing: check with a pediatric source.) */
+   one from its group that brings none. Introduced = offered before, or any big
+   one the sort didn't leave Untouched. (Spacing: check with a pediatric source.) */
 const ALLERGEN_SPACING_DAYS = SORT_CONFIG.ALLERGEN_SPACING_DAYS;
 function introducedAllergens(profile){
-  const done = new Set(Object.entries(profile.allergens || {}).filter(([,v])=>v==="ok").map(([k])=>k));
+  const R = foodRules(profile), done = new Set(SORT_CONFIG.bigFoods.filter(a=>!R.introAllergens.has(a)));
   knownFoods().forEach(k=>allergensOf(upper1(k)).forEach(a=>done.add(a)));
   return done;
 }
@@ -2027,8 +2098,9 @@ function cookOn(week, n, startIdx){
   }
 }
 function newAllergens(name, known){ return allergensOf(name).filter(a=>!known.has(a)); }
-function scheduleAllergens(week, foods, st, profile, startIdx){
+function scheduleAllergens(week, foods, st, profile, startIdx, ctx){
   const known = introducedAllergens(profile), first = {};   // allergen → day position it first appears
+  const R = foodRules(profile), isNew = ctx ? ctx.isNew : f=>isNewForPlan(f, profile);
   const start = startIdx!==undefined ? startIdx : Math.max(0, week.days.findIndex(d=>d.name===DAY_ORDER[now().getDay()]));
   let lastNew = -Infinity;
   for(let pos = 0; pos < week.days.length; pos++){
@@ -2044,8 +2116,12 @@ function scheduleAllergens(week, foods, st, profile, startIdx){
           continue;
         }
         const slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || "lunch";
-        const alt = foods.find(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !m.items.some(i=>i.name===f.name)
-                                 && newAllergens(f.name, known).filter(a=>!(a in first)).length===0);
+        // the swap keeps the meal's rules: nothing new if another food in it is new, Not a fan only when nothing else fits
+        const otherNew = m.items.some((i, j)=>j!==k && isNew(i));
+        const alts = foods.filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !m.items.some(i=>i.name===f.name)
+                                 && newAllergens(f.name, known).filter(a=>!(a in first)).length===0 && !(otherNew && isNew(f)));
+        const liked = foods.some(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !R.avoid.has(poolId(f)));
+        const alt = alts.find(f=>!R.avoid.has(poolId(f))) || (liked ? null : alts[0]);
         if(alt) m.items[k] = dish(alt, st);
         else { m.items.splice(k, 1); k--; }
       }
@@ -2054,11 +2130,35 @@ function scheduleAllergens(week, foods, st, profile, startIdx){
   return first;
 }
 
+/* A meal the allergen spacing emptied or left short gets its missing groups back, from foods that bring no first
+   allergen at all, keeping one new food a meal and Not a fan as the last resort (an empty meal isn't shown). */
+function fillMeals(week, foods, st, ctx, known){
+  week.days.forEach(day=>day.meals.forEach(m=>{
+    const ms = MEAL_SLOTS.find(x=>x.id===m.slot);
+    if(!ms) return;
+    const cats = st.perMeal ? ms.cats.slice(0, st.perMeal) : ms.cats;
+    cats.forEach((cat, ci)=>{
+      if(m.items.some(i=>i.cats[0]===cat)) return;
+      const hasNew = m.items.some(i=>ctx.isNew(i));
+      const fits = foods.filter(f=>f.cats[0]===cat && f.slots.includes(ms.slot) && !m.items.some(i=>i.name===f.name)
+                                && newAllergens(f.name, known).length===0 && !(hasNew && ctx.isNew(f)));
+      const liked = fits.filter(f=>!ctx.R.avoid.has(poolId(f)));
+      const anyLiked = foods.some(f=>f.cats[0]===cat && f.slots.includes(ms.slot) && !ctx.R.avoid.has(poolId(f)));
+      const from = liked.length ? liked : anyLiked ? [] : fits;
+      if(!from.length) return;
+      const pick = from[Math.floor(Math.random() * from.length)];
+      const at = m.items.findIndex(i=>cats.indexOf(i.cats[0]) > ci);
+      m.items.splice(at < 0 ? m.items.length : at, 0, dish(pick, st));
+    });
+  }));
+}
+
 /* Babies and toddlers need iron daily, so guarantee at least one iron-rich
    item per day by swapping the lunch protein where a day comes up short. */
-function ensureIron(week, foods, st){
+function ensureIron(week, foods, st, ctx){
   const ironNames = new Set(foods.filter(f=>f.iron).map(f=>f.name));
-  const ironLunch = foods.filter(f=>f.iron && f.slots.includes("lunch") && f.cats[0]==="protein");
+  let ironLunch = foods.filter(f=>f.iron && f.slots.includes("lunch") && f.cats[0]==="protein");
+  if(ctx){ const liked = ironLunch.filter(f=>!ctx.R.avoid.has(poolId(f))); if(liked.length) ironLunch = liked; }
   if(ironLunch.length===0) return;
   week.days.forEach(day=>{
     const has = day.meals.some(m=>m.items.some(i=>ironNames.has(i.name)));
@@ -2066,7 +2166,11 @@ function ensureIron(week, foods, st){
     const lunch = day.meals.find(m=>m.label==="Lunch");
     if(!lunch) return;
     const slot = lunch.items.findIndex(i=>i.cats[0]==="protein");
-    const pick = ironLunch[Math.floor(Math.random()*ironLunch.length)];
+    // the swap keeps one new food a meal
+    const otherNew = ctx && lunch.items.some((i, j)=>j!==slot && ctx.isNew(i));
+    const fits = otherNew ? ironLunch.filter(f=>!ctx.isNew(f)) : ironLunch;
+    if(!fits.length) return;
+    const pick = fits[Math.floor(Math.random()*fits.length)];
     const item = dish(pick, st);
     if(slot>=0) lunch.items[slot] = item; else lunch.items.unshift(item);
   });

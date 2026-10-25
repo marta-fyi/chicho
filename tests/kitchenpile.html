@@ -15,7 +15,7 @@ localStorage.clear(); sessionStorage.clear();
 const frame = (W, H, setup) => new Promise(res => {
   const f = document.createElement("iframe");
   f.width = W; f.height = H; f.src = "../index.html?test&theme=light&seed=7&now=2026-10-22T09:15";
-  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18)}); state.plans = []; state.pantry = []; save(); ${setup}`); await wait(500); res(f); };
+  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(18), foodSort: Object.assign(freshFoodSort(), {placement: Object.fromEntries(FOODS.map(f => [f.id, "tried"])), firstPileComplete: true})}); state.plans = []; state.pantry = []; save(); ${setup}`); await wait(500); res(f); };
   document.body.append(f);
 });
 const geometry = f => {

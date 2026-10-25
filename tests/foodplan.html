@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · sort the food: the generator</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}</style></head>
+<body>
+<h1>Sort the food: the generator</h1>
+<p>200 generated weeks per stage, each with a random sort (seeded): no food from neverIds ever appears; a Not a fan food only where its slot had nothing else; never more than one new food in a meal; never two different untouched allergens within ALLERGEN_SPACING_DAYS; untouched allergens never planned before 6 months. Then the old profile fields (read through legacyFoodSort) and the mirror the rest of the app reads. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got).slice(0, 600)));
+localStorage.clear(); sessionStorage.clear();
+const f = document.createElement("iframe");
+f.src = "../index.html?test&now=2026-10-26T09:00";
+f.style.cssText = "width:390px;height:400px;border:1px solid #ccc";
+document.body.append(f);
+f.onload = async () => {
+  try {
+    const w = f.contentWindow, E = x => w.eval(x);
+    // the whole check runs inside the page: seeded Math.random, a random sort per week, every rule on every meal
+    E(`window.__plan = function(months, n, seed){
+      const rnd = mulberry32(seed), real = Math.random; Math.random = rnd;
+      const C = SORT_CONFIG, places = SORT_PLACES, pick = a => a[Math.floor(rnd() * a.length)];
+      const bad = {never: [], avoid: [], perMeal: [], spacing: [], early: [], weeks: 0, items: 0, avoidSeen: 0, newSeen: 0, allergenFirsts: 0};
+      try {
+        for (let k = 0; k < n; k++) {
+          const fs = freshFoodSort();
+          C.bigFoods.forEach(a => { fs.placement[a] = pick(places); });
+          FOODS.forEach(fd => { if (!C.bigFoods.includes(fd.id) && fd.group !== "other" && rnd() < .45) fs.placement[fd.id] = pick(places); });
+          if (rnd() < .2) fs.custom.push({id: "c:x", label: "kiwi", place: pick(["keepOut", "notFan"]), matchedFoodIds: ["kiwi"]});
+          fs.firstPileComplete = true;
+          const P = Object.assign(freshProfile(), {name: "Lula", birthDate: birthDateFromMonths(months), foodSort: fs, onboarded: true});
+          state.offers = [];
+          const R = foodRules(P), week = generateWeek(months, P, {start: now()});
+          if (!week) continue;
+          bad.weeks++;
+          const foods = eligibleFoods(months, P), known = knownFoods();
+          const startIdx = Math.max(0, week.days.findIndex(d => d.name === DAY_ORDER[now().getDay()]));
+          const firsts = {};
+          for (let pos = 0; pos < 7; pos++) {
+            const day = week.days[(startIdx + pos) % 7];
+            day.meals.forEach(m => {
+              const slot = (MEAL_SLOTS.find(x => x.id === m.slot) || {}).slot;
+              let fresh = 0;
+              m.items.forEach(it => {
+                bad.items++;
+                const id = poolId(it), fd = FOOD_BY_ID[id];
+                if (R.never.has(id)) bad.never.push([k, it.name]);
+                if (R.avoid.has(id)) {
+                  bad.avoidSeen++;
+                  const other = foods.filter(x => x.cats[0] === it.cats[0] && x.slots.includes(slot) && !R.avoid.has(poolId(x)));
+                  if (other.length) bad.avoid.push([k, it.name, m.slot, other.map(x => x.name).slice(0, 3)]);
+                }
+                if (isNewForPlan(it, P, known, R)) { fresh++; bad.newSeen++; }
+                fd.contains.filter(a => R.introAllergens.has(a)).forEach(a => { if (!(a in firsts)) firsts[a] = pos; });
+              });
+              if (fresh > C.NEW_FOODS_PER_MEAL) bad.perMeal.push([k, m.slot, m.items.map(i => i.name)]);
+            });
+          }
+          const ps = Object.entries(firsts);
+          bad.allergenFirsts += ps.length;
+          ps.forEach(([a, p], i) => ps.slice(i + 1).forEach(([b, q]) => { if (Math.abs(p - q) < C.ALLERGEN_SPACING_DAYS) bad.spacing.push([k, a, p, b, q]); }));
+        }
+        // before 6 months: no week, and no untouched allergen gets through the gate
+        for (let k = 0; k < 20; k++) {
+          const fs = freshFoodSort(); C.bigFoods.forEach(a => { fs.placement[a] = pick(["untouched", "tried"]); });
+          const P = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(4), foodSort: fs});
+          if (generateWeek(4, P)) bad.early.push("a week at 4 months");
+          const R = foodRules(P);
+          FOOD_POOL.forEach(fd => { if (isAllowed(Object.assign({}, fd, {min: 0}), 5, P) && foodOf(fd.name).contains.some(a => R.introAllergens.has(a))) bad.early.push(fd.name); });
+        }
+      } finally { Math.random = real; }
+      return bad;
+    }`);
+    for (const [months, stage] of [[7, "first tastes"], [10, "textures"], [18, "family"], [30, "near-family"]]) {
+      const b = E(`__plan(${months}, 200, ${months * 7919})`);
+      ok(`${stage} (${months} months): 200 weeks generated (${b.items} items)`, b.weeks === 200 && b.items > 200 * 7, [b.weeks, b.items]);
+      ok(`${stage}: no food from neverIds ever appears`, b.never.length === 0, b.never.slice(0, 5));
+      ok(`${stage}: a Not a fan food only where its slot had nothing else (seen ${b.avoidSeen})`, b.avoid.length === 0, b.avoid.slice(0, 5));
+      ok(`${stage}: never more than one new food in a meal (${b.newSeen} new)`, b.perMeal.length === 0 && b.newSeen > 0, b.perMeal.slice(0, 5));
+      ok(`${stage}: never two different untouched allergens within ${E("ALLERGEN_SPACING_DAYS")} days (${b.allergenFirsts} first times)`, b.spacing.length === 0 && b.allergenFirsts > 0, b.spacing.slice(0, 5));
+      ok(`${stage}: untouched allergens never planned before 6 months`, b.early.length === 0, b.early.slice(0, 5));
+    }
+
+    // Not a fan, when it's the only thing that fits: it does come (Not a fan is soft)
+    const soft = E(`(() => { const fs = freshFoodSort(); SORT_CONFIG.bigFoods.forEach(a => { fs.placement[a] = "tried"; });
+      FOOD_POOL.filter(p => p.cats[0] === "grain" && p.slots.includes("breakfast")).forEach(p => { fs.placement[poolId(p)] = "notFan"; });
+      FOODS.forEach(fd => { if (!fs.placement[fd.id] && fd.group !== "other") fs.placement[fd.id] = "tried"; });
+      const P = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(18), foodSort: fs}); state.offers = [];
+      const wk = generateWeek(18, P); return wk.days.map(d => d.meals.find(m => m.slot === "breakfast").items.filter(i => i.cats[0] === "grain").length).join(); })()`);
+    ok("Not a fan is soft: with every breakfast grain avoided, breakfast still has its grain", soft === "1,1,1,1,1,1,1", soft);
+    // everything tried: meals are whole again (the one-new-food rule has nothing to hold back)
+    const whole = E(`(() => { const fs = freshFoodSort(); FOODS.forEach(fd => { if (fd.group !== "other") fs.placement[fd.id] = "tried"; });
+      const P = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(18), foodSort: fs}); state.offers = [];
+      return generateWeek(18, P).days.every(d => d.meals.every(m => m.items.length >= 2)); })()`);
+    ok("everything Tried already: every meal is whole (two foods or more)", whole);
+
+    // the old fields, before there's a sort: they still keep things out
+    const legacy = E(`(() => { const P = Object.assign(freshProfile(), {birthDate: birthDateFromMonths(18), allergens: {egg: "avoid", milk: "ok"}, avoid: [{name: "Kiwi", kind: "allergy"}, {name: "Spinach", kind: "dislike"}], diet: {meat: "avoid"}, onboarded: true});
+      const R = foodRules(P); return {egg: R.never.has("egg") && R.never.has("meatballs"), milk: R.free.has("cheese"), kiwi: R.never.has("kiwi"), spinach: R.avoid.has("spinach"), meat: ["chicken","beef","turkey","meatballs"].every(id => R.never.has(id)), untouched: R.introAllergens.has("wheat") && !R.introAllergens.has("milk")}; })()`);
+    ok("before there's a sort, the old fields read through legacyFoodSort: egg out (and the meatballs), milk tried, kiwi out, spinach avoided, Meat out", Object.values(legacy).every(Boolean), legacy);
+    // the mirror: a sort writes the fields Profile, Home and the snapshot read
+    const mirror = E(`(() => { const P = freshProfile(); P.foodSort = Object.assign(freshFoodSort(), {placement: {egg: "keepOut", milk: "tried", soy: "notFan", carrot: "notFan", kiwi: "keepOut"}, custom: [{id: "c:mustard", label: "Mustard", place: "keepOut", matchedFoodIds: []}]});
+      syncLegacyFromSort(P); return {allergens: P.allergens, avoid: P.avoid}; })()`);
+    ok("the mirror: allergens egg avoid, milk ok, soy ok (not a fan = they've had it); the family's own and everyday keep-outs as names",
+       JSON.stringify(mirror.allergens) === JSON.stringify({egg: "avoid", milk: "ok", soy: "ok"}) && JSON.stringify(mirror.avoid) === JSON.stringify([{name: "Mustard", kind: "allergy"}, {name: "Carrots", kind: "dislike"}, {name: "Kiwi", kind: "allergy"}]), mirror);
+    ok("a typed name outside the manifest is kept out by a custom Keep out's words, and by a kept-out allergen's", E(`(() => { const P = freshProfile(); P.foodSort = Object.assign(freshFoodSort(), {placement: {egg: "keepOut"}, custom: [{id: "c:m", label: "Mustard", place: "keepOut", matchedFoodIds: []}]}); return allergyMatch("Honey mustard dip", P) && allergyMatch("Omelette", P) && !allergyMatch("Plain crackers", P); })()`));
+    ok("Profile's Tried: setBigPlace writes the sort, then the mirror", E(`(() => { const P = freshProfile(); P.foodSort = freshFoodSort(); setBigPlace(P, "wheat", "tried"); return P.foodSort.placement.wheat === "tried" && P.allergens.wheat === "ok"; })()`));
+  } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = out.some(l => l.startsWith("FAIL")) ? "FAILED" : "ALL PASS";
+};
+</script>
+</body></html>

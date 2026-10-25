@@ -949,8 +949,8 @@ function freshMeal(m, date, dayMeals){
   const others = new Set(dayMeals.filter(x=>x!==m).flatMap(x=>x.items.map(i=>i.name)));
   for(let k = 0; k < 16; k++){
     const day = {taken:new Set(others), colours:new Set(), newCount:0};
-    // once the meal has its one new food, the rest come from foods they've met
-    const isNew = f=>known.size > 0 && !known.has(foodKey(baseName(f)));
+    // once the meal has its one new food (Untouched, not offered yet), the rest come from foods they've met
+    const isNew = f=>isNewForPlan(f, P, known);
     const picks = [];
     cats.forEach(c=>{ const pool = picks.some(isNew) ? foods.filter(f=>!isNew(f)) : foods; const f = makeDealer(pool, ctx)(c, ms.slot, day); if(f) picks.push(f); });
     if(picks.length < cats.length) continue;
@@ -993,9 +993,9 @@ function setUndo(text, restore){
 function alternatives(m, k, n){
   const item = m.items[k], months = planMonths(), slot = (MEAL_SLOTS.find(x=>x.id===m.slot) || {}).slot || SLOT_OF[m.label] || "lunch";
   const taken = new Set(m.items.map(i=>i.name)), known = knownFoods();
-  const otherNew = known.size && m.items.some((i, j)=>j!==k && !known.has(foodIdOf(i)));
+  const otherNew = m.items.some((i, j)=>j!==k && isNewForPlan(i, state.profile, known));
   const pool = shufflePool().filter(f=>f.cats[0]===item.cats[0] && f.slots.includes(slot) && !taken.has(f.name) && isAllowed(f, months, state.profile)
-                                      && !(otherNew && !known.has(foodKey(baseName(f)))));
+                                      && !(otherNew && isNewForPlan(f, state.profile, known)));
   return shuffledFor(pool.filter(f=>hasArt(foodOf(f.name))), item.id).concat(shuffledFor(pool.filter(f=>!hasArt(foodOf(f.name))), item.id)).slice(0, n || 3);
 }
 /* the same order for the same key, so options don't jump between redraws */
@@ -1271,7 +1271,7 @@ function renderProfile(){
     if(rec.state==="notyet" || (rec.state==="introduced" && !rec.on)){
       const tried = rec.state==="notyet";
       const b = textBtn(say(tried ? "allergenNote.markTried" : "allergenNote.markNotYet"), ()=>{
-        if(tried) P.allergens[a.id] = "ok"; else delete P.allergens[a.id];
+        setBigPlace(P, a.id, tried ? "tried" : P.foodSort ? "untouched" : null);
         save(); haptic(); refresh("profile"); focusLater("tried:" + a.id);
       }, "small");
       b.dataset.f = "tried:" + a.id; b.setAttribute("aria-label", say(tried ? "allergenNote.markTriedFor" : "allergenNote.markNotYetFor", {allergen:a.label.split(" /")[0]}));
