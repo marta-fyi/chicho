@@ -440,7 +440,16 @@ function mountSortFood(o){
     tap(s);
   }
   function keyTap(s){ if(!ui.press) tap(s); }
-  function tap(s){ if(ui.onTap) ui.onTap(s); }
+  /* a tap toggles the shape's selection (a 3px ink ring at a 4px offset); Something else opens its sheet instead */
+  function tap(s){
+    if(s.id==="+else"){ if(ui.openCustom) ui.openCustom(); return; }
+    if(ui.selected.has(s.id)) ui.selected.delete(s.id); else ui.selected.add(s.id);
+    ui.touched = true;
+    if(ui.cancelWiggle) ui.cancelWiggle();
+    haptic();
+    paintSelection();
+  }
+  ui.tap = id=>{ const s = ui.shapes.get(id); if(s) tap(s); };
   /* the place under (cx, cy), or the nearest within SNAP_RADIUS */
   function placeAt(cx, cy){
     let best = null, bd = Infinity;
@@ -489,10 +498,10 @@ function mountSortFood(o){
 
   /* ---------- tapping a place: send the selection, or open its list ---------- */
   function tapPlace(place){
-    if(ui.selected.size){ place_([...ui.selected], place); return; }
+    if(ui.finishing) return;
+    if(ui.selected.size){ drop([...ui.selected].filter(id=>ui.shapes.has(id)), place); return; }   // the selection goes, 40 ms apart
     if(ui.openList) ui.openList(place);
   }
-  const place_ = (ids, to)=>place(ids, to);
   ui.tapPlace = tapPlace;
 
   /* ---------- Always off the plate at this age: the stage's locked foods, each with its reason ---------- */
