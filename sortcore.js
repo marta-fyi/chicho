@@ -250,3 +250,90 @@ function scoreSeed(items, field, seed){
   const score = (pass ? 1 : 0) + .3 * Math.min(1, Math.max(0, (ins - SORT_CONFIG.MIN_INSCRIBED) / 20)) + .3 * quality + .4 * balance - pack.overlap / 100;
   return {seed, score, pass, inscribed:ins, quality, balance, overlap:pack.overlap, tries:pack.tries};
 }
+
+/* ---------- the engine: rigid shapes on a table, no gravity, nothing moving until touched ----------
+   Each body has a position and a rotation; it collides as a circle of COLLISION_RADIUS of its radius (so outlines may
+   overlap a little where they touch), with mass in proportion to its area. A held body follows the finger and pushes
+   whatever it meets: the contact passes on velocity along the normal and, through friction at the contact point,
+   spin. Velocity halves every LINEAR_HALF_LIFE_MS (spin every ANGULAR_HALF_LIFE_MS), slow bodies stop rather than creep,
+   and a body stays where it stops. Fixed steps of DT; the world sleeps once everything has been still SLEEP_MS. */
+function sortWorld(W, H){ return {W, H, bodies:[], still:0, asleep:true, t:0}; }
+function sortBody(o){
+  const C = SORT_CONFIG, r = C.COLLISION_RADIUS * (o.w + o.h) / 4, m = o.w * o.h;
+  return {id:o.id, x:o.x, y:o.y, a:0, vx:0, vy:0, w:0, bw:o.w, bh:o.h, rot0:o.rot || 0, r, m, I:m * r * r / 2, held:false, flow:null};
+}
+const bodyDeg = b=>b.rot0 + b.a * 180 / Math.PI;
+function sortStep(world){
+  const C = SORT_CONFIG, dt = C.DT, B = world.bodies;
+  const kl = Math.pow(0.5, dt * 1000 / C.LINEAR_HALF_LIFE_MS), ka = Math.pow(0.5, dt * 1000 / C.ANGULAR_HALF_LIFE_MS);
+  world.t += dt * 1000;
+  B.forEach(b=>{
+    if(b.flow){   // gliding to a new packing position: not simulated
+      const k = Math.min(1, (world.t - b.flow.t0) / b.flow.ms), e = 1 - Math.pow(1 - k, 3);
+      b.x = b.flow.x0 + (b.flow.x1 - b.flow.x0) * e; b.y = b.flow.y0 + (b.flow.y1 - b.flow.y0) * e;
+      b.vx = b.vy = b.w = 0;
+      if(k >= 1) b.flow = null;
+      return;
+    }
+    if(b.held){   // the finger moves it: its velocity is what it moved
+      b.vx = (b.tx - b.x) / dt; b.vy = (b.ty - b.y) / dt; b.x = b.tx; b.y = b.ty; b.w = 0;
+      return;
+    }
+    b.vx *= kl; b.vy *= kl; b.w *= ka;
+    const sp = Math.hypot(b.vx, b.vy);
+    if(sp < C.REST_SPEED){ b.vx *= C.REST_DAMP; b.vy *= C.REST_DAMP; }
+    if(Math.abs(b.w) < C.REST_SPIN) b.w *= C.REST_DAMP;
+    if(sp > C.MAX_SPEED){ b.vx *= C.MAX_SPEED / sp; b.vy *= C.MAX_SPEED / sp; }
+    b.w = Math.max(-C.MAX_SPIN, Math.min(C.MAX_SPIN, b.w));
+    b.x += b.vx * dt; b.y += b.vy * dt; b.a += b.w * dt;
+  });
+  const free = b=>!b.held && !b.flow;
+  for(let pass = 0; pass < 2; pass++){
+    for(let i = 0; i < B.length; i++) for(let j = i + 1; j < B.length; j++){
+      const a = B[i], b = B[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      const min = a.r + b.r, d2 = dx * dx + dy * dy;
+      if(d2 >= min * min) continue;
+      const ia = free(a) ? 1 / a.m : 0, ib = free(b) ? 1 / b.m : 0;
+      if(!ia && !ib) continue;
+      let d = Math.sqrt(d2);
+      if(d < 1e-6){ dx = 1; dy = 0; d = 1; }
+      const nx = dx / d, ny = dy / d, over = min - d;
+      // apart, in proportion to the inverse masses (a held body doesn't give)
+      const push = over * .8 / (ia + ib);
+      a.x -= nx * push * ia; a.y -= ny * push * ia; b.x += nx * push * ib; b.y += ny * push * ib;
+      if(pass) continue;
+      // the contact: points on each circle facing the other
+      const iia = free(a) ? 1 / a.I : 0, iib = free(b) ? 1 / b.I : 0;
+      const vax = a.vx - a.w * ny * a.r, vay = a.vy + a.w * nx * a.r;     // ω × (r n), at a's contact point
+      const vbx = b.vx + b.w * ny * b.r, vby = b.vy - b.w * nx * b.r;     // ω × (−r n), at b's
+      const rvx = vbx - vax, rvy = vby - vay, vn = rvx * nx + rvy * ny;
+      if(vn >= 0) continue;
+      const jn = -(1 + C.RESTITUTION) * vn / (ia + ib);
+      a.vx -= jn * nx * ia; a.vy -= jn * ny * ia; b.vx += jn * nx * ib; b.vy += jn * ny * ib;
+      // friction along the tangent turns an off-centre push into spin
+      const tx = -ny, ty = nx, vt = rvx * tx + rvy * ty;
+      const kt = ia + ib + a.r * a.r * iia + b.r * b.r * iib;
+      let jt = -vt / kt;
+      jt = Math.max(-C.FRICTION * jn, Math.min(C.FRICTION * jn, jt));
+      a.vx -= jt * tx * ia; a.vy -= jt * ty * ia; b.vx += jt * tx * ib; b.vy += jt * ty * ib;
+      a.w -= a.r * jt * iia; b.w -= b.r * jt * iib;
+    }
+    // the table's edges: every free body stays inside, bouncing off with RESTITUTION
+    B.forEach(b=>{
+      if(!free(b)) return;
+      const h = rotHalf(b.bw, b.bh, bodyDeg(b));
+      if(b.x < h.x){ b.x = h.x; if(b.vx < 0) b.vx = -b.vx * C.RESTITUTION; }
+      if(b.x > world.W - h.x){ b.x = world.W - h.x; if(b.vx > 0) b.vx = -b.vx * C.RESTITUTION; }
+      if(b.y < h.y){ b.y = h.y; if(b.vy < 0) b.vy = -b.vy * C.RESTITUTION; }
+      if(b.y > world.H - h.y){ b.y = world.H - h.y; if(b.vy > 0) b.vy = -b.vy * C.RESTITUTION; }
+    });
+  }
+  const busy = B.some(b=>b.held || b.flow || Math.hypot(b.vx, b.vy) > C.SLEEP_SPEED || Math.abs(b.w) > C.SLEEP_SPIN);
+  world.still = busy ? 0 : world.still + dt * 1000;
+  if(!busy) B.forEach(b=>{ if(Math.hypot(b.vx, b.vy) < C.SLEEP_SPEED) b.vx = b.vy = 0; if(Math.abs(b.w) < C.SLEEP_SPIN) b.w = 0; });
+  world.asleep = world.still >= C.SLEEP_MS;
+  return world.asleep;
+}
+/* everything slower than the sleep thresholds (what "settled" means; sleep itself comes SLEEP_MS later) */
+const sortSettled = world=>world.bodies.every(b=>!b.held && !b.flow && Math.hypot(b.vx, b.vy) <= SORT_CONFIG.SLEEP_SPEED && Math.abs(b.w) <= SORT_CONFIG.SLEEP_SPIN);

@@ -258,9 +258,36 @@ function mountSortFood(o){
   }
   ui.shapeEl = shapeEl;
   function render(s){
-    s.el.style.transform = `translate3d(${(s.x - s.w / 2).toFixed(1)}px, ${(s.y - s.h / 2).toFixed(1)}px, 0) rotate(${(s.rot + (s.a || 0) * 180 / Math.PI).toFixed(2)}deg)`;
+    const b = s.body;
+    s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${bodyDeg(b).toFixed(2)}deg)`;
   }
   ui.render = render;
+  const paintBodies = ()=>ui.shapes.forEach(render);
+  ui.paintBodies = paintBodies;
+
+  /* ---------- the engine's loop: a fixed DT with an accumulator, and no rAF at all while it sleeps or the tab is
+     hidden. ui.frames counts rAF callbacks (the tests check it stops). Woken by a touch, a sort, a resize, a new pile. */
+  const world = sortWorld(0, 0);
+  ui.world = world; ui.frames = 0;
+  let raf = 0, last = 0, acc = 0;
+  function frame(t){
+    raf = 0; ui.frames++;
+    if(document.hidden || ui.gone) return;
+    const dt = Math.min(.1, (t - (last || t)) / 1000); last = t; acc += dt;
+    let asleep = false;
+    while(acc >= C.DT){ acc -= C.DT; asleep = sortStep(world); if(asleep) break; }
+    paintBodies();
+    if(ui.onFrame) ui.onFrame();
+    if(asleep){ last = 0; acc = 0; return; }
+    raf = requestAnimationFrame(frame);
+  }
+  ui.wake = ()=>{ world.still = 0; world.asleep = false; if(raf || ui.gone || document.hidden) return; last = 0; acc = 0; raf = requestAnimationFrame(frame); };
+  ui.stopEngine = ()=>{ if(raf) cancelAnimationFrame(raf); raf = 0; document.removeEventListener("visibilitychange", onVis); if(ui.ro) ui.ro.disconnect(); };
+  ui.running = ()=>!!raf;
+  /* the tests: n steps at once (or until asleep) */
+  ui.step = n=>{ for(let k = 0; k < n; k++) if(sortStep(world)) break; paintBodies(); return world.asleep; };
+  const onVis = ()=>{ if(document.hidden){ if(raf) cancelAnimationFrame(raf); raf = 0; } else if(!world.asleep) ui.wake(); };
+  document.addEventListener("visibilitychange", onVis);
   function pileItems(){
     const ids = pileIds().map(id=>({id, label:sfLabel(id)}));
     if(ui.view==="everyday") ids.push({id:"+else", label:sfSay("somethingElse")});
@@ -275,13 +302,17 @@ function mountSortFood(o){
     const seed = (S.shapeSeed + (ui.view==="everyday" ? 7919 * (C.groups.findIndex(g=>g[0]===ui.tab) + 1) : 0)) >>> 0;
     const pile = pileFor(items, {w:fs.w, h:fs.h}, seed);
     ui.pack = pile.pack;
+    world.W = fs.w; world.H = fs.h; world.bodies = [];
     pile.items.forEach((it, k)=>{
       const b = pile.pack.bodies[k], el = shapeEl(it.id, it.shape, b.d);
-      const s = {id:it.id, el, shape:it.shape, x:b.x, y:b.y, w:b.w, h:b.h, d:b.d, rot:b.rot, a:0};
+      const body = sortBody({id:it.id, x:b.x, y:b.y, w:b.w, h:b.h, rot:b.rot});
+      const s = {id:it.id, el, shape:it.shape, w:b.w, h:b.h, d:b.d, body};
+      world.bodies.push(body);
       ui.shapes.set(it.id, s);
       field.appendChild(el);
       render(s);
     });
+    world.still = 0; world.asleep = true;   // composed and still: nothing moves until it's touched
     paintEmpty();
     paintSelection();
     if(ui.onPile) ui.onPile();
@@ -299,7 +330,7 @@ function mountSortFood(o){
     const want = new Set(pileItems().map(x=>x.id));
     let missing = false;
     want.forEach(id=>{ if(!ui.shapes.has(id)) missing = true; });
-    ui.shapes.forEach((s, id)=>{ if(!want.has(id)){ s.el.remove(); ui.shapes.delete(id); } });
+    ui.shapes.forEach((s, id)=>{ if(!want.has(id)){ s.el.remove(); ui.shapes.delete(id); world.bodies = world.bodies.filter(b=>b!==s.body); } });
     if(missing) buildPile();
     paintEmpty();
   }
@@ -338,7 +369,16 @@ function mountSortFood(o){
   if(bigDone() && S.firstPileComplete && everyday.length) ui.view = "everyday";
   else if(bigDone() && S.firstPileComplete) ui.view = "none";
   paintPlaces(); paintProgress(); paintPileHead(); paintStatus();
-  requestAnimationFrame(()=>{ if(ui.gone) return; sortLayout(ui); buildPile(); paintPlaces(); if(ui.onMount) ui.onMount(); });
+  requestAnimationFrame(()=>{
+    if(ui.gone) return;
+    sortLayout(ui); buildPile(); paintPlaces();
+    // a new size (a rotation, the keyboard, a font arriving): the pile is packed again for it
+    let was = ui.fieldSize();
+    ui.ro = new ResizeObserver(()=>{ const n = ui.fieldSize(); if(Math.abs(n.w - was.w) > 1 || Math.abs(n.h - was.h) > 1){ was = n; buildPile(); ui.wake(); } });
+    ui.ro.observe(field);
+    if(ui.onMount) ui.onMount();
+    if(/[?&]tune=1\b/.test(location.search) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) sortTuneLoad(ui);
+  });
   return ui;
 }
 
@@ -360,4 +400,13 @@ function sortLayout(ui){
   const cr = card.getBoundingClientRect();
   field.style.marginLeft = (SORT_CONFIG.EDGE_INSET - cr.left).toFixed(1) + "px";
   field.style.marginRight = (SORT_CONFIG.EDGE_INSET - (innerWidth - cr.right)).toFixed(1) + "px";
+}
+
+/* the dev tuning panel (?tune=1, on localhost only): sorttune.js is never part of the app's shell and never loads in
+   production */
+function sortTuneLoad(ui){
+  if(typeof sortTune==="function"){ sortTune(ui); return; }
+  const sc = document.createElement("script");
+  sc.src = "tools/sorttune.js"; sc.onload = ()=>sortTune(ui);
+  document.head.appendChild(sc);
 }

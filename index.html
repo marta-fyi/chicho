@@ -464,6 +464,11 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .sf-shape.is-held{box-shadow:0 0 0 2px var(--bg);z-index:5;}
   .sf-shape:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
   .sf-sheet .sh-in{align-items:stretch;text-align:left;}
+  /* the dev tuning panel (tools/sorttune.js, ?tune=1 on localhost only) */
+  .sf-tune{position:fixed;left:8px;right:8px;top:8px;z-index:200;max-height:45vh;overflow:auto;padding:8px 12px;border-radius:14px;background:var(--sheet);color:var(--ink);font-size:11px;box-shadow:var(--shadow-sheet);}
+  .sf-tune-h{margin:0 0 4px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);}
+  .sf-tune-r{display:grid;grid-template-columns:1fr 1.2fr 44px;align-items:center;gap:6px;min-height:28px;}
+  .sf-tune-v{text-align:right;}
   /* Reveal and Done: one layout. The header zone holds the statements during the reveal, the header after it;
      the day bar sticks under the top bar; each day's header sticks under the day bar */
   .onb-card.wk-step{align-items:stretch;text-align:left;padding-top:0;}
