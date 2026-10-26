@@ -74,7 +74,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     ok("the week is made at Reveal, from the chosen meals: four a day, all seven days", E("onb.draft.days.every(d => d.meals.length === 4 && d.meals.map(m => m.slot).join() === 'breakfast,lunch,snack2,dinner')"));
     ok("Reveal: 'Four meals a day, seven days.'", statements()[2] === "Four meals a day, seven days.", statements());
     $(".wk-skip").click(); await wait(100);
-    ok("Done: four rows a day; lunch says the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 4) && $$(".wk-day")[0].querySelectorAll(".wk-meal")[1].querySelector(".wk-mt").textContent === "around " + E("clockTime(new Date(2026, 9, 22, 12, 0))"));
+    ok("Done: four rows a day; lunch says the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 4) && $$(".wk-day")[0].querySelectorAll(".wk-meal")[1].querySelector(".wk-mt").textContent === E("clockTime(new Date(2026, 9, 22, 12, 0))"));
     back().click(); await wait(600);
     ok("Back from Done: the kitchen", step() === "athome");
     back().click(); await wait(600);
@@ -129,7 +129,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     axisDrag("dinner", 30);
     next().click(); await wait(600); next().click(); await wait(1400);
     ok("…'custom'; exactly three meals a day for all seven days", E("state.profile.mealTimesSource") === "custom" && E("onb.draft.days.length === 7 && onb.draft.days.every(d => d.meals.length === 3 && d.meals.map(m => m.slot).join() === 'breakfast,lunch,dinner')"));
-    ok("…Done shows three rows a day, dinner at the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 3) && $$(".wk-day")[1].querySelectorAll(".wk-meal")[2].querySelector(".wk-mt").textContent === "around " + E("clockTime(new Date(2026, 9, 23, 19, 30))"));
+    ok("…Done shows three rows a day, dinner at the chosen time", $$(".wk-day").every(r => r.querySelectorAll(".wk-meal").length === 3) && $$(".wk-day")[1].querySelectorAll(".wk-meal")[2].querySelector(".wk-mt").textContent === E("clockTime(new Date(2026, 9, 23, 19, 30))"));
     ok("…and the plan's times are the chosen ones", E("mealTime('dinner', now())") === "19:30" && E("mealTime('lunch', now())") === "12:30");
     f.remove();
 

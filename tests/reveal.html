@@ -63,7 +63,11 @@ const lines = d => [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textCont
     ok("'Lula's week.' · 'Seven days. A seat at the family table.' · 'Starts today'", d.getElementById("onbTitle").textContent === "Lula's week." && d.querySelector(".wk-support").textContent === "Seven days. A seat at the family table." && d.querySelector(".wk-cap").textContent === "Starts today");
     const days = [...d.querySelectorAll(".wk-day")];
     ok("one section a day from today, 'Today' then 'Tomorrow'", days.length === 7 && days[0].querySelector(".wk-dn").textContent === E("DAY_SHORT.format(now()) + ' ' + DAY_NUM.format(now())") && days[0].querySelector(".wk-rel").textContent === "Today" && days[1].querySelector(".wk-rel").textContent === "Tomorrow");
-    ok("five meals a day at 18 months, each with 'around' its time", days.every(s => s.querySelectorAll(".wk-meal").length === 5) && /^around 8:00$|^around 08:00$/.test(days[0].querySelector(".wk-mt").textContent), days[0].querySelector(".wk-mt").textContent);
+    ok("five meals a day at 18 months, each with its time", days.every(s => s.querySelectorAll(".wk-meal").length === 5) && /^0?8:00$/.test(days[0].querySelector(".wk-mt").textContent), days[0].querySelector(".wk-mt").textContent);
+    { const c = d.getElementById("onbCard"), on = d.querySelector(".wk-j.on span"), cs = w.getComputedStyle(on);
+      ok("the week never scrolls sideways: it fits the width and only pans down", c.scrollWidth <= c.clientWidth && w.getComputedStyle(c).overflowX === "hidden" && w.getComputedStyle(c).touchAction === "pan-y", [c.scrollWidth, c.clientWidth]);
+      ok("the day in view is bold, not underlined", +cs.fontWeight >= 700 && !cs.textDecorationLine.includes("underline"), [cs.fontWeight, cs.textDecorationLine]);
+      ok("'Do it again' beside 'Love it'", (d.querySelector(".wk-again") || {}).textContent === "Do it again"); }
     ok("rows are read-only (no buttons, no checkboxes)", !d.querySelector(".wk-days button, .wk-days input"));
     ok("the first day names its first allergen or new food", /^(First: |New: )/.test(days[0].querySelector(".wk-first").textContent));
     ok("the day headers and the day bar stick", getComputedStyle(d.querySelector(".wk-jump")).position === "sticky" && getComputedStyle(d.querySelector(".wk-dh")).position === "sticky");

@@ -626,7 +626,7 @@ function bdWheel(o){
     col.appendChild(e);
     return e;
   });
-  let idx = Math.max(0, vals.indexOf(o.value)), raf = 0, endT = 0, H = 0;
+  let idx = Math.max(0, vals.indexOf(o.value)), raf = 0, endT = 0, H = 0, want = null;
   const w = {el:col, touched:!!o.touched};
   const aria = ()=>{ const it = o.items[idx]; col.setAttribute("aria-valuenow", String(it.v)); col.setAttribute("aria-valuetext", it.full || it.text); };
   const paint = ()=>{
@@ -639,8 +639,10 @@ function bdWheel(o){
     });
   };
   // the row in the band: where the scroll came to rest, or (a key, a tap without smooth scrolling) the row asked for,
-  // since WebKit may not have applied scrollTo yet and a quick second key would otherwise start from the old value
+  // since WebKit may not have applied scrollTo yet and a quick second key would otherwise start from the old value.
+  // Until the scroll reaches that row (want), a late scrollend from an earlier key only waits; a finger takes over.
   const end = at=>{
+    if(typeof at!=="number" && want!==null){ if(Math.round(col.scrollTop / BD_ROW)===want) want = null; return; }
     const k = Math.max(0, Math.min(els.length - 1, typeof at==="number" ? at : Math.round(col.scrollTop / BD_ROW)));
     if(k===idx) return;
     idx = k; aria();
@@ -651,14 +653,14 @@ function bdWheel(o){
   const to = (k, smooth)=>{
     k = Math.max(0, Math.min(els.length - 1, k));
     col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"});
-    if(!smooth || calm()){ paint(); end(k); }
+    if(!smooth || calm()){ want = k; paint(); end(k); }
   };
   col.addEventListener("scroll", ()=>{
     if(!raf) raf = requestAnimationFrame(paint);
     if(!("onscrollend" in window)){ clearTimeout(endT); endT = setTimeout(end, 90); }
   }, {passive:true});
   col.addEventListener("scrollend", end);
-  ["pointerdown", "touchstart", "wheel"].forEach(t=>col.addEventListener(t, touch, {passive:true}));
+  ["pointerdown", "touchstart", "wheel"].forEach(t=>col.addEventListener(t, ()=>{ want = null; touch(); }, {passive:true}));
   col.addEventListener("keydown", e=>{
     const v = o.items[idx].v, lo = Math.min(...vals), hi = Math.max(...vals);
     const step = {ArrowUp:1, ArrowDown:-1, PageUp:5, PageDown:-5}[e.key];
@@ -680,7 +682,7 @@ function bdWheel(o){
   };
   new ResizeObserver(()=>requestAnimationFrame(layout)).observe(col);
   aria();
-  w.set = (v, smooth)=>{ const k = vals.indexOf(v); if(k >= 0 && k!==idx){ idx = k; aria(); col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"}); if(!smooth || calm()) paint(); } };
+  w.set = (v, smooth)=>{ const k = vals.indexOf(v); if(k >= 0 && k!==idx){ idx = k; want = k; aria(); col.scrollTo({top:k * BD_ROW, behavior:smooth && !calm() ? "smooth" : "auto"}); if(!smooth || calm()) paint(); } };
   w.value = ()=>o.items[idx].v;
   w.layout = layout;
   return w;
@@ -1240,12 +1242,11 @@ function onbReveal(card, P){
   head.className = "wk-head";
   const h = document.createElement("h1");
   h.className = "wk-title"; h.id = "onbTitle"; h.tabIndex = -1;
-  const ink = P.ink && P.ink.strokes && P.ink.strokes.length;
-  h.innerHTML = (ink ? `<span class="wk-ink">${inkSVG(P.ink, "wk-ink-svg", {split:true})}<span class="sr-only">${esc(name)}</span></span>` : esc(name)) + esc(say("onb.done.titleAfter"));
+  h.textContent = name + say("onb.done.titleAfter");   // written down here, as spelled (Marta)
   const support = line(say("onb.done.line", {tagline:stageFor(planMonths()).name}), "wk-support");
   const cap = line(say(today ? "onb.done.today" : "onb.done.tomorrow"), "wk-cap");
   head.append(h, support, cap);
-  // the day bar: seven 44px buttons, the day in view underlined
+  // the day bar: seven 44px buttons, the day in view in bold
   const jump = document.createElement("nav");
   jump.className = "wk-jump"; jump.setAttribute("aria-label", say("onb.done.days"));
   const list = document.createElement("ol");
@@ -1267,7 +1268,7 @@ function onbReveal(card, P){
       const r = document.createElement("div");
       r.className = "wk-meal";
       const time = clockTime(atTime(date, mealTime(m.slot, date)));
-      r.innerHTML = `<p class="wk-ml"><span class="wk-mn">${esc(m.label)}</span><span class="wk-mt">${esc(say("onb.done.around", {time}))}</span></p>
+      r.innerHTML = `<p class="wk-ml"><span class="wk-mn">${esc(m.label)}</span><span class="wk-mt">${esc(time)}</span></p>
         <p class="wk-foods">${esc(upper1(m.items.map(i=>lower1(baseName(i))).join(", ")))}</p>`;
       li.appendChild(r);
     });
@@ -1357,7 +1358,6 @@ function playReveal(card, P, x){
     onb.revealed = true; onb.revealPlayed = true;
     onbGlow(ONB_GLOW.done);
     document.getElementById("onbBack").hidden = !hasBack();
-    if(skipped || calm()) x.h.querySelectorAll(".wk-ink-svg path").forEach(p=>p.getAnimations().forEach(a=>a.finish()));
     if(onb.step==="reveal") x.h.focus({preventScroll:true});
   };
   if(calm()){
@@ -1380,10 +1380,8 @@ function playReveal(card, P, x){
   // the days fill in, row by row
   const step = rows.length > 1 ? Math.min(90, 1200 / (rows.length - 1)) : 0;
   rows.forEach((el, k)=>at(el, rise, 1200 + k * step, 400));
-  // then the header over the same grid, and the name's ink again, stroke by stroke
+  // then the header over the same grid
   late.forEach((el, k)=>at(el, fade, 2900 + k * 40, 400));
-  const paths = x.h.querySelectorAll(".wk-ink-svg path");
-  paths.forEach((p, k)=>at(p, fade, 3000 + k * 900 / paths.length, Math.max(120, 900 / paths.length), "linear"));
   // the glow through all five groups
   const groups = ["grain", "vegetable", "fruit", "protein", "fat"];
   let g = 0;

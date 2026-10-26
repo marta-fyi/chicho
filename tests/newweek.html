@@ -66,7 +66,7 @@ f.onload = async () => {
     ok("…open: what's off the plate, what's at home, what to offer again", /Off the plate|Nothing off the plate/.test(more) && /At home|Nothing marked at home/.test(more) && /offer again/.test(more), more);
     ok("…read-only, with links into Profile and the Kitchen", !$("#nwMore input") && !!$('[data-f="nw:offplate"]') && $('[data-f="nw:athome"]').textContent === "Kitchen" && $('[data-f="nw:again"]').textContent === "Profile");
     $('[data-f="nw:offplate"]').click(); await wait(450);
-    ok("…'Profile' goes there, to Off the plate", E("pg.cur") === "profile" && d.activeElement === d.querySelector('#scr-profile [data-sec="offplate"]'));
+    ok("…'Profile' goes there, to Off the plate, opened", E("pg.cur") === "profile" && d.activeElement === d.querySelector('#scr-profile [data-sec="offplate"]') && d.querySelector('#scr-profile [data-f="fold:offplate"]').getAttribute("aria-expanded") === "true");
     E(`go("week", {quiet: true})`); await wait(450);
 
     // Set the table → the seven-row preview, Shuffle, Love it

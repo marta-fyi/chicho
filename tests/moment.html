@@ -68,7 +68,7 @@ f.onload = async () => {
     ok("the dinner with the egg: 'Egg, for the first time. A small taste, then keep an eye on how Lula feels.' in the meal block", /Dinner/.test(d.getElementById("headline").textContent) && /^Egg, for the first time\. A small taste, then keep an eye on how Lula feels\. What to watch for$/.test(first()), first());
     ok("…after the foods, before the moment line (headline → foods → the line → moment)", (() => { const f = d.querySelector("#nowMeal .meal-foods"), l = d.querySelector("#nowMeal .meal-first"); return f.compareDocumentPosition(l) === 4 && l.getBoundingClientRect().bottom <= d.getElementById("moment").getBoundingClientRect().top + 1; })());
     d.querySelector('[data-f="meal:watch"]').click(); await wait(500);
-    ok("…'What to watch for' goes to Profile, Off the plate, with the note: 'Not medical advice…'", E("pg.cur") === "profile" && d.activeElement && d.activeElement.dataset.sec === "offplate" && /Not medical advice\./.test(d.querySelector('[data-sec="offplate"]').textContent));
+    ok("…'What to watch for' goes to Profile, Off the plate (opened), with the note: 'Not medical advice…'", E("pg.cur") === "profile" && d.activeElement && d.activeElement.dataset.sec === "offplate" && d.querySelector('[data-f="fold:offplate"]').getAttribute("aria-expanded") === "true" && /Not medical advice\./.test(d.querySelector('[data-sec="offplate"]').textContent));
     await home();
     setup(18, at(18, 50), egg + `state.offers.push({id: "o2", at: "2026-10-20T08:00", date: "2026-10-20", mealId: "legacy", itemId: null, foodId: "egg", outcome: null, firstOfFood: true, firstAllergen: true}); offersChanged();`);
     E("picked = null; changed()"); await wait(80);

@@ -54,6 +54,13 @@ f.onload = async () => {
     key("day", "PageDown"); ok("Page Down: −5", val("day") === 5);
     key("day", "End"); ok("End: the last day", val("day") === 31);
     key("day", "Home"); ok("Home: the first", val("day") === 1);
+    // two quick keys: a late scrollend from the first (WebKit) can't take the value back
+    const y0 = val("year"), stale = () => { col("year").scrollTop = [...col("year").querySelectorAll(".bd-it")].findIndex(e => +e.textContent === y0 + 1) * E("BD_ROW"); col("year").dispatchEvent(new w.Event("scrollend")); };
+    key("year", "ArrowUp"); key("year", "ArrowDown"); stale();
+    ok("Up then Down, quickly: the year is back where it was, whatever scrollend said late", val("year") === y0, val("year"));
+    col("year").dispatchEvent(new w.Event("pointerdown")); stale();
+    ok("…a finger on the column, though, goes where the scroll rests", val("year") === y0 + 1, val("year"));
+    key("year", "ArrowDown"); await wait(100);
     ok("two columns untouched: still not ready", next().getAttribute("aria-disabled") === "true");
 
     // clamping

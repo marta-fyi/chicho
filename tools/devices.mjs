@@ -317,7 +317,9 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           // Profile, with a week of offers behind it
           await page.evaluate(`(() => { const d0 = now(); for (let k = 1; k <= 6; k++) { const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - k); mealsOn(d).forEach((x, j) => { offerMeal(x.m, d, true); setOutcome(x.m, d, ["loved", "some", "not_today"][(k + j) % 3]); }); } save(); changed(); })()`);
           await go("profile"); await shot("profile-going");
+          await page.evaluate("pfUI.open = {going: true, offplate: true}; refresh('profile')"); await page.waitForTimeout(150);
           for (const sec of ["warming", "offplate", "firsts", "settings", "people"]) { await page.evaluate(`document.querySelector('#scr-profile [data-sec=${sec}]').scrollIntoView()`); await page.waitForTimeout(150); await shot("profile-" + sec); }
+          await page.evaluate("pfUI.open = {}");
           await go("home");
           if (theme === "light") for (const g of ["grain", "vegetable", "fruit", "protein", "fat"]) {
             await page.evaluate(`glowKey = null; setGlow('${g}')`); await page.waitForTimeout(100); await shot("glow-" + g);

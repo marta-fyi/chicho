@@ -136,12 +136,12 @@ f.onload = async () => {
     ok("…drawn with transform and opacity only", d.getElementById("onbCard").getAnimations({subtree: true}).every(a => a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p)))));
     await wait(3600);
     ok("it becomes Done by itself in about 3 s, with no layout shift", E("onb.revealed") === true && !d.querySelector(".wk-say") && tops() === mid);
-    ok("Done: 'Lula's week.', the ink as the name", d.getElementById("onbTitle").textContent === "Lula's week." && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
+    ok("Done: 'Lula's week.', the name written down, not drawn", d.getElementById("onbTitle").textContent === "Lula's week." && !d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
     ok("…'Seven days. Fingers first.', 'Starts today' (lunch is still to come at 9:15)", d.querySelector(".wk-support").textContent === "Seven days. Fingers first." && d.querySelector(".wk-cap").textContent === "Starts today");
     ok("…seven day buttons, the first underlined", d.querySelectorAll(".wk-jump .wk-j").length === 7 && d.querySelector(".wk-j").classList.contains("on"));
     const rows = [...d.querySelectorAll(".wk-day")];
     ok("one section a day, today first, 'Today' on it; three meals a day at this stage", rows.length === 7 && rows[0].querySelector(".wk-rel").textContent === "Today" && rows.every(r => r.querySelectorAll(".wk-meal").length === 3), rows.map(r => r.querySelectorAll(".wk-meal").length));
-    ok("…a meal row: name, 'around' its time, the foods in a line", /^around \d/.test(rows[0].querySelector(".wk-mt").textContent) && rows[0].querySelector(".wk-foods").textContent.length > 2);
+    ok("…a meal row: name, its time (no 'around'), the foods in a line", /^\d/.test(rows[0].querySelector(".wk-mt").textContent) && rows[0].querySelector(".wk-foods").textContent.length > 2);
     ok("…Back from Done is there now", !d.getElementById("onbBack").hidden);
     ok("nothing is applied before the choice", JSON.stringify(E("state.plan")) === before);
     const sig0 = E("weekSig(onb.draft)");

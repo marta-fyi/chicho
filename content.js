@@ -169,22 +169,23 @@ const CONTENT = {
   },
   /* ---------- Profile: know {name} ---------- */
   profile:{
-    going:"How it's going", groupLine:"{group}: {foods}.", waiting:"Still waiting: {foods}.", nothingYet:"nothing yet",
+    going:"How it's going", showFor:"Show {section}", hideFor:"Hide {section}",
+    goingLoved:"Loved {foods}.", goingLovedNone:"Nothing loved yet.", firstsIn:"First {foods} in {month}.",
+    thisWeek:"This week", offered:"offered {foods}", toCome:"still to come {foods}",
     loved:"Loved it", lovedNone:"Nothing yet. Foods show up here once they're mostly loved.",
     warming:"Still warming up", warmingNone:"Nothing yet.", offeredTimes:{one:"{food} · offered {n} time", other:"{food} · offered {n} times"},
     way:{steam:"Try it roasted this time, in wedges.", roast:"Try it steamed and mashed this time.", boil:"Try it in a new shape: soft strips instead of mash.",
          raw:"Try it in a different shape, or next to something familiar.", pair:"Try it next to {food}, a food they love."},
     offPlate:"Off the plate", allergies:"Allergies: {list}.", allergiesNone:"No allergies noted.", notFan:"Not a fan: {list}.",
-    allergenRecord:"Allergens", edit:"Edit",
-    firsts:"Firsts", first:"First {food} · {date}", firstsNone:"Firsts show up here as they happen.",
-    addPhoto:"Add photo", removePhoto:"Remove photo", photoOf:"A photo of {food}", photoTooBig:"That photo is too big to keep on this device.",
+    introducedList:"{list} introduced.", introducedHead:"Introduced", notYetHead:"Not yet", edit:"Edit",
+    firsts:"Firsts", firstsNone:"Firsts show up here as they happen.",
     settings:"Settings", name:"Name", editSpelling:"Edit spelling", birthday:"Birthday", mealTimes:"Meal times", priorities:"Priorities",
     basics:"Kitchen basics", redraw:"Redraw", caregivers:"Caregivers", appearance:"Appearance", appearanceOpts:{auto:"Auto", light:"Light", dark:"Dark"}, replay:"Replay the first steps"
   },
   allergenNote:{
     note:"Not medical advice. Check allergen introduction with your pediatrician, and contact them or emergency services if you see signs of a reaction.",
-    notYet:"Not yet", introduced:"Introduced on {date}", introducedBefore:"Introduced", noReaction:"Introduced, no reaction noted on {date}",
-    markNoReaction:"No reaction noted", markFor:"No reaction noted for {allergen}", keepOut:"Keep out",
+    introducedBefore:"Before Chicho", noReaction:"{date} · no reaction noted",
+    markNoReaction:"No reaction noted", markFor:"No reaction noted for {allergen}",
     markTried:"Tried, all fine", markTriedFor:"{allergen}: tried, all fine", markNotYet:"Not yet", markNotYetFor:"{allergen}: not yet"
   },
   people:{
@@ -284,8 +285,8 @@ const CONTENT = {
     reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.",
             days:{one:"One meal a day, seven days.", other:"{count} meals a day, seven days."}},
     done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",
-          days:"Days of the week", dayToday:"Today", dayTomorrow:"Tomorrow", first:"First: {allergen}", new:"New: {food}", around:"around {time}",
-          again:"Again", apply:"Love it", ready:"New week ready", shuffle:"Shuffle"},
+          days:"Days of the week", dayToday:"Today", dayTomorrow:"Tomorrow", first:"First: {allergen}", new:"New: {food}",
+          again:"Do it again", apply:"Love it", ready:"New week ready", shuffle:"Shuffle"},
     closing:{title:{one:"{name}'s table opens in {n} month.", other:"{name}'s table opens in {n} months."}, line:"Nothing to cook yet.", cta:"Look around"}
   },
 

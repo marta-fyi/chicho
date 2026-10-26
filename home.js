@@ -133,9 +133,9 @@ function mealHow(m){
 /* "Lentils · 40 g · mashed" */
 function foodLine(i){ return [baseName(i), i.qty, textureOf(i)].filter(Boolean).join(" · "); }
 /* a different way in, for a food that's still warming up: another texture, shape or pairing */
-function anotherWay(foodId){
+function anotherWay(foodId, k){
   const info = foodInfo(foodId), c = cookOf(info.name);
-  const loved = lovedFoods().filter(f=>f!==foodId)[0];
+  const loved = lovedFoods().filter(f=>f!==foodId)[k || 0];
   if(loved) return say("profile.way.pair", {food:lower1(foodInfo(loved).label)});
   return say("profile.way." + (["steam","roast","boil","raw"].includes(c.method) ? c.method : "raw"));
 }
@@ -428,6 +428,8 @@ function arrived(name, opts, moved){
   if(name==="kitchen" && state.newToBuy.length){ state.newToBuy = []; save(); layoutSig = ""; renderHome(); }
   const e = screenEl(name);
   if(name==="profile" && opts.section){
+    const fold = PF_FOLD[opts.section];
+    if(fold && !pfUI.open[fold]){ pfUI.open[fold] = true; renderProfile(); }
     const t = e.querySelector(`[data-sec="${CSS.escape(opts.section)}"]`);
     if(t){ t.scrollIntoView({block:"start", behavior:"auto"}); t.focus({preventScroll:true}); }
   }else if(moved && !opts.keepFocus){
@@ -1201,7 +1203,7 @@ function applyNewWeek(){
    still warming up, what stays off the plate, their firsts, settings.
    Plain text lists; no percentages, scores or counts as pressure.
    ==================================================================== */
-const pfUI = {linkAsk:false, status:""};
+const pfUI = {linkAsk:false, status:"", open:{}};
 /* foods whose offers were mostly "Loved it" */
 function lovedFoods(){
   const by = {};
@@ -1220,86 +1222,143 @@ function offPlateWords(){
   const P = state.profile;
   return [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>lower1(a.label.split(" /")[0])), ...dietOut(P).map(g=>lower1(g.label)), ...P.avoid.map(a=>lower1(a.name))];
 }
+/* which fold a Profile section sits in (Home and New week link straight to "offplate" or "warming") */
+const PF_FOLD = {going:"going", week:"going", loved:"going", warming:"going", firsts:"going", offplate:"offplate"};
+/* a fold: its heading with Show/Hide, a line or two saying what's inside, and (open) the body. Closed on arrival */
+function pfFold(col, key, title, lines, fill){
+  const open = !!pfUI.open[key], sec = section(col, key), id = "pf-" + key;
+  sec.classList.add("pf-fold");
+  const head = el("div", "pf-fold-head");
+  head.appendChild(el("h2", "sec-h", title));
+  const t = textBtn(say(open ? "kitchen.hide" : "kitchen.show"), ()=>{ pfUI.open[key] = !open; refresh("profile"); focusLater("fold:" + key); }, "small");
+  t.dataset.f = "fold:" + key; t.setAttribute("aria-expanded", String(open)); t.setAttribute("aria-controls", id);
+  t.setAttribute("aria-label", say(open ? "profile.hideFor" : "profile.showFor", {section:title}));
+  head.appendChild(t); sec.appendChild(head);
+  const body = el("div", "pf-fold-body"); body.id = id;
+  if(open) fill(body);
+  else lines.filter(Boolean).forEach(l=>body.appendChild(el("p", "sec-p muted pf-sum", l)));
+  sec.appendChild(body);
+}
+/* a titled part inside a fold, reachable by its key */
+function pfSub(body, key, title){
+  const s = el("div", "pf-sub"); s.dataset.sec = key; s.tabIndex = -1;
+  s.appendChild(el("h3", "sec-h pf-h", title));
+  body.appendChild(s);
+  return s;
+}
+/* first tastes grouped by month, newest first: [{name:"October", foods:["oatmeal", "egg"]}] (the year when it isn't this one) */
+function firstsByMonth(){
+  const by = new Map(), y = now().getFullYear();
+  liveOffers().filter(e=>e.firstOfFood).sort((a, b)=>a.date < b.date ? 1 : a.date > b.date ? -1 : 0).forEach(e=>{
+    const k = e.date.slice(0, 7);
+    if(!by.has(k)) by.set(k, []);
+    const f = lower1(foodInfo(e.foodId).label);
+    if(!by.get(k).includes(f)) by.get(k).push(f);
+  });
+  return [...by].map(([k, foods])=>{ const yy = +k.slice(0, 4); return {name:MONTH_NAMES[+k.slice(5, 7) - 1] + (yy!==y ? " " + yy : ""), foods}; });
+}
 function renderProfile(){
   const P = state.profile;
   const col = frame("profile", P.name || say("screens.profile"), {titleClass:"pf-name", sub:P.birthDate ? ageLabel(ageNow()) + " · " + stageNow().name : ""});
   const ink = inkSVG(P.ink, "pf-ink");
   if(ink){ const h = $("t-profile"); h.innerHTML = ink + `<span class="sr-only">${esc(P.name || say("screens.profile"))}</span>`; }
   const iso0 = state.weekStarted, iso6 = isoOf(addDays(weekStart(), 6));
-  // How it's going (this week)
-  if(hasPlan()){
-    const sec = section(col, "going", say("profile.going"));
-    const planned = {};
-    weekDays().forEach(({date})=>mealsOn(date).forEach(x=>x.m.items.forEach(i=>{ const c = i.cats[0]; (planned[c] = planned[c] || new Set()).add(baseName(i)); })));
-    GROUPS.forEach(c=>{
-      const got = offeredFoods(c, iso0, iso6).map(lower1);
-      const waiting = [...(planned[c] || [])].filter(f=>!got.includes(lower1(f))).map(lower1);
-      const text = say("profile.groupLine", {group:say("home.groups." + c), foods:got.length ? listJoin(got) : say("profile.nothingYet")})
-                 + (waiting.length ? " " + say("profile.waiting", {foods:shortList(waiting)}) : "");
-      sec.appendChild(el("p", "sec-p", text));
-    });
-  }
-  // Loved it
-  const lov = section(col, "loved", say("profile.loved")), loved = lovedFoods();
-  lov.appendChild(el("p", loved.length ? "sec-p" : "quiet-line", loved.length ? upper1(listJoin(loved.map(k=>lower1(foodInfo(k).label)))) + "." : say("profile.lovedNone")));
-  // Still warming up
-  const warm = section(col, "warming", say("profile.warming")), wl = warmingUp();
-  if(!wl.length) warm.appendChild(el("p", "quiet-line", say("profile.warmingNone")));
-  wl.forEach(w=>{
-    const r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
-    t.textContent = say("profile.offeredTimes", {food:foodInfo(w.foodId).label, n:w.n});
-    t.appendChild(el("span", "row-sub", anotherWay(w.foodId)));
-    r.appendChild(t); warm.appendChild(r);
-  });
-  // Off the plate: preferences, then the allergen records (kept apart)
-  const off = section(col, "offplate", say("profile.offPlate"));
+  // How it's going and Off the plate: two folds, closed on arrival, each with a line or two saying what's inside
+  const loved = lovedFoods(), lovedWords = loved.map(k=>lower1(foodInfo(k).label));
+  const months = firstsByMonth(), latest = months[0];
+  const recs = ALLERGENS.map(a=>({a, rec:allergenRecord(a.id), label:a.label.split(" /")[0]}));
+  const intro = recs.filter(x=>x.rec.state==="introduced"), notYet = recs.filter(x=>x.rec.state==="notyet");
   const allergies = [...ALLERGENS.filter(a=>P.allergens[a.id]==="avoid").map(a=>a.label.split(" /")[0]), ...dietOut(P).map(g=>g.label), ...P.avoid.filter(a=>a.kind==="allergy").map(a=>a.name)];
-  const notFan = P.avoid.filter(a=>a.kind==="dislike").map(a=>a.name);
-  off.appendChild(el("p", "sec-p", allergies.length ? say("profile.allergies", {list:listJoin(allergies.map(lower1))}) : say("profile.allergiesNone")));
-  if(notFan.length) off.appendChild(el("p", "sec-p", say("profile.notFan", {list:listJoin(notFan.map(lower1))})));
-  off.appendChild(el("p", "sec-p muted", lockedLine(ageNow())));
-  off.appendChild(el("h3", "sec-h", say("profile.allergenRecord"))).style.marginTop = "16px";
-  ALLERGENS.forEach(a=>{
-    const rec = allergenRecord(a.id), r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
-    t.textContent = a.label.split(" /")[0];
-    const word = rec.state==="keepout" ? say("allergenNote.keepOut") : rec.state==="notyet" ? say("allergenNote.notYet")
-               : rec.noReactionOn ? say("allergenNote.noReaction", {date:fmtDayMonth(localDate(rec.noReactionOn))})
-               : rec.on ? say("allergenNote.introduced", {date:fmtDayMonth(localDate(rec.on))}) : say("allergenNote.introducedBefore");
-    t.appendChild(el("span", "row-sub", word));
-    r.appendChild(t);
-    // "Tried, all fine" lives here now (the onboarding's pile only keeps things out): Not yet ↔ tried before Chicho
-    if(rec.state==="notyet" || (rec.state==="introduced" && !rec.on)){
-      const tried = rec.state==="notyet";
-      const b = textBtn(say(tried ? "allergenNote.markTried" : "allergenNote.markNotYet"), ()=>{
-        setBigPlace(P, a.id, tried ? "tried" : P.foodSort ? "untouched" : null);
-        save(); haptic(); refresh("profile"); focusLater("tried:" + a.id);
-      }, "small");
-      b.dataset.f = "tried:" + a.id; b.setAttribute("aria-label", say(tried ? "allergenNote.markTriedFor" : "allergenNote.markNotYetFor", {allergen:a.label.split(" /")[0]}));
-      r.appendChild(b);
+  const allergiesLine = allergies.length ? say("profile.allergies", {list:listJoin(allergies.map(lower1))}) : say("profile.allergiesNone");
+  pfFold(col, "going", say("profile.going"), [
+    lovedWords.length ? say("profile.goingLoved", {foods:listJoin(lovedWords.slice(0, 2))}) : say("profile.goingLovedNone"),
+    latest ? say("profile.firstsIn", {foods:listJoin(latest.foods.slice(0, 3)), month:latest.name}) : ""
+  ], body=>{
+    // this week: each group's planned foods, the offered ones in ink, the ones still to come muted
+    if(hasPlan()){
+      const wk = pfSub(body, "week", say("profile.thisWeek")), planned = {};
+      weekDays().forEach(({date})=>mealsOn(date).forEach(x=>x.m.items.forEach(i=>{ const c = i.cats[0]; (planned[c] = planned[c] || new Set()).add(lower1(baseName(i))); })));
+      GROUPS.forEach(c=>{
+        const got = offeredFoods(c, iso0, iso6).map(lower1), later = [...(planned[c] || [])].filter(f=>!got.includes(f));
+        if(!got.length && !later.length) return;
+        const r = el("div", "pf-row"), g = say("home.groups." + c);
+        r.appendChild(el("span", "pf-row-l", g));
+        const foods = el("p", "pf-foods");
+        foods.setAttribute("aria-label", g + ": " + [got.length ? say("profile.offered", {foods:listJoin(got)}) : "", later.length ? say("profile.toCome", {foods:listJoin(later)}) : ""].filter(Boolean).join("; "));
+        const shown = [...got.map(f=>[f, ""]), ...later.slice(0, Math.max(0, 5 - got.length)).map(f=>[f, " later"])];
+        shown.forEach(([f, cls], k)=>{ if(k) foods.append("\u00a0· "); foods.appendChild(el("span", "pf-food" + cls, f)); });   // a dot never starts a line
+        const more = got.length + later.length - shown.length;
+        if(more > 0) foods.appendChild(el("span", "pf-food later", " +" + more));
+        r.appendChild(foods); wk.appendChild(r);
+      });
     }
-    if(rec.state==="introduced" && !rec.noReactionOn && rec.on){
-      const b = textBtn(say("allergenNote.markNoReaction"), ()=>{ state.allergyNotes[a.id] = {noReactionOn:todayISO()}; save(); haptic(); refresh("profile"); focusLater("noreact:" + a.id); }, "small");
-      b.dataset.f = "noreact:" + a.id; b.setAttribute("aria-label", say("allergenNote.markFor", {allergen:a.label.split(" /")[0]}));
-      r.appendChild(b);
-    }
-    off.appendChild(r);
+    // Loved it
+    const lov = pfSub(body, "loved", say("profile.loved"));
+    lov.appendChild(el("p", loved.length ? "sec-p" : "quiet-line", loved.length ? upper1(listJoin(lovedWords)) + "." : say("profile.lovedNone")));
+    // Still warming up: each row's tip pairs it with a different loved food
+    const warm = pfSub(body, "warming", say("profile.warming")), wl = warmingUp();
+    if(!wl.length) warm.appendChild(el("p", "quiet-line", say("profile.warmingNone")));
+    wl.forEach((w, k)=>{
+      const r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
+      t.textContent = say("profile.offeredTimes", {food:foodInfo(w.foodId).label, n:w.n});
+      t.appendChild(el("span", "row-sub", anotherWay(w.foodId, k)));
+      r.appendChild(t); warm.appendChild(r);
+    });
+    // Firsts, by month, newest first
+    const fs = pfSub(body, "firsts", say("profile.firsts"));
+    if(!months.length) fs.appendChild(el("p", "quiet-line", say("profile.firstsNone")));
+    months.forEach(m=>{
+      const r = el("div", "pf-row");
+      r.append(el("span", "pf-row-l", m.name), el("p", "pf-foods", upper1(listJoin(m.foods)) + "."));
+      fs.appendChild(r);
+    });
   });
-  off.appendChild(el("p", "quiet-line", say("allergenNote.note")));
-  const editOff = textBtn(say("profile.edit"), ()=>openOnboarding("keepout", {single:true}), "small"); editOff.dataset.f = "edit:offplate";
-  off.appendChild(editOff);
-  // Firsts: a quiet journal
-  const fs = section(col, "firsts", say("profile.firsts"));
-  fs.classList.add("pf-firsts");
-  const firsts = liveOffers().filter(e=>e.firstOfFood).sort((a, b)=>a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
-  if(!firsts.length) fs.appendChild(el("p", "quiet-line", say("profile.firstsNone")));
-  firsts.slice(0, 30).forEach(e=>{
-    const r = el("div", "row"), photo = state.firstPhotos[e.foodId];
-    if(photo){ const img = document.createElement("img"); img.src = photo; img.alt = say("profile.photoOf", {food:foodInfo(e.foodId).label}); r.appendChild(img); }
-    r.appendChild(el("p", "row-t", say("profile.first", {food:lower1(foodInfo(e.foodId).label), date:fmtDayShort(localDate(e.date))}))).style.margin = "0";
-    const b = textBtn(photo ? say("profile.removePhoto") : say("profile.addPhoto"), ()=>photo ? (delete state.firstPhotos[e.foodId], save(), refresh("profile")) : pickPhoto(e.foodId), "small");
-    b.dataset.f = "photo:" + e.foodId;
-    r.appendChild(b);
-    fs.appendChild(r);
+  pfFold(col, "offplate", say("profile.offPlate"), [
+    allergiesLine,
+    intro.length ? say("profile.introducedList", {list:upper1(listJoin(intro.map(x=>lower1(x.label))))}) : ""
+  ], body=>{
+    const notFan = P.avoid.filter(a=>a.kind==="dislike").map(a=>a.name);
+    body.appendChild(el("p", "sec-p", allergiesLine));
+    if(notFan.length) body.appendChild(el("p", "sec-p", say("profile.notFan", {list:listJoin(notFan.map(lower1))})));
+    body.appendChild(el("p", "sec-p muted", lockedLine(ageNow())));
+    // the allergens, by where they stand: introduced (with "No reaction noted"), then not yet (with "Tried, all fine");
+    // the kept-out ones are named in Allergies above
+    const rec = (x, sub, btn)=>{
+      const r = el("div", "row"), t = el("p", "row-t"); t.style.margin = "0";
+      t.textContent = x.label;
+      if(sub) t.appendChild(el("span", "row-sub", sub));
+      r.appendChild(t); if(btn) r.appendChild(btn);
+      return r;
+    };
+    const triedBtn = (x, tried)=>{
+      const b = textBtn(say(tried ? "allergenNote.markTried" : "allergenNote.markNotYet"), ()=>{
+        setBigPlace(P, x.a.id, tried ? "tried" : P.foodSort ? "untouched" : null);
+        save(); haptic(); refresh("profile"); focusLater("tried:" + x.a.id);
+      }, "small");
+      b.dataset.f = "tried:" + x.a.id; b.setAttribute("aria-label", say(tried ? "allergenNote.markTriedFor" : "allergenNote.markNotYetFor", {allergen:x.label}));
+      return b;
+    };
+    if(intro.length){
+      body.appendChild(el("h3", "sec-h pf-h", say("profile.introducedHead")));
+      intro.forEach(x=>{
+        const {on, noReactionOn} = x.rec;
+        const sub = noReactionOn ? say("allergenNote.noReaction", {date:fmtDayMonth(localDate(noReactionOn))}) : on ? fmtDayMonth(localDate(on)) : say("allergenNote.introducedBefore");
+        let btn = null;
+        if(!on) btn = triedBtn(x, false);
+        else if(!noReactionOn){
+          btn = textBtn(say("allergenNote.markNoReaction"), ()=>{ state.allergyNotes[x.a.id] = {noReactionOn:todayISO()}; save(); haptic(); refresh("profile"); focusLater("noreact:" + x.a.id); }, "small");
+          btn.dataset.f = "noreact:" + x.a.id; btn.setAttribute("aria-label", say("allergenNote.markFor", {allergen:x.label}));
+        }
+        body.appendChild(rec(x, sub, btn));
+      });
+    }
+    if(notYet.length){
+      body.appendChild(el("h3", "sec-h pf-h", say("profile.notYetHead")));
+      notYet.forEach(x=>body.appendChild(rec(x, "", triedBtn(x, true))));
+    }
+    body.appendChild(el("p", "quiet-line", say("allergenNote.note")));
+    const editOff = textBtn(say("profile.edit"), ()=>openOnboarding("keepout", {single:true}), "small"); editOff.dataset.f = "edit:offplate";
+    body.appendChild(editOff);
   });
   // Settings
   const set = section(col, "settings", say("profile.settings"));
@@ -1387,29 +1446,6 @@ function renderCaregivers(col){
     sec.appendChild(lk);
   }
   sec.appendChild(status);
-}
-/* a small photo for a first, kept on this device only (downscaled so it fits in local storage) */
-function pickPhoto(foodId){
-  const inp = document.createElement("input");
-  inp.type = "file"; inp.accept = "image/*"; inp.className = "pf-photo";
-  inp.addEventListener("change", ()=>{
-    const f = inp.files && inp.files[0];
-    inp.remove();
-    if(!f) return;
-    const img = new Image(), url = URL.createObjectURL(f);
-    img.onload = ()=>{
-      const S = 240, k = Math.min(1, S / Math.max(img.width, img.height)), c = document.createElement("canvas");
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      state.firstPhotos[foodId] = c.toDataURL("image/jpeg", .7);
-      if(save()===false){ delete state.firstPhotos[foodId]; announce(say("profile.photoTooBig")); }
-      refresh("profile");
-    };
-    img.src = url;
-  });
-  document.body.appendChild(inp);
-  inp.click();
 }
 const SCREENS = {shuffle:renderShuffle, kitchen:renderKitchen, week:renderWeek, profile:renderProfile};
 

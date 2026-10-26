@@ -30,54 +30,64 @@ f.onload = async () => {
     await wait(500);
     const text = () => d.getElementById("scr-profile").textContent;
     ok("Profile: a pinned 'Home' control, the name, age and stage", $(".home-link").textContent === "Home" && $("h1").textContent === "Lula" && getComputedStyle($("h1")).textTransform === "uppercase" && $(".scr-sub").textContent === "18 months · A seat at the family table");
-    ok("sections in order: how it's going, loved it, still warming up, off the plate, firsts, settings, caregivers", $$("section.sec").map(s => s.dataset.sec).join() === "going,loved,warming,offplate,firsts,settings,people", $$("section.sec").map(s => s.dataset.sec));
-
-    // how it's going: sentences per food group
-    const going = [...sec("going").querySelectorAll(".sec-p")].map(p => p.textContent);
-    ok("How it's going: one sentence per food group", going.length === 5 && ["Protein:", "Veg:", "Fruit:", "Grains:", "Fats and dairy:"].every((g, k) => going[k].startsWith(g)), going);
-    ok("…'Fruit: banana.' and 'Veg: carrots, peas.' from this week's offers", /^Fruit: banana\./.test(going[2]) && /^Veg: carrots and peas\./.test(going[1]), going.slice(1, 3));
-    ok("…'Still waiting: …' for what's planned and not yet offered", going.some(g => / Still waiting: /.test(g)));
+    ok("sections in order: how it's going, off the plate, settings, caregivers", $$("section.sec").map(s => s.dataset.sec).join() === "going,offplate,settings,people", $$("section.sec").map(s => s.dataset.sec));
     ok("…no percentages, scores or streaks anywhere", !/%|\bscore|\bstreak|\bmissed|\beaten/i.test(text()));
+
+    // two folds, closed on arrival, each saying what's inside
+    const fold = k => $(`[data-f="fold:${k}"]`), sums = k => [...sec(k).querySelectorAll(".pf-sum")].map(p => p.textContent);
+    ok("How it's going and Off the plate start closed: 'Show', aria-expanded false", ["going", "offplate"].every(k => fold(k).textContent === "Show" && fold(k).getAttribute("aria-expanded") === "false") && !sec("loved") && !sec("firsts"));
+    ok("…How it's going says 'Loved banana.' and 'First peas, carrots and egg in October.'", JSON.stringify(sums("going")) === JSON.stringify(["Loved banana.", "First peas, carrots and egg in October."]), sums("going"));
+    ok("…Off the plate says 'Allergies: peanut and kiwi.' and what's introduced", sums("offplate")[0] === "Allergies: peanut and kiwi." && sums("offplate")[1] === "Egg, milk, tree nuts, wheat, soy, fish and sesame introduced.", sums("offplate"));
+    fold("going").click(); await wait(30);
+    ok("Show opens it: 'Hide', aria-expanded true, focus kept, the summary gone", fold("going").textContent === "Hide" && fold("going").getAttribute("aria-expanded") === "true" && d.activeElement === fold("going") && !sec("going").querySelector(".pf-sum"));
+
+    // this week: each group's planned foods, offered in ink, still to come muted
+    const rowsOf = k => [...sec(k).querySelectorAll(".pf-row")];
+    const week = Object.fromEntries(rowsOf("week").map(r => [r.querySelector(".pf-row-l").textContent, r.querySelector(".pf-foods")]));
+    ok("This week: a row per group, the group in the label column", Object.keys(week).length >= 3 && Object.keys(week).every(g => ["Protein", "Veg", "Fruit", "Grains", "Fats and dairy"].includes(g)), Object.keys(week));
+    ok("…banana offered: in ink, first in Fruit", week.Fruit && !week.Fruit.querySelector(".pf-food").classList.contains("later") && week.Fruit.querySelector(".pf-food").textContent === "banana", week.Fruit && week.Fruit.innerHTML);
+    ok("…what's planned and not offered yet is muted, and read as 'still to come'", rowsOf("week").some(r => r.querySelector(".pf-food.later")) && /still to come/.test(week.Fruit.getAttribute("aria-label")) && /^Fruit: offered banana/.test(week.Fruit.getAttribute("aria-label")), week.Fruit.getAttribute("aria-label"));
+    ok("…no 'nothing yet' or 'Still waiting' sentences", !/nothing yet|Still waiting/i.test(sec("going").textContent));
 
     // loved it, still warming up
     ok("Loved it: foods whose offers were mostly loved", sec("loved").querySelector("p").textContent === "Banana.");
-    const warm = [...sec("warming").querySelectorAll(".row")].map(r => [r.querySelector(".row-t").firstChild.textContent, r.querySelector(".row-sub").textContent]);
-    ok("Still warming up: offered twice or more, 'Not today' or 'Ate some', not loved", warm.length === 1 && warm[0][0] === "Carrots · offered 2 times", warm);
-    ok("…with a try-another-way line (another texture, shape or pairing)", /^Try it /.test(warm[0][1]) && /banana/.test(warm[0][1]), warm[0][1]);
+    const warm = () => [...sec("warming").querySelectorAll(".row")].map(r => [r.querySelector(".row-t").firstChild.textContent, r.querySelector(".row-sub").textContent]);
+    ok("Still warming up: offered twice or more, 'Not today' or 'Ate some', not loved", warm().length === 1 && warm()[0][0] === "Carrots · offered 2 times", warm());
+    ok("…with a try-another-way line (another texture, shape or pairing)", /^Try it /.test(warm()[0][1]) && /banana/.test(warm()[0][1]), warm()[0][1]);
     ok("…and no exposure count from research ('10 to 15 tries')", !/\b1[05]\b.*(tries|times)|tries/i.test(sec("warming").textContent));
     ok("peas, offered once, isn't there yet", !/Peas/.test(sec("warming").textContent));
+    E(`const ev = (date, foodId, outcome) => ({id: uid(), at: date + "T12:00:00", date, mealId: "m-" + date, itemId: uid(), foodId, outcome, firstOfFood: false, firstAllergen: false});
+       state.offers.push(ev("2026-10-22", "peas", "some"), ev("2026-10-22", "apple", "loved"), ev("2026-10-22", "avocado", "loved")); offersChanged(); save(); refresh("profile")`); await wait(30);
+    const tips = warm().map(x => x[1]);
+    ok("…each row pairs with a different loved food", tips.length === 2 && new Set(tips).size === 2, tips);
 
-    // off the plate: preferences, then the allergen records apart
-    const off = sec("offplate").textContent;
-    ok("Off the plate: 'Allergies: peanut and kiwi.' and 'Not a fan: beetroot.'", /Allergies: peanut and kiwi\./.test(off) && /Not a fan: beetroot\./.test(off), off.slice(0, 120));
-    ok("…the locked rules for this age", off.includes(E("lockedLine(ageNow())")));
-    const recs = () => Object.fromEntries([...sec("offplate").querySelectorAll(".row")].map(r => [r.querySelector(".row-t").firstChild.textContent, r.querySelector(".row-sub").textContent]));
-    ok("the allergen records sit apart, under 'Allergens'", [...sec("offplate").querySelectorAll("h3")].some(h => h.textContent === "Allergens") && Object.keys(recs()).length === 9);
-    ok("…Egg: 'Introduced on' the day of its first offer", recs().Egg === "Introduced on " + E("fmtDayMonth(localDate('2026-10-21'))"), recs().Egg);
-    ok("…Peanut: 'Keep out'; Shellfish: 'Not yet'; Milk (tried before): 'Introduced'", recs().Peanut === "Keep out" && recs().Shellfish === "Not yet" && recs().Milk === "Introduced", recs());
-    ok("…kiwi and beetroot are preferences, not allergen records", !("Kiwi" in recs()) && !("Beetroot" in recs()));
+    // firsts, by month, no photos
+    const months = rowsOf("firsts").map(r => [r.querySelector(".pf-row-l").textContent, r.querySelector(".pf-foods").textContent]);
+    ok("Firsts: by month, the foods in a sentence: 'October · Peas, carrots and egg…'", months.length === 1 && months[0][0] === E("MONTH_NAMES[9]") && /^Peas, carrots, egg and banana\.$/.test(months[0][1]), months);
+    E(`state.offers.push({id: uid(), at: "2026-09-12T12:00:00", date: "2026-09-12", mealId: "m", itemId: uid(), foodId: "oats", outcome: "loved", firstOfFood: true, firstAllergen: false}); offersChanged(); save(); refresh("profile")`); await wait(30);
+    ok("…newest month first", rowsOf("firsts").map(r => r.querySelector(".pf-row-l").textContent).join() === E("MONTH_NAMES[9] + ',' + MONTH_NAMES[8]"), rowsOf("firsts").map(r => r.textContent));
+    ok("…and no photos or photo buttons", !sec("going").querySelector("img") && !$('[data-f^="photo:"]'));
+    E(`state.offers = state.offers.filter(e => e.date !== "2026-09-12" && !(e.date === "2026-10-22" && !e.firstOfFood && ["peas", "apple", "avocado"].includes(e.foodId))); offersChanged(); save(); refresh("profile")`); await wait(30);
+
+    // off the plate: preferences, then the allergens by where they stand
+    fold("offplate").click(); await wait(30);
+    const off = () => sec("offplate").textContent;
+    ok("Off the plate: 'Allergies: peanut and kiwi.' and 'Not a fan: beetroot.'", /Allergies: peanut and kiwi\./.test(off()) && /Not a fan: beetroot\./.test(off()), off().slice(0, 120));
+    ok("…the locked rules for this age", off().includes(E("lockedLine(ageNow())")));
+    const groups = () => { const g = {}; let cur = null; [...sec("offplate").querySelectorAll("h3, .row")].forEach(n => { if (n.tagName === "H3") g[cur = n.textContent] = {}; else g[cur][n.querySelector(".row-t").firstChild.textContent] = (n.querySelector(".row-sub") || {}).textContent || ""; }); return g; };
+    ok("the allergens in two groups, 'Introduced' then 'Not yet'", JSON.stringify(Object.keys(groups())) === JSON.stringify(["Introduced", "Not yet"]), Object.keys(groups()));
+    ok("…Egg: the day of its first offer; Milk (tried before): 'Before Chicho'", groups().Introduced.Egg === E("fmtDayMonth(localDate('2026-10-21'))") && groups().Introduced.Milk === "Before Chicho", groups().Introduced);
+    ok("…Shellfish under Not yet, no repeated 'Not yet' under it; Peanut (kept out) is in Allergies, not a row", "Shellfish" in groups()["Not yet"] && groups()["Not yet"].Shellfish === "" && !("Peanut" in groups().Introduced) && !("Peanut" in groups()["Not yet"]), groups());
+    ok("…kiwi and beetroot are preferences, not allergen rows", !/Kiwi|Beetroot/.test(JSON.stringify(groups())));
     $('[data-f="noreact:egg"]').click(); await wait(30);
-    ok("'No reaction noted': 'Introduced, no reaction noted on {today}'", recs().Egg === "Introduced, no reaction noted on " + E("fmtDayMonth(now())") && E("state.allergyNotes.egg.noReactionOn") === "2026-10-22" && !$('[data-f="noreact:egg"]'));
-    ok("…with the not-medical-advice note", /Not medical advice\./.test(sec("offplate").textContent));
-    // "Tried, all fine" lives here (the onboarding's pile only keeps things out)
+    ok("'No reaction noted': '{today} · no reaction noted'", groups().Introduced.Egg === E("fmtDayMonth(now())") + " · no reaction noted" && E("state.allergyNotes.egg.noReactionOn") === "2026-10-22" && !$('[data-f="noreact:egg"]'), groups().Introduced.Egg);
+    ok("…with the not-medical-advice note", /Not medical advice\./.test(off()));
     ok("Not yet has 'Tried, all fine'; tried before Chicho has 'Not yet'; Keep out and introduced-by-offer have neither", $('[data-f="tried:shellfish"]').textContent === "Tried, all fine" && $('[data-f="tried:milk"]').textContent === "Not yet" && !$('[data-f="tried:peanut"]') && !$('[data-f="tried:egg"]'));
     $('[data-f="tried:shellfish"]').click(); await wait(60);
-    ok("…'Tried, all fine': Shellfish is introduced (before Chicho), and the button turns to 'Not yet'", E("state.profile.allergens.shellfish") === "ok" && recs().Shellfish === "Introduced" && $('[data-f="tried:shellfish"]').textContent === "Not yet" && d.activeElement === $('[data-f="tried:shellfish"]'));
+    ok("…'Tried, all fine': Shellfish moves to Introduced (before Chicho), its button now 'Not yet', focus kept", E("state.profile.allergens.shellfish") === "ok" && groups().Introduced.Shellfish === "Before Chicho" && $('[data-f="tried:shellfish"]').textContent === "Not yet" && d.activeElement === $('[data-f="tried:shellfish"]'));
     $('[data-f="tried:shellfish"]').click(); await wait(60);
-    ok("…and back: Not yet", !("shellfish" in E("state.profile.allergens")) && recs().Shellfish === "Not yet");
-
-    // firsts
-    const firsts = [...sec("firsts").querySelectorAll(".row .row-t")].map(p => p.textContent);
-    ok("Firsts: a quiet journal, newest first: 'First peas · 22 Oct'…", firsts.length === 4 && firsts[0] === "First peas · " + E("fmtDayShort(localDate('2026-10-22'))") && firsts.at(-1) === "First banana · " + E("fmtDayShort(localDate('2026-10-20'))"), firsts);
-    let picked = null;
-    w.HTMLInputElement.prototype.click = function(){ if (this.type === "file") picked = this.accept; };
-    $('[data-f="photo:banana"]').click();
-    ok("'Add photo' asks for a picture on this device", picked === "image/*" && !!d.querySelector("input.pf-photo"));
-    d.querySelector("input.pf-photo").remove();
-    E(`state.firstPhotos.banana = "data:image/gif;base64,R0lGODlhAQABAAAAACw="; refresh("profile")`); await wait(30);
-    ok("…a photo shows beside its first, with words for screen readers", $('[data-sec="firsts"] img') && /banana/i.test($('[data-sec="firsts"] img').alt) && $('[data-f="photo:banana"]').textContent === "Remove photo");
-    $('[data-f="photo:banana"]').click(); await wait(30);
-    ok("…and 'Remove photo' takes it away", !E("state.firstPhotos.banana") && !$('[data-sec="firsts"] img'));
+    ok("…and back: Not yet", !("shellfish" in E("state.profile.allergens")) && "Shellfish" in groups()["Not yet"]);
+    fold("going").click(); fold("offplate").click(); await wait(30);
 
     // the drawn name heads Profile (read aloud by its spelling); no ink, the typed name
     ok("no ink: Profile's title is the typed name", d.getElementById("t-profile").textContent === "Lula" && !d.querySelector("#t-profile svg"));
