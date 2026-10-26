@@ -325,22 +325,26 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .sent-xl{font-size:40px;line-height:1.2;}
   .draw-in{animation:draw-rise 600ms var(--ease-out) both;}
   @keyframes draw-rise{from{opacity:0;transform:translateY(12px);}}
-  .ink-blank{position:relative;display:inline-block;min-width:4ch;height:1.1em;vertical-align:-.2em;}
-  .ink-blank::after{content:"";position:absolute;left:0;right:0;bottom:-.06em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;opacity:.4;}
+  /* the blank is two lines tall from the start, so the name, as drawn, reads big and the sentence never moves */
+  .ink-blank{position:relative;display:inline-block;min-width:4ch;height:2.4em;vertical-align:bottom;}
+  .ink-blank::after{content:"";position:absolute;left:0;right:0;bottom:.12em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;opacity:.4;}
   .ink-blank.has-ink::after{display:none;}
   .draw-lead, .sent-xl label{white-space:nowrap;}
   .sent-xl{font-size:min(40px, calc((min(100vw, var(--col)) - var(--pad-l) - var(--pad-r)) / 11.6));}
   .ink-live{display:flex;justify-content:center;align-items:flex-end;height:100%;}
-  .ink-mirror{display:block;height:100%;width:auto;max-width:min(70vw, 300px);}
-  .pad-wrap{position:relative;width:100%;margin-top:12px;color:var(--ink);}
-  .pad{display:block;width:100%;height:170px;border-bottom:1.5px solid var(--hairline);touch-action:none;cursor:crosshair;}
-  .pad-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;width:100%;margin-top:12px;}
-  .pad-row .btn-ink{min-height:52px;min-width:140px;}
-  .pad-row .btn-text:first-child{justify-self:start;margin-left:-14px;}
-  .pad-row .btn-text:last-child{justify-self:end;margin-right:-14px;}
+  .ink-mirror{display:block;height:100%;width:auto;max-width:min(76vw, 330px);}
+  .pad-sheet .sh-in{position:relative;}
+  .type-instead{position:absolute;top:-10px;right:-14px;}
+  @media (max-width:374px){ .pad-sheet .sh-title, .pad-sheet .sh-hint{align-self:flex-start;text-align:left;} }   /* the corner link needs the room */
+  .pad-row{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:6px;}
+  .pad-row .btn-text:first-child{margin-left:-14px;}
+  .pad-row .btn-text:last-child{margin-right:-14px;}
   .pad-row .btn-text:disabled{opacity:.35;}
+  .pad-wrap{position:relative;width:100%;margin-top:0;color:var(--ink);}
+  .pad{display:block;width:100%;height:170px;border-bottom:1.5px solid var(--hairline);touch-action:none;cursor:crosshair;}
+  /* the same spot as the next step's pill: full width, 16px over the safe area (the sheet pads 14) */
+  .pad-sheet .btn-ink{width:100%;min-height:52px;margin:14px 0 2px;}
   .btn-ink[aria-disabled="true"]{opacity:.35;}
-  .type-instead{margin-top:4px;}
   /* Spell: the ink above the sentence */
   .spell-ink{color:var(--ink);margin-bottom:18px;}
   .spell-svg{display:block;height:64px;width:auto;max-width:min(80vw, 320px);margin:0 auto;}

@@ -37,7 +37,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     const path = [step()];
     ok("before the birthday is known: six segments", segs() === 6);
     E(`state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 80, 20, 80, 100]]}; save(); renderOnb()`); await wait(700);
-    $(".pad-row .btn-ink").click(); await wait(500); path.push(step());
+    $(".pad-done").click(); await wait(500); path.push(step());
     type($("#onbCard .blank-input"), "Lula"); next().click(); await wait(500); path.push(step());
     ok("…still six on the birthday", segs() === 6);
     key("day", "ArrowDown"); key("month", "ArrowUp", 2); key("year", "ArrowUp"); key("year", "ArrowDown");   // 14 December 2025: 10 months

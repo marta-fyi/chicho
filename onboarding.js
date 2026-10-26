@@ -454,12 +454,13 @@ function onbDraw(card, P){
   row.className = "pad-row";
   const erase = textButton(say("onb.draw.erase"), ()=>{ pad.erase(); haptic(); });
   const done = document.createElement("button");
-  done.type = "button"; done.className = "btn-ink"; done.textContent = say("onb.draw.done");
+  done.type = "button"; done.className = "btn-ink pad-done"; done.textContent = say("onb.draw.done");
   done.addEventListener("click", ()=>{ if(done.getAttribute("aria-disabled")==="true") return; haptic(); nextStep(); });
   const undo = textButton(say("onb.draw.undo"), ()=>{ pad.undo(); haptic(); });
-  row.append(erase, done, undo);
+  row.append(erase, undo);
+  // Done sits where the next step's pill does, full width at the foot; "Type instead" waits in the corner
   const typed = textButton(say("onb.draw.typeInstead"), ()=>goStep("draw", "typed"), "small type-instead");
-  sheet.body.append(hintP, pad, row, typed);
+  sheet.body.append(typed, hintP, row, pad, done);
   pad.paint();
 }
 function textButton(label, on, cls){

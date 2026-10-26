@@ -33,8 +33,8 @@ f.onload = async () => {
     const sheet = d.querySelector(".onb-sheet.pad-sheet");
     ok("the pad's sheet rises: 'Sign here', 'Big letters. Wobbly is perfect.'", sheet && !sheet.hidden && sheet.querySelector(".sh-title").textContent === "Sign here" && sheet.querySelector(".sh-hint").textContent === "Big letters. Wobbly is perfect.");
     const btns = [...sheet.querySelectorAll("button")].map(b => b.textContent);
-    ok("…Erase, Done, Undo, then 'Type instead'", JSON.stringify(btns) === JSON.stringify(["Erase", "Done", "Undo", "Type instead"]), btns);
-    const pad = sheet.querySelector("canvas.pad"), done = sheet.querySelector(".pad-row .btn-ink");
+    ok("…'Type instead' in the corner, Erase and Undo under the hint, then Done", JSON.stringify(btns) === JSON.stringify(["Type instead", "Erase", "Undo", "Done"]), btns);
+    const pad = sheet.querySelector("canvas.pad"), done = sheet.querySelector(".pad-done"), titleAt = d.getElementById("onbTitle").getBoundingClientRect();
     ok("a drawing pad, named for screen readers, with no browser panning on it", !!pad && pad.getAttribute("aria-label") === "Drawing pad for their name" && getComputedStyle(pad).touchAction === "none");
     ok("…Done is aria-disabled until there's ink, Erase and Undo off", done.getAttribute("aria-disabled") === "true" && sheet.querySelector(".pad-row .btn-text").disabled);
     const pr = pad.getBoundingClientRect();
@@ -53,10 +53,14 @@ f.onload = async () => {
     done.click(); await settle();
     ok("…an empty pad's Done does nothing", step() === "draw");
     stroke([[20, 120], [20, 30], [50, 80], [80, 30], [80, 120]]);
+    const title0 = d.getElementById("onbTitle").getBoundingClientRect(), doneAt = done.getBoundingClientRect();
+    ok("…the drawn name is big (at least twice the old blank) and the sentence didn't move", d.querySelector("#onbTitle .ink-mirror").getBoundingClientRect().height >= 1.8 * parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) && Math.abs(title0.top - titleAt.top) < 1);
     done.click(); await settle();
 
     // Spell
     ok("Done goes to Spell, the ink above 'Spelled for the grown-ups: ____.'", step() === "spell" && !!d.querySelector(".spell-ink svg[data-ink]") && d.getElementById("onbTitle").textContent.startsWith("Spelled for the grown-ups:"));
+    const cta = d.querySelector("#onbFoot .onb-cta").getBoundingClientRect();
+    ok("…its Next pill is where Done was", ["top", "left", "width", "height"].every(k => Math.abs(cta[k] - doneAt[k]) < 1.5), JSON.stringify([cta, doneAt].map(r => [r.top, r.left, r.width, r.height])));
     ok("…'So we can say hello properly.'", d.querySelector("#onbCard .onb-line").textContent === "So we can say hello properly.");
     ok("…Back is a text 'Back', top-left; the first segment is still on", !d.getElementById("onbBack").hidden && d.getElementById("onbBack").textContent === "Back" && d.getElementById("onbProgress").textContent === "Step 1 of 6: Name");
     const nameIn = d.querySelector(".blank-input");
@@ -69,7 +73,7 @@ f.onload = async () => {
     d.getElementById("onbBack").click(); await settle();
     ok("Back from Spell: Draw, with the ink kept", step() === "draw" && E("state.profile.ink.strokes.length") === 1);
     await wait(500);
-    d.querySelector(".pad-row .btn-ink").click(); await settle();
+    d.querySelector(".pad-done").click(); await settle();
     enter(d.querySelector(".blank-input")); await settle();
 
     // birthday: three columns, nothing counts until each is touched
