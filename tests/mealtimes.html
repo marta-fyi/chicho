@@ -57,6 +57,8 @@ const frame = (W, H, months = 18) => new Promise(res => {
     const y0 = R(mark("lunch")).top;
     await drag("lunch", 0);
     ok("a tap selects: 'Lunch around 12:30 PM', Type a time (no Remove: lunch isn't a snack)", $(".mt-strip .mt-say").textContent === "Lunch around " + E("mtClock(750)") && !!$(".mt-type") && !$(".mt-remove") && mark("lunch").classList.contains("on"));
+    { const m = mark("lunch"); await wait(200); const line = m.querySelector(".mt-mt").getBoundingClientRect(), name = m.querySelector(".mt-mn").getBoundingClientRect();
+      ok("…selected: the line stays clear of the name, and the name isn't underlined", line.right <= name.left - 2 && w.getComputedStyle(m.querySelector(".mt-mn")).textDecorationLine === "none", [line.right, name.left]); }
     ok("…saved, so a reload comes back to it", E("state.profile.mealTimesSel") === "lunch");
     const per = E("(document.querySelector('.mt-axis').clientHeight - 2 * MT.pad) / (MT.to - MT.from)");
     await drag("lunch", per * 300);   // five hours later: 17:30, past the afternoon snack and dinner
@@ -72,6 +74,8 @@ const frame = (W, H, months = 18) => new Promise(res => {
     const held = R(mark("breakfast")).top, edge = top - per * 120;
     ok("rubber band: past 6:00 the marker gives, at most 40px beyond the end", held < edge - 1 && held > edge - 41 && E("mtCurrent(18, state.profile).times[0]") === 480, [held, edge]);
     ok("…while held: 'held', and the time reads 6:00 AM", mark("breakfast").classList.contains("held") && mark("breakfast").querySelector(".mt-mc").textContent === E("mtClock(360)"));
+    { const m = mark("breakfast"); await wait(200); const line = m.querySelector(".mt-mt").getBoundingClientRect(), name = m.querySelector(".mt-mn").getBoundingClientRect();
+      ok("…held, the line thickens but stays clear of the name; no underline", line.right <= name.left - 2 && w.getComputedStyle(m.querySelector(".mt-mn")).textDecorationLine === "none", [line.right, name.left]); }
     ptr("pointerup", mid("breakfast")[0], mid("breakfast")[1] - per * 240); await wait(450);
     ok("…and springs back to 6:00 on release", Math.abs(R(mark("breakfast")).top - edge) < 1.5 && E("state.profile.mealTimes.breakfast") === "06:00", [R(mark("breakfast")).top, edge]);
     // the sun: follows the marker in hand in the colour of its hour

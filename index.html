@@ -594,9 +594,9 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .mt-mt{flex:none;width:21px;height:2px;border-radius:1px;background:var(--ink);transform-origin:left center;transition:transform var(--dur-1) var(--ease-out);}
   .mt-mn{font-size:17px;font-weight:500;letter-spacing:-.01em;}
   .mt-mc{font-size:15px;color:var(--ink-85);font-variant-numeric:tabular-nums;}
-  .mt-m.on .mt-mt{transform:scaleX(1.5);}
-  .mt-m.on .mt-mn{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
-  .mt-m.held .mt-mt{transform:scaleX(1.9) scaleY(1.5);}
+  /* selected and held, the line thickens; it never grows into the meal's name (Marta) */
+  .mt-m.on .mt-mt{transform:scaleY(1.75);}
+  .mt-m.held .mt-mt{transform:scaleY(2.5);}
   .mt-links{display:flex;justify-content:center;flex-wrap:wrap;gap:0 8px;}
   .onb-glow.sun-move{transition:transform 300ms var(--ease-out);}
   .onb-glow.sun-leave{transition:transform 1.2s ease-in-out;}
