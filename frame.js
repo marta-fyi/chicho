@@ -3,9 +3,9 @@
    status bar and the home indicator sit over it without taking taps, and take the app's theme; the page around it
    does too. The whole phone scales down to fit the window's height and its column's width. */
 (function(){
-  // the phone with its edge; ROOM_Y is the page's top and bottom padding plus the line under the phone; the
+  // the phone with its edge; ROOM_Y is the page's top and bottom padding (32 each) plus the line under the phone; the
   // description column takes at least ABOUT_W beside it on a wide window
-  const PHONE_W = 402 + 2 * (12 + 3), PHONE_H = 874 + 2 * (12 + 3), ROOM_Y = 96 + 44, PAD_X = 96, ABOUT_W = 320, WIDE = matchMedia("(min-width: 960px)");
+  const PHONE_W = 402 + 2 * (12 + 3), PHONE_H = 874 + 2 * (12 + 3), ROOM_Y = 64 + 44, PAD_X = 96, ABOUT_W = 320, WIDE = matchMedia("(min-width: 960px)");
   const params = new URLSearchParams(location.search);
   params.delete("frame"); params.delete("app"); params.delete("inframe");
   const rest = params.toString();
@@ -41,8 +41,22 @@
     phone.style.transform = `scale(${k})`;
     box.style.width = PHONE_W * k + "px"; box.style.height = PHONE_H * k + "px";
   };
-  addEventListener("resize", fit);
-  fit();
+  // the description fits the window's height on a wide window: its type takes the largest size that fits (never
+  // below MIN_K), so the page never scrolls. A short binary search: wrapping makes height and size non-linear
+  const about = document.querySelector(".fr-about"), MIN_K = .62;
+  const fitAbout = ()=>{
+    const set = k=>about.style.setProperty("--k", k.toFixed(3));
+    set(1);
+    if(!WIDE.matches) return;
+    const room = innerHeight - 64;
+    if(about.offsetHeight <= room) return;
+    let lo = MIN_K, hi = 1;
+    for(let i = 0; i < 7; i++){ const mid = (lo + hi) / 2; set(mid); if(about.offsetHeight <= room) lo = mid; else hi = mid; }
+    set(lo);
+  };
+  addEventListener("resize", ()=>{ fit(); fitAbout(); });
+  fit(); fitAbout();
+  if(document.fonts) document.fonts.ready.then(fitAbout);
 
   // the status bar's clock: the hour and minutes, as the phone shows them (no AM/PM)
   const clock = document.querySelector(".fr-time"), fmt = new Intl.DateTimeFormat(undefined, {hour:"numeric", minute:"2-digit"});

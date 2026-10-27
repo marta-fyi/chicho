@@ -52,8 +52,8 @@ f.onload = async () => {
       const shares = Object.fromEntries(["home", ...Object.keys(want)].map(s => [s, scr(s).style.opacity]));
       ok(`on ${k}: its glow shows, the others don't`, shares[k] === "1" && Object.entries(shares).every(([s, v]) => s === k || v === "0"), shares);
       // (the breath scales the layers' offsets by up to 5%, so allow for it)
-      const s = R(scr(k)), mid = [(s.left + s.right) / 2, (s.top + s.bottom) / 2], gy = parseFloat($("#glowPulse").style.getPropertyValue("--glow-y")), r = Math.abs(E(`LAYOUT.${k}[1]`));
-      ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) < 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
+      const s = R(scr(k)), mid = [(s.left + s.right) / 2, (s.top + s.bottom) / 2], gy = parseFloat($("#glowPulse").style.getPropertyValue("--glow-y")), r = Math.abs(E(`LAYOUT.${k}[1]`)), c = Math.abs(E(`LAYOUT.${k}[0]`));
+      ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) <= .06 * .3 * 390 * c + 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
       E(`go("home", {quiet: true})`); await wait(750);
     }
     // the Kitchen: its own glow in the scroll area (Veg, 70%, a wider and lighter nucleus), scrolling away with the content

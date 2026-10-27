@@ -26,13 +26,13 @@ Marta: the desktop page now starts with a product description, and has a way bac
   - A short paragraph.
   - **It takes care of** (the next meal, new foods, the shopping, variety).
   - **You can** (six things the app really does today).
-  - "No account… Not medical advice…".
+  - Marta took out a closing note ("No account… Not medical advice…") after the first version. The app's own allergen screens keep their note.
   
   It's written from what the app does now, not the old README (which still said "Mark meals as eaten" and "variety scores", and has been rewritten to match). The copy is in `phone.html`, so the voice lint checks it.
 - **Layout:**
   - The description on the left (320–460px) and the live phone on the right, from 960px wide.
   - Below that, one column with the description first.
-  - When the description is taller than the window, the page scrolls and the phone column is sticky.
+  - **The wide page never scrolls (Marta).** The description's type takes the largest size that fits the window's height: `--k`, from a short binary search in `frame.js`, never below 62%. At 1440×900 that's about 14.8px, and at 1000×717 about 11.4px. The narrow one-column layout still scrolls.
   - The phone scales to the window's height and to its column's width.
   - The line under it reads "Try it here, or open marta.fyi/chicho on your phone."
 

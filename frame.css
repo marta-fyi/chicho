@@ -8,28 +8,27 @@ body.fr[data-theme="dark"]{--fr-bg:#0B0B0F;--fr-ink:#FFFFFF;--fr-muted:rgba(255,
 html, body.fr{margin:0;}
 body.fr{background:var(--fr-bg);color:var(--fr-ink);font:15px/1.55 "JetBrains Mono", ui-monospace, Menlo, monospace;}
 
-/* the page: the description and the phone, side by side and centred; it scrolls only when it has to */
-.fr-page{min-height:100vh;box-sizing:border-box;display:grid;grid-template-columns:minmax(320px, 460px) auto;align-items:start;align-content:center;
-         justify-content:center;column-gap:clamp(48px, 6vw, 96px);padding:48px 48px;}
+/* the page: the description and the phone, side by side and centred, filling the window with no scroll (the
+   description's type scales to fit its height, --k, set by frame.js); one column below 960px, which scrolls */
+.fr-page{min-height:100vh;box-sizing:border-box;display:grid;grid-template-columns:minmax(320px, 520px) auto;align-items:center;align-content:center;
+         justify-content:center;column-gap:clamp(48px, 6vw, 96px);padding:32px 48px;}
+@media (min-width:960px){ body.fr{height:100vh;overflow:hidden;} .fr-page{height:100vh;} }
 @media (max-width:959px){ .fr-page{grid-template-columns:minmax(0, 560px);row-gap:56px;align-content:start;} }
-.fr-about{padding-top:8px;}
-.fr-back{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 28px;font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+.fr-about{font-size:calc(15px * var(--k, 1));line-height:1.55;}
+.fr-back{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 1.6em;font-size:max(12px, .87em);font-weight:500;letter-spacing:.08em;text-transform:uppercase;
          color:var(--fr-ink);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
 .fr-back:focus-visible{outline:2px solid var(--fr-ink);outline-offset:2px;border-radius:4px;}
-.fr-name{margin:0;font-size:56px;font-weight:500;line-height:1.05;letter-spacing:.08em;}
-.fr-tag{margin:14px 0 0;font-size:20px;font-weight:500;line-height:1.35;}
-.fr-lede{margin:20px 0 0;color:var(--fr-muted);}
-.fr-sec{margin-top:28px;}
-.fr-sec h2{margin:0 0 10px;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--fr-muted);}
+.fr-name{margin:0;font-size:3.7em;font-weight:500;line-height:1.05;letter-spacing:.08em;}
+.fr-tag{margin:.7em 0 0;font-size:1.33em;font-weight:500;line-height:1.35;}
+.fr-lede{margin:1.3em 0 0;color:var(--fr-muted);}
+.fr-sec{margin-top:1.8em;}
+.fr-sec h2{margin:0 0 .6em;font-size:.8em;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--fr-muted);}
 .fr-sec ul{margin:0;padding:0;list-style:none;}
-.fr-sec li{padding:7px 0;border-top:1px solid color-mix(in srgb, var(--fr-ink) 14%, transparent);}
+.fr-sec li{padding:.45em 0;border-top:1px solid color-mix(in srgb, var(--fr-ink) 14%, transparent);}
 .fr-sec li:last-child{border-bottom:1px solid color-mix(in srgb, var(--fr-ink) 14%, transparent);}
 .fr-helps li{color:var(--fr-muted);}
 .fr-sec li b{font-weight:500;color:var(--fr-ink);}   /* the thing in ink, what it means muted */
-.fr-note{margin:28px 0 0;font-size:13px;line-height:1.5;color:var(--fr-muted);}
-/* the phone column stays in view while a long description scrolls */
 .fr-stage{display:flex;flex-direction:column;align-items:center;gap:20px;}
-@media (min-width:960px){ .fr-stage{position:sticky;top:48px;} }
 
 /* the scaled box keeps the layout honest: its size is the phone's size times the scale (set by frame.js) */
 .fr-box{position:relative;flex:none;}
@@ -63,4 +62,4 @@ body.fr{background:var(--fr-bg);color:var(--fr-ink);font:15px/1.55 "JetBrains Mo
 .fr-icons svg{display:block;fill:currentColor;}
 .fr-home{position:absolute;z-index:2;bottom:8px;left:50%;width:139px;height:5px;margin-left:-70px;border-radius:3px;background:var(--fr-status);pointer-events:none;}
 
-.fr-line{margin:0;font-size:13px;color:var(--fr-muted);letter-spacing:.02em;}
+.fr-line{margin:0;font-size:13px;color:var(--fr-muted);letter-spacing:.02em;text-align:center;}
