@@ -405,6 +405,9 @@ if (!args.has("--perf-only")) for (const engine of ["webkit", "chromium"]) for (
   ok(`${tag}: the app inside has an iPhone 16 Pro's viewport (402×874) and safe area (62px)`, L.iw === 402 && L.ih === 874 && L.sat === "62px", L);
   ok(`${tag}: the phone and its line fit the window`, L.fits, L);
   ok(`${tag}: the page and status bar take the app's theme`, L.theme === theme, L.theme);
+  const A = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), a = r(".fr-about"), p = r(".fr-box"), b = r(".fr-back");
+    return {back: b.height >= 44 && b.top >= 0 && b.left >= 0, title: document.querySelector("h1").textContent, apart: a.right <= p.left || a.bottom <= p.top, seen: a.top >= 0 && a.top < innerHeight}; });
+  ok(`${tag}: what Chicho is and 'Back to marta.fyi' are on the page, beside (or above) the phone, never over it`, A.back && A.title === "CHICHO" && A.apart && A.seen, A);
   await page.waitForFunction("(() => { const s = document.querySelector('.fr-screen iframe').contentDocument.querySelector('.pad-sheet'); return s && !s.hidden && !s.getAnimations().length; })()", null, {timeout: 15000});
   await page.waitForTimeout(300);
   const pad = await page.frameLocator(".fr-screen iframe").locator("canvas.pad").boundingBox();

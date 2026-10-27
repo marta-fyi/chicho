@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CHICHO</title>
+<title>CHICHO · a calm meal planner for babies and toddlers</title>
+<meta name="description" content="A calm meal planner for babies and toddlers. Chicho plans a week of meals for your little one, from first tastes at six months to a seat at the family table.">
 <link rel="icon" href="icon-192.png">
 <script>
 /* Desktop, in a phone: index.html sends a desktop browser here (see its gate). The address bar goes back to the
@@ -18,6 +19,37 @@
 <link rel="stylesheet" href="frame.css">
 </head>
 <body class="fr">
+<div class="fr-page">
+  <main class="fr-about">
+    <a class="fr-back" href="https://marta.fyi/">Back to marta.fyi</a>
+    <h1 class="fr-name">CHICHO</h1>
+    <p class="fr-tag">A calm meal planner for babies and toddlers.</p>
+    <p class="fr-lede">Every day starts with the same question: what do we eat today? Chicho answers it before you ask. It plans a week of meals for your little one, from first tastes at six months to a seat at the family table.</p>
+    <section class="fr-sec" aria-labelledby="frHelps">
+      <h2 id="frHelps">It takes care of</h2>
+      <ul class="fr-helps">
+        <li><b>The next meal.</b> One screen: what it is, how much, and how to make it.</li>
+        <li><b>New foods.</b> Allergens arrive one at a time, and anything kept out never shows up.</li>
+        <li><b>The shopping.</b> The list writes itself from the week and remembers what's at home.</li>
+        <li><b>Variety.</b> Each week leans on what they love and keeps offering what's still new.</li>
+      </ul>
+    </section>
+    <section class="fr-sec" aria-labelledby="frCan">
+      <h2 id="frCan">You can</h2>
+      <ul class="fr-can">
+        <li>Sort foods into keep out, not a fan and tried already.</li>
+        <li>Set the times your day really runs on.</li>
+        <li>Mark a meal offered, and how it went.</li>
+        <li>Swap a whole meal, or just one food.</li>
+        <li>Cook once and cover two meals.</li>
+        <li>Send tomorrow's meals to whoever is looking after them.</li>
+      </ul>
+    </section>
+    <p class="fr-note">No account, no sign-up. Everything stays on your phone. Not medical advice: check new foods with your pediatrician.</p>
+  </main>
+  <!-- the live app, in its phone (frame.js) -->
+  <div class="fr-stage" id="frStage"></div>
+</div>
 <script src="frame.js"></script>
 </body>
 </html>

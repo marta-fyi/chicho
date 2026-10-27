@@ -34,11 +34,20 @@ localStorage.clear(); sessionStorage.clear();
     f.remove();
 
     // the shell
-    f = await frame("../phone.html?frame&test&now=2026-10-22T12:10", 1200, 1000);
+    f = await frame("../phone.html?frame&test&now=2026-10-22T12:10", 1300, 1100);
     const sd = f.contentDocument, sw = f.contentWindow;
     await until(() => sd.querySelector(".fr-screen iframe") && sd.querySelector(".fr-screen iframe").contentWindow.document.getElementById("onbTop"));
     const app = sd.querySelector(".fr-screen iframe"), aw = app.contentWindow;
-    ok("the shell: one phone, the app in it, and 'Chicho · made for your phone'", !!sd.querySelector(".fr-phone") && sd.querySelector(".fr-line").textContent === "Chicho · made for your phone");
+    ok("the shell: one phone, the app in it, and 'Try it here, or open marta.fyi/chicho on your phone.'", !!sd.querySelector(".fr-phone") && sd.querySelector(".fr-line").textContent === "Try it here, or open marta.fyi/chicho on your phone.");
+    // what Chicho is, first, and the way back
+    const back = sd.querySelector(".fr-back"), focusables = [...sd.querySelectorAll("a[href], button, iframe, [tabindex]")];
+    ok("'Back to marta.fyi' comes first, links to https://marta.fyi/ (same tab), 44px tall", back && back.textContent === "Back to marta.fyi" && back.getAttribute("href") === "https://marta.fyi/" && !back.target && focusables[0] === back && back.getBoundingClientRect().height >= 44);
+    const secs = [...sd.querySelectorAll(".fr-about section")].map(x => [x.querySelector("h2").textContent, x.querySelectorAll("li").length]);
+    ok("then 'CHICHO', the tagline, and two sections: 'It takes care of' (4) and 'You can' (6)", sd.querySelector("h1").textContent === "CHICHO" && sd.querySelector(".fr-tag").textContent === "A calm meal planner for babies and toddlers." && JSON.stringify(secs) === JSON.stringify([["It takes care of", 4], ["You can", 6]]), secs);
+    ok("…closing on no account, and not medical advice", /No account/.test(sd.querySelector(".fr-note").textContent) && /Not medical advice/.test(sd.querySelector(".fr-note").textContent));
+    ok("…and the description comes before the app in reading order", sd.querySelector(".fr-about").compareDocumentPosition(app) & 4);
+    const about = sd.querySelector(".fr-about").getBoundingClientRect(), ph = sd.querySelector(".fr-box").getBoundingClientRect();
+    ok("a wide window: the description on the left, the phone on the right, apart", about.right + 40 <= ph.left && Math.abs(about.top - ph.top) < 80, [about.right, ph.left, about.top, ph.top]);
     ok("…the app's viewport is an iPhone 16 Pro's: 402×874", aw.innerWidth === 402 && aw.innerHeight === 874, [aw.innerWidth, aw.innerHeight]);
     ok("…loaded as the app (?app), marked ?inframe, keeping the page's other parameters", /index\.html\?app&inframe&/.test(app.getAttribute("src") || app.src) && /now=/.test(app.src) && !/frame&|[?&]frame\b/.test(app.src.replace("inframe", "")), app.src);
     ok("…the address bar shows the app's address, not phone.html", !/phone\.html/.test(sw.location.pathname) && /frame/.test(sw.location.search), sw.location.href);
@@ -49,9 +58,15 @@ localStorage.clear(); sessionStorage.clear();
     ok("…light theme: the status bar is black", sd.body.dataset.theme === "light" && sw.getComputedStyle(sd.querySelector(".fr-status")).color === "rgb(0, 0, 0)");
     aw.applyTheme("dark"); await wait(50);
     ok("…the app turns dark: the status bar and the page follow", sd.body.dataset.theme === "dark" && sw.getComputedStyle(sd.querySelector(".fr-status")).color === "rgb(255, 255, 255)");
-    f.width = 900; f.height = 600; await wait(150);
-    const k = parseFloat(sd.querySelector(".fr-phone").style.transform.slice(6)), box = sd.querySelector(".fr-box").getBoundingClientRect();
-    ok("a shorter window scales the whole phone down to fit, the line still under it", k < 1 && box.bottom <= 600 - 40 && sd.querySelector(".fr-line").getBoundingClientRect().bottom <= 600, [k, box.bottom]);
+    f.width = 1200; f.height = 640; await wait(200);
+    const k = parseFloat(sd.querySelector(".fr-phone").style.transform.slice(6)), box = () => sd.querySelector(".fr-box").getBoundingClientRect();
+    ok("a shorter window scales the whole phone down to fit, the line still under it", k < 1 && box().top >= 0 && box().bottom <= 640 - 40 && sd.querySelector(".fr-line").getBoundingClientRect().bottom <= 640, [k, box().bottom]);
+    sw.scrollTo(0, 400); await wait(100);
+    ok("…the description scrolls; the phone stays in view", sw.scrollY > 100 && box().top >= 0 && box().bottom <= 640, [sw.scrollY, box().top]);
+    sw.scrollTo(0, 0);
+    f.width = 800; f.height = 900; await wait(200);
+    const a2 = sd.querySelector(".fr-about").getBoundingClientRect(), p2 = box();
+    ok("a narrower window: one column, the description above the phone", a2.bottom <= p2.top && Math.abs((a2.left + a2.right) / 2 - (p2.left + p2.right) / 2) < 120, [a2.bottom, p2.top]);
     ok("…the app inside keeps the phone's 402×874", aw.innerWidth === 402 && aw.innerHeight === 874);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;

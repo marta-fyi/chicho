@@ -16,6 +16,26 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## The desktop page says what Chicho is (27 Oct 2026)
+
+Marta: the desktop page now starts with a product description, and has a way back to her portfolio. Phones are unchanged: Chicho still opens straight into the app.
+- **"Back to marta.fyi"** (`https://marta.fyi/`, same tab) is the first thing on the page, at the top of the description column, in the app's text-button style.
+- **The description:**
+  - "CHICHO".
+  - "A calm meal planner for babies and toddlers."
+  - A short paragraph.
+  - **It takes care of** (the next meal, new foods, the shopping, variety).
+  - **You can** (six things the app really does today).
+  - "No account… Not medical advice…".
+  
+  It's written from what the app does now, not the old README (which still said "Mark meals as eaten" and "variety scores", and has been rewritten to match). The copy is in `phone.html`, so the voice lint checks it.
+- **Layout:**
+  - The description on the left (320–460px) and the live phone on the right, from 960px wide.
+  - Below that, one column with the description first.
+  - When the description is taller than the window, the page scrolls and the phone column is sticky.
+  - The phone scales to the window's height and to its column's width.
+  - The line under it reads "Try it here, or open marta.fyi/chicho on your phone."
+
 ## Through the glow (27 Oct 2026, supersedes the 320ms camera ease)
 
 Marta: moving between screens still read as a swap. The slide was 320ms on a front-loaded ease, about 70% of the way in the first 80ms, and a jump from the list (Home to New week) flashed past Kitchen in about 100ms. A tap now goes "through the glow" (`settle(…, "glow")`, `GLOW_MS = 600`):

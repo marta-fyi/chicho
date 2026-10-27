@@ -1,11 +1,35 @@
-/* Desktop, in a phone: the page around the iPhone 16 Pro frame (frame.js builds it). The phone is drawn here, in CSS,
-   at its real size in CSS px (a 402×874 screen), and scaled down as a whole when the window is shorter. */
+/* Desktop, in a phone: the page around the iPhone 16 Pro frame. What Chicho is on the left (phone.html), the live app
+   in its phone on the right (frame.js); one column, the description first, below 960px. The phone is drawn here, in
+   CSS, at its real size in CSS px (a 402×874 screen), and scaled down as a whole to fit. */
 @font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-400.woff2") format("woff2");font-weight:400;font-display:swap;}
+@font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-500.woff2") format("woff2");font-weight:500;font-display:swap;}
 :root{--fr-bg:#F2F2F7;--fr-ink:#121212;--fr-muted:rgba(18,18,18,.6);--fr-status:#000;color-scheme:light;}
 body.fr[data-theme="dark"]{--fr-bg:#0B0B0F;--fr-ink:#FFFFFF;--fr-muted:rgba(255,255,255,.6);--fr-status:#FFF;color-scheme:dark;}
-html, body.fr{margin:0;height:100%;}
-body.fr{background:var(--fr-bg);color:var(--fr-ink);font:13px/1.4 "JetBrains Mono", ui-monospace, Menlo, monospace;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;overflow:hidden;}
+html, body.fr{margin:0;}
+body.fr{background:var(--fr-bg);color:var(--fr-ink);font:15px/1.55 "JetBrains Mono", ui-monospace, Menlo, monospace;}
+
+/* the page: the description and the phone, side by side and centred; it scrolls only when it has to */
+.fr-page{min-height:100vh;box-sizing:border-box;display:grid;grid-template-columns:minmax(320px, 460px) auto;align-items:start;align-content:center;
+         justify-content:center;column-gap:clamp(48px, 6vw, 96px);padding:48px 48px;}
+@media (max-width:959px){ .fr-page{grid-template-columns:minmax(0, 560px);row-gap:56px;align-content:start;} }
+.fr-about{padding-top:8px;}
+.fr-back{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 28px;font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+         color:var(--fr-ink);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
+.fr-back:focus-visible{outline:2px solid var(--fr-ink);outline-offset:2px;border-radius:4px;}
+.fr-name{margin:0;font-size:56px;font-weight:500;line-height:1.05;letter-spacing:.08em;}
+.fr-tag{margin:14px 0 0;font-size:20px;font-weight:500;line-height:1.35;}
+.fr-lede{margin:20px 0 0;color:var(--fr-muted);}
+.fr-sec{margin-top:28px;}
+.fr-sec h2{margin:0 0 10px;font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--fr-muted);}
+.fr-sec ul{margin:0;padding:0;list-style:none;}
+.fr-sec li{padding:7px 0;border-top:1px solid color-mix(in srgb, var(--fr-ink) 14%, transparent);}
+.fr-sec li:last-child{border-bottom:1px solid color-mix(in srgb, var(--fr-ink) 14%, transparent);}
+.fr-helps li{color:var(--fr-muted);}
+.fr-sec li b{font-weight:500;color:var(--fr-ink);}   /* the thing in ink, what it means muted */
+.fr-note{margin:28px 0 0;font-size:13px;line-height:1.5;color:var(--fr-muted);}
+/* the phone column stays in view while a long description scrolls */
+.fr-stage{display:flex;flex-direction:column;align-items:center;gap:20px;}
+@media (min-width:960px){ .fr-stage{position:sticky;top:48px;} }
 
 /* the scaled box keeps the layout honest: its size is the phone's size times the scale (set by frame.js) */
 .fr-box{position:relative;flex:none;}
@@ -39,4 +63,4 @@ body.fr{background:var(--fr-bg);color:var(--fr-ink);font:13px/1.4 "JetBrains Mon
 .fr-icons svg{display:block;fill:currentColor;}
 .fr-home{position:absolute;z-index:2;bottom:8px;left:50%;width:139px;height:5px;margin-left:-70px;border-radius:3px;background:var(--fr-status);pointer-events:none;}
 
-.fr-line{margin:0;color:var(--fr-muted);letter-spacing:.02em;}
+.fr-line{margin:0;font-size:13px;color:var(--fr-muted);letter-spacing:.02em;}

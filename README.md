@@ -1,30 +1,26 @@
 # CHICHO
-plan groceries and meal preps
+A calm meal planner for babies and toddlers.
 
 https://marta.fyi/chicho/
 
+Every day starts with the same question: what do we eat today? Chicho answers it before you ask. It plans a week of meals for your little one, from first tastes at six months to a seat at the family table.
 
-**CHICHO** is a simple, mobile-friendly meal planner for toddlers. I got tired of wondering *what should we eat today?"* every single day. So I built it. It's a simple meal planner for babies and toddlers that helps plan balanced meals, keep track of food variety, and automatically build the grocery list.
+**It takes care of**
+- **The next meal.** One screen: what it is, how much, and how to make it.
+- **New foods.** Allergens arrive one at a time, and anything kept out never shows up.
+- **The shopping.** The list writes itself from the week and remembers what's at home.
+- **Variety.** Each week leans on what they love and keeps offering what's still new.
 
-No accounts, no setup. Just a small app that makes planning a little easier.
+**You can**
+- Sort foods into keep out, not a fan and tried already.
+- Set the times your day really runs on.
+- Mark a meal offered, and how it went.
+- Swap a whole meal, or just one food.
+- Cook once and cover two meals.
+- Send tomorrow's meals to whoever is looking after them.
 
-**Features**
- 📅 Plan weekly;
- 🥣 Breakfast, lunch, dinner and snacks;
- ✅ Mark meals as eaten;
- 🛒 Automatic grocery list;
- 🌈 Track variety scores;
- 💾 Everything is stored locally;
+No account, no sign-up. Everything stays on your phone (localStorage). On a desktop browser it opens inside an iPhone frame, with this description beside it.
 
+**Tech:** HTML, CSS and JavaScript, no build step. `node tools/check.mjs` runs the lint, the voice check and every test page; `docs/decisions.md` records why things are the way they are.
 
-
-**Tech**
-HTML, CSS, JavaScript, Local Storage
-
-That's it.
-
-**Disclaimer** 
-I'm not a pediatric nutritionist. The meals are based on general healthy eating recommendations for babies and toddlers and should be adapted to your child's needs.
-
-
-**If CHICHO makes one parent's day a little easier, then it did its job. ❤️**
+**Not medical advice.** I'm not a pediatric nutritionist. The meals follow general recommendations for babies and toddlers; check new foods, and anything about allergies, with your pediatrician.
