@@ -6,8 +6,8 @@
    drawings after its first paint). Everything the family enters lives in
    localStorage, so it's already offline. Bump VERSION with every release
    so old caches go. */
-const VERSION = "chicho-v15";
-const SHELL = ["./", "index.html", "theme.js", "foods.js", "content.js", "sortconfig.js", "sortcore.js", "curatedSeeds.json", "onboarding.js", "sortfood.js", "mealtimes.js", "kitchen.js", "home.js", "img/grain.png", "fonts/jbm-400.woff2", "fonts/jbm-500.woff2", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const VERSION = "chicho-v16";
+const SHELL = ["./", "index.html", "theme.js", "foods.js", "content.js", "sortconfig.js", "sortcore.js", "curatedSeeds.json", "onboarding.js", "sortfood.js", "mealtimes.js", "kitchen.js", "home.js", "img/grain.png", "fonts/jbm-400.woff2", "fonts/jbm-500.woff2", "bg.jpg", "manifest.webmanifest", "icon-192.png", "icon-512.png", "phone.html", "frame.js", "frame.css"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(VERSION).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -23,11 +23,13 @@ self.addEventListener("fetch", e=>{
   const req = e.request, url = new URL(req.url);
   if(req.method!=="GET" || url.origin!==location.origin) return;
   if(req.mode==="navigate"){
+    // the desktop frame (phone.html) is its own page: it must never be kept as the app
+    const page = url.pathname.endsWith("/phone.html") ? "phone.html" : "index.html";
     e.respondWith(fetch(req).then(res=>{
       const copy = res.clone();
-      caches.open(VERSION).then(c=>c.put("index.html", copy));
+      caches.open(VERSION).then(c=>c.put(page, copy));
       return res;
-    }).catch(()=>caches.match("index.html").then(r=>r || caches.match("./"))));
+    }).catch(()=>caches.match(page).then(r=>r || caches.match("./"))));
     return;
   }
   if(!isShell(url) && !isArt(url)) return;

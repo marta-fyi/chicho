@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · frame tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc}</style></head>
+<body>
+<h1>Desktop, in a phone</h1>
+<p>The gate (frame or app), the app inside the frame with an iPhone 16 Pro's safe areas, and the shell: the phone at its real size, its status bar out of the way of taps and in the app's theme, and the app's viewport the phone's 402×874. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const frame = (src, w, h) => new Promise(r => { const f = document.createElement("iframe"); f.width = w; f.height = h; f.onload = () => r(f); f.src = src; document.body.append(f); });
+const until = async (fn, ms = 6000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (fn()) return true; } catch (e) {} await wait(50); } return false; };
+localStorage.clear(); sessionStorage.clear();
+(async () => {
+  try {
+    // the gate: a pure decision
+    let f = await frame("../index.html?test&inframe&now=2026-10-22T12:10", 402, 874);
+    const w = f.contentWindow, d = f.contentDocument, mode = o => w.chichoMode(Object.assign({framed: false, search: "", desktop: false}, o));
+    ok("inside a frame: the app, even on a desktop or with ?frame", mode({framed: true, desktop: true}) === "app" && mode({framed: true, search: "?frame"}) === "app");
+    ok("?app and ?test: the app, even on a desktop", mode({search: "?app", desktop: true}) === "app" && mode({search: "?x=1&test", desktop: true}) === "app");
+    ok("a desktop browser: the frame", mode({desktop: true}) === "frame");
+    ok("a phone: the app; with ?frame, the frame", mode({}) === "app" && mode({search: "?frame"}) === "frame");
+    ok("…and words that only contain 'app' or 'test' don't count", mode({search: "?apple=1", desktop: true}) === "frame" && mode({search: "?latest", desktop: true}) === "frame");
+
+    // the app inside: an iPhone 16 Pro's safe areas
+    await wait(600);
+    const cs = w.getComputedStyle(d.documentElement);
+    ok("?inframe: html.in-frame, a 62px top and a 34px bottom safe area", d.documentElement.classList.contains("in-frame") && cs.getPropertyValue("--sa-t").trim() === "62px" && cs.getPropertyValue("--sa-b").trim() === "34px", [cs.getPropertyValue("--sa-t"), cs.getPropertyValue("--sa-b")]);
+    const top = d.getElementById("onbTop").getBoundingClientRect().top;
+    ok("…so the onboarding's top bar starts below the Dynamic Island", top >= 62, top);
+    f.remove();
+    f = await frame("../index.html?test&now=2026-10-22T12:10", 402, 874); await wait(400);
+    ok("without it, the safe areas are the device's own (none here)", !f.contentDocument.documentElement.classList.contains("in-frame") && parseFloat(f.contentWindow.getComputedStyle(f.contentDocument.documentElement).getPropertyValue("--sa-t")) === 0);
+    f.remove();
+
+    // the shell
+    f = await frame("../phone.html?frame&test&now=2026-10-22T12:10", 1200, 1000);
+    const sd = f.contentDocument, sw = f.contentWindow;
+    await until(() => sd.querySelector(".fr-screen iframe") && sd.querySelector(".fr-screen iframe").contentWindow.document.getElementById("onbTop"));
+    const app = sd.querySelector(".fr-screen iframe"), aw = app.contentWindow;
+    ok("the shell: one phone, the app in it, and 'Chicho · made for your phone'", !!sd.querySelector(".fr-phone") && sd.querySelector(".fr-line").textContent === "Chicho · made for your phone");
+    ok("…the app's viewport is an iPhone 16 Pro's: 402×874", aw.innerWidth === 402 && aw.innerHeight === 874, [aw.innerWidth, aw.innerHeight]);
+    ok("…loaded as the app (?app), marked ?inframe, keeping the page's other parameters", /index\.html\?app&inframe&/.test(app.getAttribute("src") || app.src) && /now=/.test(app.src) && !/frame&|[?&]frame\b/.test(app.src.replace("inframe", "")), app.src);
+    ok("…the address bar shows the app's address, not phone.html", !/phone\.html/.test(sw.location.pathname) && /frame/.test(sw.location.search), sw.location.href);
+    ok("…at its real size when the window is tall enough", sd.querySelector(".fr-phone").style.transform === "scale(1)", sd.querySelector(".fr-phone").style.transform);
+    ok("…the status bar, Dynamic Island and home indicator never take a tap", [".fr-status", ".fr-island", ".fr-home"].every(s => sw.getComputedStyle(sd.querySelector(s)).pointerEvents === "none"));
+    ok("…a live clock, H:MM", /^\d{1,2}:\d{2}$/.test(sd.querySelector(".fr-time").textContent), sd.querySelector(".fr-time").textContent);
+    aw.applyTheme("light"); await wait(50);
+    ok("…light theme: the status bar is black", sd.body.dataset.theme === "light" && sw.getComputedStyle(sd.querySelector(".fr-status")).color === "rgb(0, 0, 0)");
+    aw.applyTheme("dark"); await wait(50);
+    ok("…the app turns dark: the status bar and the page follow", sd.body.dataset.theme === "dark" && sw.getComputedStyle(sd.querySelector(".fr-status")).color === "rgb(255, 255, 255)");
+    f.width = 900; f.height = 600; await wait(150);
+    const k = parseFloat(sd.querySelector(".fr-phone").style.transform.slice(6)), box = sd.querySelector(".fr-box").getBoundingClientRect();
+    ok("a shorter window scales the whole phone down to fit, the line still under it", k < 1 && box.bottom <= 600 - 40 && sd.querySelector(".fr-line").getBoundingClientRect().bottom <= 600, [k, box.bottom]);
+    ok("…the app inside keeps the phone's 402×874", aw.innerWidth === 402 && aw.innerHeight === 874);
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · frame";
+})();
+</script>
+</body></html>

@@ -1,56 +1,56 @@
 {
   "what": "Draw (Type instead) to Home through Birthday, Allergens, Meal times (untouched), Reveal (played in full) and Done; scripted taps, no thinking time",
-  "medianMs": 7131,
-  "minMs": 7007,
-  "maxMs": 7259,
+  "medianMs": 7137,
+  "minMs": 7034,
+  "maxMs": 7285,
   "runs": [
     {
       "tag": "webkit iPhone SE light",
-      "ms": 7022
+      "ms": 7041
     },
     {
       "tag": "webkit iPhone SE dark",
-      "ms": 7030
+      "ms": 7042
     },
     {
       "tag": "webkit iPhone 14 light",
-      "ms": 7026
-    },
-    {
-      "tag": "webkit iPhone 14 dark",
       "ms": 7037
     },
     {
+      "tag": "webkit iPhone 14 dark",
+      "ms": 7034
+    },
+    {
       "tag": "webkit iPhone 14 Pro Max light",
-      "ms": 7007
+      "ms": 7044
     },
     {
       "tag": "webkit iPhone 14 Pro Max dark",
-      "ms": 7036
+      "ms": 7047
     },
     {
       "tag": "chromium iPhone SE light",
-      "ms": 7259
-    },
-    {
-      "tag": "chromium iPhone SE dark",
-      "ms": 7225
-    },
-    {
-      "tag": "chromium iPhone 14 light",
-      "ms": 7244
-    },
-    {
-      "tag": "chromium iPhone 14 dark",
       "ms": 7226
     },
     {
+      "tag": "chromium iPhone SE dark",
+      "ms": 7285
+    },
+    {
+      "tag": "chromium iPhone 14 light",
+      "ms": 7241
+    },
+    {
+      "tag": "chromium iPhone 14 dark",
+      "ms": 7270
+    },
+    {
       "tag": "chromium iPhone 14 Pro Max light",
-      "ms": 7249
+      "ms": 7242
     },
     {
       "tag": "chromium iPhone 14 Pro Max dark",
-      "ms": 7238
+      "ms": 7252
     }
   ]
 }

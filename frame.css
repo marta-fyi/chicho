@@ -1,0 +1,42 @@
+/* Desktop, in a phone: the page around the iPhone 16 Pro frame (frame.js builds it). The phone is drawn here, in CSS,
+   at its real size in CSS px (a 402×874 screen), and scaled down as a whole when the window is shorter. */
+@font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-400.woff2") format("woff2");font-weight:400;font-display:swap;}
+:root{--fr-bg:#F2F2F7;--fr-ink:#121212;--fr-muted:rgba(18,18,18,.6);--fr-status:#000;color-scheme:light;}
+body.fr[data-theme="dark"]{--fr-bg:#0B0B0F;--fr-ink:#FFFFFF;--fr-muted:rgba(255,255,255,.6);--fr-status:#FFF;color-scheme:dark;}
+html, body.fr{margin:0;height:100%;}
+body.fr{background:var(--fr-bg);color:var(--fr-ink);font:13px/1.4 "JetBrains Mono", ui-monospace, Menlo, monospace;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;overflow:hidden;}
+
+/* the scaled box keeps the layout honest: its size is the phone's size times the scale (set by frame.js) */
+.fr-box{position:relative;flex:none;}
+.fr-phone{--sw:402px;--sh:874px;--bz:12px;--edge:3px;
+          position:absolute;left:0;top:0;transform-origin:0 0;
+          width:calc(var(--sw) + 2 * (var(--bz) + var(--edge)));height:calc(var(--sh) + 2 * (var(--bz) + var(--edge)));
+          border-radius:72px;box-sizing:border-box;padding:var(--edge);
+          background:linear-gradient(145deg, #8E8A84, #5E5B57 30%, #A7A39C 55%, #4E4C49 80%, #8A867F);
+          box-shadow:0 30px 60px -20px rgba(0,0,0,.35), 0 12px 24px -12px rgba(0,0,0,.25);}
+.fr-bezel{position:relative;width:100%;height:100%;box-sizing:border-box;padding:var(--bz);border-radius:69px;background:#050505;}
+.fr-screen{position:relative;width:var(--sw);height:var(--sh);border-radius:57px;overflow:hidden;background:#000;
+           -webkit-mask-image:-webkit-radial-gradient(white, black);}   /* clips the iframe's corners in WebKit too */
+.fr-screen iframe{display:block;width:100%;height:100%;border:0;}
+
+/* the buttons: Action, volume up and down on the left; side button and Camera Control on the right */
+.fr-btn{position:absolute;width:4px;border-radius:2px;background:linear-gradient(90deg, #6A6762, #9C9891);}
+.fr-btn.l{left:-4px;}
+.fr-btn.r{right:-4px;}
+.fr-btn.action{top:178px;height:34px;}
+.fr-btn.volup{top:242px;height:62px;}
+.fr-btn.voldown{top:318px;height:62px;}
+.fr-btn.side{top:262px;height:98px;}
+.fr-btn.camera{top:560px;height:72px;}
+
+/* over the screen, never in the way of a tap */
+.fr-island{position:absolute;z-index:3;top:11px;left:50%;width:126px;height:37px;margin-left:-63px;border-radius:19px;background:#000;pointer-events:none;}
+.fr-status{position:absolute;z-index:2;top:0;left:0;right:0;height:59px;display:grid;grid-template-columns:1fr 126px 1fr;align-items:center;
+           color:var(--fr-status);pointer-events:none;font:600 17px/1 -apple-system, "SF Pro Text", system-ui, sans-serif;letter-spacing:-.02em;}
+.fr-time{justify-self:center;padding-left:8px;font-variant-numeric:tabular-nums;}
+.fr-icons{justify-self:center;display:flex;align-items:center;gap:6px;padding-right:8px;}
+.fr-icons svg{display:block;fill:currentColor;}
+.fr-home{position:absolute;z-index:2;bottom:8px;left:50%;width:139px;height:5px;margin-left:-70px;border-radius:3px;background:var(--fr-status);pointer-events:none;}
+
+.fr-line{margin:0;color:var(--fr-muted);letter-spacing:.02em;}

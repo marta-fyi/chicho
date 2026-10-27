@@ -16,6 +16,26 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Desktop, in a phone (27 Oct 2026)
+
+Marta: on desktop, marta.fyi/chicho/ shows the app in an iPhone 16 Pro frame. Phones get the app exactly as before.
+- **The gate**, the first script in `index.html`'s head: `chichoMode({framed, search, desktop})`.
+  - The app runs inside any frame, with `?app` or `?test`, or when the browser isn't a desktop (`(pointer: fine) and (min-width: 700px) and (min-height: 600px)`). The test pages run in iframes and the device runs use `?test`, so neither is affected.
+  - A desktop browser (or `?frame`, anywhere) gets the frame. `window.stop()` ends the parse first, so none of the app's styles or scripts run on the way; checked in WebKit, Chromium and Firefox. Then it does `location.replace("phone.html…")`.
+  - `phone.html` puts the app's own address back in the bar (`history.replaceState`), so a reload or a shared link is the same link. Opened on a phone without `?frame`, it hands over to the app.
+  - Building the shell in place, in the stopped page, was tried first: it never fires `load`, WebKit's `document.fonts.ready` never settles, and Firefox fails its webfont. A real page avoids all three.
+- **Why an iframe:** the app gets a true 402×874 viewport, so everything that measures the screen (the sort's layout, meal times, Home's fold, the pager's edges, `svh`) measures the phone's. Shrinking the page with CSS can't do that.
+- **The frame** (`frame.js`, `frame.css`) is drawn in CSS at real size, then scaled as a whole to fit the window:
+  - the titanium edge, bezel and buttons, and the Dynamic Island.
+  - a status bar with a live clock and a home indicator. Neither takes taps, and both follow the app's theme, as does the page.
+  - the line "Chicho · made for your phone".
+  - The iframe loads `index.html?app&inframe` plus the page's other parameters, and takes focus, so the arrow keys and typing go to the app.
+- **Safe areas:** every `env(safe-area-inset-*)` is now a variable (`--sa-t/b/l/r`). They're the device's own on a phone, and `?inframe` sets an iPhone 16 Pro's: 62px top, 34px bottom.
+- **The service worker** caches a page under its own name, `phone.html` or `index.html`, so the frame is never kept as the app. Offline, both still load (checked in Chromium). v16.
+- **Tests:**
+  - `tests/frame.html`: the gate, the safe areas, and the shell (402×874, the address bar, scaling, status bar taps and theme).
+  - `devices.mjs`: 1440×900 light and 1280×720 dark, in WebKit and Chromium. Checks that the frame, not the app, runs in the page, the viewport, the fit, the theme, and that a mouse draws on the pad through the scaled phone. Screenshots go to `docs/screenshots/desktop-*`.
+
 ## Profile, folded; Reveal and Draw touches (26 Oct 2026)
 
 Marta, from screenshots:

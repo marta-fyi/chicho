@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHICHO</title>
+<link rel="icon" href="icon-192.png">
+<script>
+/* Desktop, in a phone: index.html sends a desktop browser here (see its gate). The address bar goes back to the
+   app's own address, so a reload or a shared link is the same link everyone has. Opened on a phone (without
+   ?frame), this page hands over to the app. */
+(function(){
+  const search = location.search, phone = !/[?&]frame\b/.test(search) && !matchMedia("(pointer: fine) and (min-width: 700px) and (min-height: 600px)").matches;
+  if(phone){ location.replace("./" + search + location.hash); return; }
+  history.replaceState(null, "", "./" + search + location.hash);
+})();
+</script>
+<link rel="stylesheet" href="frame.css">
+</head>
+<body class="fr">
+<script src="frame.js"></script>
+</body>
+</html>

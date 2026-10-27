@@ -34,7 +34,7 @@ const require = createRequire(process.env.PLAYWRIGHT ? join(process.env.PLAYWRIG
 const pw = require(process.env.PLAYWRIGHT || "playwright");
 
 const TYPES = {".html":"text/html; charset=utf-8", ".js":"text/javascript", ".webmanifest":"application/manifest+json", ".png":"image/png",
-               ".webp":"image/webp", ".jpg":"image/jpeg", ".woff2":"font/woff2", ".json":"application/json"};
+               ".webp":"image/webp", ".jpg":"image/jpeg", ".woff2":"font/woff2", ".json":"application/json", ".css":"text/css"};
 const server = createServer((req, res) => {
   const p = join(root, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!p.startsWith(root) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end(); return; }
@@ -382,6 +382,32 @@ if (args.has("--perf") || args.has("--perf-only")) {
   ok("throttled first meaningful paint (the headline and the meal) under 1.5 s", paint.firstHome && paint.firstHome < 1500, paint);
   ok("no layout shift on load", paint.cls < .01, paint.cls);
   writeFileSync(join(root, "docs", "perf.json"), JSON.stringify(perf, null, 2) + "\n");
+  await ctx.close();
+}
+
+// Desktop, in a phone: a desktop window gets the app inside an iPhone 16 Pro frame (phone.html), never the app stretched
+if (!args.has("--perf-only")) for (const engine of ["webkit", "chromium"]) for (const [W, H, theme] of [[1440, 900, "light"], [1280, 720, "dark"]]) {
+  const tag = `${engine} desktop ${W}×${H} ${theme}`;
+  const ctx = await browsers[engine].newContext({viewport: {width: W, height: H}, colorScheme: theme}), page = await ctx.newPage();
+  await page.goto(base.replace("?test&", "?"));
+  await page.waitForFunction("!!document.querySelector('.fr-screen iframe') && !!document.querySelector('.fr-screen iframe').contentDocument.getElementById('onbTop')", null, {timeout: 15000});
+  await page.waitForTimeout(900);
+  const L = await page.evaluate(() => { const f = document.querySelector(".fr-screen iframe"), a = f.contentWindow, box = document.querySelector(".fr-box").getBoundingClientRect(), line = document.querySelector(".fr-line").getBoundingClientRect();
+    return {outerApp: typeof window.state !== "undefined" || !!document.getElementById("onboarding"), path: location.pathname, iw: a.innerWidth, ih: a.innerHeight, sat: a.getComputedStyle(a.document.documentElement).getPropertyValue("--sa-t").trim(),
+            fits: box.top >= 0 && line.bottom <= innerHeight && box.left >= 0 && box.right <= innerWidth, theme: document.body.dataset.theme}; });
+  ok(`${tag}: the frame, not the app stretched (none of the app runs in the page; the address stays the app's)`, !L.outerApp && !/phone\.html/.test(L.path), L);
+  ok(`${tag}: the app inside has an iPhone 16 Pro's viewport (402×874) and safe area (62px)`, L.iw === 402 && L.ih === 874 && L.sat === "62px", L);
+  ok(`${tag}: the phone and its line fit the window`, L.fits, L);
+  ok(`${tag}: the page and status bar take the app's theme`, L.theme === theme, L.theme);
+  await page.waitForFunction("(() => { const s = document.querySelector('.fr-screen iframe').contentDocument.querySelector('.pad-sheet'); return s && !s.hidden && !s.getAnimations().length; })()", null, {timeout: 15000});
+  await page.waitForTimeout(300);
+  const pad = await page.frameLocator(".fr-screen iframe").locator("canvas.pad").boundingBox();
+  await page.mouse.move(pad.x + pad.width * .2, pad.y + pad.height * .7); await page.mouse.down();
+  for (const [x, y] of [[.3, .2], [.4, .7], [.5, .2], [.6, .7]]) await page.mouse.move(pad.x + pad.width * x, pad.y + pad.height * y, {steps: 6});
+  await page.mouse.up(); await page.waitForTimeout(200);
+  if (!args.has("--quick")) await page.screenshot({path: join(SHOTS, `desktop-${engine}-${theme}-${W}.jpg`), type: "jpeg", quality: 80});
+  await page.frameLocator(".fr-screen iframe").locator(".pad-done").click(); await page.waitForTimeout(600);
+  ok(`${tag}: a mouse draws on the pad and Done moves on, through the scaled phone`, await page.evaluate(() => document.querySelector(".fr-screen iframe").contentWindow.eval("onb.step")) === "spell");
   await ctx.close();
 }
 

@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js", "sortconfig.js", "sortcore.js", "sortfood.js", "tools/sorttune.js"];
+const SOURCES = ["index.html", "theme.js", "onboarding.js", "mealtimes.js", "kitchen.js", "home.js", "foods.js", "content.js", "sw.js", "sortconfig.js", "sortcore.js", "sortfood.js", "tools/sorttune.js", "phone.html", "frame.js", "frame.css"];
 const fails = [];
 
 // 1. hover
