@@ -16,6 +16,23 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Through the glow (27 Oct 2026, supersedes the 320ms camera ease)
+
+Marta: moving between screens still read as a swap. The slide was 320ms on a front-loaded ease, about 70% of the way in the first 80ms, and a jump from the list (Home to New week) flashed past Kitchen in about 100ms. A tap now goes "through the glow" (`settle(…, "glow")`, `GLOW_MS = 600`):
+- **0–276ms:** the screen dissolves into the background (opacity 1→0, scale .97). All the while, the backdrop drifts toward the next screen's place, with an ease-in-out over the full 600ms. In light, each screen's glow layer crossfades by distance, so the colour turns as it drifts, and the glow blooms (scale 1.08). In dark, the night sky pans.
+- **At 276ms**, with no content showing, the camera switches in one frame, so the screens in between are never seen. `arrived()` runs then (focus, hints, unmounting), so the state is final before the rise.
+- **276–600ms:** the new screen rises out of the glow (opacity, 14px up, scale .98→1).
+- **Swipes still slide.** The finger stays 1:1, and after release the rest of the way takes 300–420ms by distance, on a soft ease. A spring back uses the same ease. Reduced motion keeps its 150ms crossfade.
+- Only transform and opacity move. A screen's scale and rise use the `scale` and `translate` properties, so they stack on its grid `transform`. A second move mid-way first finishes the one running.
+- Tests sample every frame:
+  - Home fades before the camera moves, the camera moves in one step, and the backdrop moves with no step.
+  - The glow turns, and the move ends in 550–700ms.
+  - Kitchen never shows on the way to New week.
+  - A swipe moves in many steps and lands in 300–420ms.
+  - Reduced motion.
+  
+  The device run checks that a move lands whole.
+
 ## One header, the name opens the way (27 Oct 2026, supersedes the position map)
 
 Marta: the map in the corner didn't work. It did respond, but each dot was a 22×11px target. The navigation now opens from the name, and Home's corner header is on every screen.

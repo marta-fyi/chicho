@@ -25,7 +25,7 @@ f.onload = async () => {
        ALLERGENS.forEach(a => state.profile.allergens[a.id] = "ok");
        state.plan = generateWeek(18, state.profile); state.weekStarted = "2026-10-20"; state.profile.lastStage = stageNow().id;
        state.pantry = []; state.freezer = []; state.offers = []; offersChanged(); save(); closeOnboarding(); go("kitchen", {quiet: true});`);
-    await wait(500);
+    await wait(750);
     const view = async v => { $(`[data-f="view:${v}"]`).click(); await wait(250); };
     ok("the Kitchen: its title under the header, no Home link, 'In the store: Off'", !$(".home-link") && $("h1").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store: Off");
     ok("the view switch: Buy, At home, Prep; Buy by default", $$(".k-tab .k-tab-t").map(b => b.textContent).join() === "Buy,At home,Prep" && $(".k-tab.is-on").dataset.view === "buy" && $(".k-view").dataset.view === "buy");
@@ -238,9 +238,9 @@ f.onload = async () => {
     await view("home");
     ok("'In the store' shows only in Buy", $('[data-f="instore"]').hidden);
     await view("buy");
-    E(`go("home", {quiet: true})`); await wait(450);
+    E(`go("home", {quiet: true})`); await wait(750);
     ok("leaving the Kitchen leaves the store and lets the screen sleep", !E("kitchenUI.store") && !E("wake.on") && log.at(-1) === "release", log);
-    E(`go("kitchen", {quiet: true})`); await wait(450);
+    E(`go("kitchen", {quiet: true})`); await wait(750);
     ok("…and it's off when you come back", tog().textContent === "In the store: Off");
     E(`wake.max = 80; setStoreMode(true)`); await wait(40);
     ok("(on again)", E("wake.on") && tog().textContent === "In the store: On");

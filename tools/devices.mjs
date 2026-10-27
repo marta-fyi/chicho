@@ -331,6 +331,14 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           await shot("onb-" + step); await page.evaluate("closeOnboarding()");
         }
       }
+      // moving through the glow: a tap leaves nothing half-faded once it's over (and, with screenshots, one frame mid-way)
+      if (portrait) {
+        await page.evaluate("closeOnboarding(); go('home', {quiet: true})"); await page.waitForTimeout(800);
+        await page.evaluate("go('kitchen')");
+        if (!args.has("--quick")) { await page.waitForTimeout(300); await page.screenshot({path: join(SHOTS, `${slug}-${engine}-${theme}-move-glow.jpg`), type: "jpeg", quality: 80, scale: "css"}); }
+        await page.waitForTimeout(800);
+        ok(`${tag}: a move through the glow lands whole (Kitchen in view, every screen opaque, no move left running)`, await page.evaluate(`pg.cur === "kitchen" && !pg.anim && ["home", "kitchen", "week", "shuffle", "profile"].every(k => getComputedStyle(document.getElementById("scr-" + k)).opacity === "1")`));
+      }
       // the Kitchen redesign: every portrait device, both engines, both themes (screenshots of each view, the store,
       // an expanded row, a long Prep list and the empty states)
       if (portrait) {

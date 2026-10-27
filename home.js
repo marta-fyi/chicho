@@ -311,7 +311,7 @@ function alsoFor(ref, max){
    ==================================================================== */
 const LAYOUT = {profile:[0,-1], home:[0,0], shuffle:[1,0], kitchen:[0,1], week:[0,2]};
 const SCREEN_GLOW = {shuffle:"protein", week:"fruit", profile:"grain"};   // the Kitchen's glow scrolls with its content (kitchen.js)
-const EDGE = 24, HEADER_ZONE = 60, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, SETTLE_MS = 320, PULL_AT = 48;
+const EDGE = 24, HEADER_ZONE = 60, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, PULL_AT = 48;
 /* under 6 months only Home and Profile exist */
 function screensNow(){ return milkOnly() ? ["home","profile"] : Object.keys(LAYOUT); }
 function screenAt(c, r){ return screensNow().find(k=>LAYOUT[k][0]===c && LAYOUT[k][1]===r) || null; }
@@ -339,22 +339,55 @@ function applyCamera(x, y){
   const g = glowShares(x, y);
   document.querySelectorAll(".glow-s").forEach(l=>{ l.style.opacity = String(g[l.dataset.screen]); });
 }
-/* the camera eases to where it's going; with reduced motion, a 150ms crossfade instead of a slide */
-function settle(toX, toY, done){
+/* Moving: a tap (the name's list, a link, a key, Back) goes "through the glow": the screen dissolves into the
+   background while the backdrop drifts to the next screen's place and its glow turns that screen's colour; with no
+   content visible the camera switches in one frame (nothing in between is ever seen), and the new screen rises out
+   of the glow. A swipe slides the rest of the way on a soft ease. With reduced motion, a 150ms crossfade. Only
+   transform and opacity move. done() runs at the switch, so the app's state is final before the rise. */
+const GLOW_MS = 600, GLOW_SWITCH = .46, SLIDE_MS = [300, 420];
+const screenAtXY = (x, y)=>Object.keys(LAYOUT).find(k=>LAYOUT[k][0]===x && LAYOUT[k][1]===y) || null;
+function settle(toX, toY, done, mode){
+  // a move still running finishes where it was going first
+  if(pg.anim){ const a = pg.anim; pg.anim = null; a.forEach(x=>x.cancel()); applyCamera(pg.x, pg.y); }
   const from = {x:pg.x, y:pg.y};
   pg.x = toX; pg.y = toY;
-  if(pg.anim) pg.anim.forEach(a=>a.cancel());
-  pg.anim = null;
-  applyCamera(toX, toY);
   if(calm() || (from.x===toX && from.y===toY)){
+    applyCamera(toX, toY);
     if(from.x!==toX || from.y!==toY) screenEl(pg.cur).animate([{opacity:0}, {opacity:1}], {duration:150, easing:"linear"});
     done && done(); return;
   }
-  const o = {duration:SETTLE_MS, easing:"cubic-bezier(.2,.9,.25,1)"};
-  const anims = [cameraEl.animate([{transform:camT(from.x, from.y, 1)}, {transform:camT(toX, toY, 1)}], o)];
+  const g0 = glowShares(from.x, from.y), g1 = glowShares(toX, toY), anims = [];
+  // each screen's glow, by distance: where it ends is set now, the animation plays over it
+  const glows = o=>document.querySelectorAll(".glow-s").forEach(l=>{ const k = l.dataset.screen; l.style.opacity = String(g1[k]); if(g0[k]!==g1[k]) anims.push(l.animate([{opacity:g0[k]}, {opacity:g1[k]}], o)); });
+  const outName = screenAtXY(from.x, from.y);
+  if(mode==="glow" && outName){
+    const sw = Math.round(GLOW_MS * GLOW_SWITCH), all = {duration:GLOW_MS, easing:"cubic-bezier(.45,0,.25,1)"};
+    // the background drifts the whole way, its glow turning the next screen's colour and blooming on the way
+    backdropParts().forEach(p=>{ p.style.transform = camT(toX, toY, PARALLAX); anims.push(p.animate([{transform:camT(from.x, from.y, PARALLAX)}, {transform:camT(toX, toY, PARALLAX)}], all)); });
+    glows(all);
+    if(document.documentElement.dataset.theme==="light") anims.push($("glowPulse").animate([{transform:"scale(1)"}, {transform:"scale(1.08)", offset:.45}, {transform:"scale(1)"}], all));
+    // the screen dissolves into it, then (camera switched) the new one rises out of it
+    const out = screenEl(outName).animate([{opacity:1, scale:"1"}, {opacity:0, scale:".97"}], {duration:sw, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
+    const inn = screenEl(pg.cur).animate([{opacity:0, translate:"0 14px", scale:".98"}, {opacity:1, translate:"0 0", scale:"1"}],
+                                         {duration:GLOW_MS - sw, delay:sw, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"});
+    anims.push(out, inn);
+    pg.anim = anims;
+    out.onfinish = ()=>{
+      if(pg.anim!==anims) return;
+      cameraEl.style.transform = camT(toX, toY, 1);   // the switch: nothing is visible but the glow
+      out.cancel();
+      done && done();
+    };
+    inn.onfinish = ()=>{ if(pg.anim===anims) pg.anim = null; };
+    return;
+  }
+  // a slide: the rest of a swipe (or a spring back), slower and softer the further it has to go
+  applyCamera(toX, toY);
+  const dist = Math.min(1, Math.max(Math.abs(toX - from.x), Math.abs(toY - from.y)));
+  const o = {duration:Math.round(SLIDE_MS[0] + (SLIDE_MS[1] - SLIDE_MS[0]) * dist), easing:"cubic-bezier(.25,.8,.25,1)"};
+  anims.push(cameraEl.animate([{transform:camT(from.x, from.y, 1)}, {transform:camT(toX, toY, 1)}], o));
   backdropParts().forEach(p=>anims.push(p.animate([{transform:camT(from.x, from.y, PARALLAX)}, {transform:camT(toX, toY, PARALLAX)}], o)));
-  const g0 = glowShares(from.x, from.y), g1 = glowShares(toX, toY);
-  document.querySelectorAll(".glow-s").forEach(l=>{ const s = l.dataset.screen; if(g0[s]!==g1[s]) anims.push(l.animate([{opacity:g0[s]}, {opacity:g1[s]}], o)); });
+  glows(o);
   pg.anim = anims;
   anims[0].onfinish = ()=>{ if(pg.anim===anims) pg.anim = null; done && done(); };
 }
@@ -418,11 +451,12 @@ function go(name, opts){
   route(from, name, opts.fromHistory);
   markCurrent(from);
   navClose(false);
-  settle(LAYOUT[name][0], LAYOUT[name][1], ()=>{ unmountFar(); arrived(name, opts, true); });
+  const via = opts.fromDrag ? "slide" : "glow";
+  settle(LAYOUT[name][0], LAYOUT[name][1], ()=>{ unmountFar(); arrived(name, opts, true, via); }, via);
   if(!opts.quiet) haptic();
 }
 /* the screen has arrived: its heading takes focus, its hint is seen, its content fades in */
-function arrived(name, opts, moved){
+function arrived(name, opts, moved, via){
   if(name!=="home" && !state.hints[name]){ state.hints[name] = todayISO(); save(); if(momentKey && /^hint:/.test(momentKey)) renderHome(); }
   if(name==="kitchen" && state.newToBuy.length){ state.newToBuy = []; save(); layoutSig = ""; renderHome(); }
   const e = screenEl(name);
@@ -435,7 +469,7 @@ function arrived(name, opts, moved){
     const h = e.querySelector("h1");
     if(h) h.focus({preventScroll:true});
   }
-  if(moved && !calm()){
+  if(moved && !calm() && via!=="glow"){   // a glow move has its own rise
     const body = e.querySelector(".scr-body") || e.querySelector(".home-in");
     if(body){ [...body.children].slice(0, 8).forEach((c, k)=>{ c.style.animationDelay = (k * 40) + "ms"; }); body.classList.add("arrive"); setTimeout(()=>body.classList.remove("arrive"), 700); }
   }
@@ -516,8 +550,8 @@ function dragEnd(axis, d, v){
   let off = axis==="x" ? -d / W : -d / H;
   if(!to) off *= RUBBER;
   pg.x = axis==="x" ? cx + off : cx; pg.y = axis==="y" ? cy + off : cy;
-  if(commit) go(to);
-  else settle(cx, cy);
+  if(commit) go(to, {fromDrag:true});
+  else settle(cx, cy, null, "slide");
 }
 function velocity(samples){
   const last = samples[samples.length - 1], first = samples.find(s=>last.t - s.t <= 100) || samples[0];

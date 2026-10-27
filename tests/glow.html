@@ -48,16 +48,16 @@ f.onload = async () => {
       ok(`${k}'s glow is ${g}'s colour`, /radial-gradient/.test(scr(k).style.backgroundImage) && scr(k).style.backgroundImage.replace(/\s/g, "").includes(E(`hexRGB(GLOW.${g}.hex).join()`)), scr(k).style.backgroundImage.slice(0, 120));
     ok("on Home, only Home's glow shows", scr("home").style.opacity === "1" && Object.keys(want).every(k => scr(k).style.opacity === "0"));
     for (const k of Object.keys(want)) {
-      E(`go("${k}", {quiet: true})`); await wait(500);
+      E(`go("${k}", {quiet: true})`); await wait(750);
       const shares = Object.fromEntries(["home", ...Object.keys(want)].map(s => [s, scr(s).style.opacity]));
       ok(`on ${k}: its glow shows, the others don't`, shares[k] === "1" && Object.entries(shares).every(([s, v]) => s === k || v === "0"), shares);
       // (the breath scales the layers' offsets by up to 5%, so allow for it)
       const s = R(scr(k)), mid = [(s.left + s.right) / 2, (s.top + s.bottom) / 2], gy = parseFloat($("#glowPulse").style.getPropertyValue("--glow-y")), r = Math.abs(E(`LAYOUT.${k}[1]`));
       ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) < 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
-      E(`go("home", {quiet: true})`); await wait(500);
+      E(`go("home", {quiet: true})`); await wait(750);
     }
     // the Kitchen: its own glow in the scroll area (Veg, 70%, a wider and lighter nucleus), scrolling away with the content
-    E(`go("kitchen", {quiet: true})`); await wait(500);
+    E(`go("kitchen", {quiet: true})`); await wait(750);
     const kg = $("#scr-kitchen .k-glow"), kb = $("#scr-kitchen .k-body");
     ok("the Kitchen's glow is Veg, in the scroll area, at 70%", kg && kg.parentNode === kb && kg.style.backgroundImage.replace(/\s/g, "").includes(E("hexRGB(GLOW.vegetable.hex).join()")) && w.getComputedStyle(kg).opacity === "0.7");
     ok("…not on the backdrop plane (its layer there is empty, and dark there on the Kitchen)", !scr("kitchen").style.backgroundImage && scr("home").style.opacity === "0");
@@ -67,7 +67,7 @@ f.onload = async () => {
     kb.scrollTop = 0; await wait(30);
     const sw = R($("#scr-kitchen .k-switch")), lt = R([...d.querySelectorAll("#scr-kitchen .k-tab")].at(-1));
     ok("…at rest behind the header: level with the view switch's bottom edge, right of its last label (where no control is, clear of In the store)", Math.abs((R(kg).top + R(kg).height / 2) - sw.bottom) < 2 && Math.abs((R(kg).left + R(kg).width / 2) - (lt.right + sw.right) / 2) < 2);
-    E(`go("home", {quiet: true})`); await wait(500);
+    E(`go("home", {quiet: true})`); await wait(750);
     // the parallax: the backdrop moves at 0.3x of the camera
     E("applyCamera(.5, 0)");
     const cam = new w.DOMMatrix(w.getComputedStyle($("#camera")).transform), plane = new w.DOMMatrix(w.getComputedStyle($("#glowPlane")).transform);

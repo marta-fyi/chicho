@@ -32,7 +32,7 @@ const load = (hash, months) => new Promise(res => {
       if (o.release !== false) { P("pointerup", x0 + dx, y0 + dy, t); if (o.click) t.click(); }
       return t;
     };
-    const settle = () => wait(450);
+    const settle = async () => { await wait(60); for (let k = 0; k < 40 && E("pg.anim"); k++) await wait(30); await wait(40); };   // until the move (a glow is 600ms) is over
     const go = async n => { E(`go('${n}')`); await settle(); };
 
     // the canvas: one constant, the neighbours derive from it
@@ -144,6 +144,43 @@ const load = (hash, months) => new Promise(res => {
     { const r = $("#whoName").getBoundingClientRect(); await drag(r.left + 40, r.top + r.height / 2, -220, 0, {steps: 6, dt: 30}); await settle(); }
     ok("a swipe that starts on the header still moves the canvas (left: Shuffle), and isn't a tap on the name", cur() === "shuffle" && $("#navList").hidden, cur());
     await go("home");
+
+    // moving through the glow: a tap dissolves the screen into the background, the backdrop drifts and its glow
+    // turns, the camera switches while nothing is visible, and the new screen rises out of it
+    const mat = el => { const m = w.getComputedStyle(el).transform.match(/-?[\d.e]+/g); return m ? [Math.round(+m[4]), Math.round(+m[5])] : [0, 0]; };
+    const op = k => +w.getComputedStyle($("#scr-" + k)).opacity;
+    const sample = (fn, ms) => new Promise(res => { const out = [], t0 = w.performance.now(); fn(); const f = () => { const t = w.performance.now() - t0;
+      out.push({t, cam: mat($("#camera"))[1], camX: mat($("#camera"))[0], bd: mat($("#glowPlane"))[1], home: op("home"), kitchen: op("kitchen"), week: op("week"), shuffle: op("shuffle"), gK: +w.getComputedStyle(d.querySelector('.glow-s[data-screen="kitchen"]')).opacity, gH: +w.getComputedStyle(d.querySelector('.glow-s[data-screen="home"]')).opacity, anim: !!E("pg.anim")});
+      if (t < ms) w.requestAnimationFrame(f); else res(out); }; w.requestAnimationFrame(f); });
+    await go("home");
+    let fr = await sample(() => E("go('kitchen')"), 900);
+    const moved = fr.findIndex(x => x.cam !== 0), SH = 844;
+    ok("a tap to Kitchen: Home fades out before the camera moves", moved > 0 && fr[moved - 1].home < .1 && fr.slice(0, moved).some(x => x.home > .3 && x.home < .9), fr.slice(0, moved + 1).map(x => x.home.toFixed(2)));
+    ok("…the camera switches in one step, with Home gone and Kitchen only starting to rise", fr[moved].cam === -SH && fr[moved - 1].home < .1 && fr[moved].kitchen < .2, [fr[moved - 1].home, fr[moved].kitchen]);
+    ok("…the backdrop drifts the whole way (no step), ending 0.3 of a screen down", new Set(fr.map(x => x.bd)).size > 8 && fr.at(-1).bd === Math.round(-SH * .3) && fr.every((x, k) => !k || Math.abs(x.bd - fr[k - 1].bd) < SH * .3 / 2), [new Set(fr.map(x => x.bd)).size, fr.at(-1).bd]);
+    ok("…its glow turns: Kitchen's layer rises as Home's falls", fr.some(x => x.gK > .2 && x.gK < .8 && x.gH > .2 && x.gH < .8) && fr.at(-1).gK === 1 && fr.at(-1).gH === 0);
+    const end = fr.find(x => !x.anim);
+    ok("…Kitchen rises out of it and the move ends between 550 and 700ms", fr.some(x => x.kitchen > .2 && x.kitchen < .8) && fr.at(-1).kitchen === 1 && end && end.t > 550 && end.t < 700, end && Math.round(end.t));
+    ok("…and the state is final at the switch: current, focused, the others inert", cur() === "kitchen" && d.activeElement === $("#scr-kitchen h1") && $("#scr-home").inert);
+    await go("home");
+    fr = await sample(() => E("go('week')"), 900);
+    ok("Home to New week (past Kitchen): Kitchen never shows", fr.every(x => x.kitchen < .05 || x.cam !== -SH), fr.filter(x => x.cam === -SH).map(x => x.kitchen));
+    ok("…New week lands, whole", cur() === "week" && fr.at(-1).cam === -2 * SH && fr.at(-1).week === 1);
+    await go("home");
+    E("go('kitchen')"); await wait(120); E("go('profile')"); await settle();
+    ok("a second move mid-way lands on the second, every screen whole", cur() === "profile" && mat($("#camera"))[1] === SH && ["home", "kitchen", "profile"].every(k => op(k) === 1));
+    await go("home");
+    // a swipe slides the rest of the way, on a soft ease
+    fr = await sample(() => { E("dragTo('x', -200)"); E("dragEnd('x', -200, -.8)"); }, 700);
+    const xs = fr.map(x => x.camX), land = fr.findIndex(x => x.camX === -390 && !x.anim);
+    ok("a committed swipe slides on (many steps, no jump) and lands in 300–420ms", cur() === "shuffle" && new Set(xs).size > 6 && xs.every((x, k) => !k || Math.abs(x - xs[k - 1]) < 120) && land > 0 && fr[land].t > 280 && fr[land].t < 470, [new Set(xs).size, land > 0 && Math.round(fr[land].t)]);
+    ok("…Shuffle never fades: a slide isn't a dissolve", fr.every(x => x.shuffle === 1));
+    await go("home");
+    // reduced motion: a 150ms crossfade, nothing moves
+    const realCalm = w.calm; w.calm = () => true;
+    fr = await sample(() => E("go('kitchen')"), 300);
+    ok("reduced motion: the camera is there at once, the screen fades in over 150ms, the backdrop doesn't move", fr[0].cam === -SH && fr.some(x => x.kitchen < .9) && fr.at(-1).kitchen === 1 && new Set(fr.map(x => x.bd)).size === 1);
+    w.calm = realCalm; await go("home");
 
     // the screens, from the name
     const btn = $("#profileBtn"), list = $("#navList"), links = () => $$("#navList a");

@@ -40,7 +40,7 @@ const ratio = (fg, bg) => { const a = lum(over(fg, bg)), b = lum(bg); return (Ma
     ok("the manifest says standalone, on the paper", await (await w.fetch("manifest.webmanifest")).json().then(m => m.display === "standalone" && m.theme_color === "#DCDDDD"));
     ok("color-scheme is 'light dark'", $('meta[name="color-scheme"]').content === "light dark");
     // Profile → Appearance
-    w.eval("go('profile')"); await wait(600);
+    w.eval("go('profile')"); await wait(750);
     const seg = [...d.querySelectorAll(".s-seg-opts button")];
     ok("Profile has 'Appearance: Auto · Light · Dark'", $(".s-seg-l").textContent === "Appearance" && seg.map(b => b.textContent).join(" · ") === "Auto · Light · Dark" && seg[0].getAttribute("aria-pressed") === "true");
     ok("…each a 44px target", seg.every(b => b.getBoundingClientRect().height >= 44 && b.getBoundingClientRect().width >= 44));

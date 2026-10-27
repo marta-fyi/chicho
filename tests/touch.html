@@ -58,7 +58,7 @@ f.onload = async () => {
     // Shuffle shows the meal on Home: take the offer back so its foods can change
     E("const r0 = homeRef().ref; offerMeal(r0.m, r0.date, false); picked = null; save(); changed()"); await wait(50);
     for (const name of ["shuffle", "kitchen", "week", "profile"]) {
-      E(`go('${name}')`); await wait(500);
+      E(`go('${name}')`); await wait(750);
       if (name === "kitchen") { E("kitchenUI.open.grain = true; setStock('oatmeal', 'Oatmeal', 'plenty'); refresh('kitchen')"); await wait(50); }
       if (name === "shuffle") { $("#scr-shuffle [data-f^='change:']").click(); await wait(50); }
       audit(name);
@@ -69,7 +69,7 @@ f.onload = async () => {
       ok(`${name}: the header's name sits top-left, 44×44 at least (it opens the screens)`, (() => { const r = d.getElementById("profileBtn").getBoundingClientRect(); return r.left < 40 && r.top < 80 && r.width >= 44 && r.height >= 44; })());
     }
     // the name's list: every screen a 44px link
-    E("go('home')"); await wait(500);
+    E("go('home')"); await wait(750);
     d.getElementById("profileBtn").click(); await wait(200);
     const navHits = [...d.querySelectorAll("#navList a")].map(a => a.getBoundingClientRect());
     ok("the name's list: five links, each at least 44px tall and wide", navHits.length === 5 && navHits.every(r => r.height >= 44 && r.width >= 44), navHits.map(r => Math.round(r.width) + "×" + Math.round(r.height)));
