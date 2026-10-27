@@ -99,10 +99,15 @@ f.onload = async () => {
     E("state.profile.ink = null; save(); changed()"); await wait(50);
     ok("no ink: the typed name again", !$("#whoName svg") && $("#whoName").textContent === "Lula");
 
-    // the corner name goes to Profile
+    // the name opens the screens
     E("setClock(new Date(2026, 9, 22, 12, 10)); changed()");
-    $("#profileBtn").click(); await wait(450);
-    ok("the name goes to Profile", E("pg.cur") === "profile");
+    ok("the header sits above the screens, not inside Home", !!d.querySelector("#chrome #profileBtn") && !d.querySelector("#scr-home #profileBtn"));
+    ok("…named for screen readers: 'Lula, 18 months. Screens', collapsed", $("#profileBtn").getAttribute("aria-label") === "Lula, 18 months. Screens" && $("#profileBtn").getAttribute("aria-expanded") === "false", $("#profileBtn").getAttribute("aria-label"));
+    $("#profileBtn").click(); await wait(200);
+    const navLinks = () => [...d.querySelectorAll("#navList a")];
+    ok("the name opens the screens: Home, Profile, Shuffle, Kitchen, New week, Home current and focused", !d.getElementById("navList").hidden && navLinks().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && navLinks()[0].getAttribute("aria-current") === "page" && d.activeElement === navLinks()[0] && $("#profileBtn").getAttribute("aria-expanded") === "true", navLinks().map(a => a.textContent));
+    navLinks()[1].click(); await wait(450);
+    ok("…Profile goes there, and the list closes", E("pg.cur") === "profile" && d.getElementById("navList").hidden && d.getElementById("navScrim").hidden);
     E("go('home', {quiet: true})"); await wait(450);
 
     // under 6 months and no plan: a calm Home

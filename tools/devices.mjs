@@ -60,17 +60,15 @@ const CHECKS = () => {
   const R = el => el.getBoundingClientRect(), H = innerHeight, W = document.documentElement.clientWidth, $ = s => document.querySelector(s);
   const on = el => el && R(el).height > 0 && R(el).top >= 0 && R(el).bottom <= H + 0.5 && R(el).left >= 0 && R(el).right <= W + 0.5;
   const meet = (a, b) => a && b && R(a).height && R(b).height && R(a).bottom > R(b).top + 0.5 && R(a).top < R(b).bottom - 0.5 && R(a).right > R(b).left + 0.5 && R(a).left < R(b).right - 0.5;
-  const box = $("#nowMeal"), foot = $("#footLine"), map = $("#map"), bar = $(".offer-bar");
-  // the footer's words, not its box (the box runs under the map by design: it pads 56px on the right)
-  const words = (() => { const r = document.createRange(); r.selectNodeContents(foot); return {getBoundingClientRect: () => r.getBoundingClientRect()}; })();
+  const box = $("#nowMeal"), foot = $("#footLine"), bar = $(".offer-bar"), chrome = $("#chrome");
   const targets = [...document.querySelectorAll("#scr-home button, #scr-home a[href]")].filter(b => b.offsetParent && !b.classList.contains("inline") && !b.closest("[hidden]"));
   return {
     overflow: document.documentElement.scrollWidth - W,
     homeScroll: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - H,
     cropped: box.scrollHeight > box.clientHeight + 1 && !box.classList.contains("scrolls"),
-    header: [R($("#profileBtn")).top >= 0 && R($("#profileBtn")).left >= 0, R($("#clock")).right <= W],
+    header: [R($("#profileBtn")).top >= 0 && R($("#profileBtn")).left >= 0, R($("#clock")).right <= W, R($("#headline")).top >= R(chrome).bottom],
     small: targets.filter(b => R(b).width < 44 || R(b).height < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)),
-    clash: [meet(bar, map) && "pill/map", !foot.hidden && meet(words, map) && "footer/map", !foot.hidden && meet(foot, bar) && "footer/pill"].filter(Boolean),
+    clash: [meet(bar, chrome) && "pill/header", !foot.hidden && meet(foot, bar) && "footer/pill"].filter(Boolean),
     first: ["#headline", "#moment", "#nowMeal .meal-foods li", ".offer-bar"].filter(s => !on($(s))),
     wrapped: [...document.querySelectorAll("#nowMeal .meal-foods li")].filter(li => li.getBoundingClientRect().height > parseFloat(getComputedStyle(li).lineHeight) + 1).length
   };
@@ -107,14 +105,12 @@ async function kitchenRun(page, tag, slug, shotK) {
   if (!L.dark) ok(`${tag}: Kitchen: the glow's nucleus never sits under a control's hit area`, L.nucleus.length === 0, L.nucleus);
   ok(`${tag}: Kitchen: the bottom fade is there, and the scroll area clears the pill (120px)`, await E(`(cs => /linear-gradient/.test(cs.webkitMaskImage || cs.maskImage) && cs.paddingBottom === "120px")(getComputedStyle(document.querySelector("#scr-kitchen .k-body")))`));
   if (shotK) { await shotK("kitchen-buy"); }
-  // scrolled: the header's blurred, solid surface; the map dims
+  // scrolled: the header's blurred, solid surface
   await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 260`); await wait(260);
-  const S = await E(`(() => { const s = document.querySelector("#scr-kitchen .k-surface"), cs = getComputedStyle(s); return {op: cs.opacity, blur: cs.backdropFilter || cs.webkitBackdropFilter, bg: cs.backgroundColor, dim: getComputedStyle(document.getElementById("map")).opacity}; })()`);
+  const S = await E(`(() => { const s = document.querySelector("#scr-kitchen .k-surface"), cs = getComputedStyle(s); return {op: cs.opacity, blur: cs.backdropFilter || cs.webkitBackdropFilter, bg: cs.backgroundColor}; })()`);
   ok(`${tag}: Kitchen scrolled: the header is solid (--bg at 88%) and blurred (14px)`, S.op === "1" && /blur\(14px\)/.test(S.blur) && /0\.88\)$/.test(S.bg), S);
-  ok(`${tag}: Kitchen scrolled: the position map dims`, +S.dim < 1, S.dim);
   if (shotK) await shotK("kitchen-buy-scrolled");
   await wait(600);
-  ok(`${tag}: Kitchen: the map comes back after scrolling stops`, await E(`getComputedStyle(document.getElementById("map")).opacity === "1"`));
   await E(`document.querySelector("#scr-kitchen .k-body").scrollTop = 0`); await wait(80);
   // the tick, undo and Got it round trip
   const id = await E(`toBuyList()[0].foodId`);
@@ -286,7 +282,7 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
       ok(`${tag}: no horizontal overflow`, c.overflow <= 0, c.overflow);
       ok(`${tag}: Home never scrolls the page`, c.homeScroll <= 0, c.homeScroll);
       ok(`${tag}: nothing on Home is cropped`, !c.cropped);
-      ok(`${tag}: the corner header is inside the screen`, c.header.every(Boolean), c.header);
+      ok(`${tag}: the header is inside the screen, Home's headline under it`, c.header.every(Boolean), c.header);
       ok(`${tag}: every tap target on Home is at least 44×44`, c.small.length === 0, c.small);
       ok(`${tag}: the pill, footer and map keep clear of each other`, c.clash.length === 0, c.clash);
       ok(`${tag}: each part of the dish is one line`, c.wrapped === 0, c.wrapped);
@@ -316,6 +312,8 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           await page.evaluate("nwUI.draft = null; refresh('week')");
           // Profile, with a week of offers behind it
           await page.evaluate(`(() => { const d0 = now(); for (let k = 1; k <= 6; k++) { const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - k); mealsOn(d).forEach((x, j) => { offerMeal(x.m, d, true); setOutcome(x.m, d, ["loved", "some", "not_today"][(k + j) % 3]); }); } save(); changed(); })()`);
+          // the name's list of screens, open over Home
+          await page.evaluate("navOpen(true)"); await page.waitForTimeout(250); await shot("nav-open"); await page.evaluate("navClose()");
           await go("profile"); await shot("profile-going");
           await page.evaluate("pfUI.open = {going: true, offplate: true}; refresh('profile')"); await page.waitForTimeout(150);
           for (const sec of ["warming", "offplate", "firsts", "settings", "people"]) { await page.evaluate(`document.querySelector('#scr-profile [data-sec=${sec}]').scrollIntoView()`); await page.waitForTimeout(150); await shot("profile-" + sec); }

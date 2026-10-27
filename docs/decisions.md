@@ -16,6 +16,17 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## One header, the name opens the way (27 Oct 2026, supersedes the position map)
+
+Marta: the map in the corner didn't work. It did respond, but each dot was a 22×11px target. The navigation now opens from the name, and Home's corner header is on every screen.
+- **The header** (age over the name, date over the time) lives in the pager, above the camera. It never moves with a swipe, and a swipe can still start on it. Every screen starts under it (`--chrome-h`, measured). It's hidden during the onboarding.
+- **The name opens the screens:** a list drops down under it with Home, Profile, Shuffle, Kitchen and New week (only Home and Profile under 6 months). The current one is in ink, the others muted, and the screen behind dims.
+  - Picking one goes there. A tap on the dimmed screen, Esc, or the name again closes it.
+  - It's a disclosure: the name has `aria-expanded` and controls a `<nav aria-label="Screens">` of links with `aria-current`.
+  - From the keyboard, focus moves into the list, and Up/Down/Home/End move through it. A tap leaves focus on the name, so no focus ring flashes on touch.
+- **Each screen keeps its title and loses its "Home" link.** Profile's title is "Profile", with the stage under it; the name and age are in the header now. Kitchen's "In the store" sits on its title's row.
+- The map's 64px band at the bottom is gone too. Pinned pills sit like Home's, 12px over the safe area, and the footer line no longer pads for the map. The Kitchen glow's grey centre moved to the tab row's bottom edge, clear of "In the store".
+
 ## Desktop, in a phone (27 Oct 2026)
 
 Marta: on desktop, marta.fyi/chicho/ shows the app in an iPhone 16 Pro frame. Phones get the app exactly as before.

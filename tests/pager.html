@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
 <body>
 <h1>Pager tests</h1>
-<p>Five full-screen views on a 2D canvas (Thursday 22 October 2026, 12:10, an 18-month-old's day, a 390×844 phone): the layout constant, swipes driven by touch pointer events (axis lock, commit, spring back, rubber band, edge starts), the header zone and the pull past a scroll edge, routes and Back, the position map, the keyboard, reduced motion, the one-time hints, and under 6 months. Every line should be PASS.</p>
+<p>Five full-screen views on a 2D canvas (Thursday 22 October 2026, 12:10, an 18-month-old's day, a 390×844 phone): the layout constant, swipes driven by touch pointer events (axis lock, commit, spring back, rubber band, edge starts), the header zone and the pull past a scroll edge, routes and Back, the header on every screen and the name's list of screens, the keyboard, reduced motion, the one-time hints, and under 6 months. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -126,14 +126,50 @@ const load = (hash, months) => new Promise(res => {
     await go("week");
     ok("on New week: only it and Kitchen are rendered (Shuffle and Profile emptied after the move)", live() === "home:ihr shuffle:ih- kitchen:ihr week:--r profile:ih-", live());
 
-    // the Home control
+    // the header: on every screen, in the same place, never moving with a swipe
+    const chrome = () => { const r = $("#chrome").getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(); };
+    await go("home"); const at = chrome();
     for (const k of ["shuffle", "kitchen", "week", "profile"]) {
       await go(k);
-      const b = d.querySelector(`[data-f="${k}:home"]`), r = b.getBoundingClientRect();
-      ok(`${k}: a pinned 'Home' text control, top-left, 44px`, b.textContent === "Home" && r.left < 30 && r.top < 60 && r.height >= 44 && r.width >= 44 && !!b.closest(".scr-head, .k-head"), [b.textContent, r.left, r.top, r.width, r.height]);
+      const h1 = d.querySelector(`#scr-${k} h1`);
+      ok(`${k}: the same header, in the same place; no Home link; the title under it`, chrome() === at && !d.querySelector(`#scr-${k} .home-link`) && h1.getBoundingClientRect().top >= $("#chrome").getBoundingClientRect().bottom, [chrome(), at]);
     }
-    d.querySelector('[data-f="profile:home"]').click(); await settle();
-    ok("…and it goes Home", cur() === "home");
+    await go("home");
+    E("dragTo('x', -150)"); await wait(30);
+    ok("…mid-swipe it stays put while the screens move", chrome() === at && cam()[0] !== 0, [chrome(), cam()]);
+    E("settle(0, 0)"); await settle();
+    E("go('kitchen')"); await wait(120);
+    ok("…and mid-move too", chrome() === at);
+    await settle(); await go("home");
+    { const r = $("#whoName").getBoundingClientRect(); await drag(r.left + 40, r.top + r.height / 2, -220, 0, {steps: 6, dt: 30}); await settle(); }
+    ok("a swipe that starts on the header still moves the canvas (left: Shuffle), and isn't a tap on the name", cur() === "shuffle" && $("#navList").hidden, cur());
+    await go("home");
+
+    // the screens, from the name
+    const btn = $("#profileBtn"), list = $("#navList"), links = () => $$("#navList a");
+    ok("the name is a disclosure: aria-expanded false, controlling the list", btn.getAttribute("aria-expanded") === "false" && btn.getAttribute("aria-controls") === "navList" && list.hidden);
+    btn.click(); await wait(200);
+    ok("…open: a <nav aria-label='Screens'> of real links, Home, Profile, Shuffle, Kitchen, New week, under the name", list.tagName === "NAV" && list.getAttribute("aria-label") === "Screens" && !list.hidden && links().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && links().every(a => a.getAttribute("href")) && list.getBoundingClientRect().top >= btn.getBoundingClientRect().bottom, links().map(a => a.textContent));
+    ok("…every link 44px or more; Home current, in ink, the others muted", links().every(a => a.getBoundingClientRect().height >= 44) && links()[0].getAttribute("aria-current") === "page" && w.getComputedStyle(links()[0]).color !== w.getComputedStyle(links()[2]).color);
+    ok("…the screen behind is dimmed; focus on the current link", !$("#navScrim").hidden && d.activeElement === links()[0]);
+    const key = k => d.activeElement.dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true, cancelable: true}));
+    key("ArrowDown"); key("ArrowDown");
+    ok("…Down moves through the links (and the canvas stays put)", d.activeElement === links()[2] && cur() === "home");
+    key("End"); ok("…End: the last", d.activeElement === links()[4]);
+    key("Home"); ok("…Home: the first", d.activeElement === links()[0]);
+    key("Escape"); await wait(30);
+    ok("Esc closes it, focus back on the name", list.hidden && $("#navScrim").hidden && d.activeElement === btn && btn.getAttribute("aria-expanded") === "false");
+    btn.click(); await wait(100); $("#navScrim").click(); await wait(30);
+    ok("…a tap on the dimmed screen closes it too", list.hidden);
+    btn.click(); await wait(100); btn.click(); await wait(30);
+    ok("…and the name again", list.hidden);
+    btn.click(); await wait(100);
+    links().find(a => a.textContent === "New week").click(); await settle();
+    ok("a link goes there (New week) and the list closes", cur() === "week" && list.hidden);
+    btn.click(); await wait(100);
+    ok("…from New week, New week is the current one", links().find(a => a.getAttribute("aria-current") === "page").textContent === "New week");
+    links()[0].click(); await settle();
+    ok("…and Home goes Home", cur() === "home");
 
     // routes
     const calls = [], H = w.history, push = H.pushState.bind(H), repl = H.replaceState.bind(H);
@@ -156,39 +192,6 @@ const load = (hash, months) => new Promise(res => {
     w.history.back(); await wait(600);
     ok("…and Back from it goes Home", cur() === "home", cur());
 
-    // the position map
-    const nav = $("#map"), links = $$("#map a");
-    ok("the map is a <nav aria-label='Screens'>, 44px, outside the pager", nav.tagName === "NAV" && nav.getAttribute("aria-label") === "Screens" && !$("#pager").contains(nav) && Math.round(nav.getBoundingClientRect().height) === 44);
-    ok("…five real links named Home, Shuffle, Kitchen, New week, Profile", links.length === 5 && links.every(a => a.getAttribute("href") && a.href) && links.map(a => a.textContent).sort().join() === "Home,Kitchen,New week,Profile,Shuffle", links.map(a => a.textContent));
-    ok("…laid out like the canvas (built with CSS, not an icon)", (() => { const p = k => d.querySelector(".m-" + k).getBoundingClientRect(); return p("profile").top < p("home").top && p("home").top < p("kitchen").top && p("kitchen").top < p("week").top && p("shuffle").left > p("home").left && Math.abs(p("shuffle").top - p("home").top) < 1 && !nav.querySelector("svg, img"); })());
-    ok("…the current one is aria-current and filled", d.querySelector(".m-home").getAttribute("aria-current") === "page" && w.getComputedStyle(d.querySelector(".m-home"), "::before").opacity === "1" && w.getComputedStyle(d.querySelector(".m-week"), "::before").opacity === "0.35");
-    d.querySelector(".m-week").click(); await settle();
-    ok("tapping a dot goes there (New week)", cur() === "week" && d.querySelector(".m-week").getAttribute("aria-current") === "page" && !d.querySelector(".m-home").hasAttribute("aria-current"));
-    d.querySelector(".m-home").click(); await settle();
-
-    // the keyboard
-    const key = (k, target) => (target || d.body).dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true, cancelable: true}));
-    d.activeElement && d.activeElement.blur && d.activeElement.blur();
-    key("ArrowRight"); await settle();
-    ok("→ goes to Shuffle", cur() === "shuffle");
-    key("ArrowLeft"); await settle();
-    ok("← comes back Home", cur() === "home");
-    key("ArrowDown"); await settle(); key("ArrowDown"); await settle();
-    ok("↓ ↓ goes to Kitchen, then New week", cur() === "week");
-    key("Escape"); await settle();
-    ok("Esc goes Home", cur() === "home");
-    key("ArrowUp"); await settle();
-    ok("↑ goes to Profile", cur() === "profile");
-    key("Home"); await settle();
-    ok("the Home key goes Home", cur() === "home");
-    key("ArrowLeft"); await settle();
-    ok("← from Home: nothing there, nothing happens", cur() === "home");
-    await go("kitchen"); E("switchView('home')"); await wait(250);
-    d.querySelector('[data-f="kitchen:add"]').click(); await wait(100);
-    const field = d.querySelector('[data-f="kitchen:adding"]');
-    field.focus(); key("ArrowDown", field); key("ArrowUp", field); await settle();
-    ok("not while typing in a field", cur() === "kitchen" && d.activeElement === field);
-    E("refresh('kitchen')");
     await go("home");
     E("go('shuffle')"); await settle();
     ok("arriving, the screen's heading takes the focus", d.activeElement === d.getElementById("t-shuffle"), d.activeElement && d.activeElement.id);
@@ -235,8 +238,10 @@ const load = (hash, months) => new Promise(res => {
     // under 6 months: only Home and Profile
     f = await load("", 3); w = f.contentWindow; d = f.contentDocument;
     ok("under 6 months: only Home and Profile exist", E("screensNow().join()") === "home,profile");
-    const dots = [...d.querySelectorAll("#map a")].filter(a => !a.hidden).map(a => a.className).join();
-    ok("…the map shows two dots", dots === "m-profile,m-home", dots);
+    d.getElementById("profileBtn").click(); await wait(150);
+    const two = [...d.querySelectorAll("#navList a")].map(a => a.textContent).join();
+    ok("…the name's list has just Home and Profile", two === "Home,Profile", two);
+    d.getElementById("navScrim").click(); await wait(30);
     await drag(250, 500, -200, 0, {steps: 6, dt: 30}); await settle();
     ok("…swipe left rubber-bands (no Shuffle)", cur() === "home");
     await drag(200, 600, 0, -330, {steps: 6, dt: 30}); await settle();

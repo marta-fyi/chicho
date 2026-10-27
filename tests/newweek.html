@@ -25,7 +25,7 @@ f.onload = async () => {
        save(); closeOnboarding(); go("week", {quiet: true});`);
     await wait(500);
     const offers0 = E("state.offers.length");
-    ok("New week: a pinned 'Home' control and its title, inside the pager (no modal)", $(".home-link").textContent === "Home" && $("h1").textContent === "New week" && !d.querySelector("dialog[open]") && d.getElementById("onboarding").hidden);
+    ok("New week: its title under the header, no Home link, inside the pager (no modal)", !$(".home-link") && $("h1").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom && $("h1").textContent === "New week" && !d.querySelector("dialog[open]") && d.getElementById("onboarding").hidden);
     const sents = $$(".sent").map(s => s.textContent.replace(/\s+/g, " ").trim());
     ok("four sentences: starts ____ · cook on ____ days · most into… · try ____ new foods", /^Next week starts/.test(sents[0]) && /^We'll cook on .* days\.$/.test(sents[1]) && sents[2] === "This week, we're most into…" && /^Try .* new foods\.$/.test(sents[3]), sents);
     ok("…the sentences are paragraphs: the screen's only h1 is its title", $$("h1").length === 1);

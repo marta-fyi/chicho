@@ -66,14 +66,14 @@ f.onload = async () => {
       const body = d.querySelector(`#scr-${name} .scr-body`), all = targets(body).map(hit), side = [];
       all.forEach(a => all.forEach(b => { if (a === b) return; const sameRow = a.t < b.b - 4 && b.t < a.b - 4, gap = b.l - a.r; if (sameRow && gap >= 0 && gap < 8) side.push([a.el.textContent.slice(0, 14), b.el.textContent.slice(0, 14), Math.round(gap)]); }));
       ok(`${name}, all of it: side-by-side targets at least 8px apart`, side.length === 0, side.slice(0, 4));
-      ok(`${name}: the Home control sits top-left`, (() => { const r = d.querySelector(`[data-f="${name}:home"]`).getBoundingClientRect(); return r.left < 40 && r.top < 80; })());
+      ok(`${name}: the header's name sits top-left, 44×44 at least (it opens the screens)`, (() => { const r = d.getElementById("profileBtn").getBoundingClientRect(); return r.left < 40 && r.top < 80 && r.width >= 44 && r.height >= 44; })());
     }
-    // the map: the one exception to 44px per dot (the nav itself is 44×44); its dots never cover a control
-    const m = $("#map").getBoundingClientRect();
-    ok("the map is a 44×44 box in the bottom-right corner", Math.round(m.width) === 44 && Math.round(m.height) === 44 && m.right <= 390 && m.bottom <= 844);
+    // the name's list: every screen a 44px link
     E("go('home')"); await wait(500);
-    const homeHits = targets($("#scr-home")).map(b => b.getBoundingClientRect());
-    ok("…clear of every Home control", homeHits.every(r => r.right <= m.left || r.bottom <= m.top || r.left >= m.right || r.top >= m.bottom));
+    d.getElementById("profileBtn").click(); await wait(200);
+    const navHits = [...d.querySelectorAll("#navList a")].map(a => a.getBoundingClientRect());
+    ok("the name's list: five links, each at least 44px tall and wide", navHits.length === 5 && navHits.every(r => r.height >= 44 && r.width >= 44), navHits.map(r => Math.round(r.width) + "×" + Math.round(r.height)));
+    d.getElementById("navScrim").click(); await wait(30);
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
   document.getElementById("o").textContent = out.join("\n");

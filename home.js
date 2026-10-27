@@ -311,7 +311,7 @@ function alsoFor(ref, max){
    ==================================================================== */
 const LAYOUT = {profile:[0,-1], home:[0,0], shuffle:[1,0], kitchen:[0,1], week:[0,2]};
 const SCREEN_GLOW = {shuffle:"protein", week:"fruit", profile:"grain"};   // the Kitchen's glow scrolls with its content (kitchen.js)
-const EDGE = 24, HEADER_ZONE = 120, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, SETTLE_MS = 320, PULL_AT = 48;
+const EDGE = 24, HEADER_ZONE = 60, AXIS_LOCK = 10, COMMIT_SHARE = .35, COMMIT_SPEED = .5, RUBBER = .3, PARALLAX = .3, SETTLE_MS = 320, PULL_AT = 48;
 /* under 6 months only Home and Profile exist */
 function screensNow(){ return milkOnly() ? ["home","profile"] : Object.keys(LAYOUT); }
 function screenAt(c, r){ return screensNow().find(k=>LAYOUT[k][0]===c && LAYOUT[k][1]===r) || null; }
@@ -391,7 +391,6 @@ function changed(){
   layoutSig = "";
   renderHome();
   // the screens that exist can change (a birthday under 6 months leaves only Home and Profile)
-  updateMap();
   if(!screensNow().includes(pg.cur)){ go("home", {quiet:true}); return; }
   if(!pg.anim){ mountAround(); unmountFar(); }
   mounted.forEach(k=>{ if(k!=="home") refresh(k); });
@@ -418,7 +417,7 @@ function go(name, opts){
   if(mounted.has(name) && name!=="home") refresh(name);
   route(from, name, opts.fromHistory);
   markCurrent(from);
-  updateMap();
+  navClose(false);
   settle(LAYOUT[name][0], LAYOUT[name][1], ()=>{ unmountFar(); arrived(name, opts, true); });
   if(!opts.quiet) haptic();
 }
@@ -452,25 +451,51 @@ function route(from, to, fromHistory){
 }
 addEventListener("popstate", ()=>{ if(SNAPSHOT) return; const to = screenFromHash(); if(to!==pg.cur) go(to, {fromHistory:true}); });
 /* ---------- the position map: five dots laid out like the canvas; each is a real link ---------- */
-function buildMap(){
-  const nav = $("map");
-  nav.innerHTML = "";
-  Object.keys(LAYOUT).forEach(k=>{
+/* the screens, from the name: a short list under it (a disclosure: the name's aria-expanded, a nav of links, the
+   current one aria-current). Picking one goes there; the dimmed screen, Esc or the name again closes it, and focus
+   goes back to the name. Up and Down move through the links, Home and End to the ends. */
+const NAV_ORDER = ["home", "profile", "shuffle", "kitchen", "week"];
+function navIsOpen(){ return !$("navList").hidden; }
+function navOpen(fromKeys){
+  const list = $("navList"), btn = $("profileBtn"), avail = screensNow();
+  list.innerHTML = "";
+  NAV_ORDER.filter(k=>avail.includes(k)).forEach(k=>{
     const a = document.createElement("a");
-    a.href = "#" + k; a.className = "m-" + k; a.dataset.f = "map:" + k;
-    a.innerHTML = `<span class="sr-only">${esc(say("screens." + k))}</span>`;
-    a.addEventListener("click", e=>{ e.preventDefault(); go(k, {keepFocus:false}); });
-    nav.appendChild(a);
+    a.href = "#" + k; a.dataset.f = "nav:" + k; a.textContent = say("screens." + k);
+    if(k===pg.cur) a.setAttribute("aria-current", "page");
+    a.addEventListener("click", e=>{ e.preventDefault(); navClose(false); go(k, {keepFocus:false}); });
+    list.appendChild(a);
   });
-  updateMap();
+  const r = btn.getBoundingClientRect(), app = $("app").getBoundingClientRect();
+  list.style.left = Math.round(r.left - app.left - 12) + "px";   // the words line up with the name
+  list.style.top = Math.round(r.bottom - app.top + 6) + "px";
+  list.hidden = false; $("navScrim").hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  if(!calm()){
+    list.animate([{opacity:0, transform:"translateY(-6px)"}, {opacity:1, transform:"none"}], {duration:160, easing:"cubic-bezier(.2,.8,.2,1)"});
+    $("navScrim").animate([{opacity:0}, {opacity:1}], {duration:160});
+  }
+  // from the keys, focus goes into the list; a tap leaves it on the name (Down still goes in)
+  if(fromKeys) (list.querySelector('[aria-current="page"]') || list.firstChild).focus();
 }
-function updateMap(){
-  const avail = screensNow();
-  [...$("map").children].forEach(a=>{
-    const k = a.className.replace("m-", "");
-    a.hidden = !avail.includes(k);
-    if(k===pg.cur) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-  });
+function navClose(refocus){
+  if(!navIsOpen()) return;
+  $("navList").hidden = true; $("navScrim").hidden = true;
+  const inside = $("navList").contains(document.activeElement);
+  $("profileBtn").setAttribute("aria-expanded", "false");
+  if(refocus!==false && inside) $("profileBtn").focus({preventScroll:true});
+}
+function navKeys(e){
+  const links = [...$("navList").querySelectorAll("a")], i = links.indexOf(document.activeElement);
+  let to = null;
+  if(e.key==="Escape") { e.preventDefault(); navClose(); return; }
+  if(e.key==="ArrowDown") to = links[(i + 1) % links.length];
+  else if(e.key==="ArrowUp") to = links[(i - 1 + links.length) % links.length];
+  else if(e.key==="Home") to = links[0];
+  else if(e.key==="End") to = links[links.length - 1];
+  if(e.key==="Tab"){ navClose(false); return; }
+  if(to){ e.preventDefault(); to.focus(); }
+  if(e.key.startsWith("Arrow")) e.preventDefault();   // the arrows are the list's while it's open, not the canvas's
 }
 
 /* ---------- gestures: one pager. The finger drives the camera 1:1; the axis locks after 10px; it commits past
@@ -503,8 +528,9 @@ pagerEl.addEventListener("pointerdown", e=>{
   if(e.button > 0 || pg.anim || onboardingOpen()) return;
   if(e.clientX < EDGE || e.clientX > innerWidth - EDGE) return;
   const scr = screenEl(pg.cur), scrollable = pg.cur!=="home", kh = scr.querySelector(".k-head");
-  // the header zone: the Kitchen's whole pinned header (its view switch included), else the top 120px
-  const inHeader = scrollable && (kh ? e.clientY < kh.getBoundingClientRect().bottom : e.clientY - scr.getBoundingClientRect().top < HEADER_ZONE);
+  // the header zone: the app's header, then the Kitchen's whole pinned header (its view switch included) or the
+  // screen's title row (HEADER_ZONE px)
+  const inHeader = scrollable && (kh ? e.clientY < kh.getBoundingClientRect().bottom : e.clientY < $("chrome").getBoundingClientRect().bottom + HEADER_ZONE);
   const inField = e.target.closest("input, textarea, select");
   pg.drag = {id:e.pointerId, x0:e.clientX, y0:e.clientY, axis:null, d:0, scrollable, inHeader, inField, samples:[]};
 });
@@ -585,14 +611,11 @@ document.addEventListener("keydown", e=>{
 });
 addEventListener("resize", ()=>{ if(SNAPSHOT) return; paintScreenGlows(); if(!pg.drag && !pg.anim) applyCamera(pg.x, pg.y); fitHome(); });
 
-/* ---------- a screen's frame: pinned header (Home control, title, tools), native scroll, an optional pinned pill ---------- */
+/* ---------- a screen's frame: pinned header (title, tools; the app's header is above it), native scroll, an optional pinned pill ---------- */
 function frame(name, title, opts){
   const o = opts || {}, e = screenEl(name);
   e.innerHTML = "";
   const head = el("header", "scr-head"), hc = el("div", "scr-col");
-  const home = textBtn(say("screens.home"), ()=>go("home"), "small home-link");
-  home.dataset.f = name + ":home";
-  hc.appendChild(home);
   const tools = el("div", "scr-tools");
   (o.tools || []).forEach(t=>tools.appendChild(t));
   hc.appendChild(tools);
@@ -663,12 +686,7 @@ function renderHome(){
   const P = state.profile, st = stageNow(), t = now();
   if(P.lastStage===null || P.lastStage===undefined){ P.lastStage = st.id; save(); }
   lastISO = todayISO();
-  setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
-  renderWhoName(P);
-  $("profileBtn").setAttribute("aria-label", say("screens.profile") + (P.name ? ": " + P.name + (P.birthDate ? ", " + ageLabel(ageNow()) : "") : ""));
-  setText($("clockDate"), fmtCornerDate(t));
-  setText($("clock"), fmtTime(t));
-  $("clock").setAttribute("datetime", t.toISOString());
+  renderChrome(P, t);
   const calmState = milkOnly(), empty = !calmState && !hasPlan();
   $("home").classList.toggle("is-milk", calmState);
   $("home").classList.toggle("is-empty", empty);
@@ -681,6 +699,15 @@ function renderHome(){
   document.documentElement.classList.toggle("glow-dim", t.getHours()*60 + t.getMinutes() >= QUIET_FROM_MIN);
   updateChrome();
   if(firstDraw){ firstDraw = false; try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
+}
+/* the header, on every screen: the age over the name (which opens the screens), the date over the time */
+function renderChrome(P, t){
+  setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
+  renderWhoName(P);
+  $("profileBtn").setAttribute("aria-label", [P.name, P.birthDate ? ageLabel(ageNow()) : ""].filter(Boolean).join(", ") + (P.name ? ". " : "") + say("nav.title"));
+  setText($("clockDate"), fmtCornerDate(t));
+  setText($("clock"), fmtTime(t));
+  $("clock").setAttribute("datetime", t.toISOString());
 }
 /* the corner's name: the drawn one when there is ink (read aloud by its spelling), else the typed one */
 let whoSig = null;
@@ -1259,9 +1286,7 @@ function firstsByMonth(){
 }
 function renderProfile(){
   const P = state.profile;
-  const col = frame("profile", P.name || say("screens.profile"), {titleClass:"pf-name", sub:P.birthDate ? ageLabel(ageNow()) + " · " + stageNow().name : ""});
-  const ink = inkSVG(P.ink, "pf-ink");
-  if(ink){ const h = $("t-profile"); h.innerHTML = ink + `<span class="sr-only">${esc(P.name || say("screens.profile"))}</span>`; }
+  const col = frame("profile", say("screens.profile"), {sub:P.birthDate ? stageNow().name : ""});   // the name and age are in the header
   const iso0 = state.weekStarted, iso6 = isoOf(addDays(weekStart(), 6));
   // How it's going and Off the plate: two folds, closed on arrival, each with a line or two saying what's inside
   const loved = lovedFoods(), lovedWords = loved.map(k=>lower1(foodInfo(k).label));
@@ -1694,9 +1719,13 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
     return;
   }
   document.body.classList.add("is-app");
-  $("profileBtn").addEventListener("click", ()=>go("profile"));
+  $("profileBtn").addEventListener("click", e=>navIsOpen() ? navClose() : navOpen(e.detail===0));   // detail 0: Enter or Space
+  $("profileBtn").addEventListener("keydown", e=>{ if(navIsOpen() && (e.key==="ArrowDown" || e.key==="ArrowUp" || e.key==="Escape")){ e.preventDefault(); if(e.key==="Escape") navClose(); else (e.key==="ArrowDown" ? $("navList").firstChild : $("navList").lastChild).focus(); } });
+  $("navScrim").addEventListener("click", ()=>navClose());
+  $("navList").addEventListener("keydown", navKeys);
+  // the screens start under the header, whatever its height (a drawn name, the larger text sizes)
+  new ResizeObserver(()=>document.documentElement.style.setProperty("--chrome-h", $("chrome").offsetHeight + "px")).observe($("chrome"));
   placeScreens();
-  buildMap();
   paintScreenGlows();
   document.addEventListener("themechange", ()=>{ updateChrome(); applyCamera(pg.x, pg.y); });
   // a deep link (or a reload) opens on its screen, with Home one Back away
@@ -1709,7 +1738,6 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
   mountAround();
   unmountFar();
   applyCamera(pg.x, pg.y);
-  updateMap();
   scheduleTick();
   ["visibilitychange", "focus", "pageshow"].forEach(ev=>addEventListener(ev, ()=>{ if(!document.hidden) tick(); scheduleTick(); }));
   if(!state.profile.onboarded) openOnboarding();

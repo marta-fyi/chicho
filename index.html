@@ -372,9 +372,6 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .spell-ink{color:var(--ink);margin-bottom:18px;}
   .spell-svg{display:block;height:64px;width:auto;max-width:min(80vw, 320px);margin:0 auto;}
   .name-ink{display:block;height:56px;width:auto;max-width:min(60vw, 260px);color:var(--ink);}   /* always big: Profile's size */
-  .pf-ink{display:block;height:88px;width:auto;max-width:100%;color:var(--ink);}
-  .pf-name:has(.pf-ink){margin-bottom:10px;}
-  .pf-name + .scr-sub{margin-top:0;}
   /* Birthday: three full-height columns between the sentence and the stage; the page itself never scrolls */
   .onb-card.fill{overflow:hidden;}
   .onb-card.fill::before, .onb-card.fill::after{display:none;}
@@ -662,11 +659,17 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .app{position:fixed;inset:0;color:var(--ink);}
   .pager{position:absolute;inset:0;overflow:hidden;}
   .camera{position:absolute;inset:0;}
-  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;padding-top:var(--chrome-h);}
+  /* the header sits over every screen, which starts under it (--chrome-h, measured); it's inside the pager so a
+     swipe can start on it, and it's above the camera, so it never moves with one */
+  :root{--chrome-h:calc(var(--sa-t) + 100px);}
+  .chrome{position:absolute;left:0;right:0;top:0;z-index:7;padding-top:calc(var(--sa-t) + 12px);touch-action:none;pointer-events:none;}
+  .chrome .corners{pointer-events:auto;}
+  .is-onb .chrome{display:none;}
   .screen.is-off{visibility:hidden;}
   .scr-col{width:100%;max-width:calc(var(--col) + var(--pad-l) + var(--pad-r));margin:0 auto;padding:0 var(--pad-r) 0 var(--pad-l);}
   .scr-home{touch-action:none;}
-  .home-in{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:calc(var(--sa-t) + 12px);padding-bottom:calc(var(--sa-b) + 12px);}
+  .home-in{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:calc(var(--sa-b) + 12px);}
   /* the backdrop: the glow (light) or the night sky (dark), panning at 0.3x of the camera */
   .backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
   .bg{display:none;}
@@ -734,21 +737,20 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .outcomes{display:flex;gap:8px;}
   .outcome{flex:1 1 0;min-width:0;min-height:48px;padding:0 2px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
   .outcome[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);}
-  .foot-line{flex:none;display:flex;align-items:center;min-height:44px;margin:8px 0 0;padding-right:56px;font-size:15px;line-height:1.4;color:var(--ink-muted);}
+  .foot-line{flex:none;display:flex;align-items:center;min-height:44px;margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink-muted);}
   .foot-line[hidden]{display:none;}
   .foot-line .btn-text.inline{margin-left:.6ch;}   /* "Offered. Undo": the flex line drops the space */
   .is-milk .now-meal, .is-milk .offer-zone, .is-empty .now-meal, .is-empty .offer-zone{display:none;}
 
   /* ---------- the other screens: a pinned header, native scroll, one primary pill ---------- */
-  .scr-head{flex:none;padding-top:calc(var(--sa-t) + 4px);touch-action:none;}
+  .scr-head{flex:none;padding-top:12px;touch-action:none;}
   .scr-head .scr-col{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;}
-  .home-link{margin-left:-6px;}
   .scr-title{flex-basis:100%;margin:2px 0 10px;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
   .scr-title:focus{outline:none;}
   .scr-sub{flex-basis:100%;margin:-6px 0 10px;font-size:15px;color:var(--ink-muted);}
   .scr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:24px;}
-  .scr-pin{flex:none;padding:10px 0 calc(var(--sa-b) + 64px);}
-  .scr-foot{flex:none;height:calc(var(--sa-b) + 64px);}
+  .scr-pin{flex:none;padding:10px 0 calc(var(--sa-b) + 12px);}   /* the pill sits where Home's does */
+  .scr-foot{flex:none;height:calc(var(--sa-b) + 12px);}
   .scr-pin .btn-ink{width:100%;}
   .sec{margin-top:26px;}
   .sec:first-child{margin-top:4px;}
@@ -806,12 +808,12 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .alt{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1.5px solid var(--ink);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;}
   .alt:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   /* the Kitchen's pinned header: a blurred surface (and its hairline) fade in once anything scrolls under it */
-  .k-head{position:absolute;left:0;right:0;top:0;z-index:3;padding-top:var(--sa-t);touch-action:none;}
+  .k-head{position:absolute;left:0;right:0;top:0;z-index:3;padding-top:var(--chrome-h);touch-action:none;}   /* its surface runs up behind the app's header */
   .k-surface{position:absolute;inset:0;background:var(--head-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);opacity:0;transition:opacity 150ms linear;}
   .k-surface::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--hairline);}
   .k-head.is-under .k-surface{opacity:1;}
   .k-head-col{position:relative;}
-  .k-top{display:flex;align-items:center;justify-content:space-between;min-height:44px;}
+  .k-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;}   /* the title, and In the store on its right */
   .k-store{margin-right:-6px;white-space:nowrap;}
   .k-store[hidden]{display:none;}
   .k-title{margin:0;font-size:32px;font-weight:500;letter-spacing:-.02em;line-height:1.2;}
@@ -825,7 +827,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .k-count:empty{display:none;}
   .k-line{position:absolute;left:0;bottom:6px;width:100px;height:2px;background:var(--ink);transform-origin:0 50%;transition:transform 220ms var(--spring);pointer-events:none;}
   /* the scroll area: under the header and the pill, 120px clear at the bottom, and a 48px fade so rows dissolve
-     into the band of the position map instead of running into it */
+     into the bottom edge instead of running into it */
   .k-body{position:absolute;inset:0;padding-bottom:calc(120px + var(--sa-b));
           -webkit-mask-image:linear-gradient(to bottom, black calc(100% - var(--sa-b) - 60px), transparent calc(100% - var(--sa-b) - 12px));
           mask-image:linear-gradient(to bottom, black calc(100% - var(--sa-b) - 60px), transparent calc(100% - var(--sa-b) - 12px));}
@@ -880,13 +882,13 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .k-portions{display:flex;align-items:baseline;gap:10px;margin:6px 0 0;font-size:15px;color:var(--ink-muted);}
   .k-num{width:3.5ch;min-height:44px;padding:0 4px;border:none;border-bottom:2px solid var(--ink);background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:500;text-align:center;}
   .k-num:focus{outline:none;border-bottom-color:var(--ink);}
-  .k-pin{position:absolute;left:0;right:0;z-index:3;bottom:calc(var(--sa-b) + 64px);pointer-events:none;}
+  .k-pin{position:absolute;left:0;right:0;z-index:3;bottom:calc(var(--sa-b) + 12px);pointer-events:none;}
   .k-pill{display:block;width:100%;height:52px;border:none;border-radius:999px;background:var(--ink);color:var(--sheet);cursor:pointer;pointer-events:auto;
           font:inherit;font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);transition:transform var(--dur-1) var(--ease-out);}
   .k-pill:active{transform:scale(.97);}
   .k-pill:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
-  .k-undo{position:absolute;left:0;right:0;z-index:3;bottom:calc(var(--sa-b) + 64px + 52px + 10px);pointer-events:none;}
-  .k-undo.no-pin{bottom:calc(var(--sa-b) + 64px);}
+  .k-undo{position:absolute;left:0;right:0;z-index:3;bottom:calc(var(--sa-b) + 12px + 52px + 10px);pointer-events:none;}
+  .k-undo.no-pin{bottom:calc(var(--sa-b) + 12px);}
   .k-undo p{margin:0;font-size:15px;line-height:1.4;color:var(--ink-muted);}
   .k-undo .btn-text{pointer-events:auto;}
   /* New week: the onboarding's sentences, inside the pager */
@@ -905,8 +907,6 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .onb .wk-rows{max-width:var(--col);}
   .nw-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:20px;}
   /* Profile */
-  .pf-name{flex-basis:100%;margin:2px 0 0;font-size:36px;font-weight:500;letter-spacing:var(--track-label);text-transform:uppercase;line-height:1.25;}
-  .pf-name:focus{outline:none;}
   /* Profile's two folds: the heading with Show/Hide, a line or two when closed */
   .pf-fold-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;}
   .pf-fold-head .sec-h{margin:0;}
@@ -931,18 +931,13 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .s-person p{margin:0;}
   .s-warn{margin:10px 0 0;font-size:16px;line-height:1.45;}
   .s-status:empty{display:none;}
-  /* the position map: five dots laid out like the canvas, the current one filled; each dot is a link */
-  .map{position:absolute;right:max(20px, var(--sa-r));bottom:calc(var(--sa-b) + 12px);z-index:5;width:44px;height:44px;
-       display:grid;grid-template-columns:repeat(2, 22px);grid-template-rows:repeat(4, 11px);}
-  .map a{position:relative;display:block;color:var(--ink);}
-  .map a::before{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:currentColor;opacity:.35;}
-  .map a[aria-current="page"]::before{opacity:1;}
-  .map a[hidden]{display:none;}
-  .map a:focus-visible{outline:2px solid var(--ink);outline-offset:0;border-radius:3px;}
-  .map .m-profile{grid-area:1 / 1;} .map .m-home{grid-area:2 / 1;} .map .m-shuffle{grid-area:2 / 2;} .map .m-kitchen{grid-area:3 / 1;} .map .m-week{grid-area:4 / 1;}
-  .is-onb .map{display:none;}
-  .map{transition:opacity 200ms linear;}
-  .map.is-dim{opacity:.35;}
+  /* the screens, from the name: a short list under it, the current one in ink; the screen behind dims */
+  .nav-scrim{position:absolute;inset:0;z-index:6;background:var(--scrim);}
+  .nav-list{position:absolute;z-index:8;min-width:200px;padding:6px 0;border-radius:var(--r-card);background:var(--sheet);box-shadow:var(--shadow-sheet);}
+  .nav-list a{display:flex;align-items:center;min-height:48px;padding:0 12px;font-size:17px;color:var(--ink-muted);text-decoration:none;}
+  .nav-list a[aria-current="page"]{color:var(--ink);font-weight:500;}
+  .nav-list a:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;border-radius:8px;}
+  .nav-scrim[hidden], .nav-list[hidden]{display:none;}
   /* screens fade their content in, staggered, after arriving */
   .arrive > *{animation:arrive 280ms var(--ease-out) both;}
   .arrive > .k-glow{animation:none;}
@@ -1001,7 +996,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .btn-text.inline{display:inline-block;}
   .btn-text.inline + .btn-text.inline{margin-left:8px;}   /* two text actions in one line: 8px between their 44px pads */
   :is(button, a[href], [role="button"]):not(:disabled):active{transform:scale(.97);transition:transform 100ms var(--ease-out);}
-  .ring-btn:not(:disabled):active, .map a:active{transform:none;}   /* the ring scales its circle instead, so its 44px pad doesn't move */
+  .ring-btn:not(:disabled):active{transform:none;}   /* the ring scales its circle instead, so its 44px pad doesn't move */
   /* last, so nothing above overrides it: a field is never under 16px (iOS zooms on focus below that) */
   .blank .blank-input{font-size:max(16px, 1em);}
   .pill-o.pill-edit{text-transform:none;letter-spacing:0;font-size:16px;}
@@ -1035,14 +1030,17 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     </div></div></div>
   </div>
   <div class="pager" id="pager">
+    <!-- the header: on every screen, in the same place (it doesn't move with a swipe); the name opens the screens -->
+    <header class="chrome" id="chrome">
+      <div class="scr-col corners">
+        <button type="button" class="who-btn" id="profileBtn" data-f="top:me" aria-expanded="false" aria-controls="navList"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
+        <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
+      </div>
+    </header>
     <div class="camera" id="camera">
       <!-- Home: offer. Light, contextual, never scrolls -->
       <main class="screen scr-home" id="scr-home" data-screen="home">
         <div class="scr-col home-in" id="home">
-          <header class="corners">
-            <button type="button" class="who-btn" id="profileBtn" data-f="top:me"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
-            <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
-          </header>
           <i class="home-air" aria-hidden="true"></i>
           <h1 class="headline" id="headline" tabindex="-1"></h1>
           <article class="now-meal" id="nowMeal"></article>
@@ -1057,8 +1055,9 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
       <section class="screen scrollable" id="scr-profile" data-screen="profile"></section>
     </div>
   </div>
-  <!-- where you are, laid out like the canvas; every dot is a link (never gesture-only) -->
-  <nav class="map" id="map" aria-label="Screens"></nav>
+  <!-- the screens, from the name (never gesture-only): the screen behind is dimmed while it's open -->
+  <div class="nav-scrim" id="navScrim" hidden></div>
+  <nav class="nav-list" id="navList" aria-label="Screens" hidden></nav>
 </div>
 <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
 

@@ -66,7 +66,7 @@ f.onload = async () => {
     ok("…and it scrolls away with the content", Math.abs((t0 - R(kg).top) - kb.scrollTop) < 1, [t0, R(kg).top, kb.scrollTop]);
     kb.scrollTop = 0; await wait(30);
     const sw = R($("#scr-kitchen .k-switch")), lt = R([...d.querySelectorAll("#scr-kitchen .k-tab")].at(-1));
-    ok("…at rest behind the header: level with the view switch's top, right of its last label (where no control is)", Math.abs((R(kg).top + R(kg).height / 2) - sw.top) < 2 && Math.abs((R(kg).left + R(kg).width / 2) - (lt.right + sw.right) / 2) < 2);
+    ok("…at rest behind the header: level with the view switch's bottom edge, right of its last label (where no control is, clear of In the store)", Math.abs((R(kg).top + R(kg).height / 2) - sw.bottom) < 2 && Math.abs((R(kg).left + R(kg).width / 2) - (lt.right + sw.right) / 2) < 2);
     E(`go("home", {quiet: true})`); await wait(500);
     // the parallax: the backdrop moves at 0.3x of the camera
     E("applyCamera(.5, 0)");

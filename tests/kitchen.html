@@ -27,7 +27,7 @@ f.onload = async () => {
        state.pantry = []; state.freezer = []; state.offers = []; offersChanged(); save(); closeOnboarding(); go("kitchen", {quiet: true});`);
     await wait(500);
     const view = async v => { $(`[data-f="view:${v}"]`).click(); await wait(250); };
-    ok("the Kitchen: a pinned 'Home' control, its title, 'In the store: Off'", $(".home-link").textContent === "Home" && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store: Off");
+    ok("the Kitchen: its title under the header, no Home link, 'In the store: Off'", !$(".home-link") && $("h1").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom && $("h1").textContent === "Kitchen" && $('[data-f="instore"]').textContent === "In the store: Off");
     ok("the view switch: Buy, At home, Prep; Buy by default", $$(".k-tab .k-tab-t").map(b => b.textContent).join() === "Buy,At home,Prep" && $(".k-tab.is-on").dataset.view === "buy" && $(".k-view").dataset.view === "buy");
     ok("…Buy carries the count of rows still to buy", $('.k-tab[data-view="buy"] .k-count').textContent === String(E("toBuyList().length")));
 
@@ -212,7 +212,7 @@ f.onload = async () => {
     Object.defineProperty(w.navigator, "clipboard", {value: {writeText: async x => { copied = x; }}, configurable: true});
     const send = $('[data-f="kitchen:send"]');
     ok("'Send the list' is a 52px ink pill pinned above the safe area (outside the scroll)", !!send && send.closest(".k-pin") && !send.closest(".k-body") && send.textContent === "Send the list" && send.getBoundingClientRect().height === 52 && w.getComputedStyle(send).textTransform === "uppercase");
-    ok("…its bottom clears the position map", send.getBoundingClientRect().bottom <= d.getElementById("map").getBoundingClientRect().top);
+    ok("…inside the screen", send.getBoundingClientRect().bottom <= w.innerHeight);
     send.click(); await wait(80);
     ok("…it sends the groceries text (copied here: no number, no share sheet)", copied === E("groceriesText()"), copied && copied.slice(0, 60));
     ok("…with pack units: '☐ {item} · {unit} · by {weekday}'", copied.split("\n").slice(2).filter(Boolean).every(l => /^☐ .+ · (\d+ [a-z]+|\d+ g)( · by [A-Z][a-z]+day)?$/.test(l)), copied.split("\n").slice(2, 5));
@@ -279,13 +279,9 @@ f.onload = async () => {
     $(".k-body").scrollTop = 300; await wait(30);
     await view("buy"); $(".k-body").scrollTop = 0; await view("home");
     ok("each view keeps its own scroll position", $(".k-body").scrollTop === 300, $(".k-body").scrollTop);
-    ok("the scroll area starts under the header (padding = its height)", Math.abs(parseFloat($(".k-body").style.paddingTop) - $(".k-head").offsetHeight) < 1 && $(".k-body").style.scrollPaddingTop === $(".k-body").style.paddingTop);
+    ok("the scroll area starts under the header (padding = its height)", Math.abs(parseFloat($(".k-body").style.paddingTop) - $(".k-head").offsetHeight) < 1 && $(".k-body").style.scrollPaddingTop === $(".k-body").style.paddingTop, [$(".k-body").style.paddingTop, $(".k-head").offsetHeight, $(".k-body").style.scrollPaddingTop]);
     ok("…and the header's surface shows once something is under it", $(".k-head").classList.contains("is-under"));
-    $(".k-body").dispatchEvent(new w.Event("scroll")); await wait(30);
-    const map = d.getElementById("map");
-    ok("while scrolling, the position map dims to 35%", map.classList.contains("is-dim") && w.getComputedStyle(map).opacity !== "1");
-    await wait(480);
-    ok("…and comes back 400ms after it stops", !map.classList.contains("is-dim"));
+    ok("…and the Kitchen's title sits under the app's header", $(".k-title").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom);
     ok("the scroll area's bottom: 120px plus the safe area, and a 48px mask fade", w.getComputedStyle($(".k-body")).paddingBottom === "120px" && /linear-gradient/.test(w.getComputedStyle($(".k-body")).webkitMaskImage || w.getComputedStyle($(".k-body")).maskImage));
 
     // nothing red, no counters

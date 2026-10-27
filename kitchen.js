@@ -261,10 +261,9 @@ function kitchenShell(){
   e.style.setProperty("--row-h", KITCHEN.ROW_H + "px");
   const head = el("header", "k-head"), hc = el("div", "scr-col k-head-col"), top = el("div", "k-top");
   head.appendChild(el("i", "k-surface"));
-  const home = textBtn(say("screens.home"), ()=>go("home"), "small home-link"); home.dataset.f = "kitchen:home";
   const store = textBtn("", ()=>setStoreMode(!kitchenUI.store), "small k-store"); store.dataset.f = "instore";
-  top.append(home, store);
   const h = el("h1", "k-title", say("screens.kitchen")); h.tabIndex = -1;
+  top.append(h, store);
   const sw = el("div", "k-switch");
   KITCHEN_VIEWS.forEach(v=>{
     const b = document.createElement("button");
@@ -274,7 +273,7 @@ function kitchenShell(){
     sw.appendChild(b);
   });
   sw.appendChild(el("i", "k-line"));
-  hc.append(top, h, sw); head.appendChild(hc);
+  hc.append(top, sw); head.appendChild(hc);
   const body = el("div", "scr-body k-body"), col = el("div", "scr-col k-view");
   // the glow (Veg) lives in the scroll area, centred on the title row, so it scrolls away with the content
   const glow = el("i", "k-glow");
@@ -286,30 +285,23 @@ function kitchenShell(){
   const fit = ()=>{
     const hh = head.offsetHeight; body.style.paddingTop = hh + "px"; body.style.scrollPaddingTop = hh + "px"; e.style.setProperty("--kh", hh + "px");
     // the glow's grey nucleus sits where no control is: right of the view switch's last label, level with the
-    // switch's top (between the title and the switch, clear of In the store above), in the scroll area's coordinates
+    // switch's bottom edge (clear of In the store, on the title's row above), in the scroll area's coordinates
     const sw = head.querySelector(".k-switch"), tabs = head.querySelectorAll(".k-tab"), last = tabs[tabs.length - 1], b = body.getBoundingClientRect();
     if(!last) return;
     const s = sw.getBoundingClientRect(), l = last.getBoundingClientRect();
     glow.style.left = ((l.right + s.right) / 2 - b.left) + "px";
-    glow.style.top = (s.top - b.top + body.scrollTop) + "px";
+    glow.style.top = (s.bottom - b.top + body.scrollTop) + "px";
   };
-  if(window.ResizeObserver) new ResizeObserver(fit).observe(head);
+  if(window.ResizeObserver) new ResizeObserver(fit).observe(head, {box:"border-box"});   // its padding is the app header's height
   body.addEventListener("scroll", ()=>kitchenScrolled(body, head), {passive:true});
   watchPull(body);
   requestAnimationFrame(fit);
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ fit(); placeLine(head, false); });
   return {e, head, body, col};
 }
-/* scrolling: the header's surface and hairline once anything is under it; the position map dims to 35% and comes
-   back 400ms after the scrolling stops */
-let mapTimer = 0;
+/* scrolling: the header's surface and hairline once anything is under it */
 function kitchenScrolled(body, head){
   head.classList.toggle("is-under", body.scrollTop > 0);
-  const map = $("map");
-  if(!map) return;
-  map.classList.add("is-dim");
-  clearTimeout(mapTimer);
-  mapTimer = setTimeout(()=>map.classList.remove("is-dim"), 400);
 }
 /* the underline sits under the active label (transform only); it slides when the view changes */
 function placeLine(head, slide){

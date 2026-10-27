@@ -58,7 +58,7 @@ const fit = (d, W, H) => {
       ok(`${W}×${H}: the how is clamped to two lines`, (() => { const c = $("#nowMeal .meal-how .clamp"); return !c || Math.round(R(c).height / parseFloat(w.getComputedStyle(c).lineHeight)) <= 2; })());
       const clamp = $("#nowMeal .meal-how .clamp"), more = $('#nowMeal [data-f="meal:howmore"]');
       ok(`${W}×${H}: …with 'More' exactly when it's longer than that`, !clamp || (clamp.scrollHeight > clamp.clientHeight + 1) === !!more, [clamp && clamp.scrollHeight, clamp && clamp.clientHeight, !!more]);
-      ok(`${W}×${H}: the map sits in the bottom-right corner, clear of the pill`, (() => { const m = R($("#map")), p = R($("#offerZone .offer-bar")); return Math.round(W - m.right) === 20 && m.bottom <= H && m.top >= p.bottom - .5; })(), [R($("#map")).right, R($("#map")).top, R($("#offerZone .offer-bar")).bottom]);
+      ok(`${W}×${H}: the header and the pill never overlap`, R($("#chrome")).bottom <= R($("#offerZone .offer-bar")).top, [R($("#chrome")).bottom, R($("#offerZone .offer-bar")).top]);
       const targets = $$("#home button").filter(b => b.offsetParent && !b.classList.contains("inline"));
       ok(`${W}×${H}: every control on Home is at least 44×44`, targets.every(b => R(b).height >= 44 && R(b).width >= 44), targets.filter(b => R(b).height < 44 || R(b).width < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)));
       f.remove();

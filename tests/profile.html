@@ -29,7 +29,7 @@ f.onload = async () => {
        offersChanged(); save(); closeOnboarding(); go("profile", {quiet: true});`);
     await wait(500);
     const text = () => d.getElementById("scr-profile").textContent;
-    ok("Profile: a pinned 'Home' control, the name, age and stage", $(".home-link").textContent === "Home" && $("h1").textContent === "Lula" && getComputedStyle($("h1")).textTransform === "uppercase" && $(".scr-sub").textContent === "18 months · A seat at the family table");
+    ok("Profile: the title 'Profile' under the header (the name and age are in it), the stage under the title, no Home link", !$(".home-link") && $("h1").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom && $("h1").textContent === "Profile" && $(".scr-sub").textContent === "A seat at the family table" && d.getElementById("whoName").textContent === "Lula");
     ok("sections in order: how it's going, off the plate, settings, caregivers", $$("section.sec").map(s => s.dataset.sec).join() === "going,offplate,settings,people", $$("section.sec").map(s => s.dataset.sec));
     ok("…no percentages, scores or streaks anywhere", !/%|\bscore|\bstreak|\bmissed|\beaten/i.test(text()));
 
@@ -90,10 +90,10 @@ f.onload = async () => {
     fold("going").click(); fold("offplate").click(); await wait(30);
 
     // the drawn name heads Profile (read aloud by its spelling); no ink, the typed name
-    ok("no ink: Profile's title is the typed name", d.getElementById("t-profile").textContent === "Lula" && !d.querySelector("#t-profile svg"));
-    E(`state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 70, 20, 70, 100]]}; save(); refresh("profile")`); await wait(30);
-    ok("ink: Profile's title is the drawing, with the name for screen readers", !!d.querySelector("#t-profile svg.pf-ink path") && d.querySelector("#t-profile .sr-only").textContent === "Lula");
-    E(`state.profile.ink = null; save(); refresh("profile")`); await wait(30);
+    ok("no ink: the header's name is typed; Profile's title stays 'Profile'", d.getElementById("whoName").textContent === "Lula" && !d.querySelector("#whoName svg") && d.getElementById("t-profile").textContent === "Profile");
+    E(`state.profile.ink = {w: 300, h: 150, strokes: [[10, 100, 10, 20, 40, 60, 70, 20, 70, 100]]}; save(); changed()`); await wait(30);
+    ok("ink: the header's name is the drawing (read as 'Lula'); the title never repeats it", !!d.querySelector("#whoName svg path") && d.querySelector("#whoName .sr-only").textContent === "Lula" && d.getElementById("t-profile").textContent === "Profile" && !d.querySelector("#t-profile svg"));
+    E(`state.profile.ink = null; save(); changed()`); await wait(30);
     // settings reopen the onboarding's sentences, with a text Close that comes back here
     const rows = [...sec("settings").querySelectorAll(".row-btn")].map(b => b.querySelector(".row-t span").textContent);
     ok("Settings: birthday, meal times, priorities, kitchen basics, replay as rows", JSON.stringify(rows) === JSON.stringify(["Birthday", "Meal times", "Priorities", "Kitchen basics", "Replay the first steps"]), rows);

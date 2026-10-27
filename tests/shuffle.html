@@ -27,7 +27,7 @@ f.onload = async () => {
     const time = (h, mi) => E(`fmtTime(new Date(2026, 9, 22, ${h}, ${mi}))`);
     // stock: the first food at home, the second running low, the rest not at home
     E(`(() => { const m = mealsOn(now()).find(x => x.m.slot === "lunch").m; setStock(foodIdOf(m.items[0]), baseName(m.items[0]), "plenty"); setStock(foodIdOf(m.items[1]), baseName(m.items[1]), "low"); m.items.slice(2).forEach(i => setStock(foodIdOf(i), baseName(i), "out")); save(); refresh("shuffle"); })()`); await wait(30);
-    ok("Shuffle is the meal on Home: a pinned 'Home' control and the title 'Lunch · around 12:30'", $(".home-link").textContent === "Home" && $("h1").textContent === `Lunch · around ${time(12, 30)}` && E("shuffleRef().m.id") === lunchM().id, $("h1").textContent);
+    ok("Shuffle is the meal on Home: no Home link (the header's name has the screens), the title 'Lunch · around 12:30' under the header", !$(".home-link") && $("h1").getBoundingClientRect().top >= d.getElementById("chrome").getBoundingClientRect().bottom && $("h1").textContent === `Lunch · around ${time(12, 30)}` && E("shuffleRef().m.id") === lunchM().id, $("h1").textContent);
     ok("…one meal, not a day: no Today · Tomorrow, no other meals, no Keep", !$(".toggle") && !$('[data-f^="keep:"]') && $$(".sh-food").length === lunchM().items.length);
     ok("its foods as text lines, each with 'Change'", $$(".sh-food").every((li, k) => li.querySelector(".sh-food-t span").textContent === E(`foodLine(mealsOn(now()).find(x => x.m.slot === "lunch").m.items[${k}])`) && li.querySelector('[data-f^="change:"]')));
     const alerts = $$(".sh-food").map(li => li.querySelector(".sh-alert") ? li.querySelector(".sh-alert").textContent : "");
