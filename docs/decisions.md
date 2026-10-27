@@ -24,8 +24,7 @@ Marta: the desktop page now starts with a product description, and has a way bac
   - "CHICHO".
   - "A calm meal planner for babies and toddlers."
   - A short paragraph.
-  - **It takes care of** (the next meal, new foods, the shopping, variety).
-  - **You can** (six things the app really does today).
+  - One list of four, no heading (Marta's copy, 27 Oct 2026): **Plans the week**, **Introduces new foods carefully**, **Writes the shopping list**, **Shares the plan**, each with a line on what it means. It replaced "It takes care of" (four) and "You can" (six). The shorter description now fits at full size and sits centred beside the phone.
   - Marta took out a closing note ("No account… Not medical advice…") after the first version. The app's own allergen screens keep their note.
   
   It's written from what the app does now, not the old README (which still said "Mark meals as eaten" and "variety scores", and has been rewritten to match). The copy is in `phone.html`, so the voice lint checks it.
