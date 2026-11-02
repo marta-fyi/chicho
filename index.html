@@ -7,14 +7,23 @@
 /* Desktop, in a phone: a desktop browser gets the app inside an iPhone 16 Pro frame (phone.html), at the phone's own
    402×874 viewport in an iframe. Inside a frame, with ?app or ?test, or on a phone, this is the app. ?frame forces the
    frame anywhere. window.stop() ends this parse first, so none of the app's styles or scripts run on the way
-   (WebKit, Chromium and Firefox checked); phone.html puts this address back in the bar. ?inframe marks the app inside. */
+   (WebKit, Chromium and Firefox checked); phone.html puts this address back in the bar. ?inframe marks the app inside.
+   ?fresh (marta.fyi's case study links here with it) forgets everything this browser kept, before anything reads it,
+   and leaves the address bar: the app opens on a first run, as a stranger would see it. */
 function chichoMode(o){
   if(o.framed || /[?&](app|test)\b/.test(o.search)) return "app";
   return /[?&]frame\b/.test(o.search) || o.desktop ? "frame" : "app";
 }
 const CHICHO_DESKTOP = "(pointer: fine) and (min-width: 700px) and (min-height: 600px)";
 (function(){
-  const search = location.search;
+  let search = location.search;
+  if(/[?&]fresh\b/.test(search)){
+    try{ localStorage.removeItem("toddlerMealPlanner.v1"); }catch(e){}   // STORE_KEY, below
+    try{ ["chicho.kitchenView", "sortTab"].forEach(k=>sessionStorage.removeItem(k)); }catch(e){}   // kitchen.js, sortfood.js
+    const rest = search.slice(1).split("&").filter(x=>!/^fresh(=|$)/.test(x));   // the others exactly as they came
+    search = rest.length ? "?" + rest.join("&") : "";
+    history.replaceState(history.state, "", location.pathname + search + location.hash);
+  }
   if(/[?&]inframe\b/.test(search)) document.documentElement.classList.add("in-frame");
   let framed = true; try{ framed = window.self!==window.top; }catch(e){}
   if(chichoMode({framed, search, desktop:matchMedia(CHICHO_DESKTOP).matches})!=="frame") return;

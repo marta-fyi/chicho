@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · fresh tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
+<body>
+<h1>Fresh tests</h1>
+<p>?fresh, the case study's link: Chicho forgets what this browser kept (the plan and the Kitchen's and Sort's remembered tabs)
+before anything reads it, takes ?fresh out of the address, and opens on a first run, the welcome first. Without it, a kept plan
+stays. Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear(); sessionStorage.clear();
+const frame = q => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = 390; f.height = 844; f.src = `../index.html?test${q}&theme=light&seed=7&now=2026-10-22T09:15`;
+  f.onload = async () => { await wait(300); res(f); };
+  document.body.append(f);
+});
+// a family that already uses Chicho: a name, a finished first run, a remembered tab
+const keep = async () => {
+  const f = await frame("");
+  f.contentWindow.eval(`state.profile.name = "Lula"; state.profile.onboarded = true; save()`);
+  sessionStorage.setItem("sortTab", "fruit"); sessionStorage.setItem("chicho.kitchenView", "prep");
+  f.remove();
+};
+(async () => {
+  try {
+    // 1. without ?fresh, the kept plan opens
+    await keep();
+    let f = await frame(""), E = x => f.contentWindow.eval(x);
+    ok("without ?fresh, the kept name is there", E("state.profile.name") === "Lula" && E("state.profile.onboarded") === true, E("state.profile.name"));
+    f.remove();
+
+    // 2. with ?fresh, it's all gone, and the first run starts on the welcome
+    await keep();
+    f = await frame("&hello&fresh"); E = x => f.contentWindow.eval(x);
+    ok("with ?fresh, no name and no finished first run", E("state.profile.name") === "" && E("state.profile.onboarded") === false, E("JSON.stringify([state.profile.name, state.profile.onboarded])"));
+    ok("…the remembered tabs are gone", sessionStorage.getItem("sortTab") === null && sessionStorage.getItem("chicho.kitchenView") === null);
+    ok("…?fresh is out of the address, the rest kept", !/fresh/.test(E("location.search")) && /[?&]test\b/.test(E("location.search")) && /[?&]hello\b/.test(E("location.search")), E("location.search"));
+    ok("…and it opens on the welcome", E("typeof onb !== 'undefined' && onb.step") === "hello", E("typeof onb !== 'undefined' && onb.step"));
+    f.remove();
+
+    // 3. a reload after that (no ?fresh left) keeps what was done since
+    f = await frame(""); E = x => f.contentWindow.eval(x);
+    E(`state.profile.name = "Bo"; save()`); f.contentWindow.location.reload(); await new Promise(r => f.onload = r); await wait(300);
+    ok("a reload without ?fresh keeps what's new", f.contentWindow.eval("state.profile.name") === "Bo");
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · fresh";
+})();
+</script>
+</body></html>
