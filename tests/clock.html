@@ -40,8 +40,6 @@ f.onload = () => {
     ok("23:59 → the same", H(at(23, 59)).headline === `Breakfast tomorrow around ${T(8, 0)}.`, H(at(23, 59)).headline);
     ok("1 minute before: 'in 1 minute'", H(at(7, 59)).headline === "Breakfast in 1 minute.", H(at(7, 59)).headline);
     ok("exactly at the anchor: 'Breakfast time.'", H(at(8, 0)).headline === "Breakfast time.");
-    ok("the tab: 'Lunch in 20 min · Chicho'", H(at(12, 10)).title === "Lunch in 20 min · Chicho", H(at(12, 10)).title);
-    ok("the tab: 'Snack around 4:00 · Chicho'", H(at(14, 35)).title === `Snack around ${T(16, 0)} · Chicho`, H(at(14, 35)).title);
     ok("the state key holds still from one minute to the next", H(at(7, 15)).key === H(at(7, 16)).key);
     ok("'now' is announced once: 'Breakfast time'", H(at(8, 5)).announce === "Breakfast time" && !H(at(7, 15)).announce);
 

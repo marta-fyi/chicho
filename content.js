@@ -21,14 +21,6 @@ const CONTENT = {
       done:"That's today done.",
       tomorrow:"{meal} tomorrow around {time}."
     },
-    /* the tab itself answers "what's next" */
-    title:{
-      plain:"Chicho",
-      now:"{meal} time · Chicho",
-      soon:"{meal} in {n} min · Chicho",
-      at:"{meal} around {time} · Chicho",
-      tomorrow:"{meal} tomorrow around {time} · Chicho"
-    },
     /* said once by the polite live region when the state changes, never every minute */
     announce:{now:"{meal} time", offered:"{meal} offered", unoffered:"{meal} not offered", outcome:"{meal}: {outcome}", copied:"List copied", done:"That's today done"},
     rowWhen:"{meal} · around {time}",
@@ -228,8 +220,7 @@ const CONTENT = {
     notYet:"Not yet: {list}.",
     who:"{name} · {months}",
     updated:"Updated {when}. This is a snapshot; ask for the latest if plans change.",
-    broken:"This link looks incomplete. Ask for it to be sent again.",
-    title:"{name}'s meals · Chicho"
+    broken:"This link looks incomplete. Ask for it to be sent again."
   },
 
   /* Onboarding: every step is a sentence you complete. {blank} marks where its field sits;
@@ -241,6 +232,8 @@ const CONTENT = {
     save:"Save",
     skip:"Skip",
     welcomeBack:"Welcome back.",
+    /* the welcome: a first run (or a replay) opens on these two lines over the glow, then hands over to Draw */
+    hello:{name:"CHICHO", line:"What do we eat today?"},
     progress:{names:["Name","Birthday","Allergens","Meal times","Kitchen","Week"], step:"Step {n} of {total}: {name}"},
     /* the bubbles (Allergens and the Kitchen): a tap pops one; 2 s to undo; then a line of what's popped */
     pop:{aria:"{x}. Tap to pop.", undo:"Undo", back:"{x} is back", bringBack:"Bring back {x}",

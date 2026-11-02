@@ -183,7 +183,7 @@ async function kitchenRun(page, tag, slug, shotK) {
   if (shotK) await shotK("kitchen-buy-empty");
 }
 
-/* Meal times (step 5 of the onboarding), on a portrait device: a first run from Draw to Home with scripted taps and no
+/* Meal times (step 5 of the onboarding), on a portrait device: a first run from the welcome (Hello, played in full) to Home with scripted taps and no
    thinking time (the Reveal plays in full), timed (the median goes to docs/firstrun.json, for the owner to set a
    target); the axis's layout; then the screenshots: the handoff from Allergens, the idle axis, mid-drag, typing, and
    Done with five and three meals. */
@@ -194,10 +194,11 @@ async function mealtimesRun(page, tag, shot) {
     const at = await page.evaluate(`JSON.stringify({step: onb.step, hidden: document.getElementById("onboarding").hidden, pile: !!pile && {running: pile.running, exitAt: pile.exitAt, t: Math.round(pile.t), free: pile.world.bodies.filter(b => b.free).length, n: pile.world.bodies.length}, sheet: !!document.querySelector(".onb-sheet:not(.pad-sheet)"), calm: calm()})`).catch(() => "?");
     throw new Error(`${tag}: waiting for ${fn} — ${at}`);
   });
-  const t9 = base.replace("T12:10", "T09:15");
+  const t9 = base.replace("T12:10", "T09:15") + "&hello";   // the welcome plays, and counts
   await page.goto(t9); await page.evaluate("localStorage.clear()"); await page.goto(t9);
-  await ready("!document.getElementById('onboarding').hidden && onb.step === 'draw'");
+  await ready("!document.getElementById('onboarding').hidden && onb.step === 'hello'");
   const t0 = Date.now();
+  await ready("onb.step === 'draw'");
   await ready("!!document.querySelector('.type-instead') && !document.querySelector('.pad-sheet').hidden");
   await page.click(".type-instead");
   await ready("onb.sub === 'typed' && !!document.querySelector('#onbCard .blank-input')");
@@ -324,10 +325,11 @@ for (const engine of args.has("--perf-only") ? [] : ["webkit", "chromium"]) {
           }
           await page.evaluate("glowKey = null; changed()");
         }
-        const steps = full ? ["draw", "birthday", "keepout", "mealtimes", "reveal", "done", "priorities", "athome"] : ["birthday"];
+        const steps = full ? ["hello", "draw", "birthday", "keepout", "mealtimes", "reveal", "done", "priorities", "athome"] : ["birthday"];
         for (const step of steps) {
-          await page.evaluate(step === "draw" ? "openOnboarding('draw', {replay: true})" : step === "done" ? "openOnboarding('reveal', {single: true}); onb.revealed = true; renderOnb()" : `openOnboarding('${step}', {single: true})`);
-          await page.waitForTimeout(500); await page.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()");
+          // the welcome, held: test pages skip it, so it's opened as a replay and put on Hello by hand
+          await page.evaluate(step === "hello" ? "openOnboarding('draw', {replay: true}); onb.helloSub = onb.sub; onb.step = 'hello'; renderOnb()" : step === "draw" ? "openOnboarding('draw', {replay: true})" : step === "done" ? "openOnboarding('reveal', {single: true}); onb.revealed = true; renderOnb()" : `openOnboarding('${step}', {single: true})`);
+          await page.waitForTimeout(step === "hello" ? 1600 : 500); await page.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()");
           await shot("onb-" + step); await page.evaluate("closeOnboarding()");
         }
       }
@@ -423,7 +425,7 @@ if (!args.has("--perf-only")) for (const engine of ["webkit", "chromium"]) for (
 if (firstRuns.length) {
   // the first run's time: scripted taps, no thinking time; recorded for the owner to set a target (none is asserted)
   const sorted = firstRuns.map(r => r.ms).sort((a, b) => a - b), median = sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2);
-  const fr = {what: "Draw (Type instead) to Home through Birthday, Allergens, Meal times (untouched), Reveal (played in full) and Done; scripted taps, no thinking time", medianMs: median, minMs: sorted[0], maxMs: sorted.at(-1), runs: firstRuns};
+  const fr = {what: "Hello (played in full), then Draw (Type instead) to Home through Birthday, Allergens, Meal times (untouched), Reveal (played in full) and Done; scripted taps, no thinking time", medianMs: median, minMs: sorted[0], maxMs: sorted.at(-1), runs: firstRuns};
   console.log(`\nfirst run: median ${(median / 1000).toFixed(1)} s over ${sorted.length} runs (${(sorted[0] / 1000).toFixed(1)}–${(sorted.at(-1) / 1000).toFixed(1)} s)`);
   writeFileSync(join(root, "docs", "firstrun.json"), JSON.stringify(fr, null, 2) + "\n");
 }

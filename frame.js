@@ -41,17 +41,21 @@
     phone.style.transform = `scale(${k})`;
     box.style.width = PHONE_W * k + "px"; box.style.height = PHONE_H * k + "px";
   };
-  // the description fits the window's height on a wide window: its type takes the largest size that fits (never
-  // below MIN_K), so the page never scrolls. A short binary search: wrapping makes height and size non-linear
-  const about = document.querySelector(".fr-about"), MIN_K = .62;
+  // the description on a wide window: its type (and its column, with it) takes the largest size that fits both the
+  // window's height and the phone's, between MIN_K and MAX_K, so it stands as tall as the phone beside it and the page
+  // never scrolls. A short binary search: wrapping makes height and size non-linear
+  const page = document.querySelector(".fr-page"), about = document.querySelector(".fr-about"), MIN_K = .62, MAX_K = 1.5;
   const fitAbout = ()=>{
-    const set = k=>about.style.setProperty("--k", k.toFixed(3));
+    const set = k=>page.style.setProperty("--k", k.toFixed(3));
     set(1);
     if(!WIDE.matches) return;
-    const room = innerHeight - 64;
-    if(about.offsetHeight <= room) return;
-    let lo = MIN_K, hi = 1;
-    for(let i = 0; i < 7; i++){ const mid = (lo + hi) / 2; set(mid); if(about.offsetHeight <= room) lo = mid; else hi = mid; }
+    const room = Math.min(innerHeight - 64, Math.max(box.offsetHeight, 1));
+    const fits = ()=>about.offsetHeight <= room;
+    // the column grows with the type (520px at 1×), never into the phone's room
+    const gap = Math.min(96, Math.max(48, innerWidth * .06)), wideK = (innerWidth - PAD_X - gap - box.offsetWidth) / 520;
+    let lo = MIN_K, hi = Math.max(1, Math.min(MAX_K, wideK));
+    if(fits()) lo = 1; else hi = 1;
+    for(let i = 0; i < 7; i++){ const mid = (lo + hi) / 2; set(mid); if(fits()) lo = mid; else hi = mid; }
     set(lo);
   };
   addEventListener("resize", ()=>{ fit(); fitAbout(); });

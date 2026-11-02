@@ -22,18 +22,21 @@ Marta: the desktop page now starts with a product description, and has a way bac
 - **"Back to marta.fyi"** (`https://marta.fyi/`, same tab) is the first thing on the page, at the top of the description column, in the app's text-button style.
 - **The description:**
   - "CHICHO".
-  - "A calm meal planner for babies and toddlers."
+  - "A meal planner for babies and toddlers." ("calm" came out, 2 Nov 2026; the intro lost "already has the answer:" and "for your little one", leaving "Chicho plans a week of meals from first tastes…")
   - A short paragraph.
-  - One list of four, no heading (Marta's copy, 27 Oct 2026): **Plans the week**, **Introduces new foods carefully**, **Writes the shopping list**, **Shares the plan**, each with a line on what it means. It replaced "It takes care of" (four) and "You can" (six). The shorter description now fits at full size and sits centred beside the phone.
+  - One list of four, no heading (Marta's copy, 27 Oct 2026): **Plans the week**, **Introduces new foods carefully**, **Writes the shopping list**, **Shares the plan**, each with a line on what it means. It replaced "It takes care of" (four) and "You can" (six). From the critique (2 Nov 2026): "Writes the shopping list, and remembers what's at home." (one sentence, no loose "It"), and "Plans the week" folds the cooking in ("…and how to make it, cooking once for two meals.").
+  - Last, muted and small: "Designed and built by Marta Domingo." (Marta chose to say who made it.)
   - Marta took out a closing note ("No account… Not medical advice…") after the first version. The app's own allergen screens keep their note.
   
   It's written from what the app does now, not the old README (which still said "Mark meals as eaten" and "variety scores", and has been rewritten to match). The copy is in `phone.html`, so the voice lint checks it.
 - **Layout:**
   - The description on the left (320–460px) and the live phone on the right, from 960px wide.
   - Below that, one column with the description first.
-  - **The wide page never scrolls (Marta).** The description's type takes the largest size that fits the window's height: `--k`, from a short binary search in `frame.js`, never below 62%. At 1440×900 that's about 14.8px, and at 1000×717 about 11.4px. The narrow one-column layout still scrolls.
+  - **The wide page never scrolls (Marta).** The description's type takes the largest size that fits the window's height: `--k`, from a short binary search in `frame.js`, never below 62%. The narrow one-column layout still scrolls.
+  - **As tall as the phone (2 Nov 2026, from the critique).** The shorter copy left a small block floating beside a big phone. `--k` now goes up to 1.5× and fits the smaller of the window and the phone's height, and the column grows with it (`520px × --k`, never into the phone's room), so the description stands about as tall as the phone. Their tops line up (`align-items:start`). That's about 1.15× at 1280×800 and 1.5× at 2560×1440.
+  - **Contrast, still all mono.** The tagline is 400 (CHICHO and the bold lead-ins keep 500), the muted text is 70% ink (was 60%), and the list items have more room (.7em).
   - The phone scales to the window's height and to its column's width.
-  - The line under it reads "Try it here, or open marta.fyi/chicho on your phone."
+  - The line under it reads "Try it here, or open marta.fyi/chicho on your phone.", in ink at the description's size (it was 13px muted, and easy to miss).
 
 ## Through the glow (27 Oct 2026, supersedes the 320ms camera ease)
 
@@ -260,9 +263,23 @@ Kitchen answers one question at a time: **Buy**, **At home**, **Prep**, behind a
 - **Low and the 48 hours** are measured from now to each meal's anchor. A food at Low with a need 54 hours away goes on the list with only that need's amount.
 - **Migration (schema 10).** The pantry and freezer carry over as they were (a valid `prevState` is kept). `shop` (`manual`, `notThisWeek`, `got`) and `cookAhead.done` start empty. The old generic "Cook double", "Make double … and freeze half" and same-oven suggestions are deleted, along with their stored ticks (`double:`, `freeze:`, `roast:` and `steam:` ids in `prepped`).
 
+## The name and the favicon (2 Nov 2026)
+
+Marta: the site's name is just CHICHO, and its favicon is the glowing sun.
+- **The tab says CHICHO, always:** the app, the desktop page and a shared snapshot. The tab no longer answers what's next ("Lunch in 20 min · Chicho"); Home's headline does that. The home-screen name (manifest, `apple-mobile-web-app-title`) is CHICHO too.
+- **The favicon is the grain glow** (`favicon.png`, 64px, from `tools/make-favicon.py`): yellow around the grey nucleus, on transparency, with its colour held a little longer than the app's glow so it still reads at 16px. It replaces the next meal's drawing (and the mascot fallback). The touch icon stays the mascot, since iOS puts transparency on black.
+
+## Hello, the welcome (2 Nov 2026, supersedes "No welcome screen")
+
+Marta, from the desktop critique: the live phone opened on an empty signature pad. A first run (and "Replay the first steps") now opens on a short welcome that plays like a loading state and hands over to the pad:
+- **What plays (about 2.5 s):** the yellow glow breathes in (scale .7→1 and opacity, 900 ms), "CHICHO" fades up (mono, 56px, spaced .08em like the desktop page's name), then "What do we eat today?" at 900 ms. At 2.5 s both slide up and fade as "Pull up a chair for ___." rises in (`goStep`'s own move), and the "Sign here" sheet follows. A tap or a key goes at once. The words sit where Draw's sentence will, so the sentence takes their place. The dark theme has no glow, so only the words move.
+- **Not a step.** `"hello"` isn't in `ONB_STEPS`: it's never saved and never resumed, has no Back, progress or Close, and the progress fades in with Draw. It plays when the first run would open on Draw with no name and no ink, and on a replay. It doesn't play on a resume ("Welcome back.") or a single edit from Profile.
+- **Reduced motion:** the two lines stand still for 1.6 s, then the plain swap.
+- **Tests:** every test page opens `?test`, which skips Hello unless the URL also has `&hello` (`tests/hello.html`). The device run's timed first run plays it, so `docs/firstrun.json` includes it.
+
 ## Onboarding v3 (23 Oct 2026, supersedes every earlier onboarding order)
 
-Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welcome screen: the page opens on Draw. The code lives in `onboarding.js`; `index.html` keeps the data, the generator, safety and the stages.
+Draw → Spell → Birthday → Allergens → Reveal → Done → Home. ~~No welcome screen: the page opens on Draw.~~ Superseded 2 Nov 2026 by **Hello** (below). The code lives in `onboarding.js`; `index.html` keeps the data, the generator, safety and the stages.
 
 - **The shell.** No cards. A top bar (a text "Back" top-left, four hairline segments for Name · Birthday · Allergens · Week, a text "Close" top-right on a replay), the sentence in a scroller of its own, and the primary pill pinned above the safe area (52px). Screen readers hear "Step 2 of 4: Birthday". The light theme has its own glow per step (1.2 s crossfade, the same two-layer crossfade as Home's); the dark theme has the night sky, untouched. A pill that isn't ready yet stays in place, dimmed and `aria-disabled` (it used to be invisible until ready).
 - **The sheet is back, for onboarding only.** The brief's Draw pad, "Something else" and the short-screen locked list each open "the sheet component", which the spatial app had removed. `onbSheet()` is one small bottom sheet: a scrim, Esc, a tap outside and everything behind made inert when it's modal; no scrim for the drawing pad, which simply sits below the sentence.
@@ -270,7 +287,7 @@ Draw → Spell → Birthday → Allergens → Reveal → Done → Home. No welco
 - **Type instead** puts the name in the blank of the same sentence and skips Spell (it clears any ink: a typed name has none). Back from Birthday goes to whichever name screen was used.
 - **Spell's prefill** uses the Handwriting Recognition API where the browser has it (some Chromium platforms). iOS Safari has none today, so on an iPhone the field starts empty.
 - **Steps are saved by name**, not by position, so a reload resumes on the right screen however the order changes again; a save from the v2 order is mapped. A reload mid-flow says "Welcome back." once, above the sentence, gone after 3 s.
-- **Close discards.** A replay, or an edit opened from Profile, works on the live profile; opening it keeps a copy, and Close puts the copy back. Save and Love it keep the changes. Profile's last Settings row is now "Replay the first steps" (there's no welcome to replay).
+- **Close discards.** A replay, or an edit opened from Profile, works on the live profile; opening it keeps a copy, and Close puts the copy back. Save and Love it keep the changes. Profile's last Settings row is now "Replay the first steps" (it plays Hello first).
 - **The late questions** (priorities, kitchen basics, meal times) aren't in this brief: they stay as single steps from Profile and the moment line, in the new shell, without progress segments.
 - **Birthday: three columns.** Day, month and year in the locale's order (`formatToParts`), each a native scroller with mandatory snap, one value per 72px row, a band of two hairlines across the middle. The value in the band is chosen on `scrollend` (or a 90 ms pause where there's no `scrollend`, as in Safari today) with a 120 ms pulse; a tap on a neighbour scrolls it in. Each column is a `spinbutton`: arrows ±1, Page Up/Down ±5, Home/End. Up raises the value, as a spinbutton does, even in the year column, which lists the newest year first. Nothing counts until all three columns have been touched (the start, 15 · this month · last year, is dim), and "Type the date" swaps them for three numeric fields with the same rules.
 - **56px values don't fit.** Four mono digits at 56px measure 134px, and a third of the 390px column is 117px, so the values size to the column: 56px wherever it fits, about 48px at 390 wide and 46px at 375. The columns stay equal thirds, as the brief asks.

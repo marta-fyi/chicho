@@ -1,18 +1,20 @@
 // The onboarding: one sentence per screen (index.html holds the data, the generator and the stages).
 /* ---------- onboarding (v3) ----------
-   Draw → Spell → Birthday → Allergens → Meal times → Kitchen → Reveal → Done → Home (under 6 months: Allergens →
+   (Hello →) Draw → Spell → Birthday → Allergens → Meal times → Kitchen → Reveal → Done → Home (under 6 months: Allergens →
    Closing → Home).
    One sentence per screen, completed by you.
    Every answer is saved as it's given (and the step on every advance), so a reload resumes where it was,
    with "Welcome back." once. Nothing about the plan changes until "Love it". A replay or an edit from
-   Profile works on the live profile, and Close puts back what was there when it opened. */
+   Profile works on the live profile, and Close puts back what was there when it opened.
+   Hello is the welcome before Draw (CHICHO, "What do we eat today?"), on a first run and a replay only. It isn't a
+   step: never saved, never resumed, no Back, no progress; it hands over to Draw by itself, or at a tap or key. */
 const ONB_STEPS = ["draw","spell","birthday","keepout","mealtimes","athome","reveal","priorities"];
 /* legacy: the step order before v3, for a save that stopped mid-flow (onboardingStep was an index) */
 const ONB_STEPS_V2 = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
 /* the six progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
 const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, mealtimes:3, athome:4, reveal:5, done:5};
 /* the glow behind each step (light theme): Reveal cycles through all five */
-const ONB_GLOW = {draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
+const ONB_GLOW = {hello:"grain", draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
 const STAPLES = [
   ["Oats","Oatmeal"],["Rice","Rice, soft-cooked"],["Pasta","Whole wheat pasta"],["Bread","Whole wheat toast"],
   ["Eggs","Egg, well cooked"],["Yogurt","Greek yogurt"],["Cheese","Cheese, grated"],["Lentils","Lentils"],
@@ -44,7 +46,7 @@ function stepAfter(key){ let k = S(key) + 1; while(k < ONB_STEPS.length && !step
 function stepBefore(key){ let k = S(key) - 1; while(k > 0 && !stepApplies(ONB_STEPS[k])) k--; return ONB_STEPS[Math.max(0, k)]; }
 function hasBack(){
   if(onb.single) return false;
-  return !["draw","reveal"].includes(onb.step) || (onb.step==="reveal" && (onb.revealed || noWeekYet()));
+  return !["hello","draw","reveal"].includes(onb.step) || (onb.step==="reveal" && (onb.revealed || noWeekYet()));
 }
 function goBack(){
   const to = stepBefore(onb.step);
@@ -73,6 +75,9 @@ function openOnboarding(step, opts){
   onb.replay = !!o.replay;
   onb.snapshot = P.onboarded ? JSON.parse(JSON.stringify(P)) : null;   // Close puts this back
   onb.sub = step==="draw" && P.name && !P.ink && (!onb.single || o.sub==="typed") ? "typed" : null;
+  // a first run (or a replay) opens on the welcome; test pages skip it unless they ask for it (?hello)
+  const helloOk = !/[?&]test\b/.test(location.search) || /[?&]hello\b/.test(location.search);
+  if(step==="draw" && !onb.single && !onb.welcomeBack && helloOk && (onb.replay || (!P.name && !P.ink))){ onb.helloSub = onb.sub; onb.step = "hello"; }
   onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null; onb.early = false;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
@@ -85,7 +90,7 @@ function closeOnboarding(){
   document.getElementById("onboarding").hidden = true;
   document.body.classList.remove("onb-open");
   document.getElementById("app").inert = false; document.body.classList.remove("is-onb");
-  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer); helloStop();
   if(pile){ pile.stop(); pile = null; }
   if(sortUI) sortUI.destroy();
   onb.snapshot = null;
@@ -145,7 +150,7 @@ function holdKeyboard(key, sub){
 /* the finished sentence slides up and fades; the next one rises in */
 function goStep(key, sub, opts){
   if(onb.single && (key==="end" || S(key) < S(onb.from) || S(key) > S(onb.through))){ save(); onb.snapshot = null; closeOnboarding(); return; }
-  const card = document.getElementById("onbCard");
+  const card = document.getElementById("onbCard"), from = onb.step;
   onb.dir = S(key) > S(onb.step) || (key===onb.step && sub) ? 1 : -1;
   const swap = ()=>{
     onb.step = key; onb.sub = sub || null; onb.adding = false;
@@ -156,6 +161,8 @@ function goStep(key, sub, opts){
     if(!own && !calm()) card.animate([{transform:`translateY(${onb.dir*28}px)`, opacity:0}, {transform:"none", opacity:1}],
                                      {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
     else if(!own) card.animate([{opacity:0},{opacity:1}], {duration:180});
+    // from the welcome, the progress fades in with the first sentence
+    if(from==="hello" && !calm()) document.getElementById("onbDots").animate([{opacity:0},{opacity:1}], {duration:320, delay:120, fill:"backwards"});
     focusStep();
   };
   holdKeyboard(key, sub);
@@ -250,7 +257,7 @@ function renderOnb(){
   back.hidden = !hasBack();
   back.onclick = goBack;
   const close = document.getElementById("onbClose");
-  close.hidden = !P.onboarded;   // a replay or an edit can be left; a first run can't
+  close.hidden = !P.onboarded || key==="hello";   // a replay or an edit can be left; a first run can't
   close.textContent = say("onb.close"); close.onclick = discardOnboarding;
   const card = document.getElementById("onbCard"), foot = document.getElementById("onbFoot");
   card.innerHTML = ""; foot.innerHTML = ""; foot.className = "onb-foot"; foot.inert = false;
@@ -258,13 +265,13 @@ function renderOnb(){
   card.className = "onb-card bare";
   el.classList.remove("has-field");
   card.scrollTop = 0;
-  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer);
+  clearTimeout(onb.revealTimer); clearTimeout(onb.sheetTimer); helloStop();
   if(pile){ pile.stop(); pile = null; }
   if(sortUI){ sortUI.destroy(); }
   if(key!=="mealtimes") onbGlow(ONB_GLOW[key] || "grain");   // meal times has the sun instead
   el.dataset.step = key;
   const glowNow = ()=>onbGlow(key==="reveal" && onb.revealed ? ONB_GLOW.done : ONB_GLOW[key] || "grain");
-  ({draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
+  ({hello:onbHello, draw:onbDraw, spell:onbSpell, birthday:onbBirthday, keepout:onbKeepout, priorities:onbPriorities,
     athome:onbAtHome, mealtimes:onbMealTimes, reveal:onbReveal})[key](card, P);
   if(key==="reveal") glowNow();
   // a reload mid-flow: "Welcome back." once, above the sentence, gone after 3 s
@@ -277,6 +284,32 @@ function renderOnb(){
     if(calm()) setTimeout(gone, 3000);
     else wb.animate([{opacity:1}, {opacity:1, offset:.85}, {opacity:0}], {duration:3000, fill:"forwards"}).onfinish = gone;
   }
+}
+
+/* the welcome: the glow breathes in, CHICHO, then "What do we eat today?"; after HELLO_MS (or a tap, or a key) it
+   slides up as Draw's sentence rises in (goStep's own move), and the pad's sheet follows. Reduced motion: the two
+   lines stand still for HELLO_CALM_MS, then the plain swap. */
+const HELLO_MS = 2500, HELLO_CALM_MS = 1600;
+function onbHello(card){
+  const h = document.createElement("h1");
+  h.className = "hello-name"; h.id = "onbTitle"; h.tabIndex = -1; h.textContent = say("onb.hello.name");
+  const q = line(say("onb.hello.line"), "hello-line");
+  card.append(h, q);
+  if(!calm()){
+    const ease = "cubic-bezier(.22,.61,.36,1)";
+    document.querySelector("#onboarding .onb-glow").animate([{scale:.7, opacity:0}, {scale:1, opacity:1}], {duration:900, easing:ease});
+    h.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:500, delay:200, easing:ease, fill:"backwards"});
+    q.animate([{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}], {duration:500, delay:900, easing:ease, fill:"backwards"});
+  }
+  const el = document.getElementById("onboarding"), ac = new AbortController();
+  const go = ()=>{ if(onb.step!=="hello") return; helloStop(); goStep("draw", onb.helloSub); };
+  el.addEventListener("pointerdown", go, {signal:ac.signal});
+  el.addEventListener("keydown", go, {signal:ac.signal});
+  onb.hello = {ac, timer:setTimeout(go, calm() ? HELLO_CALM_MS : HELLO_MS)};
+}
+function helloStop(){
+  if(!onb.hello) return;
+  clearTimeout(onb.hello.timer); onb.hello.ac.abort(); onb.hello = null;
 }
 
 /* ---------- the pieces every step is made of ---------- */

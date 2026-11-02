@@ -761,7 +761,6 @@ function renderHeadline(){
   }else setText(e, h.headline);
   if(changedNow && h.announce) announce(h.announce);
   homeKey = h.key;
-  currentTitle = h.title;
 }
 function renderMomentLine(){
   const m = momentLine(), e = $("moment");
@@ -1652,8 +1651,8 @@ async function renderSnapshot(){
   document.body.classList.add("is-snapshot");
   root.innerHTML = "";
   const main = el("main", "snap home-snap");
-  if(!o){ main.innerHTML = `<p class="snap-broken">${esc(say("snap.broken"))}</p>`; root.appendChild(main); document.title = "Chicho"; return; }
-  document.title = say("snap.title", {name:o.n});
+  if(!o){ main.innerHTML = `<p class="snap-broken">${esc(say("snap.broken"))}</p>`; root.appendChild(main); document.title = "CHICHO"; return; }
+  document.title = "CHICHO";
   const months = o.m===1 ? "1 month" : o.m + " months";
   main.insertAdjacentHTML("beforeend", `<p class="snap-who">${esc(say("snap.who", {name:o.n, months}))}</p>`);
   main.insertAdjacentHTML("beforeend", `<h1 class="snap-avoid">${esc(o.a.length ? say("snap.avoid", {list:listJoin(o.a)}) : say("snap.avoidNone"))} ${esc(o.k.length ? say("snap.notYet", {list:listJoin(o.k)}) : "")}</h1>`);
@@ -1674,57 +1673,18 @@ async function renderSnapshot(){
 }
 
 /* ====================================================================
-   THE BROWSER: the tab title, a favicon of the next meal, the theme colour
+   THE BROWSER: the tab title (always CHICHO) and the theme colour (the favicon is the static sun, favicon.png)
    ==================================================================== */
-let currentTitle = "Chicho", faviconFood = null;
 /* the browser's own chrome takes the theme's top colour: the paper, or the top of the night sky */
 const THEME_COLOR = {light:"#DCDDDD", dark:"#3D4662"};   // mirrors --bg and --night-top (the metas need literal colours)
 function themeColor(){ return getComputedStyle(document.documentElement).getPropertyValue(document.documentElement.dataset.theme==="dark" ? "--night-top" : "--bg").trim(); }
 function updateChrome(){
-  document.title = currentTitle;
+  document.title = "CHICHO";
   // Auto: each meta keeps its own scheme's colour. A chosen theme pins both to it, whatever the system says.
   const pinned = (state.profile.appearance || "auto")!=="auto" || /[?&]theme=/.test(location.search);
   document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
     const c = pinned ? themeColor() : (/dark/.test(m.media) ? THEME_COLOR.dark : THEME_COLOR.light);
     if(c && m.content!==c) m.content = c;
-  });
-  const nx = milkOnly() ? null : nextMeal(), food = nx && nx.m.items[0] ? foodOf(nx.m.items[0].name) : null;
-  const id = food && hasArt(food) ? food.id : null;
-  if(id!==faviconFood){ faviconFood = id; drawFavicon(food); }
-}
-/* the next meal's drawing in white on a dark rounded square; falls back to the
-   static icon if the drawing is missing or doesn't read at 16 and 32 px */
-function drawFavicon(food){
-  const link = $("favicon");
-  if(!link) return;
-  if(!food || !hasArt(food)){ link.href = "icon-192.png"; return; }
-  const img = new Image();
-  img.onload = ()=>{
-    try{
-      const S = 64, c = document.createElement("canvas"); c.width = c.height = S;
-      const x = c.getContext("2d");
-      x.fillStyle = "#0A0A0A"; x.beginPath(); x.roundRect ? x.roundRect(0, 0, S, S, 14) : x.rect(0, 0, S, S); x.fill();
-      const w = document.createElement("canvas"); w.width = w.height = 48;
-      const wx = w.getContext("2d");
-      wx.drawImage(img, 0, 0, 48, 48); wx.globalCompositeOperation = "source-in"; wx.fillStyle = "#FFFFFF"; wx.fillRect(0, 0, 48, 48);
-      // the drawing's line is fine at 64px but faint at 16: draw it a pixel each way to thicken it
-      [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy])=>x.drawImage(w, 8 + dx, 8 + dy));
-      if(!faviconLegible(c)){ link.href = "icon-192.png"; return; }
-      link.href = c.toDataURL("image/png");
-    }catch(e){ link.href = "icon-192.png"; }
-  };
-  img.onerror = ()=>{ link.href = "icon-192.png"; };
-  img.src = food.files.w64;
-}
-/* legible = at 16 and 32 px, the white line covers a sensible share of the tile */
-function faviconLegible(src){
-  return [16, 32].every(s=>{
-    const c = document.createElement("canvas"); c.width = c.height = s;
-    const x = c.getContext("2d"); x.drawImage(src, 0, 0, s, s);
-    const d = x.getImageData(0, 0, s, s).data; let light = 0;
-    for(let i=0; i<d.length; i+=4) if(d[i] > 140) light++;
-    const share = light / (s*s);
-    return share > .04 && share < .6;
   });
 }
 

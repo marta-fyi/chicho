@@ -1,13 +1,13 @@
 # CHICHO
-A calm meal planner for babies and toddlers.
+A meal planner for babies and toddlers.
 
 https://marta.fyi/chicho/
 
-Every day starts with the same question: what do we eat today? Chicho already has the answer: a week of meals for your little one, from first tastes at six months to a seat at the family table.
+Every day starts with the same question: what do we eat today? Chicho plans a week of meals from first tastes at six months to a seat at the family table.
 
-- **Plans the week.** What to serve, how much, and how to make it. Cook once, cover two meals.
+- **Plans the week.** What to serve, how much, and how to make it, cooking once for two meals.
 - **Introduces new foods carefully.** Allergens arrive one at a time, and anything you keep out never shows up.
-- **Writes the shopping list.** It remembers what's at home.
+- **Writes the shopping list,** and remembers what's at home.
 - **Shares the plan.** Send tomorrow's meals to whoever is looking after them.
 
 No account, no sign-up. Everything stays on your phone (localStorage). On a desktop browser it opens inside an iPhone frame, with this description beside it.

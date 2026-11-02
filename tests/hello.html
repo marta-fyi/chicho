@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Chicho · welcome tests</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
+<body>
+<h1>Welcome tests</h1>
+<p>Hello, the welcome before Draw: CHICHO and "What do we eat today?", no Back, progress or Close, then Draw by itself (or at a tap or a
+key), never saved or resumed; still under reduced motion; on a first run and a replay, never on a single edit or a resume; skipped
+by test pages unless they ask (?hello). Every line should be PASS.</p>
+<pre id="o">running…</pre>
+<script>
+const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+localStorage.clear(); sessionStorage.clear();
+const frame = (setup, hello = true) => new Promise(res => {
+  const f = document.createElement("iframe");
+  f.width = 390; f.height = 844; f.src = `../index.html?test${hello ? "&hello" : ""}&theme=light&seed=7&now=2026-10-22T09:15`;
+  f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = freshProfile(); state.plans = []; save(); ${setup}`); await wait(100); res(f); };
+  document.body.append(f);
+});
+(async () => {
+  try {
+    let f, w, d, E, $;
+    const use = g => { if (f) f.remove(); f = g; w = f.contentWindow; d = f.contentDocument; E = x => w.eval(x); $ = s => d.querySelector(s); };
+    const step = () => E("onb.step"), shown = id => !d.getElementById(id).hidden;
+
+    // 1. a first run opens on the welcome
+    use(await frame(`openOnboarding()`));
+    ok("a first run opens on Hello", step() === "hello");
+    ok("…CHICHO is the heading, with 'What do we eat today?' under it", $("#onbTitle").textContent === "CHICHO" && $("#onbTitle").tagName === "H1" && $(".hello-line").textContent === "What do we eat today?");
+    ok("…no Back, no progress, no Close", !shown("onbBack") && !shown("onbDots") && !shown("onbClose"));
+    ok("…the glow breathes in", $("#onboarding .onb-glow").getAnimations().length > 0);
+    ok("…and it isn't saved as a step", E("state.profile.onboardingStep") !== "hello");
+    await wait(2800);
+    ok("about 2.5 s later: Draw, by itself", step() === "draw" && !!$(".pad-sheet"));
+    ok("…the progress shows, and Draw is saved", shown("onbDots") && E("state.profile.onboardingStep") === "draw");
+
+    // 2. a tap, or a key, goes at once
+    use(await frame(`openOnboarding()`));
+    $("#onbCard").dispatchEvent(new w.PointerEvent("pointerdown", {bubbles: true, pointerType: "touch"})); await wait(600);
+    ok("a tap goes to Draw at once", step() === "draw");
+    use(await frame(`openOnboarding()`));
+    $("#onboarding").dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await wait(600);
+    ok("…and so does a key", step() === "draw");
+    await wait(2400);
+    ok("…and the timer doesn't fire a second move after it", step() === "draw" && E("onb.hello") === null);
+
+    // 3. reduced motion: the lines stand still, then the plain swap
+    use(await frame(`calm = () => true; document.querySelector("#onboarding .onb-glow").getAnimations().forEach(a => a.cancel()); openOnboarding()`));   // the boot run (with motion) leaves its glow-in running: stop it first
+    ok("reduced motion: Hello, and nothing moves", step() === "hello" && $("#onboarding .onb-glow").getAnimations().length === 0 && $("#onbTitle").getAnimations().length === 0);
+    await wait(1800);
+    ok("…Draw after about 1.6 s", step() === "draw");
+
+    // 4. when it doesn't play
+    use(await frame(`state.profile.name = "Lula"; state.profile.onboardingStep = "birthday"; save(); openOnboarding()`));
+    ok("a resume opens where it was (Welcome back), not on Hello", step() === "birthday" && !!$(".onb-wb"));
+    use(await frame(`state.profile.name = "Lula"; state.profile.onboarded = true; save(); openOnboarding("draw", {single: true})`));
+    ok("Redraw from Profile opens on Draw", step() === "draw");
+    use(await frame(`openOnboarding()`, false));
+    ok("a test page without ?hello opens on Draw", step() === "draw");
+
+    // 5. a replay plays it, with Close back on Draw
+    use(await frame(`state.profile.name = "Lula"; state.profile.onboarded = true; save(); openOnboarding("draw", {replay: true})`));
+    ok("'Replay the first steps' opens on Hello, without Close", step() === "hello" && !shown("onbClose"));
+    await wait(2800);
+    ok("…then Draw, the typed name kept, and Close", step() === "draw" && E("onb.sub") === "typed" && shown("onbClose"));
+  } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
+  const fails = out.filter(l => l.startsWith("FAIL")).length;
+  document.getElementById("o").textContent = out.join("\n");
+  document.title = (fails ? fails + " FAILED" : "ALL PASS") + " · hello";
+})();
+</script>
+</body></html>

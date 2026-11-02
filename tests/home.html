@@ -33,7 +33,7 @@ f.onload = async () => {
     ok("…44px at least, its name underlined", $("#profileBtn").getBoundingClientRect().height >= 44 && /underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
     ok("the clock and headline are plain text, not live regions", !$("#clock").closest("[aria-live]") && !$("#headline").closest("[aria-live]"));
     ok("headline: 'Lunch in 20 minutes.'", $("#headline").textContent === "Lunch in 20 minutes.");
-    ok("the tab: 'Lunch in 20 min · Chicho'", d.title === "Lunch in 20 min · Chicho", d.title);
+    ok("the tab is just CHICHO", d.title === "CHICHO", d.title);
     ok("a moment line, below the meal", $("#moment").textContent.length > 0 && $("#nowMeal").compareDocumentPosition($("#moment")) === 4);
     // the meal first: the headline breathes, about a third of the way down, then the meal, the moment line, the pill
     const R = s => $(s).getBoundingClientRect();
@@ -120,7 +120,7 @@ f.onload = async () => {
     E("state.plan = generateWeek(18, state.profile); changed()"); await wait(50);
     ok("no banned word anywhere on Home", !/\b(eaten|cleared|missed|streak|score|behind|not logged)\b/i.test($("#home").innerText));
     ok("no emoji or icon glyph on the page", !/\p{Extended_Pictographic}|[✕✓✔☐]/u.test(d.body.innerText));
-    ok("the favicon is drawn (or the static icon)", /^data:image\/png|icon-192\.png$/.test(d.getElementById("favicon").href));
+    ok("the favicon is the glowing sun, one icon, never redrawn", d.querySelectorAll('link[rel="icon"]').length === 1 && /\/favicon\.png$/.test(d.querySelector('link[rel="icon"]').href), [...d.querySelectorAll('link[rel="icon"]')].map(l => l.href.slice(-40)));
     E("setClock(null)");
   } catch (e) { out.push("FAIL threw " + e + "\n" + e.stack); }
   const fails = out.filter(l => l.startsWith("FAIL")).length;
