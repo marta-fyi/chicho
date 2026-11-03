@@ -15,7 +15,7 @@ const frame = (w, h, q, name = "Lula") => new Promise(res => {
   f.onload = async () => { f.contentWindow.eval(`localStorage.clear(); state.profile = Object.assign(freshProfile(), {name: ${JSON.stringify(name)}, birthDate: birthDateFromMonths(18)}); state.plans = []; save(); openOnboarding("keepout")`); await wait(1100); res(f); };
   document.body.append(f);
 });
-const ORDER = ["meaning", "skips", "link", "pile150", "title"];
+const ORDER = ["meaning", "skips", "pile150", "title"];
 (async () => {
   try {
     const cur = await (await fetch("../curatedSeeds.json")).json();
@@ -37,7 +37,7 @@ const ORDER = ["meaning", "skips", "link", "pile150", "title"];
       const fb = E("sortUI.fallbacks");
       ok(`${tag}: fallbacks applied in order (${fb.join(", ") || "none"})`, JSON.stringify(fb) === JSON.stringify(ORDER.slice(0, fb.length)) && (H >= 800 ? fb.length === 0 : fb.length >= 1), fb);
       if (H < 800) {
-        ok(`${tag}: …the meaning lines and the Skips line hidden, the link in the title row`, getComputedStyle(d.querySelector(".sf-pl-mean")).display === "none" && d.querySelector(".sf-places").classList.contains("no-skips") && d.querySelector(".sf-side .sf-locked") && fb.includes("link"));
+        ok(`${tag}: …the meaning lines hidden`, getComputedStyle(d.querySelector(".sf-pl-mean")).display === "none");
         ok(`${tag}: …the title keeps two lines`, d.querySelector(".sf-title").getBoundingClientRect().height < 2.4 * parseFloat(getComputedStyle(d.querySelector(".sf-title")).fontSize) * 1.15, d.querySelector(".sf-title").getBoundingClientRect().height);
       } else ok(`${tag}: …nothing hidden: meaning lines shown`, getComputedStyle(d.querySelector(".sf-pl-mean")).display !== "none");
       f.remove();

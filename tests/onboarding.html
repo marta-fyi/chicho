@@ -108,7 +108,7 @@ f.onload = async () => {
     next().click(); await settle();
 
     // allergens: Sort the food (tests/sortfood*.html cover the screen itself)
-    ok("'Sort the food for Lula.' with '0 of 9 sorted'", step() === "keepout" && d.getElementById("onbTitle").textContent === "Sort the food for Lula." && d.querySelector(".sf-prog").textContent === "0 of 9 sorted", d.getElementById("onbTitle").textContent);
+    ok("'Sort the food for Lula.'", step() === "keepout" && d.getElementById("onbTitle").textContent === "Sort the food for Lula.", d.getElementById("onbTitle").textContent);
     const shapes = [...d.querySelectorAll(".sf-field .sf-shape")];
     ok("the big ones in the field, in order: the nine common allergens", JSON.stringify(shapes.map(b => b.dataset.id)) === JSON.stringify(E("SORT_CONFIG.bigFoods")), shapes.map(b => b.dataset.id));
     ok("Next is ready before the big ones are placed, and says the rest goes untouched", next().getAttribute("aria-disabled") === "false" && next().textContent === "Next · the rest untouched", next().textContent);

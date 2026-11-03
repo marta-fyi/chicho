@@ -3,7 +3,7 @@
 // touchscreen taps; drags are touch pointer events dispatched as a finger would (pointerdown, moves, pointerup on the
 // shape), because Playwright has no touch-move. Asserts: a tap under 10px selects, a drag past 10px never does, a tap
 // on a moving shape is ignored; a drag to each place, with the swell, the dim and the 48px snap; a release outside a
-// place leaves the shape; select several, then a place; Select all, then a place; Undo for each; the place sheet's
+// place leaves the shape; select several, then a place; all of them, then a place; Undo for each; the place sheet's
 // Move and Back to the pile; Keep out's derived foods; the custom sheet, matched and unmatched, with the keyboard's
 // field focused in the tap itself; the page never scrolls. Then, unless --quick, the screenshots in
 // docs/screenshots/ (sort-*): the composed pile, a held shape near a place, after several sorts, the place sheet, the
@@ -76,7 +76,7 @@ for (const engineName of ["webkit", "chromium"]) {
 
       // taps: a real touch tap selects; a second deselects
       await page.tap('.sf-shape[data-id="egg"]'); await page.waitForTimeout(60);
-      ok(`${tag}: a tap selects (the ring)`, await E(page, "document.querySelector('.sf-shape[data-id=egg]').classList.contains('is-sel')"));
+      ok(`${tag}: a tap selects (the orange)`, await E(page, "document.querySelector('.sf-shape[data-id=egg]').classList.contains('is-sel')"));
       await page.tap('.sf-shape[data-id="egg"]'); await page.waitForTimeout(60);
       ok(`${tag}: a second tap deselects`, await E(page, "sortUI.selected.size === 0"));
       // a drag past 10px never selects, and a release away from the places leaves it
@@ -84,12 +84,12 @@ for (const engineName of ["webkit", "chromium"]) {
       await E(page, `__drag("milk", ${mx + 30}, ${my + 12})`); await page.waitForTimeout(80);
       ok(`${tag}: a drag never selects; let go outside a place, it stays in the pile`, await E(page, "sortUI.selected.size === 0 && !state.profile.foodSort.placement.milk && !!document.querySelector('.sf-shape[data-id=milk]')"));
       await settle(page);
-      // a moving shape ignores a tap
+      // a moving shape takes a tap too
       // (a touchscreen tap at its coordinates: page.tap would wait for the shape to stop first)
       const [qx, qy] = await centre(page, '.sf-shape[data-id="peanut"]');
       await E(page, "sortUI.world.bodies.find(b => b.id === 'peanut').vx = 300; sortUI.world.bodies.find(b => b.id === 'peanut').vy = 0; sortUI.wake()");
       await page.touchscreen.tap(qx + 2, qy); await page.waitForTimeout(40);
-      ok(`${tag}: a tap on a moving shape is ignored`, await E(page, "sortUI.selected.size === 0"), await E(page, "[...sortUI.selected]"));
+      ok(`${tag}: a tap on a moving shape still counts (it selects)`, await E(page, "sortUI.selected.size === 1 && sortUI.selected.has('peanut')"), await E(page, "[...sortUI.selected]"));
       await E(page, "sortUI.selected.clear(); sortUI.paintSelection()");
       await settle(page);
       // a drag to each place, with the swell and the dim; the snap within 48px
@@ -119,9 +119,10 @@ for (const engineName of ["webkit", "chromium"]) {
       await page.tap('.sf-list .sf-row[data-id="milk"] .sf-move-to >> text=Back to the pile'); await page.waitForTimeout(400);
       ok(`${tag}: Move → Back to the pile: Milk unsorted, its shape back`, (await placed(page, "milk")) === null && await E(page, "!!document.querySelector('.sf-field .sf-shape[data-id=milk]')"));
       await page.tap(".sf-list .sh-close"); await page.waitForTimeout(400);
-      // Select all, then a place: the first pile done, the second arrives
-      await page.tap(".sf-selall"); await page.tap('.sf-place[data-place="untouched"]'); await page.waitForTimeout(1600);
-      ok(`${tag}: Select all, then a place: all nine sorted, the everyday foods arrive`, await E(page, "SORT_CONFIG.bigFoods.every(id => state.profile.foodSort.placement[id]) && !!document.querySelector('.sf-tabs') && !!document.querySelector('.sf-shape.else')"));
+      // every big one tapped, then a place: the first pile done, the second arrives
+      for (const id of await E(page, "sortUI.pileIds()")) await page.tap(`.sf-shape[data-id="${id}"]`);
+      await page.tap('.sf-place[data-place="untouched"]'); await page.waitForTimeout(1600);
+      ok(`${tag}: all tapped, then a place: all nine sorted, the everyday foods arrive`, await E(page, "SORT_CONFIG.bigFoods.every(id => state.profile.foodSort.placement[id]) && !!document.querySelector('.sf-tabs') && !!document.querySelector('.sf-shape.else')"));
       // the custom sheet, from a real tap: the field is focused in the tap itself
       await page.tap(".sf-shape.else"); await page.waitForTimeout(30);
       ok(`${tag}: a tap on Something else opens its sheet with the field already focused`, await E(page, "document.activeElement && document.activeElement.id === 'sfElse'"));

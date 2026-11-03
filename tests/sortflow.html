@@ -50,7 +50,6 @@ const frame = (months) => new Promise(res => {
     ok("…grapes show the way they're served ('Grapes, quartered'), never as a locked food", (() => { const g = $('.sf-shape[data-id="grapes"]'); return !g || /QUARTERED/.test(g.textContent); })() && $$(".sf-field .sf-shape").every(b => !E(`lockedRule(${JSON.stringify(b.getAttribute("aria-label"))}, 18)`)));
     E(`sortUI.place(sortEverydayFoods(18).filter(f => f.group === "fruit").map(f => f.id), "tried", {noUndo: true})`); await wait(450);
     ok("a sorted tab: 'Nothing left to sort.' (17px, centred), Something else still there", $(".sf-empty") && $(".sf-empty").textContent === "Nothing left to sort." && getComputedStyle($(".sf-empty")).fontSize === "17px" && $$(".sf-field .sf-shape").length === 1 && !!$(".sf-shape.else"));
-    ok("…and Select all hides (nothing to select)", $(".sf-selall").hidden);
     // a big one back to the pile: the first pile again
     E(`sortUI.place(["egg"], null)`); await wait(300);
     ok("a big one back in the pile: 'The big ones' again, Next saying the rest goes untouched", $(".sf-pilename") && $(".sf-pilename").textContent === "The big ones" && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "egg" && $("#onbFoot .btn-ink").textContent === "Next · the rest untouched");

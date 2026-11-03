@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Sort the food: tap, select, send</h1>
-<p>A tap (released within 10px and 500 ms) toggles a shape's selection: a 3px ink ring at a 4px offset; the status row says how many, with Clear. A tap counts whatever the shape is doing (still wobbling included); a long press doesn't. A lifted shape grows a little, and the four places take Next's slot (the place bar) until it's sent or put down. Tapping a place, in the bar or the grid, sends the whole selection there (the same drop, 40 ms apart); "Select all" selects the pile and becomes "Clear". Every line should be PASS.</p>
+<p>A tap (released within 10px and 500 ms) toggles a shape's selection: the glow's orange with black text, faded in; the status row says how many, with Clear. A tap counts whatever the shape is doing (still wobbling included); a long press doesn't. A lifted shape grows a little, and the grid's four places invite the tap until it's sent or put down. Tapping a place sends the whole selection there (the same drop, 40 ms apart). Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
@@ -22,16 +22,15 @@ f.onload = async () => {
     const tap = async (id, move = 0, hold = 60) => { const el = shape(id), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; ev(el, "pointerdown", x, y); if (move) ev(el, "pointermove", x + move, y); await wait(hold); ev(el, "pointerup", x + move, y); await wait(20); };
 
     await tap("egg");
-    ok("a tap under 10px selects: a 3px ink ring at a 4px offset", shape("egg").classList.contains("is-sel") && getComputedStyle(shape("egg")).outlineWidth === "3px" && getComputedStyle(shape("egg")).outlineOffset === "4px");
+    await wait(260);
+    ok("a tap under 10px selects: the orange fades in (a layer's opacity), the label black, no ring", shape("egg").classList.contains("is-sel") && getComputedStyle(shape("egg"), "::before").opacity === "1" && getComputedStyle(shape("egg"), "::before").backgroundColor === "rgb(229, 154, 107)" && getComputedStyle(shape("egg").querySelector(".sf-lbl")).color === "rgb(18, 18, 18)" && getComputedStyle(shape("egg")).outlineStyle === "none", [getComputedStyle(shape("egg"), "::before").opacity, getComputedStyle(shape("egg"), "::before").backgroundColor]);
     ok("…'1 selected · tap where they go' with Clear", /^1 selected · tap where they go ?Clear$/.test(status()) && !!$(".sf-status .sf-clear"), status());
     await wait(200);
     ok("…it lifts: a little bigger (scale 1.06)", /scale\(1\.06/.test(shape("egg").style.transform), shape("egg").style.transform);
-    const bar = $(".sf-bar"), bb = [...bar.querySelectorAll(".sf-bar-b")];
-    ok("…the place bar takes Next's slot: Keep out · Not a fan · Tried already · Untouched, one row, 44px or more", !bar.hidden && $("#onbFoot .btn-ink").hidden && bb.map(b => b.textContent).join("|") === "Keep out|Not a fan|Tried already|Untouched" && new Set(bb.map(b => Math.round(b.getBoundingClientRect().top))).size === 1 && bb.every(b => b.getBoundingClientRect().height >= 44 && b.getBoundingClientRect().width >= 44), bb.map(b => [b.textContent, Math.round(b.getBoundingClientRect().width), Math.round(b.getBoundingClientRect().height)]));
-    ok("…every label fits its button", bb.every(b => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1));
+    ok("…the grid invites the tap (all four places washed), Next stays in the foot, no place bar", $(".sf-places").classList.contains("is-inviting") && !$(".sf-bar") && !$("#onbFoot .btn-ink").hidden);
     await tap("egg");
     ok("a second tap deselects", !shape("egg").classList.contains("is-sel") && E("sortUI.selected.size") === 0);
-    ok("…and Next is back in the foot", $(".sf-bar").hidden && !$("#onbFoot .btn-ink").hidden);
+    ok("…and the grid stops inviting", !$(".sf-places").classList.contains("is-inviting"));
     await tap("egg", 8);
     ok("8px of wobble is still a tap", shape("egg").classList.contains("is-sel"));
     await tap("egg", 12);
@@ -54,20 +53,11 @@ f.onload = async () => {
     ok("…'3 foods → Tried already · Undo'", status() === "3 foods → Tried already · Undo", status());
     $(".sf-status .sf-undo").click(); await wait(500);
     ok("Undo brings all three back to the pile", ["egg", "peanut", "soy"].every(id => !E(`state.profile.foodSort.placement["${id}"]`) && !!shape(id)));
-    // the place bar sends, like a place in the grid
-    await tap("milk"); await tap("wheat");
-    $('.sf-bar-b[data-place="notFan"]').click(); await wait(30);
-    ok("the bar's Not a fan: both go there, and the bar gives Next its slot back", ["milk", "wheat"].every(id => E(`state.profile.foodSort.placement["${id}"]`) === "notFan") && $(".sf-bar").hidden && !$("#onbFoot .btn-ink").hidden);
-    ok("…'2 foods → Not a fan · Undo'", status() === "2 foods → Not a fan · Undo", status());
-    $(".sf-status .sf-undo").click(); await wait(500);
-    ok("…Undo brings both back", ["milk", "wheat"].every(id => !E(`state.profile.foodSort.placement["${id}"]`) && !!shape(id)));
-    // Select all
-    $(".sf-selall").click(); await wait(20);
-    ok("'Select all' selects every shape in the pile, and becomes 'Clear'", $$(".sf-field .sf-shape").every(b => b.classList.contains("is-sel")) && $(".sf-selall").textContent === "Clear" && /^9 selected/.test(status()));
-    $(".sf-selall").click(); await wait(20);
-    ok("…'Clear' clears", E("sortUI.selected.size") === 0 && $(".sf-selall").textContent === "Select all");
-    $(".sf-selall").click(); cell("untouched").click(); await wait(900);
-    ok("Select all, then a place: the whole pile is sorted, plain Next", E("SORT_CONFIG.bigFoods.every(id => state.profile.foodSort.placement[id] === 'untouched')") && $("#onbFoot .btn-ink").textContent === "Next");
+    // all nine, a tap each, then one place
+    E("sortUI.pileIds().forEach(id => sortUI.tap(id))"); await wait(20);
+    ok("every shape selected: '9 selected', the grid inviting", /^9 selected/.test(status()) && $$(".sf-field .sf-shape").every(b => b.classList.contains("is-sel")) && $(".sf-places").classList.contains("is-inviting"));
+    cell("untouched").click(); await wait(900);
+    ok("…then a place: the whole pile is sorted, plain Next", E("SORT_CONFIG.bigFoods.every(id => state.profile.foodSort.placement[id] === 'untouched')") && $("#onbFoot .btn-ink").textContent === "Next");
     ok("…the first pile done, so the summary holds the row: '9 to introduce.'", status() === "9 to introduce.", status());
   } catch (e) { ok("no exceptions", false, String(e && e.stack || e)); }
   document.getElementById("o").textContent = out.join("\n");

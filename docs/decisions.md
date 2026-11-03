@@ -101,6 +101,13 @@ Marta, from screenshots:
 
 Marta: the Kitchen step's bubbles become Sort the food's shapes, with the same behaviour, except that a tap pops the shape. So "Already in the kitchen…" now packs the eighteen staples as seeded ink blobs on the sort's engine (`blobField`, `sortfood.js`): no gravity and no fall-in, a drag lifts a shape and pushes the others, and a quick tap pops it (it swells, bursts into ink shards and fades in 210 ms; the rest re-flow), with the same 2-second Undo and the line whose words bring a shape back. Next drops what's left out through the bottom, as the sort does. The food-group colours are gone with the circles, since the sort's shapes are ink; putting them back is one inline background per shape. The physics and the bubbles stay in `popPile`/`makePile` for nothing else now, and are kept only as the fallback when `o.blobs` isn't set.
 
+## Sort, simpler (3 Nov 2026, supersedes the place bar, the ring, the progress, Select all and the locked link)
+
+Marta, from the live screen: too complex; the four black buttons felt wrong.
+- **Selected is orange**: a tapped food takes the glow's orange (`--protein`) with black text (`--ink-pastel`, in both themes), faded in over 200 ms as a layer's opacity (the lint allows transitions on transform and opacity only). No ring. The lift (6% bigger, the top layer) stays.
+- **Just the grid**: the place bar is gone; Next stays in the foot. While anything is selected the grid's four places invite the tap (all four take the drag target's wash). Drag, Undo and "n selected · tap where they go · Clear" stay.
+- **Out**: "n of 9 sorted" (the title stands alone), Select all, and "Always off the plate at this age" with its sheet (Profile still shows the locked foods line; `sortLockedItems` and `sort.lockedWhy` are gone with it). The layout's "fold the link into the title row" fallback goes too; the freed height goes to the pile.
+
 ## Sort, by tap (3 Nov 2026, supersedes the gate, the two hints and the 0.5 s settle in "Sort the food")
 
 Marta: the sort should be easier and smoother. What made it hard: two hidden ways to sort (drag, or tap several then tap a place), the places half a screen from the pile, taps on a shape still wobbling ignored, and Next locked until all nine big ones were placed.

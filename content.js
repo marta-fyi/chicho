@@ -287,17 +287,6 @@ const CONTENT = {
   /* ---------- Sort the food (sortfood.js): drag each food into one of four places ---------- */
   sort:{
     title:"Sort the food for {name}.",
-    progress:"{n} of {m} sorted",
-    lockedLink:"Always off the plate at this age",
-    lockedTitle:"Always off the plate at this age",
-    /* the stage's locked foods (CONTENT.stages[…].locked), one line each: drafts, to review with a pediatric or food-safety source */
-    lockedWhy:{
-      "honey":"It can carry spores a baby's gut can't handle before 12 months.",
-      "whole nuts":"Whole and chopped nuts are a choking risk. Smooth nut butters are fine.",
-      "whole grapes":"Round foods can block a small airway. Quarter them lengthways.",
-      "added salt and sugar":"Small kidneys can't take much salt, and sugar crowds out real food.",
-      "cow's milk as a drink":"Before 12 months it can crowd out iron. A little in cooking is fine."
-    },
     places:{keepOut:"Keep out", notFan:"Not a fan", tried:"Tried already", untouched:"Untouched"},
     meaning:{keepOut:"never planned", notFan:"avoided if possible", tried:"fine to plan", untouched:"introduced one at a time, with spacing"},
     skips:{one:"Skips {n} more food.", other:"Skips {n} more foods."},
@@ -311,7 +300,6 @@ const CONTENT = {
     hintTap:"Tap a food, then where it goes.",
     pileBig:"The big ones",
     tabs:{veg:"Veg", fruit:"Fruit", grains:"Grains", protein:"Protein", dairyfats:"Dairy and fats"},
-    selectAll:"Select all",
     next:"Next",
     nextRest:"Next · the rest untouched",
     close:"Close",

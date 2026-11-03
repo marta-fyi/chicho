@@ -27,7 +27,7 @@ const loaded = () => new Promise(r => { f.onload = r; });
     // reload, mid first pile
     f.contentWindow.location.reload(); await loaded(); await wait(900);
     ok("a reload goes back to the step ('Welcome back.')", E("onb.step") === "keepout" && !!$(".sf-title"));
-    ok("…the placements and their own, as they were", $('.sf-place[data-place="keepOut"] .sf-pl-names').textContent === "Egg, Kiwi" && $('.sf-place[data-place="tried"] .sf-pl-names').textContent === "Milk, Soy" && $(".sf-prog").textContent === "3 of 9 sorted", [$('.sf-place[data-place="keepOut"] .sf-pl-names').textContent, $(".sf-prog").textContent]);
+    ok("…the placements and their own, as they were", $('.sf-place[data-place="keepOut"] .sf-pl-names').textContent === "Egg, Kiwi" && $('.sf-place[data-place="tried"] .sf-pl-names').textContent === "Milk, Soy", $('.sf-place[data-place="keepOut"] .sf-pl-names').textContent);
     ok("…the same seed, and the pile is what's left", E("state.profile.foodSort.shapeSeed") === seed && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "peanut,treenuts,wheat,fish,shellfish,sesame");
     const fresh = E(`(() => { const fs = sortUI.fieldSize(); return pileFor(sortUI.pileIds().map(id => ({id, label: FOOD_BY_ID[id].label})), {w: fs.w, h: fs.h}, state.profile.foodSort.shapeSeed).pack.bodies.map(b => [b.id, Math.round(b.x), Math.round(b.y)].join()).join("|"); })()`);
     ok("…its layout re-derived from the seed and the foods left: the same layout again", E("sortUI.world.bodies.map(b => [b.id, Math.round(b.x), Math.round(b.y)].join()).join('|')") === fresh);

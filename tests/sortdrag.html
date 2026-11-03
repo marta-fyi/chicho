@@ -68,7 +68,7 @@ f.onload = async () => {
     const drop = shape("wheat");
     ok("let go over it: Wheat is kept out", E("state.profile.foodSort.placement.wheat") === "keepOut");
     ok("…the shape shrinks and fades into the cell (240 ms, transform and opacity), one ring ripples", (!drop || drop.getAnimations().some(a => a.effect.getTiming().duration === 240 && a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p))))) && cell("keepOut").querySelectorAll(".sf-ripple").length === 1);
-    ok("…the name in the cell, the progress, the undo line", cell("keepOut").querySelector(".sf-pl-names").textContent === "Wheat" && $(".sf-prog").textContent === "1 of 9 sorted" && /^Wheat → Keep out · Undo$/.test($(".sf-status").textContent.replace(/\s+/g, " ").trim()));
+    ok("…the name in the cell, the undo line", cell("keepOut").querySelector(".sf-pl-names").textContent === "Wheat" && /^Wheat → Keep out · Undo$/.test($(".sf-status").textContent.replace(/\s+/g, " ").trim()));
     ok("…the places are themselves again", !$(".sf-place.is-target") && !$(".sf-places.is-aiming"));
     const grown = E("[...sortUI.shapes.values()].some(s => s.body.flow || s.grow)");
     ok("…and the pile re-flows: the rest glide to a new packing", grown);

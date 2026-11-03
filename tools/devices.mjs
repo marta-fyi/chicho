@@ -208,8 +208,7 @@ async function mealtimesRun(page, tag, shot) {
   await ready("document.querySelector('#onbFoot .btn-ink').getAttribute('aria-disabled') === 'false'");
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'keepout' && !!document.querySelector('.sf-field .sf-shape')");
-  // Sort the food: two taps sort the big ones (Select all, then a place)
-  await page.click(".sf-selall"); await page.click('.sf-place[data-place="untouched"]');
+  // Sort the food: Next sorts the big ones left as Untouched (no taps needed)
   await ready("document.querySelector('#onbFoot .btn-ink').getAttribute('aria-disabled') === 'false'");
   await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'mealtimes' && !!document.querySelector('.mt-axis')");

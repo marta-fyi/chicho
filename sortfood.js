@@ -80,11 +80,8 @@ function mountSortFood(o){
   const head = document.createElement("div"); head.className = "sf-head";
   const h = document.createElement("h1"); h.className = "sf-title"; h.id = "onbTitle"; h.tabIndex = -1;
   h.textContent = sfSay("title", {name:P.name || say("mealTimes.they")});
-  const prog = document.createElement("span"); prog.className = "sf-prog";
-  const side = document.createElement("div"); side.className = "sf-side"; side.appendChild(prog);
-  const titleRow = document.createElement("div"); titleRow.className = "sf-trow"; titleRow.append(h, side);
-  const lockedBtn = textButton(sfSay("lockedLink"), ()=>openLocked(), "small inline sf-locked");
-  head.append(titleRow, lockedBtn);
+  const titleRow = document.createElement("div"); titleRow.className = "sf-trow"; titleRow.append(h);
+  head.append(titleRow);
 
   const grid = document.createElement("div"); grid.className = "sf-places";
   const cells = {};
@@ -100,7 +97,7 @@ function mountSortFood(o){
   const field = document.createElement("div"); field.className = "sf-field";
   const note = document.createElement("p"); note.className = "sf-note"; note.textContent = sfSay("note");
   card.append(head, grid, status, pileHead, note, field);
-  ui.el = {head, h, prog, side, lockedBtn, grid, cells, status, pileHead, field, note};
+  ui.el = {head, h, grid, cells, status, pileHead, field, note};
 
   const next = onbCta(card, o.single ? say("onb.save") : sfSay("next"), ()=>finish());
   next.classList.add("sf-next");
@@ -108,18 +105,8 @@ function mountSortFood(o){
   /* Next is never locked: what's left of the big ones goes to Untouched (the plan reads an unsorted big one that way
      already), and the label says so while some are left */
   const nextLabel = ()=>{ if(!o.single) next.textContent = ui.view==="big" && !bigDone() ? sfSay("nextRest") : sfSay("next"); };
-  /* the place bar: while anything is lifted, the four places take Next's place in the foot, in the thumb's reach;
-     a tap sends what's lifted there (the same drop as the grid's places) */
-  const bar = document.createElement("div"); bar.className = "sf-bar"; bar.hidden = true;
-  SF_PLACES.forEach(place=>{
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "sf-bar-b"; b.dataset.place = place; b.textContent = sfSay("places." + place);
-    b.addEventListener("click", ()=>{ haptic(); tapPlace(place); });
-    bar.appendChild(b);
-  });
-  next.after(bar);
-  ui.el.bar = bar;
-  const paintBar = ()=>{ const on = ui.selected.size > 0 && !ui.finishing; bar.hidden = !on; next.hidden = on; };
+  /* while anything is selected, the grid's four places invite the tap (the drag target's wash, on all four) */
+  const paintInvite = ()=>grid.classList.toggle("is-inviting", ui.selected.size > 0 && !ui.finishing);
 
   /* ---------- placing ---------- */
   /* ids → place (null = back to the pile). One undo: the latest change only. */
@@ -151,8 +138,8 @@ function mountSortFood(o){
   }
   ui.undoNow = undo;
   function afterChange(opts){
-    paintPlaces(); paintProgress(); paintStatus(); paintPileHead();
-    if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); ui.secondT = null; paintPileHead(); paintProgress(); sortLayout(ui); buildPile(); entrance(); }
+    paintPlaces(); paintStatus(); paintPileHead();
+    if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); ui.secondT = null; paintPileHead(); sortLayout(ui); buildPile(); entrance(); }
     else syncPile(opts);
     nextLabel();
     if(ui.view==="big" && bigDone()) firstPileDone();
@@ -176,7 +163,7 @@ function mountSortFood(o){
       if(everyday.length){ ui.view = "everyday"; ui.tab = C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0]; }
       else{ ui.view = "none"; const m = Math.max(1, 6 - o.months); ui.noSolids = sfSay("noSolids", {n:m}); }
       ui.selected.clear();
-      paintPileHead(); paintProgress(); paintStatus(); sortLayout(ui); buildPile(); entrance();
+      paintPileHead(); paintStatus(); sortLayout(ui); buildPile(); entrance();
     }, first ? C.SECOND_PILE_MS : 0);
   }
   function showMoment(mode, text, ms){
@@ -247,15 +234,11 @@ function mountSortFood(o){
       c.classList.toggle("has", names.length > 0);
     });
   }
-  function paintProgress(){
-    const ids = ui.view==="big" ? big : big.concat(everyday);
-    prog.textContent = sfSay("progress", {n:ids.filter(id=>placeOf(id)).length, m:ids.length});
-  }
 
   /* ---------- the status row: one thing at a time ----------
      Undo, then a selection, then the hint ("Tap a food, then where it goes.") until the first sort */
   function paintStatus(){
-    paintBar();
+    paintInvite();
     status.innerHTML = "";
     status.dataset.mode = "";
     const set = (mode, text, btn)=>{
@@ -281,7 +264,7 @@ function mountSortFood(o){
   }
   ui.paintStatus = paintStatus;
 
-  /* ---------- the pile's header: its name (or the five tabs), and Select all ---------- */
+  /* ---------- the pile's header: its name, or the five tabs ---------- */
   function paintPileHead(){
     note.hidden = ui.view!=="big";
     pileHead.innerHTML = "";
@@ -303,14 +286,6 @@ function mountSortFood(o){
       const on = t.querySelector('[aria-pressed="true"]');
       if(on) requestAnimationFrame(()=>{ t.scrollLeft = Math.max(0, on.offsetLeft - (t.clientWidth - on.offsetWidth) / 2); });
     }else return;
-    const ids = pileIds();
-    const all = ids.length && ids.every(id=>ui.selected.has(id));
-    const sa = textButton(all ? sfSay("clear") : sfSay("selectAll"), ()=>{
-      if(all) ui.selected.clear(); else ids.forEach(id=>ui.selected.add(id));
-      paintSelection();
-    }, "small sf-selall");
-    sa.hidden = !ids.length;
-    pileHead.appendChild(sa);
   }
   ui.paintPileHead = paintPileHead;
   function paintSelection(){
@@ -543,7 +518,7 @@ function mountSortFood(o){
     tap(s);
   }
   function keyTap(s){ if(!ui.press) tap(s); }
-  /* a tap lifts the shape (selects it: a 3px ink ring at a 4px offset, and a little bigger) or puts it down again;
+  /* a tap lifts the shape (selects it: the glow's orange with ink text, and a little bigger) or puts it down again;
      Something else opens its sheet instead. It counts whatever the shape is doing, still wobbling included */
   function tap(s){
     if(s.id==="+else"){ if(ui.openCustom) ui.openCustom(); return; }
@@ -737,21 +712,14 @@ function mountSortFood(o){
   ui.openCustom = openCustom;
 
   /* ---------- Always off the plate at this age: the stage's locked foods, each with its reason ---------- */
-  function openLocked(){
-    const sh = onbSheet({modal:true, title:sfSay("lockedTitle"), cls:"sf-sheet locked-sheet", onClose:()=>lockedBtn.focus()});
-    const ul = document.createElement("ul"); ul.className = "lk-list";
-    sortLockedItems(o.months).forEach(it=>{ const li = document.createElement("li"); li.innerHTML = `<b>${esc(upper1(it.label))}.</b> ${esc(it.why)}`; ul.appendChild(li); });
-    sh.body.appendChild(ul);
-  }
-  ui.openLocked = openLocked;
 
   /* ---------- Next ---------- */
   function finish(){
     if(ui.finishing) return;
     ui.finishing = true;
-    ui.selected.clear(); paintBar();
+    ui.selected.clear(); paintInvite();
     // the big ones still in the pile: Untouched, as the label said (they fall out with the rest)
-    if(!bigDone()){ bigLeft().forEach(id=>{ S.placement[id] = "untouched"; }); S.firstPileComplete = true; paintPlaces(); paintProgress(); }
+    if(!bigDone()){ bigLeft().forEach(id=>{ S.placement[id] = "untouched"; }); S.firstPileComplete = true; paintPlaces(); }
     if(!S.completedAt) S.completedAt = new Date().toISOString();
     persist();
     const done = ()=>{ if(ui.gone) return; ui.gone = true; o.onContinue(); };
@@ -783,7 +751,7 @@ function mountSortFood(o){
     ui.tab = C.groups.some(([k])=>k===t) ? t : C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0];
   }
   else if(bigDone() && S.firstPileComplete){ ui.view = "none"; ui.noSolids = sfSay("noSolids", {n:Math.max(1, 6 - o.months)}); }
-  paintPlaces(); paintProgress(); paintPileHead(); paintStatus(); nextLabel();
+  paintPlaces(); paintPileHead(); paintStatus(); nextLabel();
   if(ui.view==="big" && bigDone()) firstPileDone();
   Promise.all([seeded, new Promise(r=>requestAnimationFrame(r))]).then(()=>{
     if(ui.gone) return;
@@ -798,24 +766,18 @@ function mountSortFood(o){
   return ui;
 }
 
-/* the stage's locked foods with their reasons (content.js: sort.lockedWhy) */
-function sortLockedItems(months){
-  return stageFor(Math.max(6, months)).locked.split(", ").map(label=>({label, why:say("sort.lockedWhy." + label)}));
-}
-
 /* ---------- the layout: the page never scrolls ----------
    The title block, the places, the status row and the pile's header take their heights; the field takes the rest.
    The places' rows are 118px on a tall phone (800px and up), 96px on a short one, never under 92 (and the meaning
    line hides in a cell under 100px). When the field is shorter than its minimum (220px tall, 170px short) or can't
-   pack its pile, the fallbacks go in order: hide the meaning lines, hide Keep out's "Skips" line, fold the "Always off
-   the plate" link into the title row, then let the pile go down to 150px. ui.fallbacks says which applied. */
+   pack its pile, the fallbacks go in order: hide the meaning lines, hide Keep out's "Skips" line, then let the pile go
+   down to 150px. ui.fallbacks says which applied. */
 function sortLayout(ui){
-  const C = SORT_CONFIG, {grid, field, head, side, lockedBtn} = ui.el, card = ui.card;
+  const C = SORT_CONFIG, {grid, field, head} = ui.el, card = ui.card;
   const tall = innerHeight >= 800;
   let min = tall ? 220 : 170;
   ui.fallbacks = [];
-  grid.classList.remove("no-mean", "no-skips"); head.classList.remove("inline", "tight");
-  if(lockedBtn.parentNode!==head) head.appendChild(lockedBtn);
+  grid.classList.remove("no-mean", "no-skips"); head.classList.remove("tight");
   grid.style.setProperty("--row", (tall ? 118 : 96) + "px");
   grid.classList.toggle("no-mean", !tall);   // 96px cells are under 100px: the meaning line goes first
   // the field reaches EDGE_INSET from the screen's edges, whatever the card's own padding
@@ -831,7 +793,6 @@ function sortLayout(ui){
   const steps = [
     ["meaning", ()=>{ grid.classList.add("no-mean"); grid.style.setProperty("--row", "92px"); }],
     ["skips", ()=>grid.classList.add("no-skips")],
-    ["link", ()=>{ head.classList.add("inline"); side.appendChild(lockedBtn); }],
     ["pile150", ()=>{ min = 150; }],
     // past the brief's list: a long name can still leave the pile short, so the title gives up its 26px minimum
     ["title", ()=>head.classList.add("tight")]
