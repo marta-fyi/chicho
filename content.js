@@ -238,8 +238,8 @@ const CONTENT = {
     /* the bubbles (Allergens and the Kitchen): a tap pops one; 2 s to undo; then a line of what's popped */
     pop:{aria:"{x}. Tap to pop.", undo:"Undo", back:"{x} is back", bringBack:"Bring back {x}",
          keptOut:"{x} kept out.", keptOutLine:"Kept out: {list}.", atHome:"{x} at home.", atHomeLine:"At home: {list}."},
-    draw:{sentence:"Pull up a chair for {blank}.", title:"Sign here", hint:"Big letters. Wobbly is perfect.",
-          erase:"Erase", done:"Done", undo:"Undo", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
+    draw:{sentence:"Pull up a chair for {blank}.", title:"Their name", hint:"Big letters. Wobbly is perfect.",
+          erase:"Erase", done:"Done", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
     spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},
     birthday:{
       sentence:"{name} showed up on…",

@@ -366,14 +366,14 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   @keyframes draw-rise{from{opacity:0;transform:translateY(12px);}}
   /* the blank is two lines tall from the start, so the name, as drawn, reads big and the sentence never moves */
   .ink-blank{position:relative;display:inline-block;min-width:4ch;height:2.4em;vertical-align:bottom;}
-  .ink-blank::after{content:"";position:absolute;left:0;right:0;bottom:.12em;height:.1em;min-height:3px;border-radius:2px;background:currentColor;opacity:.4;}
-  .ink-blank.has-ink::after{display:none;}
+  /* no underline (Marta, 3 Nov 2026): the space waits, and the name appears in it as it's drawn */
   .draw-lead, .sent-xl label{white-space:nowrap;}
   .sent-xl{font-size:min(40px, calc((min(100vw, var(--col)) - var(--pad-l) - var(--pad-r)) / 11.6));}
   .ink-live{display:flex;justify-content:center;align-items:flex-end;height:100%;}
   .ink-mirror{display:block;height:100%;width:auto;max-width:min(76vw, 330px);}
   .pad-sheet .sh-in{position:relative;}
   .type-instead{position:absolute;top:-10px;right:-14px;}
+  .type-instead:not(:focus-visible){width:1px;height:1px;min-width:0;min-height:0;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}   /* the keyboard's way; out of sight until focused */
   @media (max-width:374px){ .pad-sheet .sh-title, .pad-sheet .sh-hint{align-self:flex-start;text-align:left;} }   /* the corner link needs the room */
   .pad-row{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:6px;}
   .pad-row .btn-text:first-child{margin-left:-14px;}

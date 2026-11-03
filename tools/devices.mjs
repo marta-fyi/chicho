@@ -200,7 +200,7 @@ async function mealtimesRun(page, tag, shot) {
   const t0 = Date.now();
   await ready("onb.step === 'draw'");
   await ready("!!document.querySelector('.type-instead') && !document.querySelector('.pad-sheet').hidden");
-  await page.click(".type-instead");
+  await page.focus(".type-instead"); await page.keyboard.press("Enter");   // out of sight, the keyboard's way
   await ready("onb.sub === 'typed' && !!document.querySelector('#onbCard .blank-input')");
   await page.fill("#onbCard .blank-input", "Lula"); await page.click("#onbFoot .btn-ink");
   await ready("onb.step === 'birthday' && document.querySelectorAll('.bd-col').length === 3");

@@ -481,7 +481,7 @@ function onbDraw(card, P){
     mirror.classList.toggle("has-ink", strokes.length > 0);
     said.textContent = strokes.length ? say("onb.draw.drawn") : "";
     done.setAttribute("aria-disabled", String(!pad.has()));
-    erase.disabled = undo.disabled = !pad.has();
+    erase.disabled = !pad.has();
   }});
   const row = document.createElement("div");
   row.className = "pad-row";
@@ -489,9 +489,10 @@ function onbDraw(card, P){
   const done = document.createElement("button");
   done.type = "button"; done.className = "btn-ink pad-done"; done.textContent = say("onb.draw.done");
   done.addEventListener("click", ()=>{ if(done.getAttribute("aria-disabled")==="true") return; haptic(); nextStep(); });
-  const undo = textButton(say("onb.draw.undo"), ()=>{ pad.undo(); haptic(); });
-  row.append(erase, undo);
-  // Done sits where the next step's pill does, full width at the foot; "Type instead" waits in the corner
+  row.append(erase);
+  // Done sits where the next step's pill does, full width at the foot. "Type instead" isn't shown (Marta, 3 Nov 2026):
+  // it stays for the keyboard and screen readers, out of sight until it has the focus, since a pad can't be drawn on
+  // without a pointer
   const typed = textButton(say("onb.draw.typeInstead"), ()=>goStep("draw", "typed"), "small type-instead");
   sheet.body.append(typed, hintP, row, pad, done);
   pad.paint();

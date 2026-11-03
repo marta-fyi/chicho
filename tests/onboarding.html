@@ -31,12 +31,15 @@ f.onload = async () => {
     ok("progress: six hairline segments, the first on; 'Step 1 of 6: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 6 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 6: Name");
     await wait(700);
     const sheet = d.querySelector(".onb-sheet.pad-sheet");
-    ok("the pad's sheet rises: 'Sign here', 'Big letters. Wobbly is perfect.'", sheet && !sheet.hidden && sheet.querySelector(".sh-title").textContent === "Sign here" && sheet.querySelector(".sh-hint").textContent === "Big letters. Wobbly is perfect.");
+    ok("the pad's sheet rises: 'Their name', 'Big letters. Wobbly is perfect.'", sheet && !sheet.hidden && sheet.querySelector(".sh-title").textContent === "Their name" && sheet.querySelector(".sh-hint").textContent === "Big letters. Wobbly is perfect.");
     const btns = [...sheet.querySelectorAll("button")].map(b => b.textContent);
-    ok("…'Type instead' in the corner, Erase and Undo under the hint, then Done", JSON.stringify(btns) === JSON.stringify(["Type instead", "Erase", "Undo", "Done"]), btns);
+    ok("…Erase under the hint, then Done; no Undo", JSON.stringify(btns) === JSON.stringify(["Type instead", "Erase", "Done"]), btns);
+    const ti = sheet.querySelector(".type-instead");
+    ok("…'Type instead' out of sight (1px, clipped) until the keyboard focuses it", Math.round(ti.getBoundingClientRect().width) <= 1 && getComputedStyle(ti).clipPath !== "none", [ti.getBoundingClientRect().width, getComputedStyle(ti).clipPath]);
+    ok("…the blank has no underline", getComputedStyle(d.querySelector("#onbTitle .ink-blank"), "::after").content === "none");
     const pad = sheet.querySelector("canvas.pad"), done = sheet.querySelector(".pad-done"), titleAt = d.getElementById("onbTitle").getBoundingClientRect();
     ok("a drawing pad, named for screen readers, with no browser panning on it", !!pad && pad.getAttribute("aria-label") === "Drawing pad for their name" && getComputedStyle(pad).touchAction === "none");
-    ok("…Done is aria-disabled until there's ink, Erase and Undo off", done.getAttribute("aria-disabled") === "true" && sheet.querySelector(".pad-row .btn-text").disabled);
+    ok("…Done is aria-disabled until there's ink, Erase off", done.getAttribute("aria-disabled") === "true" && sheet.querySelector(".pad-row .btn-text").disabled);
     const pr = pad.getBoundingClientRect();
     const stroke = pts => { const p = (t, [x, y]) => pad.dispatchEvent(new w.PointerEvent(t, {bubbles: true, cancelable: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientX: pr.left + x, clientY: pr.top + y}));
       p("pointerdown", pts[0]); pts.slice(1).forEach(q => p("pointermove", q)); p("pointerup", pts[pts.length - 1]); };
@@ -46,8 +49,6 @@ f.onload = async () => {
     ok("writing saves the ink: two strokes of points, on this device", ink && ink.strokes.length === 2 && ink.strokes[0].length >= 10 && ink.w > 0 && ink.h > 0, ink && ink.strokes.map(s => s.length));
     ok("…the blank mirrors it live, as an SVG marked data-ink", !!d.querySelector("#onbTitle .ink-blank svg[data-ink] path"));
     ok("…and Done is ready", done.getAttribute("aria-disabled") === "false");
-    [...sheet.querySelectorAll(".pad-row .btn-text")].find(b => b.textContent === "Undo").click();
-    ok("Undo takes the last stroke back", E("state.profile.ink.strokes.length") === 1);
     [...sheet.querySelectorAll(".pad-row .btn-text")].find(b => b.textContent === "Erase").click();
     ok("Erase empties the pad and the ink", E("state.profile.ink") === null && done.getAttribute("aria-disabled") === "true" && !d.querySelector("#onbTitle .ink-blank svg"));
     done.click(); await settle();
