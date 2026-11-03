@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Sort the food: the screen</h1>
-<p>The title and progress, the "Always off the plate" sheet, the four places in a 2×2 grid (labels, meaning lines, what's in each in two lines then "+n", Keep out's "Skips {n} more foods."), the status row's hint and gate, the pile's header, the shapes (buttons, labels fitted, inside the field), Next waiting for the big ones; at 375×667, 390×844 and 430×932, light and dark, the page never scrolls. Every line should be PASS.</p>
+<p>The title and progress, the "Always off the plate" sheet, the four places in a 2×2 grid (labels, meaning lines, what's in each in two lines then "+n", Keep out's "Skips {n} more foods."), the status row's hint, the pile's header, the shapes (buttons, labels fitted, inside the field), Next ready from the start; at 375×667, 390×844 and 430×932, light and dark, the page never scrolls. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
@@ -39,14 +39,13 @@ const frame = (w, h, setup, q = "") => new Promise(res => {
     ok("…its size: clamp(26px, 7.4vw, 32px)", Math.abs(parseFloat(getComputedStyle($(".sf-title")).fontSize) - 390 * 0.074) < .6, getComputedStyle($(".sf-title")).fontSize);
     ok("the places, in order: Keep out · Not a fan / Tried already · Untouched, with their meaning lines", $$(".sf-place").map(c => c.querySelector(".sf-pl-label").textContent + "|" + c.querySelector(".sf-pl-mean").textContent).join(";") === "Keep out|never planned;Not a fan|avoided if possible;Tried already|fine to plan;Untouched|introduced one at a time, with spacing");
     ok("…labels 12px uppercase with +0.06em tracking, weight 500; no fills (hairlines only)", (() => { const l = getComputedStyle($(".sf-pl-label")); return l.fontSize === "12px" && l.textTransform === "uppercase" && l.fontWeight === "500" && Math.abs(parseFloat(l.letterSpacing) - 0.72) < .05 && $$(".sf-place").every(c => getComputedStyle(c).backgroundColor === "rgba(0, 0, 0, 0)"); })());
-    ok("the status row's first hint: 'Drag Egg to where it belongs.'", $(".sf-status").textContent === "Drag Egg to where it belongs.", $(".sf-status").textContent);
+    ok("the status row's first hint: 'Tap a food, then where it goes.'", $(".sf-status").textContent === "Tap a food, then where it goes.", $(".sf-status").textContent);
     ok("the pile's header: 'The big ones' and 'Select all'", $(".sf-pilename").textContent === "The big ones" && $(".sf-selall").textContent === "Select all" && Math.round($(".sf-pilehead").getBoundingClientRect().height) === 36);
     ok("the shapes are <button>s, ink filled, with --bg labels", $$(".sf-shape").every(b => b.tagName === "BUTTON" && b.type === "button") && getComputedStyle($(".sf-shape")).backgroundColor === "rgb(18, 18, 18)");
     ok("…each with eight radii", $$(".sf-shape").every(b => /\/ /.test(b.style.borderRadius)));
     ok("…touch-action none on the shapes only; manipulation on the places and controls", getComputedStyle($(".sf-shape")).touchAction === "none" && getComputedStyle($(".sf-place")).touchAction === "manipulation");
-    ok("Next waits (dimmed) until the big ones are placed", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true");
-    $("#onbFoot .btn-ink").click(); await wait(30);
-    ok("…tapping it anyway shows the gate: 'Sort the big ones first · 9 to go'", $(".sf-status").textContent === "Sort the big ones first · 9 to go", $(".sf-status").textContent);
+    ok("Next is ready from the start, and says what happens to the rest: 'Next · the rest untouched'", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false" && $("#onbFoot .btn-ink").textContent === "Next · the rest untouched", $("#onbFoot .btn-ink").textContent);
+    ok("…no place bar while nothing is lifted", $(".sf-bar").hidden && !$("#onbFoot .btn-ink").hidden);
     ok("text only: no <img>, <svg> or <canvas> in the screen", !d.querySelector("#onbCard img, #onbCard svg, #onbCard canvas, #onbFoot img, #onbFoot svg"));
     ok("…no emoji or pictographs anywhere in its text", !/\p{Extended_Pictographic}/u.test(d.getElementById("onbCard").textContent + d.getElementById("onbFoot").textContent));
     ok("…no hover styles: no :hover rule in any stylesheet the page loads", [...d.styleSheets].every(sh => { try { return [...sh.cssRules].every(r => !/:hover/.test(r.cssText)); } catch (e) { return true; } }));
@@ -61,9 +60,9 @@ const frame = (w, h, setup, q = "") => new Promise(res => {
     E("sortUI.undoNow()"); await wait(20);
     ok("…Undo puts Egg back in the pile", !E("state.profile.foodSort.placement.egg") && !!$('.sf-shape[data-id="egg"]'));
     E("sortUI.place(['egg'], 'keepOut', {noUndo: true})"); await wait(20);
-    ok("…with no undo showing, the gate counts down: 'Sort the big ones first · 8 to go'", $(".sf-status").textContent === "Sort the big ones first · 8 to go", $(".sf-status").textContent);
+    ok("…with no undo showing, the status row is quiet after the first sort (no gate)", $(".sf-status").textContent === "", $(".sf-status").textContent);
     E(`sortUI.place(["milk", "peanut", "treenuts", "wheat", "soy", "fish", "shellfish", "sesame"], "tried", {noUndo: true})`); await wait(30);
-    ok("all nine placed: Next is ready", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false");
+    ok("all nine placed: plain 'Next'", $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false" && $("#onbFoot .btn-ink").textContent === "Next", $("#onbFoot .btn-ink").textContent);
     const names = $('.sf-place[data-place="tried"] .sf-pl-names');
     ok("a full place: two lines of names at most, then '+n'", /\+\d+$/.test(names.textContent) && names.getBoundingClientRect().height <= 15 * 1.3 * 2 + 1 && names.scrollHeight <= names.clientHeight + 1, [names.textContent, names.getBoundingClientRect().height]);
     ok("…and every name that fits is a whole name, in the pile's order", names.textContent.startsWith("Milk, Peanut, Tree nuts"), names.textContent);

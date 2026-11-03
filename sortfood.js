@@ -46,7 +46,7 @@ function mountSortFood(o){
   const seeded = S.shapeSeed===null || S.shapeSeed===undefined ? SORT_SEEDS.ready.then(()=>{ if(S.shapeSeed===null || S.shapeSeed===undefined){ S.shapeSeed = pickSortSeed(); persist(); } }) : Promise.resolve();
   persist();
 
-  const ui = {o, P, S, card, view:"big", tab:C.groups[0][0], selected:new Set(), undo:null, sorted:0, hint2:"idle",
+  const ui = {o, P, S, card, view:"big", tab:C.groups[0][0], selected:new Set(), undo:null, sorted:0,
               shapes:new Map(), touched:false, timers:[], gone:false};
   sortUI = ui;
   const later = (fn, ms)=>{ const t = setTimeout(()=>{ if(!ui.gone) fn(); }, ms); ui.timers.push(t); return t; };
@@ -102,10 +102,24 @@ function mountSortFood(o){
   card.append(head, grid, status, pileHead, note, field);
   ui.el = {head, h, prog, side, lockedBtn, grid, cells, status, pileHead, field, note};
 
-  const next = onbCta(card, o.single ? say("onb.save") : sfSay("next"), ()=>finish(), {ready:bigDone()});
+  const next = onbCta(card, o.single ? say("onb.save") : sfSay("next"), ()=>finish());
   next.classList.add("sf-next");
-  next.addEventListener("click", ()=>{ if(!bigDone()){ ui.gateShown = true; paintStatus(); } });
   ui.next = next;
+  /* Next is never locked: what's left of the big ones goes to Untouched (the plan reads an unsorted big one that way
+     already), and the label says so while some are left */
+  const nextLabel = ()=>{ if(!o.single) next.textContent = ui.view==="big" && !bigDone() ? sfSay("nextRest") : sfSay("next"); };
+  /* the place bar: while anything is lifted, the four places take Next's place in the foot, in the thumb's reach;
+     a tap sends what's lifted there (the same drop as the grid's places) */
+  const bar = document.createElement("div"); bar.className = "sf-bar"; bar.hidden = true;
+  SF_PLACES.forEach(place=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "sf-bar-b"; b.dataset.place = place; b.textContent = sfSay("places." + place);
+    b.addEventListener("click", ()=>{ haptic(); tapPlace(place); });
+    bar.appendChild(b);
+  });
+  next.after(bar);
+  ui.el.bar = bar;
+  const paintBar = ()=>{ const on = ui.selected.size > 0 && !ui.finishing; bar.hidden = !on; next.hidden = on; };
 
   /* ---------- placing ---------- */
   /* ids → place (null = back to the pile). One undo: the latest change only. */
@@ -123,7 +137,7 @@ function mountSortFood(o){
   function setUndo(u){
     clearTimeout(ui.undoT);
     ui.undo = u;
-    ui.undoT = later(()=>{ ui.undo = null; if(ui.hint2==="armed") ui.hint2 = "show"; paintStatus(); }, C.UNDO_MS);
+    ui.undoT = later(()=>{ ui.undo = null; paintStatus(); }, C.UNDO_MS);
   }
   function undo(){
     const u = ui.undo;
@@ -137,11 +151,10 @@ function mountSortFood(o){
   }
   ui.undoNow = undo;
   function afterChange(opts){
-    if(ui.sorted===1 && ui.hint2==="idle") ui.hint2 = "armed";
     paintPlaces(); paintProgress(); paintStatus(); paintPileHead();
-    next.ready(bigDone());
     if(ui.view!=="big" && !bigDone()){ ui.view = "big"; clearTimeout(ui.secondT); ui.secondT = null; paintPileHead(); paintProgress(); sortLayout(ui); buildPile(); entrance(); }
     else syncPile(opts);
+    nextLabel();
     if(ui.view==="big" && bigDone()) firstPileDone();
     if(ui.onChange) ui.onChange(opts);
   }
@@ -240,9 +253,9 @@ function mountSortFood(o){
   }
 
   /* ---------- the status row: one thing at a time ----------
-     Undo, then a selection, then the gate (once there's been a sort, or Next was tapped), then a hint (Drag {food} …
-     before the first sort; "Tap several…" once, after it) */
+     Undo, then a selection, then the hint ("Tap a food, then where it goes.") until the first sort */
   function paintStatus(){
+    paintBar();
     status.innerHTML = "";
     status.dataset.mode = "";
     const set = (mode, text, btn)=>{
@@ -263,9 +276,7 @@ function mountSortFood(o){
       status.appendChild(cl);
       return;
     }
-    if(ui.view==="big" && !bigDone() && (ui.sorted > 0 || ui.gateShown) && ui.hint2!=="show"){ set("gate", sfSay("gate", {n:bigLeft().length})); return; }
-    if(ui.hint2==="show"){ set("hint", sfSay("hintTap")); return; }
-    if(ui.sorted===0 && ui.view==="big"){ const first = pileIds()[0]; if(first){ set("hint", sfSay("hintDrag", {food:sfLabel(first)})); return; } }
+    if(ui.sorted===0 && ui.view==="big" && pileIds().length){ set("hint", sfSay("hintTap")); return; }
     if(ui.view==="none" && ui.noSolids){ set("info", ui.noSolids); return; }
   }
   ui.paintStatus = paintStatus;
@@ -303,7 +314,13 @@ function mountSortFood(o){
   }
   ui.paintPileHead = paintPileHead;
   function paintSelection(){
-    ui.shapes.forEach((s, id)=>s.el.classList.toggle("is-sel", ui.selected.has(id)));
+    let moved = false;
+    ui.shapes.forEach((s, id)=>{
+      const on = ui.selected.has(id);
+      s.el.classList.toggle("is-sel", on);
+      if(!!s.liftOn!==on){ s.liftOn = on; s.lift = performance.now(); moved = true; }
+    });
+    if(moved) ui.wake();
     paintStatus(); paintPileHead();
   }
   ui.paintSelection = paintSelection;
@@ -327,6 +344,11 @@ function mountSortFood(o){
     const b = s.body;
     let k = 1;
     if(s.grow){ const t = Math.min(1, (performance.now() - s.grow.t0) / C.FLOW_MS); k = s.grow.from + (1 - s.grow.from) * (1 - Math.pow(1 - t, 3)); if(t >= 1) s.grow = null; }
+    if(s.lift || s.liftOn){
+      const t = s.lift ? Math.min(1, (performance.now() - s.lift) / C.LIFT_MS) : 1, e = 1 - Math.pow(1 - t, 3);
+      k *= 1 + (C.LIFT_SCALE - 1) * (s.liftOn ? e : 1 - e);
+      if(t >= 1) s.lift = null; else world.still = 0;
+    }
     let wig = 0;
     if(s.wiggle){ const t = (performance.now() - s.wiggle) / C.WIGGLE_MS; if(t >= 1) s.wiggle = null; else { wig = C.WIGGLE_DEG * Math.sin(t * Math.PI * 2) * (1 - t * .3); world.still = 0; } }
     s.el.style.transform = `translate3d(${(b.x - s.w / 2).toFixed(1)}px, ${(b.y - s.h / 2).toFixed(1)}px, 0) rotate(${(bodyDeg(b) + wig).toFixed(2)}deg)` + (k!==1 ? ` scale(${k.toFixed(3)})` : "");
@@ -482,8 +504,7 @@ function mountSortFood(o){
     try{ s.el.setPointerCapture(e.pointerId); }catch(err){}
     const p = toField(e.clientX, e.clientY), b = s.body;
     ui.touched = true; s.pressedAt = performance.now();
-    ui.press = {s, id:e.pointerId, x0:e.clientX, y0:e.clientY, t0:performance.now(), dx:p.x - b.x, dy:p.y - b.y, lifted:false,
-                moving:Math.hypot(b.vx, b.vy) > C.TAP_MOVING_SPEED || !!b.flow};
+    ui.press = {s, id:e.pointerId, x0:e.clientX, y0:e.clientY, t0:performance.now(), dx:p.x - b.x, dy:p.y - b.y, lifted:false};
     const move = ev=>{ if(ev.pointerId===ui.press.id) drag(ev); };
     const up = ev=>{ if(ev.pointerId!==ui.press.id) return; s.el.removeEventListener("pointermove", move); s.el.removeEventListener("pointerup", up); s.el.removeEventListener("pointercancel", up); release(ev, ev.type==="pointercancel"); };
     s.el.addEventListener("pointermove", move);
@@ -518,14 +539,15 @@ function mountSortFood(o){
       return;
     }
     if(cancelled) return;
-    if(performance.now() - pr.t0 > C.TAP_MAX_MS || pr.moving) return;   // too long, or it was still moving
+    if(performance.now() - pr.t0 > C.TAP_MAX_MS) return;   // a long press that never moved: neither a tap nor a drag
     tap(s);
   }
   function keyTap(s){ if(!ui.press) tap(s); }
-  /* a tap toggles the shape's selection (a 3px ink ring at a 4px offset); Something else opens its sheet instead */
+  /* a tap lifts the shape (selects it: a 3px ink ring at a 4px offset, and a little bigger) or puts it down again;
+     Something else opens its sheet instead. It counts whatever the shape is doing, still wobbling included */
   function tap(s){
     if(s.id==="+else"){ if(ui.openCustom) ui.openCustom(); return; }
-    if(ui.selected.has(s.id)) ui.selected.delete(s.id); else ui.selected.add(s.id);
+    if(ui.selected.has(s.id)) ui.selected.delete(s.id); else { ui.selected.add(s.id); field.appendChild(s.el); }   // lifted: the top layer, ring and label in view
     ui.touched = true;
     if(ui.cancelWiggle) ui.cancelWiggle();
     haptic();
@@ -725,8 +747,11 @@ function mountSortFood(o){
 
   /* ---------- Next ---------- */
   function finish(){
-    if(!bigDone() || ui.finishing) return;
+    if(ui.finishing) return;
     ui.finishing = true;
+    ui.selected.clear(); paintBar();
+    // the big ones still in the pile: Untouched, as the label said (they fall out with the rest)
+    if(!bigDone()){ bigLeft().forEach(id=>{ S.placement[id] = "untouched"; }); S.firstPileComplete = true; paintPlaces(); paintProgress(); }
     if(!S.completedAt) S.completedAt = new Date().toISOString();
     persist();
     const done = ()=>{ if(ui.gone) return; ui.gone = true; o.onContinue(); };
@@ -758,7 +783,7 @@ function mountSortFood(o){
     ui.tab = C.groups.some(([k])=>k===t) ? t : C.groups.find(([k])=>everyday.some(id=>groupOf(id)===k))[0];
   }
   else if(bigDone() && S.firstPileComplete){ ui.view = "none"; ui.noSolids = sfSay("noSolids", {n:Math.max(1, 6 - o.months)}); }
-  paintPlaces(); paintProgress(); paintPileHead(); paintStatus();
+  paintPlaces(); paintProgress(); paintPileHead(); paintStatus(); nextLabel();
   if(ui.view==="big" && bigDone()) firstPileDone();
   Promise.all([seeded, new Promise(r=>requestAnimationFrame(r))]).then(()=>{
     if(ui.gone) return;

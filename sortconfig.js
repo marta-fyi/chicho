@@ -5,7 +5,8 @@ const SORT_CONFIG = {
   // gestures (px, ms)
   DRAG_THRESHOLD: 10,        // a press that moves further is a drag, never a tap
   TAP_MAX_MS: 500,           // a tap is released within this
-  TAP_MOVING_SPEED: 20,      // px/s: a shape moving faster ignores taps (it can still be grabbed)
+  TAP_MOVING_SPEED: 20,      // px/s: in the Kitchen's bubble pile, a shape moving faster ignores taps (the sort counts every tap)
+  LIFT_MS: 140, LIFT_SCALE: 1.06,   // a tapped shape rises this much, eased over this long; tapped again, it settles back
   SNAP_RADIUS: 48,           // a place within this of the finger takes the drop
   // the shapes
   COVERAGE: 0.6,             // of the field's area
@@ -50,12 +51,12 @@ const SORT_CONFIG = {
   NEW_FOODS_PER_MEAL: 1,
   // the engine
   DT: 1 / 120,
-  LINEAR_HALF_LIFE_MS: 120,
-  ANGULAR_HALF_LIFE_MS: 150,
+  LINEAR_HALF_LIFE_MS: 80,
+  ANGULAR_HALF_LIFE_MS: 100,
   RESTITUTION: 0.3,
   FRICTION: 0.5,             // at a contact: what turns an off-centre push into spin
   MAX_SPEED: 2000,           // px/s
   MAX_SPIN: 6,               // rad/s
-  REST_SPEED: 40, REST_SPIN: 0.4, REST_DAMP: 0.85,   // under these, a step takes off 15% more: shapes stop, they don't creep
+  REST_SPEED: 70, REST_SPIN: 0.7, REST_DAMP: 0.75,   // under these, a step takes off 25% more: shapes stop, they don't creep (a push settles in ~0.3 s)
   SLEEP_SPEED: 2, SLEEP_SPIN: 0.05, SLEEP_MS: 500
 };

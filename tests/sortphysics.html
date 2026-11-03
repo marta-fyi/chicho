@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Sort the food: the engine</h1>
-<p>A held shape pushes another and sets it spinning (non-zero angular velocity from the off-centre contact); everything settles within 600 ms and stays where it stops; mass in proportion to area; the table's edges hold; no motion until touched; the loop sleeps (no rAF), wakes, and pauses while the tab is hidden. Every line should be PASS.</p>
+<p>A held shape pushes another and sets it spinning (non-zero angular velocity from the off-centre contact); everything settles within 400 ms and stays where it stops; mass in proportion to area; the table's edges hold; no motion until touched; the loop sleeps (no rAF), wakes, and pauses while the tab is hidden. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
@@ -28,7 +28,7 @@ f.onload = async () => {
       return {spin, moved, settleMs: t, still: Math.hypot(b.x - rest[0], b.y - rest[1]) < .01 && Math.abs(b.a - rest[2]) < 1e-4, asleep: wd.asleep};
     })()`);
     ok(`a held shape pushes another off-centre: it moves (${push.moved.toFixed(0)}px) and spins (${push.spin.toFixed(2)} rad/s)`, push.moved > 20 && push.spin > 0.1, push);
-    ok(`…released, everything settles within 600 ms (${Math.round(push.settleMs)} ms)`, push.settleMs <= 600, push.settleMs);
+    ok(`…released, everything settles within 400 ms (${Math.round(push.settleMs)} ms)`, push.settleMs <= 400, push.settleMs);
     ok("…and stays where it stopped (no spring-back), then sleeps", push.still && push.asleep, push);
     const head = E(`(() => { const wd = sortWorld(400, 400), a = sortBody({id: "a", x: 100, y: 200, w: 90, h: 90}), b = sortBody({id: "b", x: 172, y: 200, w: 90, h: 90});
       wd.bodies = [a, b]; a.vx = 400; sortStep(wd); return {spin: Math.abs(b.w), bvx: b.vx}; })()`);

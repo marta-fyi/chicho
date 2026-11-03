@@ -504,6 +504,14 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .sf-shape.else{background:none;color:var(--ink);border:1.5px dashed var(--ink);}
   .sf-lbl{display:block;font-weight:500;text-transform:uppercase;letter-spacing:0;line-height:1.1;text-align:center;pointer-events:none;}
   .sf-shape.is-sel{outline:3px solid var(--ink);outline-offset:4px;}
+  /* the place bar: the four places in Next's slot while a food is lifted, one row in the thumb's reach */
+  .sf-bar{display:flex;gap:6px;width:100%;}
+  .sf-bar[hidden]{display:none;}
+  .sf-bar-b{flex:1 1 0;min-width:0;min-height:52px;padding:4px 6px;border:none;border-radius:16px;background:var(--ink);color:var(--on-ink);
+            font:inherit;font-size:12px;font-weight:500;line-height:1.2;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance;cursor:pointer;touch-action:manipulation;
+            transition:transform var(--dur-1) var(--ease-out);}
+  .sf-bar-b:active{transform:scale(.95);transition-duration:60ms;}
+  .sf-bar-b:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
   .sf-shape.is-held{box-shadow:0 0 0 2px var(--bg);z-index:5;}
   .sf-shape:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
   /* a drag over the places: the one it would land in swells with a faint wash and its label sharpens; the others dim */

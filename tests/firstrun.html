@@ -50,7 +50,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     key("month", "Home"); await wait(20);   // 14 January 2026: 9 months
     ok("back to 6 months or more: six again, the segments opening", segs() === 6 && E("ageNow()") >= 6 && $$("#onbDots i").some(i => i.getAnimations().length), [segs(), E("state.profile.birthDate")]);
     next().click(); await wait(500); path.push(step());
-    ok("Allergens: the pill is 'Next'", next().textContent === "Next");
+    ok("Allergens: the pill is 'Next · the rest untouched' (nothing sorted yet)", next().textContent === "Next · the rest untouched", next().textContent);
     E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); await wait(50);
     next().click(); await wait(1400); path.push(step());
     ok("…Next goes to Meal times, six segments with the fourth on", step() === "mealtimes" && segs() === 6 && $$("#onbDots i")[3].classList.contains("on"));

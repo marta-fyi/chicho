@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Sort the food: two piles</h1>
-<p>The entrance (a 200 ms fade, one wiggle after 1.2 s untouched); the gate; the first pile done: the glow pulses once and the summary holds the status row; 1.2 s later the everyday foods, a tab at a time, twelve at most with "Something else", refilling as they're sorted, "Nothing left to sort." when a tab is empty; a big one sent back brings the first pile back; under 6 months, no second pile but the line about solids; Next: the shapes fall out, taps are ignored, onContinue comes exactly once. Every line should be PASS.</p>
+<p>The entrance (a 200 ms fade, one wiggle after 1.2 s untouched); no gate (Next places what's left in Untouched); the first pile done: the glow pulses once and the summary holds the status row; 1.2 s later the everyday foods, a tab at a time, twelve at most with "Something else", refilling as they're sorted, "Nothing left to sort." when a tab is empty; a big one sent back brings the first pile back; under 6 months, no second pile but the line about solids; Next: the shapes fall out, taps are ignored, onContinue comes exactly once. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + String(JSON.stringify(got)).slice(0, 500)));
@@ -27,7 +27,7 @@ const frame = (months) => new Promise(res => {
     await wait(600);
     ok("…once (it's still again after)", E("[...sortUI.shapes.values()].every(s => !s.wiggle)"));
     E(`sortUI.place(["egg", "milk"], "keepOut", {noUndo: true}); sortUI.place(["peanut", "treenuts", "wheat"], "tried", {noUndo: true}); sortUI.place(["soy"], "notFan", {noUndo: true})`); await wait(20);
-    ok("the gate counts down: 'Sort the big ones first · 3 to go', Next waits", status() === "Sort the big ones first · 3 to go" && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true", status());
+    ok("no gate: three left, the row is quiet and Next reads 'Next · the rest untouched'", status() === "" && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "false" && $("#onbFoot .btn-ink").textContent === "Next · the rest untouched", [status(), $("#onbFoot .btn-ink").textContent]);
     const pulses = E("sortUI.pulsed || 0");
     E(`sortUI.place(["fish", "shellfish", "sesame"], "untouched", {noUndo: true})`); await wait(30);
     ok("the first pile done: the glow pulses once (opacity and scale, 900 ms)", E("sortUI.pulsed") === pulses + 1 && d.querySelector("#onboarding .glow-plane").getAnimations().some(a => a.effect.getTiming().duration === 900 && a.effect.getKeyframes().every(k => Object.keys(k).every(p => ["offset", "easing", "composite", "computedOffset", "opacity", "transform"].includes(p)))));
@@ -53,7 +53,7 @@ const frame = (months) => new Promise(res => {
     ok("…and Select all hides (nothing to select)", $(".sf-selall").hidden);
     // a big one back to the pile: the first pile again
     E(`sortUI.place(["egg"], null)`); await wait(300);
-    ok("a big one back in the pile: 'The big ones' again, the gate, Next waiting", $(".sf-pilename") && $(".sf-pilename").textContent === "The big ones" && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "egg" && $("#onbFoot .btn-ink").getAttribute("aria-disabled") === "true");
+    ok("a big one back in the pile: 'The big ones' again, Next saying the rest goes untouched", $(".sf-pilename") && $(".sf-pilename").textContent === "The big ones" && $$(".sf-field .sf-shape").map(b => b.dataset.id).join() === "egg" && $("#onbFoot .btn-ink").textContent === "Next · the rest untouched");
     E(`sortUI.place(["egg"], "keepOut")`); await wait(120);
     ok("…placed again: straight back to the everyday foods, no second summary or pulse", !!$(".sf-tabs") && E("sortUI.pulsed") === pulses + 1);
     // Next: the fall, once
@@ -68,7 +68,17 @@ const frame = (months) => new Promise(res => {
     await wait(700);
     ok("…then onContinue(), exactly once: on to Meal times", E("__cont") === 1 && E("onb.step") === "mealtimes", [E("__cont"), E("onb.step")]);
     ok("completedAt is saved", typeof E("state.profile.foodSort.completedAt") === "string");
+
     f.remove();
+
+    // Next with big ones left: they go to Untouched, and fall out with the rest
+    const r1 = await frame(18), GE = x => r1.contentWindow.eval(x);
+    await wait(400);
+    GE(`window.__c = 0; const r = sortUI.o.onContinue; sortUI.o.onContinue = () => { __c++; r(); }; sortUI.place(["egg"], "keepOut", {noUndo: true})`); await wait(30);
+    r1.contentDocument.querySelector("#onbFoot .btn-ink").click(); await wait(900);
+    ok("Next with eight left: Egg kept out, the other eight Untouched, firstPileComplete, on to Meal times", GE("state.profile.foodSort.placement.egg") === "keepOut" && GE("SORT_CONFIG.bigFoods.filter(id => id !== 'egg').every(id => state.profile.foodSort.placement[id] === 'untouched')") && GE("state.profile.foodSort.firstPileComplete") === true && GE("__c") === 1 && GE("onb.step") === "mealtimes", [GE("JSON.stringify(state.profile.foodSort.placement)"), GE("onb.step")]);
+    ok("…and the plan reads them as untouched (no egg, the others new)", GE("getFoodRules(state.profile, FOODS).neverIds.includes('egg')"));
+    r1.remove();
 
     // under 6 months
     const g = await frame(4), G = x => g.contentWindow.eval(x), gd = g.contentDocument;
