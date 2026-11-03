@@ -179,7 +179,7 @@ function momentLine(){
   const soon = list.some(x=>Math.round((x.date - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000) <= 1);
   const shopDay = P.shopDay!==undefined && P.shopDay!==null && t.getDay()===P.shopDay;
   if(n && t.getHours() < 19 && open("shop")){
-    if(!hintSeen("kitchen")) return hint("kitchen", say("moment.hint.kitchen"), ()=>go("kitchen"));
+    // (no "Swipe up for the kitchen." hint: Marta took it out, 3 Nov 2026)
     if(soon || shopDay || fresh) return L("shop", "", [[fresh ? say("moment.shopNew", {n:fresh}) : say("moment.shop", {n}), ()=>go("kitchen")], [say("moment.later"), putAway("shop")]]);
   }
   // day 2 (once), never when already installed: how to add Chicho to the Home Screen

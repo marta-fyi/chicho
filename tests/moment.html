@@ -119,7 +119,7 @@ f.onload = async () => {
     ok("…not after 19:00", M().key !== "shop", M().key);
     setup(18, at(15, 0), `state.pantry = []; state.hints = {shuffle: "2026-10-01", profile: "2026-10-01"};`);
     m = M();
-    ok("the first shopping list: the hint 'Swipe up for the kitchen.' first", m.key === "hint:kitchen" && actions(m)[0] === "Swipe up for the kitchen.", m);
+    ok("the first shopping list: no 'Swipe up for the kitchen.' hint, never", m.key !== "hint:kitchen" && !JSON.stringify(m).includes("Swipe up"), m);
     // only needed later in the 3 days, not today or tomorrow: no line (unless new from a shuffle)
     const farOnly = `state.pantry = state.pantry.filter(p => true); (() => { const d2 = new Date(2026, 9, 24); const x = mealsOn(d2)[0]; const i = x.m.items.find(i => !mealsOn(now()).concat(mealsOn(tomorrowOf(now()))).some(y => y.m.items.some(j => foodIdOf(j) === foodIdOf(i)))); if (i) setStock(foodIdOf(i), baseName(i), "out"); farFood = i ? foodIdOf(i) : null; })();`;
     setup(18, at(15, 0), farOnly);

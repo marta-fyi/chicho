@@ -71,7 +71,7 @@ const CONTENT = {
     missing:"Out of {food}.",
     missingAction:"Shuffle {meal}?",
     /* one-time hints, each the first time a screen is useful; never a tour */
-    hint:{shuffle:"Swipe left to shuffle {meal}.", kitchen:"Swipe up for the kitchen.", profile:"Swipe down to see how {name} is doing."},
+    hint:{shuffle:"Swipe left to shuffle {meal}.", profile:"Swipe down to see how {name} is doing."},
     tomorrow:"Tomorrow: {food1} and {food2}.",
     tomorrowOne:"Tomorrow: {food1}.",
     sendTo:"Send to {person}",
