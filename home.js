@@ -485,13 +485,13 @@ function route(from, to, fromHistory){
 }
 addEventListener("popstate", ()=>{ if(SNAPSHOT) return; const to = screenFromHash(); if(to!==pg.cur) go(to, {fromHistory:true}); });
 /* ---------- the position map: five dots laid out like the canvas; each is a real link ---------- */
-/* the screens, from the name: a short list under it (a disclosure: the name's aria-expanded, a nav of links, the
-   current one aria-current). Picking one goes there; the dimmed screen, Esc or the name again closes it, and focus
-   goes back to the name. Up and Down move through the links, Home and End to the ends. */
+/* the screens, from MENU in the corner: a short list under it, right-aligned (a disclosure: MENU's aria-expanded, a nav
+   of links, the current one aria-current and dotted). Picking one goes there; the dimmed screen, Esc or MENU again
+   closes it, and focus goes back to MENU. Up and Down move through the links, Home and End to the ends. */
 const NAV_ORDER = ["home", "profile", "shuffle", "kitchen", "week"];
 function navIsOpen(){ return !$("navList").hidden; }
 function navOpen(fromKeys){
-  const list = $("navList"), btn = $("profileBtn"), avail = screensNow();
+  const list = $("navList"), btn = $("menuBtn"), avail = screensNow();
   list.innerHTML = "";
   NAV_ORDER.filter(k=>avail.includes(k)).forEach(k=>{
     const a = document.createElement("a");
@@ -501,7 +501,7 @@ function navOpen(fromKeys){
     list.appendChild(a);
   });
   const r = btn.getBoundingClientRect(), app = $("app").getBoundingClientRect();
-  list.style.left = Math.round(r.left - app.left - 12) + "px";   // the words line up with the name
+  list.style.left = "auto"; list.style.right = Math.round(app.right - r.right) + "px";   // the card's edge under MENU's, inside the margin
   list.style.top = Math.round(r.bottom - app.top + 6) + "px";
   list.hidden = false; $("navScrim").hidden = false;
   btn.setAttribute("aria-expanded", "true");
@@ -516,8 +516,8 @@ function navClose(refocus){
   if(!navIsOpen()) return;
   $("navList").hidden = true; $("navScrim").hidden = true;
   const inside = $("navList").contains(document.activeElement);
-  $("profileBtn").setAttribute("aria-expanded", "false");
-  if(refocus!==false && inside) $("profileBtn").focus({preventScroll:true});
+  $("menuBtn").setAttribute("aria-expanded", "false");
+  if(refocus!==false && inside) $("menuBtn").focus({preventScroll:true});
 }
 function navKeys(e){
   const links = [...$("navList").querySelectorAll("a")], i = links.indexOf(document.activeElement);
@@ -734,14 +734,12 @@ function renderHome(){
   updateChrome();
   if(firstDraw){ firstDraw = false; try{ performance.mark("chicho:home"); }catch(e){} }   // the first meaningful paint (tools/devices.mjs)
 }
-/* the header, on every screen: the age over the name (which opens the screens), the date over the time */
+/* the header, on every screen: the age over the name, the date over MENU (which opens the screens) */
 function renderChrome(P, t){
   setText($("whoAge"), P.birthDate ? ageLabel(ageNow()) : "");
   renderWhoName(P);
-  $("profileBtn").setAttribute("aria-label", [P.name, P.birthDate ? ageLabel(ageNow()) : ""].filter(Boolean).join(", ") + (P.name ? ". " : "") + say("nav.title"));
   setText($("clockDate"), fmtCornerDate(t));
-  setText($("clock"), fmtTime(t));
-  $("clock").setAttribute("datetime", t.toISOString());
+  setText($("menuBtn"), say("nav.menu"));
 }
 /* the corner's name: the drawn one when there is ink (read aloud by its spelling), else the typed one */
 let whoSig = null;
@@ -1713,8 +1711,8 @@ document.addEventListener("touchstart", ()=>{}, {passive:true});
     return;
   }
   document.body.classList.add("is-app");
-  $("profileBtn").addEventListener("click", e=>navIsOpen() ? navClose() : navOpen(e.detail===0));   // detail 0: Enter or Space
-  $("profileBtn").addEventListener("keydown", e=>{ if(navIsOpen() && (e.key==="ArrowDown" || e.key==="ArrowUp" || e.key==="Escape")){ e.preventDefault(); if(e.key==="Escape") navClose(); else (e.key==="ArrowDown" ? $("navList").firstChild : $("navList").lastChild).focus(); } });
+  $("menuBtn").addEventListener("click", e=>navIsOpen() ? navClose() : navOpen(e.detail===0));   // detail 0: Enter or Space
+  $("menuBtn").addEventListener("keydown", e=>{ if(navIsOpen() && (e.key==="ArrowDown" || e.key==="ArrowUp" || e.key==="Escape")){ e.preventDefault(); if(e.key==="Escape") navClose(); else (e.key==="ArrowDown" ? $("navList").firstChild : $("navList").lastChild).focus(); } });
   $("navScrim").addEventListener("click", ()=>navClose());
   $("navList").addEventListener("keydown", navKeys);
   // the screens start under the header, whatever its height (a drawn name, the larger text sizes)

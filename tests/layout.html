@@ -31,7 +31,7 @@ const R = el => el.getBoundingClientRect();
 /* the page doesn't scroll, every Home part is inside the screen, and the meal block crops nothing (or scrolls inside) */
 const fit = (d, W, H) => {
   const box = d.getElementById("nowMeal"), foot = d.getElementById("footLine"), zone = d.getElementById("offerZone");
-  const parts = ["#profileBtn", "#clock", "#headline", "#moment", "#nowMeal .meal-foods li", "#offerZone .offer-bar"].map(s => d.querySelector(s));
+  const parts = ["#who", "#menuBtn", "#headline", "#moment", "#nowMeal .meal-foods li", "#offerZone .offer-bar"].map(s => d.querySelector(s));
   return {
     pageScroll: d.documentElement.scrollHeight - H, bodyScroll: d.body.scrollHeight - d.body.clientHeight, hScroll: d.documentElement.scrollWidth - d.documentElement.clientWidth,
     inside: parts.every(e => e && R(e).top >= 0 && R(e).bottom <= H + .5 && R(e).right <= W + .5),

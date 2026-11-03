@@ -66,7 +66,7 @@ const CHECKS = () => {
     overflow: document.documentElement.scrollWidth - W,
     homeScroll: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - H,
     cropped: box.scrollHeight > box.clientHeight + 1 && !box.classList.contains("scrolls"),
-    header: [R($("#profileBtn")).top >= 0 && R($("#profileBtn")).left >= 0, R($("#clock")).right <= W, R($("#headline")).top >= R(chrome).bottom],
+    header: [R($("#who")).top >= 0 && R($("#who")).left >= 0, R($("#menuBtn")).right <= W, R($("#headline")).top >= R(chrome).bottom],
     small: targets.filter(b => R(b).width < 44 || R(b).height < 44).map(b => b.className + " " + Math.round(R(b).width) + "×" + Math.round(R(b).height)),
     clash: [meet(bar, chrome) && "pill/header", !foot.hidden && meet(foot, bar) && "footer/pill"].filter(Boolean),
     first: ["#headline", "#moment", "#nowMeal .meal-foods li", ".offer-bar"].filter(s => !on($(s))),

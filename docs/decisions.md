@@ -101,6 +101,14 @@ Marta, from screenshots:
 
 Marta: the Kitchen step's bubbles become Sort the food's shapes, with the same behaviour, except that a tap pops the shape. So "Already in the kitchen…" now packs the eighteen staples as seeded ink blobs on the sort's engine (`blobField`, `sortfood.js`): no gravity and no fall-in, a drag lifts a shape and pushes the others, and a quick tap pops it (it swells, bursts into ink shards and fades in 210 ms; the rest re-flow), with the same 2-second Undo and the line whose words bring a shape back. Next drops what's left out through the bottom, as the sort does. The food-group colours are gone with the circles, since the sort's shapes are ink; putting them back is one inline background per shape. The physics and the bubbles stay in `popPile`/`makePile` for nothing else now, and are kept only as the fallback when `o.blobs` isn't set.
 
+## The menu, in the corner (3 Nov 2026, supersedes "the name opens the way")
+
+Marta: the menu should live where the time was, and read as a menu.
+- **Top right**: the date, small, over **MENU** in the name's old type (32px, 500, uppercase, underlined), level with the name. The clock is gone (the phone's status bar has the time). MENU is the disclosure: `aria-expanded`, controlling `<nav aria-label="Screens">`, with the same keys, scrim, Esc and focus rules as before.
+- **Top left**: the age over the name, plain text now, not underlined, nothing to tap. Profile is in the menu.
+- **The list** drops from MENU, its card's edge under MENU's, the words right-aligned; the current screen in ink after a 6px dot, the others muted, a hairline between items.
+- "Swipe up for the kitchen." is gone from the moment line (Marta); the shopping line takes its place there.
+
 ## Draw, quieter (3 Nov 2026)
 
 Marta, from the live first run: the blank's underline out (the space waits, and the name appears in it as it's drawn, as before); the pad's sheet is titled "Their name" (was "Sign here"); Undo out (Erase stays); "Type instead" out of sight. It stays in the sheet for the keyboard and screen readers, clipped to 1px until it has the focus, because a pad can't be drawn on without a pointer, and the typed path (`onbDrawTyped`) is how they get through.

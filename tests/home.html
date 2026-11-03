@@ -27,11 +27,11 @@ f.onload = async () => {
     const pill = () => $("#offerZone .offer-pill");
 
     // the corner header
-    ok("top-right: 'Thursday 22 Oct' over the time", $("#clockDate").textContent === "Thursday 22 Oct" && $("#clock").textContent === E("fmtTime(now())"), [$("#clockDate").textContent, $("#clock").textContent]);
-    ok("…in tabular numerals, and plain text now (not a button)", getComputedStyle($(".when")).fontVariantNumeric === "tabular-nums" && $(".when").tagName === "P" && !$(".when button"));
-    ok("top-left: '18 months' over 'LULA', one button", $("#whoAge").textContent === "18 months" && $("#whoName").textContent === "Lula" && getComputedStyle($("#whoName")).textTransform === "uppercase" && $("#profileBtn").tagName === "BUTTON");
-    ok("…44px at least, its name underlined", $("#profileBtn").getBoundingClientRect().height >= 44 && /underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
-    ok("the clock and headline are plain text, not live regions", !$("#clock").closest("[aria-live]") && !$("#headline").closest("[aria-live]"));
+    ok("top-right: 'Thursday 22 Oct' over MENU (no clock: the status bar has the time)", $("#clockDate").textContent === "Thursday 22 Oct" && $("#menuBtn").textContent === "Menu" && getComputedStyle($("#menuBtn")).textTransform === "uppercase" && !$("#clock"), [$("#clockDate").textContent, $("#menuBtn").textContent]);
+    ok("…MENU is a button, 44px at least, underlined, in the name's type (32px, 500)", $("#menuBtn").tagName === "BUTTON" && $("#menuBtn").getBoundingClientRect().height >= 44 && /underline/.test(getComputedStyle($("#menuBtn")).textDecorationLine) && getComputedStyle($("#menuBtn")).fontSize === "32px" && getComputedStyle($("#menuBtn")).fontWeight === "500");
+    ok("top-left: '18 months' over 'LULA', plain text now (nothing to tap, no underline)", $("#whoAge").textContent === "18 months" && $("#whoName").textContent === "Lula" && getComputedStyle($("#whoName")).textTransform === "uppercase" && !$("#who").closest("button, a") && !$("#who button") && !/underline/.test(getComputedStyle($("#whoName")).textDecorationLine));
+    ok("…MENU sits level with the name", Math.abs($("#menuBtn").getBoundingClientRect().bottom - $("#whoName").getBoundingClientRect().bottom) < 12, [$("#menuBtn").getBoundingClientRect().bottom, $("#whoName").getBoundingClientRect().bottom]);
+    ok("the headline is plain text, not a live region", !$("#headline").closest("[aria-live]"));
     ok("headline: 'Lunch in 20 minutes.'", $("#headline").textContent === "Lunch in 20 minutes.");
     ok("the tab is just CHICHO", d.title === "CHICHO", d.title);
     ok("a moment line, below the meal", $("#moment").textContent.length > 0 && $("#nowMeal").compareDocumentPosition($("#moment")) === 4);
@@ -99,13 +99,16 @@ f.onload = async () => {
     E("state.profile.ink = null; save(); changed()"); await wait(50);
     ok("no ink: the typed name again", !$("#whoName svg") && $("#whoName").textContent === "Lula");
 
-    // the name opens the screens
+    // MENU opens the screens
     E("setClock(new Date(2026, 9, 22, 12, 10)); changed()");
-    ok("the header sits above the screens, not inside Home", !!d.querySelector("#chrome #profileBtn") && !d.querySelector("#scr-home #profileBtn"));
-    ok("…named for screen readers: 'Lula, 18 months. Screens', collapsed", $("#profileBtn").getAttribute("aria-label") === "Lula, 18 months. Screens" && $("#profileBtn").getAttribute("aria-expanded") === "false", $("#profileBtn").getAttribute("aria-label"));
-    $("#profileBtn").click(); await wait(200);
+    ok("the header sits above the screens, not inside Home", !!d.querySelector("#chrome #menuBtn") && !d.querySelector("#scr-home #menuBtn"));
+    ok("…MENU is a disclosure, collapsed, controlling the list", $("#menuBtn").getAttribute("aria-expanded") === "false" && $("#menuBtn").getAttribute("aria-controls") === "navList");
+    $("#menuBtn").click(); await wait(200);
     const navLinks = () => [...d.querySelectorAll("#navList a")];
-    ok("the name opens the screens: Home, Profile, Shuffle, Kitchen, New week, Home current and focused", !d.getElementById("navList").hidden && navLinks().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && navLinks()[0].getAttribute("aria-current") === "page" && d.activeElement === navLinks()[0] && $("#profileBtn").getAttribute("aria-expanded") === "true", navLinks().map(a => a.textContent));
+    ok("MENU opens the screens: Home, Profile, Shuffle, Kitchen, New week, Home current and focused", !d.getElementById("navList").hidden && navLinks().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && navLinks()[0].getAttribute("aria-current") === "page" && d.activeElement === navLinks()[0] && $("#menuBtn").getAttribute("aria-expanded") === "true", navLinks().map(a => a.textContent));
+    const lr = d.getElementById("navList").getBoundingClientRect(), mr = $("#menuBtn").getBoundingClientRect();
+    ok("…the list drops from MENU, right-aligned under it, its edge at MENU's", lr.top >= mr.bottom && Math.abs(lr.right - mr.right) < 2 && navLinks().every(a => getComputedStyle(a).justifyContent === "flex-end"), [lr.right, mr.right]);
+    ok("…the current one has the dot, the others don't; hairlines between", getComputedStyle(navLinks()[0], "::before").content === '""' && getComputedStyle(navLinks()[1], "::before").content === "none" && getComputedStyle(navLinks()[1]).borderTopStyle === "solid" && getComputedStyle(navLinks()[0]).borderTopStyle === "none");
     navLinks()[1].click(); await wait(450);
     ok("…Profile goes there, and the list closes", E("pg.cur") === "profile" && d.getElementById("navList").hidden && d.getElementById("navScrim").hidden);
     E("go('home', {quiet: true})"); await wait(450);

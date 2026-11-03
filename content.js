@@ -36,7 +36,7 @@ const CONTENT = {
 
   /* ---------- the five screens (their names are also the map's links) ---------- */
   screens:{home:"Home", shuffle:"Shuffle", kitchen:"Kitchen", week:"New week", profile:"Profile"},
-  nav:{title:"Screens"},
+  nav:{title:"Screens", menu:"Menu"},
   days:{today:"today", tomorrow:"tomorrow", Today:"Today", Tomorrow:"Tomorrow",
         poss:{today:"today's", tomorrow:"tomorrow's"}, possDay:"{weekday}'s"},
 

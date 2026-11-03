@@ -706,13 +706,15 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
 
   /* ---------- Home: offer ---------- */
   .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
-  .who-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:44px;min-height:44px;margin:0;padding:2px 0;border:none;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
+  .who{display:flex;flex-direction:column;align-items:flex-start;min-height:44px;margin:0;padding:2px 0;color:var(--ink);text-align:left;}
   .who-age, .when-date{font-size:13px;line-height:1.4;color:var(--ink-muted);}
   .who-name.has-ink{text-decoration:none;}
-  .who-name{font-size:32px;font-weight:500;line-height:1.2;text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;}
-  .who-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
+  .who-name{font-size:32px;font-weight:500;line-height:1.2;text-transform:uppercase;letter-spacing:var(--track-label);}
+  /* MENU, where the time was: the name's old type, underlined like every control here */
+  .menu-btn{min-width:44px;min-height:44px;margin:0;padding:0;border:none;background:none;color:var(--ink);font:inherit;font-size:32px;font-weight:500;line-height:1.2;
+            text-transform:uppercase;letter-spacing:var(--track-label);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;text-align:right;cursor:pointer;}
+  .menu-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px;}
   .when{display:flex;flex-direction:column;align-items:flex-end;margin:0;padding:2px 0;text-align:right;font-variant-numeric:tabular-nums;}
-  .when-time{font-size:20px;font-weight:500;line-height:1.3;}
   /* the meal first: air under the corners puts the headline about a third of the way down (it gives way first on a
      short phone), then what the meal is, then the moment line, and the pill at the bottom */
   .home-air{flex:0 1000 18svh;min-height:8px;}   /* it takes nearly all of any squeeze before the meal does */
@@ -947,8 +949,10 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   /* the screens, from the name: a short list under it, the current one in ink; the screen behind dims */
   .nav-scrim{position:absolute;inset:0;z-index:6;background:var(--scrim);}
   .nav-list{position:absolute;z-index:8;min-width:200px;padding:6px 0;border-radius:var(--r-card);background:var(--sheet);box-shadow:var(--shadow-sheet);}
-  .nav-list a{display:flex;align-items:center;min-height:48px;padding:0 12px;font-size:17px;color:var(--ink-muted);text-decoration:none;}
+  .nav-list a{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-height:48px;margin:0 12px;padding:0 4px;font-size:17px;color:var(--ink-muted);text-decoration:none;}
+  .nav-list a + a{border-top:1px solid var(--hairline);}
   .nav-list a[aria-current="page"]{color:var(--ink);font-weight:500;}
+  .nav-list a[aria-current="page"]::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink);}   /* you're here */
   .nav-list a:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;border-radius:8px;}
   .nav-scrim[hidden], .nav-list[hidden]{display:none;}
   /* screens fade their content in, staggered, after arriving */
@@ -1043,11 +1047,11 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     </div></div></div>
   </div>
   <div class="pager" id="pager">
-    <!-- the header: on every screen, in the same place (it doesn't move with a swipe); the name opens the screens -->
+    <!-- the header: on every screen, in the same place (it doesn't move with a swipe); MENU opens the screens -->
     <header class="chrome" id="chrome">
       <div class="scr-col corners">
-        <button type="button" class="who-btn" id="profileBtn" data-f="top:me" aria-expanded="false" aria-controls="navList"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></button>
-        <p class="when"><span class="when-date" id="clockDate"></span><time class="when-time" id="clock"></time></p>
+        <div class="who" id="who"><span class="who-age" id="whoAge"></span><span class="who-name" id="whoName"></span></div>
+        <div class="when"><span class="when-date" id="clockDate"></span><button type="button" class="menu-btn" id="menuBtn" data-f="top:menu" aria-expanded="false" aria-controls="navList"></button></div>
       </div>
     </header>
     <div class="camera" id="camera">

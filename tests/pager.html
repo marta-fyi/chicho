@@ -182,11 +182,11 @@ const load = (hash, months) => new Promise(res => {
     ok("reduced motion: the camera is there at once, the screen fades in over 150ms, the backdrop doesn't move", fr[0].cam === -SH && fr.some(x => x.kitchen < .9) && fr.at(-1).kitchen === 1 && new Set(fr.map(x => x.bd)).size === 1);
     w.calm = realCalm; await go("home");
 
-    // the screens, from the name
-    const btn = $("#profileBtn"), list = $("#navList"), links = () => $$("#navList a");
-    ok("the name is a disclosure: aria-expanded false, controlling the list", btn.getAttribute("aria-expanded") === "false" && btn.getAttribute("aria-controls") === "navList" && list.hidden);
+    // the screens, from MENU
+    const btn = $("#menuBtn"), list = $("#navList"), links = () => $$("#navList a");
+    ok("MENU is a disclosure: aria-expanded false, controlling the list", btn.getAttribute("aria-expanded") === "false" && btn.getAttribute("aria-controls") === "navList" && list.hidden);
     btn.click(); await wait(200);
-    ok("…open: a <nav aria-label='Screens'> of real links, Home, Profile, Shuffle, Kitchen, New week, under the name", list.tagName === "NAV" && list.getAttribute("aria-label") === "Screens" && !list.hidden && links().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && links().every(a => a.getAttribute("href")) && list.getBoundingClientRect().top >= btn.getBoundingClientRect().bottom, links().map(a => a.textContent));
+    ok("…open: a <nav aria-label='Screens'> of real links, Home, Profile, Shuffle, Kitchen, New week, under MENU", list.tagName === "NAV" && list.getAttribute("aria-label") === "Screens" && !list.hidden && links().map(a => a.textContent).join() === "Home,Profile,Shuffle,Kitchen,New week" && links().every(a => a.getAttribute("href")) && list.getBoundingClientRect().top >= btn.getBoundingClientRect().bottom, links().map(a => a.textContent));
     ok("…every link 44px or more; Home current, in ink, the others muted", links().every(a => a.getBoundingClientRect().height >= 44) && links()[0].getAttribute("aria-current") === "page" && w.getComputedStyle(links()[0]).color !== w.getComputedStyle(links()[2]).color);
     ok("…the screen behind is dimmed; focus on the current link", !$("#navScrim").hidden && d.activeElement === links()[0]);
     const key = k => d.activeElement.dispatchEvent(new w.KeyboardEvent("keydown", {key: k, bubbles: true, cancelable: true}));
@@ -195,7 +195,7 @@ const load = (hash, months) => new Promise(res => {
     key("End"); ok("…End: the last", d.activeElement === links()[4]);
     key("Home"); ok("…Home: the first", d.activeElement === links()[0]);
     key("Escape"); await wait(30);
-    ok("Esc closes it, focus back on the name", list.hidden && $("#navScrim").hidden && d.activeElement === btn && btn.getAttribute("aria-expanded") === "false");
+    ok("Esc closes it, focus back on MENU", list.hidden && $("#navScrim").hidden && d.activeElement === btn && btn.getAttribute("aria-expanded") === "false");
     btn.click(); await wait(100); $("#navScrim").click(); await wait(30);
     ok("…a tap on the dimmed screen closes it too", list.hidden);
     btn.click(); await wait(100); btn.click(); await wait(30);
@@ -248,13 +248,7 @@ const load = (hash, months) => new Promise(res => {
 
     // the one-time hints (everything visited above has seen its hint: start afresh)
     E("state.hints = {}; momentKey = null; save(); renderHome()");
-    ok("the first shopping list: 'Swipe up for the kitchen.' with Later", /^Swipe up for the kitchen\. Later$/.test($("#moment").textContent), $("#moment").textContent);
-    [...d.querySelectorAll("#moment .btn-text")].find(b => b.textContent === "Later").click(); await wait(100);
-    ok("…Later puts it away for good", !!E("state.hints.kitchen") && !/Swipe/.test($("#moment").textContent), $("#moment").textContent);
-    E("delete state.hints.kitchen; momentKey = null; save(); renderHome()");
-    ok("…(it's back when unseen)", /Swipe up for the kitchen/.test($("#moment").textContent));
-    $("#moment .btn-text").click(); await settle();
-    ok("…the hint itself is a link there (never gesture-only), and a visit marks it seen", cur() === "kitchen" && !!E("state.hints.kitchen"));
+    ok("the first shopping list: no 'Swipe up for the kitchen.' hint (taken out, 3 Nov 2026)", !/Swipe up/.test($("#moment").textContent), $("#moment").textContent);
     await go("home");
     E("delete state.hints.shuffle; momentKey = null");
     const lunch = E("(() => { const x = refsOn(now()).find(x => x.m.slot === 'lunch'); setStock(foodIdOf(x.m.items[0]), baseName(x.m.items[0]), 'out'); save(); changed(); return x.m.id; })()");
@@ -275,7 +269,7 @@ const load = (hash, months) => new Promise(res => {
     // under 6 months: only Home and Profile
     f = await load("", 3); w = f.contentWindow; d = f.contentDocument;
     ok("under 6 months: only Home and Profile exist", E("screensNow().join()") === "home,profile");
-    d.getElementById("profileBtn").click(); await wait(150);
+    d.getElementById("menuBtn").click(); await wait(150);
     const two = [...d.querySelectorAll("#navList a")].map(a => a.textContent).join();
     ok("…the name's list has just Home and Profile", two === "Home,Profile", two);
     d.getElementById("navScrim").click(); await wait(30);
