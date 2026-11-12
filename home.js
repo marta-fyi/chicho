@@ -888,6 +888,12 @@ function toggleOffered(ref){
   const byKeys = !!document.activeElement && document.activeElement.matches(":focus-visible");   // a tap shouldn't leave a ring
   // offered, the meal stays on Home (its three answers, Undo in the footer) until the next boundary
   if(on) picked = {key:ref.key, until:nextBoundary(refsOn(now()))};
+  // the pill as it was, for the split (splitIn): where it sat in the zone, and how its label looked
+  const pillEl = document.querySelector('#offerZone [data-f="offer"]'), bar = pillEl && pillEl.closest(".offer-bar");
+  if(on && bar && !calm()){
+    const z = $("offerZone").getBoundingClientRect(), r = bar.getBoundingClientRect(), cs = getComputedStyle(pillEl);
+    splitFrom = {key:ref.key, x:r.left - z.left, y:r.top - z.top, w:r.width, h:r.height, label:pillEl.textContent, tt:cs.textTransform, ls:cs.letterSpacing};
+  }
   offerMeal(ref.m, ref.date, on); save(); haptic();
   if(on){
     pulseGlow(); undoUntil[ref.key] = Date.now() + 5000;
@@ -903,7 +909,8 @@ function undoOffer(ref){
   announce(say("home.announce.unoffered", {meal:ref.m.label}));
   picked = null; changed(); focusLater("offer");
 }
-/* an answer: kept at once, shown as chosen, then the meal fades and Home moves on */
+/* an answer: kept at once, shown as chosen (its pill fills with a small spring, the other two fade in toward it),
+   then the meal fades and Home moves on */
 function answerOffered(ref, v){
   if(answering) return;
   answering = ref.key;
@@ -911,6 +918,13 @@ function answerOffered(ref, v){
   setOutcome(ref.m, ref.date, v); save(); haptic();
   announce(say("home.announce.outcome", {meal:ref.m.label, outcome:say("meal.outcome." + v)}));
   changed();
+  if(!calm()){
+    const all = [...document.querySelectorAll("#offerZone .outcome")], k = all.findIndex(b=>b.dataset.f===`out:${ref.key}:${v}`);
+    all.forEach((b, i)=>{
+      if(i===k) b.animate([{transform:"scale(.96)"}, {transform:"scale(1.03)", offset:.55}, {transform:"none"}], {duration:260, easing:"cubic-bezier(.32,1.25,.5,1)"});
+      else b.animate([{opacity:1, transform:"none"}, {opacity:0, transform:`translateX(${i < k ? 12 : -12}px)`}], {duration:200, easing:"cubic-bezier(.4,0,1,1)", fill:"forwards"});
+    });
+  }
   const moveOn = ()=>{
     answering = null;
     if(picked && picked.key===ref.key) picked = null;
@@ -924,8 +938,9 @@ function answerOffered(ref, v){
     fades[0].onfinish = ()=>{ fades.forEach(a=>a.cancel()); moveOn(); };
   }, ANSWER_HOLD_MS);
 }
-/* the three answers: they rise once, a beat apart, where the pill was */
+/* the three answers, where the pill was. The first time (a tap on the pill): the pill splits into them (splitIn) */
 const outcomeRisen = new Set();
+let splitFrom = null;   // the tapped pill's place and label, kept by toggleOffered for the split
 function outcomeRow(ref){
   const m = ref.m, g = el("div", "outcomes");
   g.dataset.key = ref.key; g.setAttribute("role", "group"); g.setAttribute("aria-label", say("meal.outcomeLabel"));
@@ -934,12 +949,43 @@ function outcomeRow(ref){
     const ob = document.createElement("button");
     ob.type = "button"; ob.className = "outcome"; ob.dataset.f = `out:${ref.key}:${v}`;
     ob.setAttribute("aria-pressed", String(cur===v));
-    ob.textContent = say("meal.outcome." + v);
+    const w = document.createElement("span"); w.className = "out-w"; w.textContent = say("meal.outcome." + v); ob.appendChild(w);
     ob.addEventListener("click", ()=>answerOffered(ref, v));
     g.appendChild(ob);
   });
-  if(!outcomeRisen.has(ref.key)){ outcomeRisen.add(ref.key); if(!calm()) requestAnimationFrame(()=>[...g.children].forEach((b, k)=>b.animate([{opacity:0, transform:"translateY(10px)"}, {opacity:1, transform:"none"}], {duration:320, delay:k * 60, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards"}))); }
+  if(!outcomeRisen.has(ref.key)){
+    outcomeRisen.add(ref.key);
+    const from = splitFrom && splitFrom.key===ref.key ? splitFrom : null;
+    splitFrom = null;
+    if(from && !calm()) requestAnimationFrame(()=>splitIn(g, from));
+  }
   return g;
+}
+/* the split, about 720 ms, transform and opacity only: the pill's label fades (0–120), its black drains to the outline
+   (120–260), the outline cracks into the three pills, touching, tiling its width (260–300: a near-cut, so the ghost's
+   straight edges never bridge them), they slide apart to their gaps (300–500), and their words come in left to right
+   (460–730). The pill itself is a ghost laid over the zone. */
+const SPLIT = {label:120, drain:[120, 140], part:[260, 40], slide:200, words:[460, 170, 50]};
+function splitIn(g, from){
+  const zone = $("offerZone"), z = zone.getBoundingClientRect();
+  const ghost = el("div", "offer-ghost");
+  ghost.setAttribute("aria-hidden", "true");
+  Object.assign(ghost.style, {left:from.x + "px", top:from.y + "px", width:from.w + "px", height:from.h + "px"});
+  const ink = el("span", "og-ink"), lbl = el("span", "og-lbl");
+  lbl.textContent = from.label; lbl.style.textTransform = from.tt; lbl.style.letterSpacing = from.ls;
+  ghost.append(ink, lbl);
+  zone.appendChild(ghost);
+  lbl.animate([{opacity:1}, {opacity:0}], {duration:SPLIT.label, easing:"ease-in", fill:"forwards"});
+  ink.animate([{opacity:1}, {opacity:0}], {duration:SPLIT.drain[1], delay:SPLIT.drain[0], easing:"ease-out", fill:"forwards"});
+  ghost.animate([{opacity:1}, {opacity:0}], {duration:SPLIT.part[1], delay:SPLIT.part[0], easing:"linear", fill:"forwards"}).onfinish = ()=>ghost.remove();
+  const bs = [...g.children], third = from.w / 3, total = SPLIT.part[1] + SPLIT.slide, fadeAt = SPLIT.part[1] / total;
+  bs.forEach((b, k)=>{
+    const r = b.getBoundingClientRect(), cx = r.left - z.left + r.width / 2, tx = from.x + (k + .5) * third;
+    const start = `translateX(${(tx - cx).toFixed(1)}px) scaleX(${(third / r.width).toFixed(3)})`;
+    b.animate([{opacity:0, transform:start, easing:"linear"}, {opacity:1, transform:start, offset:fadeAt, easing:"cubic-bezier(.25,1.1,.4,1)"}, {opacity:1, transform:"none"}],
+              {duration:total, delay:SPLIT.part[0], fill:"backwards"});
+    b.firstChild.animate([{opacity:0}, {opacity:1}], {duration:SPLIT.words[1], delay:SPLIT.words[0] + k * SPLIT.words[2], easing:"ease-out", fill:"backwards"});
+  });
 }
 /* it must never scroll the page: when the meal doesn't fit, the footer line goes first; anything still
    over scrolls inside the meal block (never cropped) */
