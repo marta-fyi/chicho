@@ -18,7 +18,9 @@ Where the brief's rules met each other, the principles won. Every number marked 
 
 ## Satoshi (12 Nov 2026, supersedes "Type. JetBrains Mono for everything")
 
-- **One face, Satoshi**, for the app and the desktop page (Marta: "do everything in Satoshi", the type roles left to us).
+- **One face, Satoshi**, for the app. The desktop page (`phone.html`, `frame.css`) is a case study, so it keeps marta.fyi's
+  Archivo (Google Fonts, 400 and 500, as on marta.fyi/work/chicho/; Marta, 12 Nov 2026). The app in its phone stays Satoshi.
+- Satoshi (Marta: "do everything in Satoshi", the type roles left to us).
   **Two weights**: 400 for text, 500 for whatever speaks up (headlines, sentences, titles, buttons, labels). Hierarchy
   is size and tracking, never bold, as before. Labels stay uppercase (sentence case in content.js).
 - **Tracking retuned for a grotesk**: headline and sentences -.035em (was -.02em), display -.03em, titles -.015em,
