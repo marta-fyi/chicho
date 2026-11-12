@@ -1,12 +1,11 @@
 /* Desktop, in a phone: the page around the iPhone 16 Pro frame. What Chicho is on the left (phone.html), the live app
    in its phone on the right (frame.js); one column, the description first, below 960px. The phone is drawn here, in
    CSS, at its real size in CSS px (a 402×874 screen), and scaled down as a whole to fit. */
-@font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-400.woff2") format("woff2");font-weight:400;font-display:swap;}
-@font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-500.woff2") format("woff2");font-weight:500;font-display:swap;}
+@font-face{font-family:"Satoshi";src:url("fonts/Satoshi-Variable.woff2") format("woff2");font-weight:300 900;font-display:swap;}
 :root{--fr-bg:#F2F2F7;--fr-ink:#121212;--fr-muted:rgba(18,18,18,.7);--fr-status:#000;color-scheme:light;}
 body.fr[data-theme="dark"]{--fr-bg:#0B0B0F;--fr-ink:#FFFFFF;--fr-muted:rgba(255,255,255,.7);--fr-status:#FFF;color-scheme:dark;}
 html, body.fr{margin:0;}
-body.fr{background:var(--fr-bg);color:var(--fr-ink);font:15px/1.55 "JetBrains Mono", ui-monospace, Menlo, monospace;}
+body.fr{background:var(--fr-bg);color:var(--fr-ink);font:15px/1.55 "Satoshi", system-ui, -apple-system, sans-serif;}
 
 /* the page: the description and the phone, side by side, their tops lined up, centred in the window with no scroll
    (the description's type and column scale together, --k on .fr-page, set by frame.js: as tall as the phone where

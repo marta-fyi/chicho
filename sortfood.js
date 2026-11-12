@@ -209,9 +209,9 @@ function mountSortFood(o){
     return n;
   }
   ui.namesIn = namesIn;
-  /* the names as one comma line that fits two lines of the cell (mono: every character is 0.6em), then "+n" */
+  /* the names as one comma line that fits two lines of the cell (each word measured: textEm, sortcore.js), then "+n" */
   function fitNames(names, width, px){
-    const per = Math.max(4, Math.floor(width / (px * MONO_ADVANCE)));
+    const per = Math.max(4 * .6, width / px);   // the line's width in ems
     for(let k = names.length; k >= 0; k--){
       const rest = names.length - k, text = names.slice(0, k).join(", ") + (rest ? (k ? " " : "") + sfSay("more", {n:rest}) : "");
       if(lineCount(text, per) <= 2) return text;
@@ -220,7 +220,8 @@ function mountSortFood(o){
   }
   function lineCount(text, per){
     let lines = 1, col = 0;
-    text.split(" ").forEach(w=>{ const l = w.length; if(col===0){ col = l; return; } if(col + 1 + l > per){ lines++; col = l; } else col += 1 + l; });
+    const sp = textEm(" ");
+    text.split(" ").forEach(w=>{ const l = textEm(w); if(col===0){ col = l; return; } if(col + sp + l > per){ lines++; col = l; } else col += sp + l; });
     return lines;
   }
   function paintPlaces(){

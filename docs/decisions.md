@@ -16,6 +16,29 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Satoshi (12 Nov 2026, supersedes "Type. JetBrains Mono for everything")
+
+- **One face, Satoshi**, for the app and the desktop page (Marta: "do everything in Satoshi", the type roles left to us).
+  **Two weights**: 400 for text, 500 for whatever speaks up (headlines, sentences, titles, buttons, labels). Hierarchy
+  is size and tracking, never bold, as before. Labels stay uppercase (sentence case in content.js).
+- **Tracking retuned for a grotesk**: headline and sentences -.035em (was -.02em), display -.03em, titles -.015em,
+  uppercase labels +.04em (was +.06em: Satoshi's capitals are wider than the mono's).
+- **Self-hosted as Fontshare ships it**: `fonts/Satoshi-Variable.woff2`, one file, 300 to 900, 43 KB (the two
+  JetBrains subsets were 28 KB). The Fontshare Free Font License allows self-hosting but forbids modifying the file,
+  so no subset. **Open:** the licence also bars making the file available on public servers and repositories, and this
+  repo is public. Marta chose to self-host anyway (12 Nov 2026); a private repo or Fontshare's CDN would close it.
+- **What assumed a mono face, and now measures Satoshi:**
+  - The Sort pile sized each label from its character count × 0.6em. `sortcore.js` now carries Satoshi 500's
+    advance for every ASCII character (`SATOSHI_500`, `textEm()`), read from the font file, so the pile, the label
+    sizes, the two-line split and the place names' "+n" all use real widths (Node runs it too, for the seeds).
+  - The birthday wheel's values: four tabular digits are 2.52em in Satoshi (0.66em each), so `/ 2.31` is `/ 2.55`.
+  - "Pull up a chair for" is 7.3em in Satoshi (was 11.4em in mono), so it sizes by `/ 7.5` and is 40px on every phone.
+  - Two text actions in one line ("22 things to pick up. Later"): Satoshi's space is ~4px (mono's was ~10px), so the
+    second one's margin is 13px (was 8px), keeping 8px between their 44px pads.
+- **Side effects, kept:** food lines fit their texture again ("Whole wheat pasta · 40 g · soft pieces"), and most hows
+  fit two lines, so "More" shows less often. Week keeps its reserved space under "We'll cook on 7 days." for the
+  1-to-7 hint; with the sentence on one line that gap reads larger.
+
 ## The desktop page says what Chicho is (27 Oct 2026)
 
 Marta: the desktop page now starts with a product description, and has a way back to her portfolio. Phones are unchanged: Chicho still opens straight into the app.

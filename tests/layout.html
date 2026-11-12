@@ -75,7 +75,9 @@ const fit = (d, W, H) => {
       ok(`${W}×${H}, six foods: 'and 3 more' opens all six inline`, $$2("#nowMeal .meal-foods li").length === 6);
       const howMore = $2('#nowMeal [data-f="meal:howmore"]');
       if (howMore) { howMore.click(); await wait(80); }
-      ok(`${W}×${H}: 'More' opens the how inline`, !$2("#nowMeal .meal-how .clamp"));
+      // no 'More' when the how already fits its two lines: then nothing of it is clipped
+      const howClamp = $2("#nowMeal .meal-how .clamp");
+      ok(`${W}×${H}: 'More' opens the how inline (or the how fits, with nothing clipped)`, howMore ? !howClamp : !howClamp || howClamp.scrollHeight <= howClamp.clientHeight + 1, howMore ? "More, still clamped" : howClamp && [howClamp.scrollHeight, howClamp.clientHeight]);
       r = fit(d, W, H);
       ok(`${W}×${H}, all open: the page still doesn't scroll and the pill stays on screen`, r.pageScroll <= 0 && r.bodyScroll <= 0 && r.inside, r);
       ok(`${W}×${H}, all open: overflow scrolls inside the meal block, never cropped`, !r.cropped && (!r.overflowing || r.scrolls), r);

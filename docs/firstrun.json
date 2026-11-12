@@ -1,56 +1,56 @@
 {
   "what": "Hello (played in full), then Draw (Type instead) to Home through Birthday, Allergens, Meal times (untouched), Reveal (played in full) and Done; scripted taps, no thinking time",
-  "medianMs": 9685,
-  "minMs": 9548,
-  "maxMs": 9817,
+  "medianMs": 9046,
+  "minMs": 8711,
+  "maxMs": 9318,
   "runs": [
     {
       "tag": "webkit iPhone SE light",
-      "ms": 9812
+      "ms": 9308
     },
     {
       "tag": "webkit iPhone SE dark",
-      "ms": 9817
+      "ms": 9310
     },
     {
       "tag": "webkit iPhone 14 light",
-      "ms": 9803
+      "ms": 9318
     },
     {
       "tag": "webkit iPhone 14 dark",
-      "ms": 9802
+      "ms": 9315
     },
     {
       "tag": "webkit iPhone 14 Pro Max light",
-      "ms": 9782
+      "ms": 9312
     },
     {
       "tag": "webkit iPhone 14 Pro Max dark",
-      "ms": 9811
+      "ms": 9310
     },
     {
       "tag": "chromium iPhone SE light",
-      "ms": 9576
+      "ms": 8771
     },
     {
       "tag": "chromium iPhone SE dark",
-      "ms": 9587
+      "ms": 8752
     },
     {
       "tag": "chromium iPhone 14 light",
-      "ms": 9548
+      "ms": 8749
     },
     {
       "tag": "chromium iPhone 14 dark",
-      "ms": 9568
+      "ms": 8729
     },
     {
       "tag": "chromium iPhone 14 Pro Max light",
-      "ms": 9582
+      "ms": 8784
     },
     {
       "tag": "chromium iPhone 14 Pro Max dark",
-      "ms": 9553
+      "ms": 8711
     }
   ]
 }

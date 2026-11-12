@@ -46,8 +46,7 @@ const CHICHO_DESKTOP = "(pointer: fine) and (min-width: 700px) and (min-height: 
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#DCDDDD">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#3D4662">
 <meta name="color-scheme" content="light dark">
-<link rel="preload" href="fonts/jbm-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/jbm-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Satoshi-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <script>
 /* The theme, before the first paint: Auto follows the system (prefers-color-scheme), or the family's choice
@@ -75,10 +74,9 @@ const CHICHO_DESKTOP = "(pointer: fine) and (min-width: 700px) and (min-height: 
 if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.name = "robots"; m.content = "noindex"; document.head.appendChild(m); }
 </script>
 <style>
-  /* the one face: JetBrains Mono, self-hosted (fonts/, see tools/make-fonts.sh), 400 and 500, shown with the
-     system mono until it arrives (swap) */
-  @font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-400.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap;}
-  @font-face{font-family:"JetBrains Mono";src:url("fonts/jbm-500.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap;}
+  /* the one face: Satoshi (Indian Type Foundry, Fontshare), self-hosted as Fontshare ships it (fonts/, see
+     tools/make-fonts.sh): one variable file, 300 to 900; Chicho uses 400 and 500. The system sans until it arrives (swap) */
+  @font-face{font-family:"Satoshi";src:url("fonts/Satoshi-Variable.woff2") format("woff2");font-weight:300 900;font-style:normal;font-display:swap;}
   /* ===== TOKENS: every colour lives here, and nowhere else (tools/check.mjs fails a colour in a component) =====
      Two themes share one layout, type and behaviour; only these values and the
      background differ. LIGHT "Paper & Glow": paper grey, fine grain, one soft
@@ -133,15 +131,15 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     /* spacing */
     --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
 
-    /* type: mono for everything. --font-display sets the headline and the onboarding sentences:
-       swap it for a grotesk in this one line and the rest stays mono. */
-    --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
-    --font-display:var(--font-mono);
-    --font:var(--font-mono);
-    --track-label:.06em;   /* labels and button text: uppercase in CSS, sentence case in content.js */
+    /* type: Satoshi for everything, two weights: 400 for text, 500 for whatever speaks up (headlines, sentences,
+       titles, buttons, labels). Hierarchy is size and tracking, never bold. --font-display sets the headline and
+       the onboarding sentences, so a second face would be one line. */
+    --font:"Satoshi",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --font-display:var(--font);
+    --track-label:.04em;   /* labels and button text: uppercase in CSS, sentence case in content.js */
     --fs-display:36px; --fs-title:22px; --fs-body:16px; --fs-caption:13px;
-    --fs-hero:40px; --track-hero:-.02em;   /* the one big headline per screen */
-    --track-display:-.02em; --track-title:-.01em;
+    --fs-hero:40px; --track-hero:-.035em;   /* the one big headline per screen */
+    --track-display:-.03em; --track-title:-.015em;
 
     /* motion */
     --spring:cubic-bezier(.32,1.25,.5,1);
@@ -368,7 +366,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .ink-blank{position:relative;display:inline-block;min-width:4ch;height:2.4em;vertical-align:bottom;}
   /* no underline (Marta, 3 Nov 2026): the space waits, and the name appears in it as it's drawn */
   .draw-lead, .sent-xl label{white-space:nowrap;}
-  .sent-xl{font-size:min(40px, calc((min(100vw, var(--col)) - var(--pad-l) - var(--pad-r)) / 11.6));}
+  .sent-xl{font-size:min(40px, calc((min(100vw, var(--col)) - var(--pad-l) - var(--pad-r)) / 7.5));}
   .ink-live{display:flex;justify-content:center;align-items:flex-end;height:100%;}
   .ink-mirror{display:block;height:100%;width:auto;max-width:min(76vw, 330px);}
   .pad-sheet .sh-in{position:relative;}
@@ -402,7 +400,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .bd-col::-webkit-scrollbar{display:none;}
   .bd-col:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;}
   .bd-it{height:72px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;cursor:pointer;
-         font-size:min(56px, calc((33.33cqw - 6px) / 2.31));font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;}
+         font-size:min(56px, calc((33.33cqw - 6px) / 2.55));font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;}
   .bd-v{display:block;}
   .bd-col.untouched .bd-v{opacity:.35;}
   .bd-labels{flex:none;display:grid;grid-template-columns:repeat(3, 1fr);margin-top:6px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:var(--track-label);color:var(--ink-muted);}
@@ -416,7 +414,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .bd-early{margin:0;font-size:13px;line-height:44px;}
   .bd-early .blank{min-width:2.5ch;}
   .bd-using{margin:-8px 0 0;font-size:13px;color:var(--ink-muted);}
-  @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.31));} .bd-sent{font-size:30px;} .bd-stage{min-height:88px;} }
+  @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.55));} .bd-sent{font-size:30px;} .bd-stage{min-height:88px;} }
   /* Allergens: the sentence, the locked line, then the pile fills what's left (at least 280px) */
   .al-sent{flex:none;margin-top:8px;}
   .al-blank{display:inline-block;width:3.2ch;height:.1em;min-height:3px;margin:0 .1em;border-radius:2px;background:currentColor;vertical-align:-.06em;}
@@ -1019,7 +1017,7 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   :is(button, a[href], [role="button"], summary){touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
   button.sf-shape{touch-action:none;}   /* the sort's shapes: the drag is theirs (after the rule above) */
   .btn-text.inline{display:inline-block;}
-  .btn-text.inline + .btn-text.inline{margin-left:8px;}   /* two text actions in one line: 8px between their 44px pads */
+  .btn-text.inline + .btn-text.inline{margin-left:13px;}   /* two text actions in one line: 8px between their 44px pads (Satoshi's space is only ~4px) */
   :is(button, a[href], [role="button"]):not(:disabled):active{transform:scale(.97);transition:transform 100ms var(--ease-out);}
   .ring-btn:not(:disabled):active{transform:none;}   /* the ring scales its circle instead, so its 44px pad doesn't move */
   /* last, so nothing above overrides it: a field is never under 16px (iOS zooms on focus below that) */

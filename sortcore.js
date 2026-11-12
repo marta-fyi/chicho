@@ -157,19 +157,24 @@ function labelLines(label){
   if(words.length < 2) return [words.join(" ")];
   let best = null;
   for(let k = 1; k < words.length; k++){
-    const a = words.slice(0, k).join(" "), b = words.slice(k).join(" "), m = Math.max(a.length, b.length);
+    const a = words.slice(0, k).join(" "), b = words.slice(k).join(" "), m = Math.max(textEm(a), textEm(b));
     if(!best || m < best.m) best = {m, lines:[a, b]};
   }
   return best.lines;
 }
-const MONO_ADVANCE = 0.6;   // JetBrains Mono: every glyph is 0.6em wide
+/* Satoshi at 500 (the label weight), each printable ASCII character's advance in thousandths of an em, U+0020 to
+   U+007E, read from fonts/Satoshi-Variable.woff2. The face is proportional, so a label's width is the sum of its
+   letters; anything outside ASCII (é, ñ) counts as a wide letter. Node runs this too (tools/seeds.mjs): no canvas. */
+const SATOSHI_500 = "273,294,372,696,577,932,707,208,279,279,411,660,276,431,276,376,693,364,575,568,636,591,611,520,625,611,296,296,660,660,660,533,924,662,639,743,722,583,555,765,722,267,529,643,522,860,734,777,625,777,654,577,562,711,669,1005,645,606,583,279,376,279,500,530,245,534,600,534,600,542,317,598,575,230,230,508,234,862,575,581,600,600,368,448,318,567,509,768,482,498,457,318,323,318,660";
+const ADVANCE = SATOSHI_500.split(",").map(Number), WIDE_EM = 0.78;
+function textEm(s){ let w = 0; for(const ch of String(s)){ const c = ch.charCodeAt(0); w += c >= 32 && c < 127 ? ADVANCE[c - 32] / 1000 : WIDE_EM; } return w; }
 /* the label's size: as big as fits LABEL_FIT of the width, between 11 and 14px */
 function labelSize(label, w){
-  const C = SORT_CONFIG, n = Math.max(...labelLines(label).map(l=>l.length));
-  return Math.max(C.LABEL_PX[0], Math.min(C.LABEL_PX[1], Math.floor(w * C.LABEL_FIT / (n * MONO_ADVANCE) * 10) / 10));
+  const C = SORT_CONFIG, em = Math.max(...labelLines(label).map(textEm));
+  return Math.max(C.LABEL_PX[0], Math.min(C.LABEL_PX[1], Math.floor(w * C.LABEL_FIT / em * 10) / 10));
 }
 /* the narrowest width that still fits the label at 11px */
-function labelNeed(label){ const n = Math.max(...labelLines(label).map(l=>l.length)); return n * MONO_ADVANCE * SORT_CONFIG.LABEL_PX[0] / SORT_CONFIG.LABEL_FIT; }
+function labelNeed(label){ return Math.max(...labelLines(label).map(textEm)) * SORT_CONFIG.LABEL_PX[0] / SORT_CONFIG.LABEL_FIT; }
 
 /* Sizes for the pile: together they cover COVERAGE of the field, each weighted by its label's length
    (0.8 + 0.04 per character), the shorter side between MIN_D and MAX_D and never too narrow for its label. scale < 1

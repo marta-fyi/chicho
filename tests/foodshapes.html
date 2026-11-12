@@ -26,7 +26,7 @@ f.onload = async () => {
     // labels
     ok("labels: two balanced lines at most ('BUTTERNUT / SQUASH', 'GREEN / BEANS', 'TREE / NUTS'); one word stays one line", E("labelLines('Butternut squash').join('/')") === "BUTTERNUT/SQUASH" && E("labelLines('Tree nuts').join('/')") === "TREE/NUTS" && E("labelLines('Strawberries').length") === 1 && E("labelLines('Chia seeds').length") === 2);
     const sizes = E(`FOODS.filter(f => f.group !== "other").map(f => { const d = sizeShapes([{label: f.label, shape: {aspect: 1}}], {w: 1, h: 1})[0]; return [f.label, d, labelSize(f.label, d)]; })`);
-    ok("every food's label fits its narrowest shape at 11–14px (LABEL_FIT of the width)", sizes.every(([l, d, px]) => px >= 11 && px <= 14 && Math.max(...E(`labelLines(${J(l)})`).map(x => x.length)) * 0.6 * px <= d * C.LABEL_FIT + .5), sizes.filter(([l, d, px]) => !(px >= 11 && px <= 14 && Math.max(...E(`labelLines(${J(l)})`).map(x => x.length)) * 0.6 * px <= d * C.LABEL_FIT + .5)));
+    ok("every food's label fits its narrowest shape at 11–14px (LABEL_FIT of the width)", sizes.every(([l, d, px]) => px >= 11 && px <= 14 && E(`Math.max(...labelLines(${J(l)}).map(textEm))`) * px <= d * C.LABEL_FIT + .5), sizes.filter(([l, d, px]) => !(px >= 11 && px <= 14 && E(`Math.max(...labelLines(${J(l)}).map(textEm))`) * px <= d * C.LABEL_FIT + .5)));
     // sizing and packing: the first pile and a twelve-shape everyday pile, at the three phones' fields
     const big = E("SORT_CONFIG.bigFoods.map(id => ({id, label: FOOD_BY_ID[id].label}))");
     const veg = E("sortEverydayFoods(24).filter(f => f.group === 'veg').slice(0, 11).map(f => ({id: f.id, label: f.label})).concat([{id: '+else', label: 'Something else'}])");
