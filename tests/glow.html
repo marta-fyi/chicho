@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top}</style></head>
 <body>
 <h1>Glow tests</h1>
-<p>The light theme's backdrop: paper grain and one glow per screen. Home's follows the meal's food group (crossfading, one pulse when offered); Shuffle is Protein, Kitchen Veg, New week Fruit, Profile Grains, crossfading as the camera pans; the backdrop moves at 0.3x of the camera; the breath; 55% after 21:30; the default with no plan. In dark, no glow: the night sky pans instead. Every line should be PASS.</p>
+<p>The light theme's backdrop: paper grain and one glow per screen. Home's follows the meal's food group (crossfading, one pulse when offered); Shuffle is Protein, Kitchen Veg, New week Fruit, Profile Grains, crossfading as the camera pans; the backdrop moves at 0.3x of the camera; no breath (still); 55% after 21:30; the default with no plan. In dark, no glow: the night sky pans instead. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -23,8 +23,10 @@ f.onload = async () => {
     setup(18); await wait(300);
     const shown = () => E("homeRef().ref");
     ok("theme.js holds the five glow colours, Grains the reference's yellow and the default", E("Object.keys(GLOW).join()") === "grain,vegetable,fruit,protein,fat" && E("GLOW.grain.hex") === "#FFE56B" && E("GLOW_DEFAULT") === "grain");
-    ok("the gradient is generated from the hex as rgba stops (no color-mix)", /^radial-gradient\(circle closest-side, rgba\(131,131,138,1\) 0\.0%/.test(E("glowGradient('#FFE56B')")) && !/color-mix/.test(E("glowGradient('#FFE56B')")));
-    ok("…a grey nucleus that has become the full colour by a third of the radius", E("glowAt(.32, '#FFE56B').slice(0, 3).join()") === "255,229,107");
+    ok("the gradient is generated from the hex as rgba stops (no color-mix)", /^radial-gradient\(circle closest-side, rgba\(242,212,64,1\) 0\.0%/.test(E("glowGradient('#FFE56B')")) && !/color-mix/.test(E("glowGradient('#FFE56B')")));
+    ok("…a nucleus of the same colour a touch deeper (OKLab, GLOW_SHADE), the full colour by a third of the radius", E("glowAt(0, '#FFE56B').slice(0, 3).join()") === E("glowCore('#FFE56B').join()") && E("GLOW_SHADE.dl") === .05);
+    ok("…and no grey left in it: the nucleus keeps the colour's hue", E("GLOW.fruit && glowAt(0, GLOW.fruit.hex)[0] > glowAt(0, GLOW.fruit.hex)[1]"));
+    ok("…which has become the full colour by a third of the radius", E("glowAt(.32, '#FFE56B').slice(0, 3).join()") === "255,229,107");
     ok("…and nothing at the edge", E("glowAt(1, '#FFE56B')[3]") === 0);
     const group = () => d.documentElement.dataset.glow;
     ok("Home's glow is the shown meal's main food group", group() === E("glowGroup(" + JSON.stringify(shown().m.items[0].cats[0]) + ")"), [group(), shown().m.items[0].cats[0]]);
@@ -51,9 +53,8 @@ f.onload = async () => {
       E(`go("${k}", {quiet: true})`); await wait(750);
       const shares = Object.fromEntries(["home", ...Object.keys(want)].map(s => [s, scr(s).style.opacity]));
       ok(`on ${k}: its glow shows, the others don't`, shares[k] === "1" && Object.entries(shares).every(([s, v]) => s === k || v === "0"), shares);
-      // (the breath scales the layers' offsets by up to 5%, so allow for it)
       const s = R(scr(k)), mid = [(s.left + s.right) / 2, (s.top + s.bottom) / 2], gy = parseFloat($("#glowPulse").style.getPropertyValue("--glow-y")), r = Math.abs(E(`LAYOUT.${k}[1]`)), c = Math.abs(E(`LAYOUT.${k}[0]`));
-      ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) <= .06 * .3 * 390 * c + 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= .06 * (.3 * 844 * r + gy) + 3, [mid, gy]);
+      ok(`on ${k}: its glow is centred on the column, behind the pinned header (ink), not the muted text below`, Math.abs(mid[0] - 195) <= 2 && Math.abs(mid[1] - E("SCREEN_GLOW_Y")) <= 3, [mid, gy]);
       E(`go("home", {quiet: true})`); await wait(750);
     }
     // the Kitchen: its own glow in the scroll area (Veg, 70%, a wider and lighter nucleus), scrolling away with the content
@@ -61,7 +62,7 @@ f.onload = async () => {
     const kg = $("#scr-kitchen .k-glow"), kb = $("#scr-kitchen .k-body");
     ok("the Kitchen's glow is Veg, in the scroll area, at 70%", kg && kg.parentNode === kb && kg.style.backgroundImage.replace(/\s/g, "").includes(E("hexRGB(GLOW.vegetable.hex).join()")) && w.getComputedStyle(kg).opacity === "0.7");
     ok("…not on the backdrop plane (its layer there is empty, and dark there on the Kitchen)", !scr("kitchen").style.backgroundImage && scr("home").style.opacity === "0");
-    ok("…its nucleus holds to 9% of the radius and is lighter than Home's", E("KITCHEN_GLOW.core") === .09 && E("glowAt(.08, GLOW.vegetable.hex, KITCHEN_GLOW).slice(0, 3).join()") === E("hexRGB(KITCHEN_GLOW.coreHex).join()") && E("hexRGB(KITCHEN_GLOW.coreHex)[0]") > E("hexRGB(GLOW_CORE)[0]"));
+    ok("…its nucleus holds to 9% of the radius, Veg a touch deeper", E("KITCHEN_GLOW.core") === .09 && E("glowAt(.08, GLOW.vegetable.hex, KITCHEN_GLOW).slice(0, 3).join()") === E("glowCore(GLOW.vegetable.hex).join()"));
     const t0 = R(kg).top; kb.scrollTop = 200; await wait(50);
     ok("…and it scrolls away with the content", Math.abs((t0 - R(kg).top) - kb.scrollTop) < 1, [t0, R(kg).top, kb.scrollTop]);
     kb.scrollTop = 0; await wait(30);
@@ -77,12 +78,9 @@ f.onload = async () => {
     ok("down one screen: the backdrop moves 0.3 of a screen", Math.abs(new w.DOMMatrix(w.getComputedStyle($("#glowPlane")).transform).m42 + 844 * .3) < .5);
     E("applyCamera(0, 0)");
     ok("only transform and opacity animate on the camera and the backdrop", [$("#camera"), $("#glowPlane"), $("#bgSky")].every(el => w.getComputedStyle(el).transitionProperty === "all" ? w.getComputedStyle(el).transitionDuration === "0s" : true));
-    // the breath
-    const g = w.getComputedStyle($(".glow"));
-    ok("the breath: 10s, ease-in-out, infinite", g.animationName === "breathe" && g.animationDuration === "10s" && g.animationIterationCount === "infinite" && g.animationTimingFunction === "ease-in-out");
+    // still
     const css = [...d.styleSheets[0].cssRules].map(r => r.cssText).join("\n");
-    ok("…scale 1 → 1.05 and opacity .94 → 1", /@keyframes breathe \{\s*0%, 100% \{ transform: scale\(1\); opacity: 0\.94; \}\s*50% \{ transform: scale\(1\.05\); opacity: 1; \}/.test(css));
-    ok("…paused when the tab is hidden, off under reduced motion", /\.tab-hidden \.glow \{ animation-play-state: paused; \}/.test(css) && /prefers-reduced-motion: reduce[^]*?\.glow \{ animation: (none|auto ease 0s 1 normal none running none); \}/.test(css));
+    ok("no breath: the glow is still", [...d.querySelectorAll(".glow")].every(el => w.getComputedStyle(el).animationName === "none") && !/@keyframes breathe/.test(css));
     // geometry
     const pulse = $("#glowPulse"), hl = $("#headline");
     ok("one glow, ~150% of the column, square", Math.abs(R(pulse).width - 1.5 * R($("#home")).width + 1.5 * 40) < 3 && Math.abs(R(pulse).width - R(pulse).height) < 1, [R(pulse).width, R($("#home")).width]);

@@ -284,7 +284,7 @@ function kitchenShell(){
   // ever clipped behind it at rest; what scrolls under it is blurred
   const fit = ()=>{
     const hh = head.offsetHeight; body.style.paddingTop = hh + "px"; body.style.scrollPaddingTop = hh + "px"; e.style.setProperty("--kh", hh + "px");
-    // the glow's grey nucleus sits where no control is: right of the view switch's last label, level with the
+    // the glow's nucleus sits where no control is: right of the view switch's last label, level with the
     // switch's bottom edge (clear of In the store, on the title's row above), in the scroll area's coordinates
     const sw = head.querySelector(".k-switch"), tabs = head.querySelectorAll(".k-tab"), last = tabs[tabs.length - 1], b = body.getBoundingClientRect();
     if(!last) return;

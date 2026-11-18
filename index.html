@@ -91,7 +91,6 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
     --sheet:#F6F6F4;                 /* the sheet's surface */
     --scrim:rgba(18,18,18,.28);
     --glow:#FFE56B;                  /* the glow (the open meal's food group sets it) */
-    --glow-core:#83838A;             /* its grey nucleus */
     --ink-pastel:#121212;            /* text on a food-group colour (the bubbles), the same in both themes */
     --on-ink:var(--sheet);           /* text on an ink-filled pill */
     --handle:rgba(18,18,18,.25);
@@ -691,16 +690,14 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   [data-theme="dark"] .glow-plane{display:none;}
   .glow-pulse{position:absolute;left:50%;top:var(--glow-y, 160px);width:var(--glow-size);height:var(--glow-size);translate:-50% -50%;transition:opacity 1.2s ease-in-out;}
   .glow-dim .glow-pulse{opacity:.55;}
-  .glow{position:absolute;inset:0;animation:breathe 10s ease-in-out infinite;will-change:transform, opacity;}
-  @keyframes breathe{0%, 100%{transform:scale(1);opacity:.94;} 50%{transform:scale(1.05);opacity:1;}}
-  .tab-hidden .glow{animation-play-state:paused;}
+  .glow{position:absolute;inset:0;}   /* still: no breath */
   .glow-s{position:absolute;inset:0;opacity:0;}
   .glow-s.home-on{opacity:1;}
   .glow-l{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease-in-out;}
   .glow-l.is-on{opacity:1;}
   .glow-grain{position:absolute;inset:0;background:url("img/grain.png") 0 0 / 128px 128px;
               -webkit-mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);mask-image:radial-gradient(circle closest-side, black 30%, transparent 100%);}
-  @media (prefers-reduced-motion: reduce){ .glow{animation:none;} .glow-l{transition-duration:.3s;} }
+  @media (prefers-reduced-motion: reduce){ .glow-l{transition-duration:.3s;} }
 
   /* ---------- Home: offer ---------- */
   .corners{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}

@@ -19,7 +19,7 @@
 // docs/screenshots/: every screen for every device, engine and theme, plus (WebKit iPhone 14, both themes) the
 // offered states, Change, In the store, the New week preview, Profile's sections, a mid-swipe, each glow colour and
 // every onboarding step. --quick skips the screenshots.
-// --perf adds the throttled run (--perf-only runs just that) (Chromium, 4× CPU, Slow 4G): first paint and the cost of the grain and the breath.
+// --perf adds the throttled run (--perf-only runs just that) (Chromium, 4× CPU, Slow 4G): first paint and the cost of the grain on a still page.
 // Safe-area insets can't be emulated here; the real-iPhone list in docs/decisions.md covers them.
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -373,18 +373,16 @@ if (args.has("--perf") || args.has("--perf-only")) {
     const home = performance.getEntriesByName("chicho:home")[0];   // the headline and the meal are on screen
     r({firstHome: home && Math.round(home.startTime), fcp: fcp && Math.round(fcp.startTime), lcp: lcp && Math.round(lcp.startTime), cls: +cls.toFixed(4), bytes: performance.getEntriesByType("resource").reduce((n, e) => n + (e.transferSize || 0), 0) + (performance.getEntriesByType("navigation")[0].transferSize || 0)});
   }, 3000)));
-  // the breath: main-thread time over 6 s of a still page, with it on and then off (nothing else may tick: a rAF
-  // frame counter would itself force main-thread frames), then the frame rate with it on (grain: static either way)
+  // the still page: main-thread time over 6 s (nothing may tick: a rAF frame counter would itself force
+  // main-thread frames, so the frame rate is measured after)
   await cdp.send("Performance.enable");
   const metrics = async () => Object.fromEntries((await cdp.send("Performance.getMetrics")).metrics.map(m => [m.name, m.value]));
   const busy = async () => { const a = await metrics(); await page.waitForTimeout(6000); const b = await metrics();
     return {mainThreadMsPerSec: Math.round((b.TaskDuration - a.TaskDuration) / 6 * 1000), styleMsPerSec: Math.round((b.RecalcStyleDuration - a.RecalcStyleDuration) / 6 * 1000)}; };
   const frames = async () => page.evaluate(() => new Promise(r => { let n = 0, worst = 0, last = performance.now(); const t0 = last;
     const f = now => { n++; worst = Math.max(worst, now - last); last = now; if (now - t0 < 6000) requestAnimationFrame(f); else r({fps: +(n / ((now - t0) / 1000)).toFixed(1), worstFrameMs: Math.round(worst)}); }; requestAnimationFrame(f); }));
-  const breathOn = Object.assign(await busy(), await frames());
-  await page.addStyleTag({content: ".glow{animation:none !important}"});
-  const breathOff = await busy();
-  const perf = {profile: "Chromium, iPhone 14, 4× CPU, Slow 4G (150ms, 1.6 Mb/s)", ...paint, breathOn, breathOff};
+  const still = Object.assign(await busy(), await frames());
+  const perf = {profile: "Chromium, iPhone 14, 4× CPU, Slow 4G (150ms, 1.6 Mb/s)", ...paint, still};
   console.log("\nperf " + JSON.stringify(perf, null, 1));
   ok("throttled first meaningful paint (the headline and the meal) under 1.5 s", paint.firstHome && paint.firstHome < 1500, paint);
   ok("no layout shift on load", paint.cls < .01, paint.cls);

@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;margin:0 8px 8px 0;vertical-align:top}</style></head>
 <body>
 <h1>Contrast tests</h1>
-<p>AA over the glow, for all five colours. First the three zones the brief names (the nucleus, the glow's brightest zone, the plain grey); then every functional text on light Home, against the colour actually behind it, computed from the same stops the glow is drawn with (theme.js), at both ends of the breath and dimmed; the ink pill's own text; then every text and ring on the other four screens over their own glow. Functional text must reach 4.5:1, rings 3:1. Decorative, aria-hidden text is exempt. The grain (specks up to 13% alpha) is not modelled. Every line should be PASS.</p>
+<p>AA over the glow, for all five colours. First the three zones the brief names (the nucleus, the glow's brightest zone, the plain grey); then every functional text on light Home, against the colour actually behind it, computed from the same stops the glow is drawn with (theme.js), at full strength and dimmed; the ink pill's own text; then every text and ring on the other four screens over their own glow. Functional text must reach 4.5:1, rings 3:1. Decorative, aria-hidden text is exempt. The grain (specks up to 13% alpha) is not modelled. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
 const out = [], ok = (name, cond, got) => out.push((cond ? "PASS " : "FAIL ") + name + (cond ? "" : "  → got " + JSON.stringify(got)));
@@ -64,7 +64,7 @@ const load = (W, H) => new Promise(res => {
           const r = el.getBoundingClientRect(), fg = parse(w.getComputedStyle(el).color);
           const pts = [[r.left + 2, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 2, r.top + r.height / 2], [r.left + r.width / 2, r.top + 2], [r.left + r.width / 2, r.bottom - 2]];
           let min = 99;
-          for (const [x, y] of pts) for (const [s, a] of [[1, .94], [1.05, 1], [1, .55]]) min = Math.min(min, ratio(fg, behind(x, y, s, a)));
+          for (const [x, y] of pts) for (const [s, a] of [[1, 1], [1, .55]]) min = Math.min(min, ratio(fg, behind(x, y, s, a)));
           if (min < 4.5) worst.push([el.className || el.tagName, el.textContent.trim().slice(0, 24), min.toFixed(2)]);
         }
         ok(`${W}×${H}, ${g}: every functional text ≥ 4.5:1 against what's behind it`, worst.length === 0 && texts.length > 8, [texts.length, worst.slice(0, 5)]);
@@ -87,7 +87,7 @@ const load = (W, H) => new Promise(res => {
         for (const el of texts) {
           const r = el.getBoundingClientRect(), fg = parse(w.getComputedStyle(el).color);
           let min = 99;
-          for (const [x, y] of [[r.left + 2, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 2, r.top + r.height / 2]]) for (const [s, a] of [[1, .94], [1.05, 1]]) min = Math.min(min, ratio(fg, behind(x, y, s, a)));
+          for (const [x, y] of [[r.left + 2, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 2, r.top + r.height / 2]]) for (const [s, a] of [[1, 1]]) min = Math.min(min, ratio(fg, behind(x, y, s, a)));
           if (min < 4.5) worst.push([el.className || el.tagName, el.textContent.trim().slice(0, 24), min.toFixed(2)]);
         }
         ok(`${k}: every functional text on screen ≥ 4.5:1 over its ${g} glow`, worst.length === 0 && texts.length > 5, [texts.length, worst.slice(0, 5)]);
