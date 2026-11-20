@@ -16,6 +16,15 @@ Where the brief's rules met each other, the principles won. Every number marked 
 | Secondary text at 70% | 85%, never lower; hairlines 20%. Section labels ("Up next", "While you're at it") are full ink: at 85% the night sky measured 4.2:1. | Look |
 | Variety on the landing page | Moved below the fold, with the week. | 1 |
 
+## Onboarding, subtracted (18 to 20 Nov 2026, supersedes "Born early" and "Use the usual")
+
+- **No "Born early?"** (Marta, 20 Nov 2026). The link, the "Born ____ weeks early." field and "We're using {n} months, counting from the due date." are gone, and with them the corrected age: `ageNow()` is the age from the birth date. An old save's `bornEarlyWeeks` is kept but no longer read, since nothing could show or change it. **Conflict, needs a pediatric source:** for a baby born early, guidance usually times first solids by corrected age, so a premature baby's plan can now start a few weeks before that guidance would. If it comes back, it belongs in Profile, not onboarding.
+- **No "Use the usual"** on meal times, and so no "Back to the usual. Undo" line. Dragging each meal is the only way to change them; Next with nothing touched still answers "default".
+- **No trailing punctuation on the sentence headlines** that end in a blank or lead into the answer: "Pull up a chair for ____", "{name} showed up on", "{name} usually eats around", "Already in the kitchen". Alone under an empty blank, the full stop read as a stray dot.
+- **Reveal holds one glow** (Done's blue) instead of cycling through the five food groups while the statements go by.
+- **"Do it again"** is an outlined pill with no underline.
+- **The glow** has no grey nucleus (its own colour, a touch deeper, in OKLab) and no breath: nothing on the page loops.
+
 ## Satoshi (12 Nov 2026, supersedes "Type. JetBrains Mono for everything")
 
 - **One face, Satoshi**, for the app. The desktop page (`phone.html`, `frame.css`) is a case study, so it keeps marta.fyi's

@@ -79,7 +79,7 @@ function openOnboarding(step, opts){
   // a first run (or a replay) opens on the welcome; test pages skip it unless they ask for it (?hello)
   const helloOk = !/[?&]test\b/.test(location.search) || /[?&]hello\b/.test(location.search);
   if(step==="draw" && !onb.single && !onb.welcomeBack && helloOk && (onb.replay || (!P.name && !P.ink))){ onb.helloSub = onb.sub; onb.step = "hello"; }
-  onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null; onb.early = false;
+  onb.draft = null; onb.revealed = step==="reveal"; onb.revealPlayed = step==="reveal"; onb.adding = false; onb.bd = null;
   document.body.classList.add("onb-open");
   document.getElementById("app").inert = true; document.body.classList.add("is-onb");
   const el = document.getElementById("onboarding");
@@ -634,13 +634,6 @@ function bdOrder(locale){
     .map(p=>p.type).filter(t=>t==="day" || t==="month" || t==="year");
 }
 const daysIn = (y, m)=>new Date(y, m + 1, 0).getDate();
-/* age in months, corrected for a baby born early (weeks before the due date) until 24 months (verify) */
-function correctedMonths(iso, weeks){
-  const m = ageMonths(iso);
-  if(m===null || !weeks || m >= 24) return m;
-  const b = localDate(iso);
-  return ageMonths(isoOf(new Date(b.getFullYear(), b.getMonth(), b.getDate() + weeks * 7)));
-}
 const BD_ROW = 72;
 const BD_FADE = [[1, 1], [.45, .86], [.22, .74], [.1, .64]];   // [opacity, scale] at 0, 1, 2, 3+ rows from the band
 /* one column: role=spinbutton over a native snapping scroller. o: {key, label, items:[{v, text, full}], value, touched, onPick(v)} */
@@ -774,32 +767,8 @@ function onbBirthday(card, P){
     paintStage(date);
     next.ready(!!date);
   };
-  // "Born early?" sits small in the bottom-left corner, above Next, in sentence case (Marta, 18 Nov 2026); the stage
-  // block says the age and the stage
-  const top = document.createElement("div");
-  top.className = "bd-top";
-  let topSig = null;
-  function paintTop(m){
-    const sig = (onb.early || P.bornEarlyWeeks ? "open" : "link") + ":" + (P.bornEarlyWeeks || 0) + ":" + m;
-    if(sig===topSig) return;
-    topSig = sig;
-    const had = top.querySelector(".blank-input")===document.activeElement;
-    top.innerHTML = "";
-    if(onb.early || P.bornEarlyWeeks){
-      const b = blank({value:P.bornEarlyWeeks ? String(P.bornEarlyWeeks) : "", min:2, maxLength:2, inputmode:"numeric", enterkeyhint:"done", label:say("onb.birthday.weeksLabel"),
-        onInput:v=>{ const n = +v; P.bornEarlyWeeks = /^\d{1,2}$/.test(v) && n >= 1 && n <= 20 ? n : 0; b.set(P.bornEarlyWeeks ? "ok" : ""); save(); onb.early = true; shownStage = ""; check(); }});
-      b.set(P.bornEarlyWeeks ? "ok" : "");
-      const s = sentence(say("onb.birthday.early"), {blank:b}, "bd-early");
-      s.removeAttribute("id"); s.removeAttribute("tabindex");
-      const p = document.createElement("p"); p.className = "bd-early"; while(s.firstChild) p.appendChild(s.firstChild);
-      top.appendChild(p);
-      if(P.bornEarlyWeeks && m!==null) top.appendChild(line(say("onb.birthday.using", {months:m}), "bd-using"));
-      if(had){ const g = top.querySelector(".blank-input"); g.focus(); const n = g.value.length; g.setSelectionRange(n, n); }
-    }else top.appendChild(textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; topSig = null; check(); const f = top.querySelector(".blank-input"); if(f) f.focus(); }, "small inline bd-early-link"));
-  }
   function paintStage(date){
-    const m = date ? correctedMonths(isoOf(date), P.bornEarlyWeeks) : null;
-    paintTop(m);
+    const m = date ? ageMonths(isoOf(date)) : null;
     const st = m===null ? null : stageFor(m);
     const sig = m===null ? "" : (st.solids ? st.id : "milk") + ":" + m;
     if(sig===shownStage) return;
@@ -842,7 +811,7 @@ function onbBirthday(card, P){
     box.append(cols, labels);
   };
   columns();
-  card.append(box, msg, stage, top, live);
+  card.append(box, msg, stage, live);
   next = onbCta(card, say("onb.next"), ()=>{ if(next.getAttribute("aria-disabled")==="true") return; P.exploreEarly = false; save(); nextStep(); },
                 {ready:false, extra:[]});
   check();

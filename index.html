@@ -408,11 +408,6 @@ if(/^#\/s\//.test(location.hash)){ const m = document.createElement("meta"); m.n
   .bd-tag{margin:0;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.25;}
   .bd-tag.milk{font-size:18px;line-height:1.35;text-wrap:balance;}
   .bd-line{margin:4px 0 0;font-size:16px;color:var(--ink-muted);}
-  .bd-top{flex:none;align-self:stretch;display:flex;flex-direction:column;align-items:flex-start;margin-top:auto;min-height:44px;font-size:13px;color:var(--ink-muted);}
-  .bd-top .btn-text{font-size:13px;color:var(--ink-muted);}
-  .bd-early{margin:0;font-size:13px;line-height:44px;}
-  .bd-early .blank{min-width:2.5ch;}
-  .bd-using{margin:-8px 0 0;font-size:13px;color:var(--ink-muted);}
   @media (max-height:700px){ .bd-it{font-size:min(48px, calc((33.33cqw - 6px) / 2.55));} .bd-sent{font-size:30px;} .bd-stage{min-height:88px;} }
   /* Allergens: the sentence, the locked line, then the pile fills what's left (at least 280px) */
   .al-sent{flex:none;margin-top:8px;}
@@ -1289,10 +1284,11 @@ function birthDateFromMonths(m, at){
   const d = new Date(first.getFullYear(), first.getMonth(), Math.min(n.getDate(), days));
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-/* the age everything plans for: corrected for a baby born early, until 24 months (correctedMonths, onboarding.js; verify) */
+/* the age everything plans for: from the birth date (no born-early correction since 20 Nov 2026; an old save's
+   bornEarlyWeeks is kept but not read: see docs/decisions.md) */
 function ageNow(){
   const P = state.profile;
-  const m = P && P.birthDate ? (typeof correctedMonths==="function" ? correctedMonths(P.birthDate, P.bornEarlyWeeks) : ageMonths(P.birthDate)) : null;
+  const m = P && P.birthDate ? ageMonths(P.birthDate) : null;
   return m===null ? 10 : m;
 }
 

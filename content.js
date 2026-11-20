@@ -250,9 +250,6 @@ const CONTENT = {
       future:"That day hasn't happened yet.",
       old:"This table is set for ages 0 to 3. Check the date?",
       stageAt:"At {months}, {tagline}.",
-      bornEarly:"Born early?",
-      early:"Born {blank} weeks early.", weeksLabel:"Weeks early",
-      using:"We're using {months}, counting from the due date.",
       milk:{one:"Milk is all {name} needs for now. We'll save a seat for {n} more month.",
             other:"Milk is all {name} needs for now. We'll save a seat for {n} more months."},
       nothingYet:"Nothing to cook yet."

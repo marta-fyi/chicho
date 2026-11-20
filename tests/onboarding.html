@@ -93,8 +93,7 @@ f.onload = async () => {
     ok("all three: 14 December 2025, saved", E("state.profile.birthDate") === "2025-12-14" && next().getAttribute("aria-disabled") === "false" && d.querySelector(".bd-msg").textContent === "", E("state.profile.birthDate"));
     ok("the stage, with the age: 'At 10 months, fingers first.' · '3 meals · lumpy mash and finger foods'",
        d.querySelector(".bd-tag").textContent === "At 10 months, fingers first." && d.querySelector(".bd-line").textContent === "3 meals · lumpy mash and finger foods", d.querySelector(".bd-tag").textContent);
-    { const l = d.querySelector(".bd-top .bd-early-link"), lr = l.getBoundingClientRect(), cr = d.getElementById("onbCard").getBoundingClientRect(), fr = d.getElementById("onbFoot").getBoundingClientRect();
-      ok("'Born early?' sits small in the bottom-left corner, above Next, not in caps; no 'Type the date'", l.textContent === "Born early?" && w.getComputedStyle(l).textTransform === "none" && Math.abs(lr.left - cr.left) < 24 && lr.bottom <= fr.top + 1 && fr.top - lr.bottom < 80 && d.querySelector(".bd-top").compareDocumentPosition(d.querySelector(".bd")) === 2 && !d.querySelector(".bd-type"), [lr.left, cr.left, lr.bottom, fr.top]); }
+    ok("no 'Born early?' (Marta, 20 Nov 2026) and no 'Type the date'", !d.querySelector(".bd-early-link") && !d.querySelector(".bd-type"));
     key("year", "ArrowUp");
     ok("a future date: 'That day hasn't happened yet.', no Next", d.querySelector(".bd-msg").textContent === "That day hasn't happened yet." && next().getAttribute("aria-disabled") === "true");
     key("day", "End"); key("month", "Home"); key("month", "ArrowUp");

@@ -82,18 +82,11 @@ f.onload = async () => {
     ok("…with its functional line", d.querySelector(".bd-line").textContent === "3 meals + 2 snacks · bite-size family food");
     ok("a valid, touched date is saved and Next is ready", E("state.profile.birthDate") === E("birthDateFromMonths(24)") && next().getAttribute("aria-disabled") === "false");
 
-    // born early
+    // no born early (Marta, 20 Nov 2026): no link, no weeks field, the age straight from the date
     at(18);
-    d.querySelector(".bd-early-link").click(); await wait(50);
-    const wk = d.querySelector(".bd-top .blank-input");
-    ok("'Born early?' opens 'Born ____ weeks early.' in the corner, its field focused", !!wk && d.activeElement === wk && d.querySelector(".bd-top .bd-early").textContent.replace(/\s+/g, " ").trim() === "Born weeks early.");
-    wk.value = "8"; wk.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(50);
-    ok("8 weeks early at 18 months: the plan uses 16, and says so", E("ageNow()") === 16 && tag() === "At 16 months, a seat at the family table." && d.querySelector(".bd-using").textContent === "We're using 16 months, counting from the due date.", [E("ageNow()"), tag()]);
-    ok("…kept as bornEarlyWeeks", E("state.profile.bornEarlyWeeks") === 8);
-    E("correctedMonths(birthDateFromMonths(6), 10)") === 3 ? ok("6 months, 10 weeks early: 3 months corrected", true) : ok("6 months, 10 weeks early: 3 months corrected", false, E("correctedMonths(birthDateFromMonths(6), 10)"));
-    ok("no correction from 24 months", E("correctedMonths(birthDateFromMonths(26), 8)") === 26);
-    const wk2 = d.querySelector(".bd-top .blank-input"); wk2.value = "25"; wk2.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(50);
-    ok("weeks outside 1–20 don't count", E("state.profile.bornEarlyWeeks") === 0 && E("ageNow()") === 18);
+    ok("no 'Born early?' and no weeks field", !d.querySelector(".bd-early-link, .bd-top, .bd-early") && !/born early/i.test(d.getElementById("onbCard").textContent));
+    E("state.profile.bornEarlyWeeks = 8"); ok("…and an old save's bornEarlyWeeks no longer moves the age", E("ageNow()") === 18);
+    E("delete state.profile.bornEarlyWeeks");
 
     // errors
     setDate(2026, 12, 1);
