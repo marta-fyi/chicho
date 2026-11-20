@@ -6,7 +6,7 @@
    drawings after its first paint). Everything the family enters lives in
    localStorage, so it's already offline. Bump VERSION with every release
    so old caches go. */
-const VERSION = "chicho-v28";
+const VERSION = "chicho-v29";
 const SHELL = ["./", "index.html", "theme.js", "foods.js", "content.js", "sortconfig.js", "sortcore.js", "curatedSeeds.json", "onboarding.js", "sortfood.js", "mealtimes.js", "kitchen.js", "home.js", "img/grain.png", "img/chicho.png", "fonts/Satoshi-Variable.woff2", "bg.jpg", "manifest.webmanifest", "favicon.png", "icon-192.png", "icon-512.png", "phone.html", "frame.js", "frame.css"];
 
 self.addEventListener("install", e=>{

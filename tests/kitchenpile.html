@@ -3,7 +3,7 @@
 <style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:24px}pre{white-space:pre-wrap}iframe{border:1px solid #ccc;vertical-align:top;margin-right:8px}</style></head>
 <body>
 <h1>Kitchen pile tests</h1>
-<p>"Already in the kitchen…", step 6 of the first run (seed 7): the staples as bubbles in their food group's glow colour (dairy as fats and
+<p>"Already in the kitchen", step 6 of the first run (seed 7): the staples as bubbles in their food group's glow colour (dairy as fats and
 dairy), all settling inside the zone at 375×667 and 390×844; a pop means it's at home (Plenty), with a 2-second Undo that puts the pantry
 back as it was, then a line whose words bring a bubble back; Next drops the rest and goes to the Reveal; after Love it, Buy has the planned
 staples that weren't popped and nothing the week doesn't use; Profile's form says Save and has Close. Every line should be PASS.</p>
@@ -38,7 +38,7 @@ const geometry = f => {
     const f = await frame(390, 844, `state.profile.onboardingStep = "athome"; save(); openOnboarding("athome")`);
     const w = f.contentWindow, d = f.contentDocument, E = x => w.eval(x), $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
     const bub = food => $(`.pile .sf-shape[data-id="${CSS.escape(food)}"]:not([data-popping])`), slot = () => $(".pop-slot").textContent.replace(/\s+/g, " ").trim();
-    ok("'Already in the kitchen…' · 'Pop what's at home. The rest goes on the list.' · Next only (no Skip)", $("#onbTitle").textContent === "Already in the kitchen…" && $(".al-line").textContent === "Pop what's at home. The rest goes on the list." && $("#onbFoot .btn-ink").textContent === "Next" && !$("#onbFoot .btn-text"));
+    ok("'Already in the kitchen' · 'Pop what's at home. The rest goes on the list.' · Next only (no Skip)", $("#onbTitle").textContent === "Already in the kitchen" && $(".al-line").textContent === "Pop what's at home. The rest goes on the list." && $("#onbFoot .btn-ink").textContent === "Next" && !$("#onbFoot .btn-text"));
     ok("text only: no drawings on the shapes", !$(".pile .food-art, .pile img, .pile svg"));
     ok("the shapes are Sort the food's: ink <button>s with eight radii", [...d.querySelectorAll(".pile .sf-shape")].every(b => b.tagName === "BUTTON" && /\//.test(b.style.borderRadius)) && getComputedStyle($(".pile .sf-shape")).backgroundColor === getComputedStyle(d.querySelector("#onbFoot .btn-ink")).backgroundColor);
     E("POP_UNDO_MS = 600");

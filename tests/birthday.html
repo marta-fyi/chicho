@@ -86,7 +86,7 @@ f.onload = async () => {
     at(18);
     d.querySelector(".bd-early-link").click(); await wait(50);
     const wk = d.querySelector(".bd-top .blank-input");
-    ok("'Born early?' opens 'Born ____ weeks early.' at the top, its field focused", !!wk && d.activeElement === wk && d.querySelector(".bd-top .bd-early").textContent.replace(/\s+/g, " ").trim() === "Born weeks early.");
+    ok("'Born early?' opens 'Born ____ weeks early.' in the corner, its field focused", !!wk && d.activeElement === wk && d.querySelector(".bd-top .bd-early").textContent.replace(/\s+/g, " ").trim() === "Born weeks early.");
     wk.value = "8"; wk.dispatchEvent(new w.Event("input", {bubbles: true})); await wait(50);
     ok("8 weeks early at 18 months: the plan uses 16, and says so", E("ageNow()") === 16 && tag() === "At 16 months, a seat at the family table." && d.querySelector(".bd-using").textContent === "We're using 16 months, counting from the due date.", [E("ageNow()"), tag()]);
     ok("…kept as bornEarlyWeeks", E("state.profile.bornEarlyWeeks") === 8);

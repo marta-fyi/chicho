@@ -54,7 +54,7 @@ const frame = (setup, now = "2026-10-22T09:15") => new Promise(res => {
     E("sortUI.place(SORT_CONFIG.bigFoods.filter(id => !state.profile.foodSort.placement[id]), 'untouched')"); await wait(50);
     next().click(); await wait(1400); path.push(step());
     ok("…Next goes to Meal times, six segments with the fourth on", step() === "mealtimes" && segs() === 6 && $$("#onbDots i")[3].classList.contains("on"));
-    ok("…'Lula usually eats around…', the name as its ink", $("#onbTitle").textContent === "Lula usually eats around…" && !!$("#onbTitle svg[data-ink]"));
+    ok("…'Lula usually eats around', the name as its ink", $("#onbTitle").textContent === "Lula usually eats around" && !!$("#onbTitle svg[data-ink]"));
     ok("…Back top-left, no Close, Next ready with no interaction", !back().hidden && d.getElementById("onbClose").hidden && next().getAttribute("aria-disabled") === "false" && next().textContent === "Next");
     ok("…markers start at the stage's defaults: breakfast, lunch, dinner at 10 months", $$(".mt-m").map(m => m.dataset.slot).join() === "breakfast,lunch,dinner" && E("mtIsDefault(10, mtCurrent(10, state.profile).slots, mtCurrent(10, state.profile).times)"));
     // Back: Meal times → Allergens, state intact

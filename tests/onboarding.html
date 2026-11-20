@@ -25,7 +25,7 @@ f.onload = async () => {
 
     // Draw: no welcome; the page opens on the sentence and its pad
     ok("a first run opens straight on Draw (no welcome)", step() === "draw" && !d.getElementById("onboarding").hidden && !d.querySelector(".wel-art, .wel-h"));
-    ok("'Pull up a chair for ____.' is the title, and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent.replace(/\s+/g, " ").trim() === "Pull up a chair for ." && d.activeElement === d.getElementById("onbTitle"), d.getElementById("onbTitle").textContent);
+    ok("'Pull up a chair for ____' is the title (no full stop), and it takes the focus (no keyboard on arrival)", d.getElementById("onbTitle").textContent.replace(/\s+/g, " ").trim() === "Pull up a chair for" && d.activeElement === d.getElementById("onbTitle"), d.getElementById("onbTitle").textContent);
     ok("…'Pull up a chair for' on one line (up to 40px, smaller where it wouldn't fit)", d.querySelector(".draw-lead").getClientRects().length === 1 && d.querySelector(".draw-lead").getBoundingClientRect().height < parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) * 1.5 && parseFloat(getComputedStyle(d.getElementById("onbTitle")).fontSize) <= 40);
     ok("no Back on Draw, no Close on a first run", d.getElementById("onbBack").hidden && d.getElementById("onbClose").hidden);
     ok("progress: six hairline segments, the first on; 'Step 1 of 6: Name' for screen readers", d.querySelectorAll("#onbDots i").length === 6 && d.querySelector("#onbDots i").classList.contains("on") && d.getElementById("onbProgress").textContent === "Step 1 of 6: Name");
@@ -79,7 +79,7 @@ f.onload = async () => {
 
     // birthday: three columns, nothing counts until each is touched
     ok("Enter continues to the birthday", step() === "birthday");
-    ok("'Lula showed up on…', the name as its ink (and its spelling for screen readers)", d.getElementById("onbTitle").textContent === "Lula showed up on…" && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
+    ok("'Lula showed up on', the name as its ink (and its spelling for screen readers)", d.getElementById("onbTitle").textContent === "Lula showed up on" && !!d.querySelector("#onbTitle svg[data-ink]"), d.getElementById("onbTitle").textContent);
     ok("progress: 'Step 2 of 6: Birthday'", d.getElementById("onbProgress").textContent === "Step 2 of 6: Birthday");
     await wait(300);
     const cols = () => [...d.querySelectorAll(".bd-col")], col = k => d.querySelector(`.bd-col[data-key="${k}"]`);
@@ -93,7 +93,8 @@ f.onload = async () => {
     ok("all three: 14 December 2025, saved", E("state.profile.birthDate") === "2025-12-14" && next().getAttribute("aria-disabled") === "false" && d.querySelector(".bd-msg").textContent === "", E("state.profile.birthDate"));
     ok("the stage, with the age: 'At 10 months, fingers first.' · '3 meals · lumpy mash and finger foods'",
        d.querySelector(".bd-tag").textContent === "At 10 months, fingers first." && d.querySelector(".bd-line").textContent === "3 meals · lumpy mash and finger foods", d.querySelector(".bd-tag").textContent);
-    ok("'Born early?' sits small at the top, under the sentence; no 'Type the date'", d.querySelector(".bd-top .bd-early-link").textContent === "Born early?" && d.querySelector(".bd-top").compareDocumentPosition(d.querySelector(".bd")) === 4 && !d.querySelector(".bd-type"));
+    { const l = d.querySelector(".bd-top .bd-early-link"), lr = l.getBoundingClientRect(), cr = d.getElementById("onbCard").getBoundingClientRect(), fr = d.getElementById("onbFoot").getBoundingClientRect();
+      ok("'Born early?' sits small in the bottom-left corner, above Next, not in caps; no 'Type the date'", l.textContent === "Born early?" && w.getComputedStyle(l).textTransform === "none" && Math.abs(lr.left - cr.left) < 24 && lr.bottom <= fr.top + 1 && fr.top - lr.bottom < 80 && d.querySelector(".bd-top").compareDocumentPosition(d.querySelector(".bd")) === 2 && !d.querySelector(".bd-type"), [lr.left, cr.left, lr.bottom, fr.top]); }
     key("year", "ArrowUp");
     ok("a future date: 'That day hasn't happened yet.', no Next", d.querySelector(".bd-msg").textContent === "That day hasn't happened yet." && next().getAttribute("aria-disabled") === "true");
     key("day", "End"); key("month", "Home"); key("month", "ArrowUp");
@@ -123,7 +124,7 @@ f.onload = async () => {
     ok("…Back is there, and Next is ready with the usual untouched", !d.getElementById("onbBack").hidden && next().getAttribute("aria-disabled") === "false");
     next().click(); await wait(600);
     ok("…Next with the usual untouched is an answer: 'default'", E("state.profile.mealTimesSource") === "default", E("state.profile.mealTimesSource"));
-    ok("then the kitchen: 'Already in the kitchen…', the fifth segment on, Next only (no Skip)", step() === "athome" && d.getElementById("onbTitle").textContent === "Already in the kitchen…" && d.querySelectorAll("#onbDots i")[4].classList.contains("on") && next().textContent === "Next" && !d.querySelector("#onbFoot .btn-text"));
+    ok("then the kitchen: 'Already in the kitchen', the fifth segment on, Next only (no Skip)", step() === "athome" && d.getElementById("onbTitle").textContent === "Already in the kitchen" && d.querySelectorAll("#onbDots i")[4].classList.contains("on") && next().textContent === "Next" && !d.querySelector("#onbFoot .btn-text"));
     await wait(1800);
     next().click(); await wait(1400);
     ok("…then the week; six segments, the last on", step() === "reveal" && d.querySelectorAll("#onbDots i").length === 6 && d.querySelectorAll("#onbDots i")[5].classList.contains("on"));

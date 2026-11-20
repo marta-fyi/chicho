@@ -4,7 +4,7 @@
 <body>
 <h1>Meal times tests</h1>
 <p>The day axis (mealtimes.js), in its onboarding form: resolve, snap, the rubber band and typed times as pure functions, then the
-screen driven by pointer: drag and push, the strip, typing (the keyboard rule), snacks, "Use the usual" and its undo, the sun, and the
+screen driven by pointer: drag and push, the strip, typing (the keyboard rule), snacks, the sun, and the
 layout minimums at 375×667 and 390×844. Every line should be PASS.</p>
 <pre id="o">running…</pre>
 <script>
@@ -48,7 +48,7 @@ const frame = (W, H, months = 18) => new Promise(res => {
     const axis = () => $(".mt-axis");
     const ptr = (type, x, y, id = 5) => axis().dispatchEvent(new w.PointerEvent(type, {bubbles: true, cancelable: true, pointerId: id, pointerType: "touch", isPrimary: true, clientX: x, clientY: y}));
     const drag = async (slot, dy, hold) => { const [x, y] = mid(slot); ptr("pointerdown", x, y); for (let k = 1; k <= 8; k++) ptr("pointermove", x, y + dy * k / 8); if (!hold) ptr("pointerup", x, y + dy); await wait(40); };
-    ok("'Lula usually eats around…', with the hint in the strip", $("#onbTitle").textContent === "Lula usually eats around…" && $(".mt-strip").textContent === "Drag each meal to where it usually lands.");
+    ok("'Lula usually eats around', with the hint in the strip", $("#onbTitle").textContent === "Lula usually eats around" && $(".mt-strip").textContent === "Drag each meal to where it usually lands.");
     ok("five markers at 18 months, in the day's order, at the stage's times", $$(".mt-m").map(m => m.dataset.slot).join() === "breakfast,snack1,lunch,snack2,dinner" && E("mtCurrent(18, state.profile).times.join()") === "480,630,750,960,1140");
     ok("text only: no icons, images or emoji on the screen", !d.querySelector("#onbCard svg:not([data-ink]), #onbCard img, #onbFoot svg, #onbFoot img") && !/\p{Extended_Pictographic}/u.test($("#onbCard").textContent + $("#onbFoot").textContent));
     ok("…ticks and hour labels (every three hours, the reader's clock), and a gap label between each pair", $$(".mt-tick").length === 16 && $$(".mt-hour").length === 6 && $$(".mt-gap").map(g => g.textContent).join() === "2 h 30,2 h,3 h 30,3 h", $$(".mt-gap").map(g => g.textContent));
@@ -112,18 +112,8 @@ const frame = (W, H, months = 18) => new Promise(res => {
     ok("…and 'Add a snack' appears (there's a slot free)", !!$(".mt-add") && $(".mt-add").textContent === "Add a snack");
     $(".mt-add").click();
     ok("'Add a snack' puts it back where there's room, selected", !!mark("snack1") && E("state.profile.mealSlots.snacks.length") === 2 && E("state.profile.mealTimesSel") === "snack1" && !$(".mt-add"));
+    ok("no 'Use the usual' (Marta, 18 Nov 2026): the foot is Next, and 'Add a snack' only while there's room", !$(".mt-usual") && ![...d.querySelectorAll("button")].some(b => /usual/i.test(b.textContent)));
 
-    // Use the usual
-    E("MT.undoMs = 400");
-    const theirs = JSON.stringify(E("state.profile.mealTimes")) + JSON.stringify(E("state.profile.mealSlots"));
-    $(".mt-usual").click();
-    ok("'Use the usual': back to the stage's, 'Back to the usual. Undo'", E("mtIsDefault(18, mtCurrent(18, state.profile).slots, mtCurrent(18, state.profile).times)") && $(".mt-strip").textContent.replace(/\s+/g, " ").trim() === "Back to the usual. Undo" && JSON.stringify(E("state.profile.mealTimes")) === "{}");
-    $(".mt-undo").click();
-    ok("…Undo brings theirs back, exactly", JSON.stringify(E("state.profile.mealTimes")) + JSON.stringify(E("state.profile.mealSlots")) === theirs, [theirs, E("state.profile.mealTimes")]);
-    $(".mt-usual").click(); await wait(600);
-    ok("…the undo line goes by itself", !$(".mt-undo") && $(".mt-strip").dataset.mode === "hint");
-    $(".mt-usual").click();
-    ok("'Use the usual' when it already is: nothing, no undo line", !$(".mt-undo") && $(".mt-strip").dataset.mode === "hint");
     f.remove();
 
     // the sun when untouched: lunch, in 10:00's colour
@@ -132,7 +122,7 @@ const frame = (W, H, months = 18) => new Promise(res => {
     ok("untouched: the sun waits by lunch, in the colour of 10:00", Math.abs(pl.getBoundingClientRect().top + pl.getBoundingClientRect().height / 2 - (lm.getBoundingClientRect().top + lm.getBoundingClientRect().height / 2)) < 3 && d.getElementById("onbGlow").dataset.sun === E("sunColor(600)"));
     ok("…and the per-step glow is the sun's here", d.getElementById("onbGlow").dataset.group === "sun");
     d.querySelector("#onbFoot .btn-ink").click(); await wait(300);
-    ok("leaving: the glow crossfades to the Reveal's cycle and goes back to its place", d.getElementById("onbGlow").dataset.group !== "sun" && pl.style.transform === "");
+    ok("leaving: the glow crossfades to the Reveal's colour and goes back to its place", d.getElementById("onbGlow").dataset.group !== "sun" && pl.style.transform === "");
     f.remove();
 
     // 3. the layout minimums: no scrolling, the day fits, an hour is enough to tell markers apart, tap targets 44px

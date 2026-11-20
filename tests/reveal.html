@@ -105,6 +105,12 @@ const lines = d => [...d.querySelectorAll(".wk-say .wk-st")].map(p => p.textCont
     ok("an older save: Love it keeps last week and today's, and adds tomorrow's", JSON.stringify(E("state.plans.map(p => p.startsOn)")) === '["2026-10-15","2026-10-22","2026-10-23"]' && E("state.profile.onboarded"), E("state.plans.map(p => p.startsOn)"));
     f.remove();
 
+    // one glow the whole way: no cycling through the groups while the statements go by (Marta, 18 Nov 2026)
+    f = await frame("2026-10-22T12:00"); d = f.contentDocument;
+    { const seen = new Set(); for (let k = 0; k < 12; k++) { if (f.contentWindow.eval("onb.step") === "reveal") seen.add(d.getElementById("onbGlow").dataset.group); await wait(300); }
+      ok("the glow holds Done's colour through the whole reveal (no cycling)", seen.size === 1 && seen.has("fat"), [...seen]); }
+    ok("'Do it again' is an outlined pill with no underline", getComputedStyle(d.querySelector("#onbFoot .wk-again")).textDecorationLine === "none");
+    f.remove();
     // reduced motion
     f = await frame("2026-10-22T12:00", {calm: true}); d = f.contentDocument; w = f.contentWindow; E = x => w.eval(x);
     await wait(450);

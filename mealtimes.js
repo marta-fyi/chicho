@@ -4,7 +4,7 @@
    it snaps to 15 minutes, pushes its neighbours along to keep an hour between meals, and gives like a rubber band
    past either end of the day. Or tap it and type a time. Markers never pass each other. The glow is the sun: it
    follows the marker in hand, in the colour of its hour. Text only: no icons, no cards, no hover. */
-const MT = {from:6 * 60, to:21 * 60, snap:15, gap:60, rubber:.3, maxRubber:40, hit:44, pad:14, minHourPx:22, undoMs:5000};
+const MT = {from:6 * 60, to:21 * 60, snap:15, gap:60, rubber:.3, maxRubber:40, hit:44, pad:14, minHourPx:22};
 const mtSnap = (min, step)=>Math.round(min / (step || MT.snap)) * (step || MT.snap);
 const mtMin = hm=>{ const v = hhmm(hm); return v ? v[0] * 60 + v[1] : null; };
 const mtHM = min=>fmtHHMM([Math.floor(min / 60), min % 60]);
@@ -102,9 +102,9 @@ function mealTimesScreen(o){
   const cur = mtCurrent(months, P);
   let slots = cur.slots, times = cur.times;
   let sel = slots.includes(P.mealTimesSel) ? P.mealTimesSel : null;
-  let touched = !!sel, drag = null, typing = null, undo = null, undoT = 0, H = 0, frozen = false;
+  let touched = !!sel, drag = null, typing = null, H = 0, frozen = false;
   card.classList.add("fill", "mt-step");
-  // "{name} usually eats around…", the name as its ink (and its spelling for screen readers) or as text
+  // "{name} usually eats around", the name as its ink (and its spelling for screen readers) or as text
   const h = document.createElement("h1");
   h.className = "sent mt-sent"; h.id = "onbTitle"; h.tabIndex = -1;
   const [pre, post] = say("mealTimes.sentence").split("{name}");
@@ -189,15 +189,10 @@ function mealTimesScreen(o){
   const keep = ()=>{ mtKeep(months, P, slots, times); P.mealTimesSel = sel; save(); };
   const select = id=>{ sel = id; touched = true; P.mealTimesSel = sel; save(); paintStrip(); paint(); };
 
-  // the strip, under the sentence: the hint; the selected meal with its actions; the typed time; or the undo line
+  // the strip, under the sentence: the hint; the selected meal with its actions; or the typed time
   const paintStrip = ()=>{
     strip.innerHTML = "";
-    strip.dataset.mode = typing ? "typing" : undo ? "undo" : sel ? "selected" : "hint";
-    if(undo){
-      strip.append(Object.assign(document.createElement("span"), {className:"mt-say", textContent:say("mealTimes.usualDone")}), " ",
-                   textButton(say("mealTimes.undo"), ()=>{ const u = undo; clearUndo(); slots = u.slots; times = u.times; sel = u.sel; build(); keep(); paintStrip(); paint(); haptic(); }, "small inline mt-undo"));
-      return;
-    }
+    strip.dataset.mode = typing ? "typing" : sel ? "selected" : "hint";
     if(typing){ strip.appendChild(typing.el); if(typing.msg.textContent) strip.appendChild(typing.msg); return; }
     if(!sel){ strip.appendChild(Object.assign(document.createElement("p"), {className:"mt-hint", textContent:say("mealTimes.hint")})); return; }
     const k = slots.indexOf(sel);
@@ -205,12 +200,10 @@ function mealTimesScreen(o){
     strip.appendChild(textButton(say("mealTimes.type"), ()=>startTyping(sel), "small inline mt-type"));
     if(SNACK_IDS.includes(sel)) strip.appendChild(textButton(say("mealTimes.remove"), ()=>removeSnack(sel), "small inline mt-remove"));
   };
-  const clearUndo = ()=>{ clearTimeout(undoT); undo = null; };
 
   // typing a time: the field sits in the strip, above the axis, so the keyboard never covers it; the keyboard only
   // opens from "Type a time" (inside the tap, as iOS needs), and the axis holds still while it's up
   const startTyping = id=>{
-    clearUndo();
     const k = slots.indexOf(id);
     const msg = Object.assign(document.createElement("p"), {className:"mt-msg"});
     msg.setAttribute("aria-live", "polite");
@@ -254,7 +247,6 @@ function mealTimesScreen(o){
   const removeSnack = id=>{
     const k = slots.indexOf(id);
     if(k < 0) return;
-    clearUndo();
     slots = slots.filter(s=>s!==id); times = times.filter((_, j)=>j!==k);
     sel = null;
     build(); keep(); paintStrip(); paint(); paintLinks(); haptic();
@@ -263,25 +255,11 @@ function mealTimesScreen(o){
     const id = mtFreeSnack(months, slots);
     const at = id && mtSnackTime(months, slots, times, id);
     if(!at) return;
-    clearUndo();
     slots = slots.slice(0, at.k).concat(id, slots.slice(at.k));
     times = times.slice(0, at.k).concat(at.min, times.slice(at.k));
     sel = id; touched = true;
     build(); keep(); paintStrip(); paint(); paintLinks(); haptic();
     if(!calm()) markEls[at.k].animate([{opacity:0, transform:`translateY(${(yOf(at.min) - 24).toFixed(1)}px)`}, {opacity:1, transform:`translateY(${yOf(at.min).toFixed(1)}px)`}], {duration:320, easing:"cubic-bezier(.32,1.25,.5,1)"});
-  };
-  // "Use the usual": back to the stage's, with five seconds to undo it (and nothing at all when it already is)
-  const useUsual = ()=>{
-    if(mtIsDefault(months, slots, times)) return;
-    clearUndo();
-    undo = {slots, times, sel};
-    const d = mtDefaults(months);
-    const same = slotSig(d.slots)===slotSig(slots);
-    slots = d.slots; times = d.times; sel = null;
-    if(!same) build();
-    keep();
-    paintStrip(); paint(); paintLinks(); haptic();
-    undoT = setTimeout(()=>{ undo = null; paintStrip(); }, MT.undoMs);
   };
 
   // the drag: the nearest marker to the finger (within 44px), 1:1, snapped live, pushing, rubber past the ends
@@ -297,7 +275,6 @@ function mealTimesScreen(o){
     if(k < 0) return;
     e.preventDefault();
     try{ axis.setPointerCapture(e.pointerId); }catch(_){}
-    clearUndo();
     drag = {id:e.pointerId, k, y0:y, start:times.slice(), t0:times[k], moved:false, rubber:0};
     sel = slots[k]; touched = true; paintStrip(); paint();
   });
@@ -327,10 +304,9 @@ function mealTimesScreen(o){
   axis.addEventListener("pointerup", drop);
   axis.addEventListener("pointercancel", drop);
 
-  // the foot: Next (or Save), then one row: "Add a snack" (while there's room) and "Use the usual"
+  // the foot: Next (or Save), then "Add a snack" (while there's room)
   const next = onbCta(card, say("onb.next"), ()=>{
     if(typing) typing.input.blur();
-    clearUndo();
     mtKeep(months, P, slots, times);
     P.mealTimesSource = mtIsDefault(months, slots, times) ? "default" : "custom";
     delete P.mealTimesSel;
@@ -345,7 +321,6 @@ function mealTimesScreen(o){
     links.innerHTML = "";
     const free = mtFreeSnack(months, slots);
     if(free && mtSnackTime(months, slots, times, free)) links.appendChild(textButton(say("mealTimes.addSnack"), addSnack, "small inline mt-add"));
-    links.appendChild(textButton(say("mealTimes.usual"), useUsual, "small inline mt-usual"));
   };
 
   build(); paintStrip(); paintLinks();

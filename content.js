@@ -238,11 +238,11 @@ const CONTENT = {
     /* the bubbles (Allergens and the Kitchen): a tap pops one; 2 s to undo; then a line of what's popped */
     pop:{aria:"{x}. Tap to pop.", undo:"Undo", back:"{x} is back", bringBack:"Bring back {x}",
          keptOut:"{x} kept out.", keptOutLine:"Kept out: {list}.", atHome:"{x} at home.", atHomeLine:"At home: {list}."},
-    draw:{sentence:"Pull up a chair for {blank}.", title:"Their name", hint:"Big letters. Wobbly is perfect.",
+    draw:{sentence:"Pull up a chair for {blank}", title:"Their name", hint:"Big letters. Wobbly is perfect.",
           erase:"Erase", done:"Done", typeInstead:"Type instead", pad:"Drawing pad for their name", drawn:"their name, as drawn"},
     spell:{sentence:"Spelled for the grown-ups: {blank}.", line:"So we can say hello properly."},
     birthday:{
-      sentence:"{name} showed up on…",
+      sentence:"{name} showed up on",
       day:"Day", month:"Month", year:"Year",
       dayLabel:"day", monthLabel:"month", yearLabel:"year",
       swipe:"Swipe each column.",
@@ -275,7 +275,7 @@ const CONTENT = {
       note:"Not medical advice. Your pediatrician has the final word on allergens."
     },
     priorities:{title:"This week, we care most about…", line:"Pick up to three.", cta:"Next"},
-    atHome:{title:"Already in the kitchen…", line:"Pop what's at home. The rest goes on the list."},
+    atHome:{title:"Already in the kitchen", line:"Pop what's at home. The rest goes on the list."},
     reveal:{tagline:"{tagline}.", without:"Without {list}.", more:"and {n} more", none:"Nothing off the list.",
             days:{one:"One meal a day, seven days.", other:"{count} meals a day, seven days."}},
     done:{title:"{name}'s week.", titleAfter:"'s week.", line:"Seven days. {tagline}.", today:"Starts today", tomorrow:"Starts tomorrow",
@@ -327,7 +327,7 @@ const CONTENT = {
      locked = the "always off the plate" line (the rules themselves live in LOCKED_RULES). */
   /* ---------- meal times on a day axis (onboarding and Profile share it: mealtimes.js) ---------- */
   mealTimes:{
-    sentence:"{name} usually eats around…",
+    sentence:"{name} usually eats around",
     they:"They",
     hint:"Drag each meal to where it usually lands.",
     selected:"{meal} around {time}",
@@ -339,9 +339,6 @@ const CONTENT = {
     moved:"Moved to {time}, to keep an hour between meals.",
     remove:"Remove",
     addSnack:"Add a snack",
-    usual:"Use the usual",
-    usualDone:"Back to the usual.",
-    undo:"Undo",
     gapH:"{h} h",
     gapHM:"{h} h {m}"
   },

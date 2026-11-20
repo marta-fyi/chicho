@@ -13,8 +13,9 @@ const ONB_STEPS = ["draw","spell","birthday","keepout","mealtimes","athome","rev
 const ONB_STEPS_V2 = ["welcome","name","birthday","keepout","priorities","athome","mealtimes","reveal"];
 /* the six progress segments: Draw and Spell are both Name; Reveal and Done are both Week */
 const ONB_SEGMENT = {draw:0, spell:0, birthday:1, keepout:2, mealtimes:3, athome:4, reveal:5, done:5};
-/* the glow behind each step (light theme): Reveal cycles through all five */
-const ONB_GLOW = {hello:"grain", draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", done:"fat"};
+/* the glow behind each step (light theme). Reveal holds Done's colour the whole way: no cycling while the statements
+   go by (Marta, 18 Nov 2026) */
+const ONB_GLOW = {hello:"grain", draw:"grain", spell:"grain", birthday:"fruit", keepout:"protein", reveal:"fat", done:"fat"};
 const STAPLES = [
   ["Oats","Oatmeal"],["Rice","Rice, soft-cooked"],["Pasta","Whole wheat pasta"],["Bread","Whole wheat toast"],
   ["Eggs","Egg, well cooked"],["Yogurt","Greek yogurt"],["Cheese","Cheese, grated"],["Lentils","Lentils"],
@@ -455,7 +456,7 @@ function onbSheet(o){
   return {el:s, body, close};
 }
 
-/* 1. Draw: "Pull up a chair for ____." The blank is the ink, live; the pad rises 400 ms later on a sheet.
+/* 1. Draw: "Pull up a chair for ____" (no full stop: alone under the blank it read as a stray dot). The blank is the ink, live; the pad rises 400 ms later on a sheet.
    The ink never leaves the device. "Type instead" asks for the name in the blank and skips Spell. */
 function onbDraw(card, P){
   if(onb.sub==="typed") return onbDrawTyped(card, P);
@@ -773,7 +774,8 @@ function onbBirthday(card, P){
     paintStage(date);
     next.ready(!!date);
   };
-  // "Born early?" sits small at the top, under the sentence; the stage block says the age and the stage
+  // "Born early?" sits small in the bottom-left corner, above Next, in sentence case (Marta, 18 Nov 2026); the stage
+  // block says the age and the stage
   const top = document.createElement("div");
   top.className = "bd-top";
   let topSig = null;
@@ -793,7 +795,7 @@ function onbBirthday(card, P){
       top.appendChild(p);
       if(P.bornEarlyWeeks && m!==null) top.appendChild(line(say("onb.birthday.using", {months:m}), "bd-using"));
       if(had){ const g = top.querySelector(".blank-input"); g.focus(); const n = g.value.length; g.setSelectionRange(n, n); }
-    }else top.appendChild(textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; topSig = null; check(); const f = top.querySelector(".blank-input"); if(f) f.focus(); }, "small bd-early-link"));
+    }else top.appendChild(textButton(say("onb.birthday.bornEarly"), ()=>{ onb.early = true; topSig = null; check(); const f = top.querySelector(".blank-input"); if(f) f.focus(); }, "small inline bd-early-link"));
   }
   function paintStage(date){
     const m = date ? correctedMonths(isoOf(date), P.bornEarlyWeeks) : null;
@@ -840,7 +842,7 @@ function onbBirthday(card, P){
     box.append(cols, labels);
   };
   columns();
-  card.append(top, box, msg, stage, live);
+  card.append(box, msg, stage, top, live);
   next = onbCta(card, say("onb.next"), ()=>{ if(next.getAttribute("aria-disabled")==="true") return; P.exploreEarly = false; save(); nextStep(); },
                 {ready:false, extra:[]});
   check();
@@ -1212,8 +1214,8 @@ function onbMealTimes(card, P){
 }
 
 /* 5–6. Reveal, then Done: one layout, built once. The reveal (about 3 s, the first pass only) draws it: three
-   statements one at a time, the hairlines growing, the days filling in row by row, the glow cycling through the
-   five food groups. Then the statements go and the header comes in over the same grid, with no layout shift.
+   statements one at a time, the hairlines growing, the days filling in row by row, over one still glow (Done's).
+   Then the statements go and the header comes in over the same grid, with no layout shift.
    Done is the week, organised: a sticky day bar, one section per day, "Again" and "Love it". Nothing is
    applied until "Love it". */
 const DAY_NUM = new Intl.DateTimeFormat(undefined, {day:"numeric"});
@@ -1381,12 +1383,12 @@ function playReveal(card, P, x){
   const rise = [{opacity:0, transform:"translateY(8px)"}, {opacity:1, transform:"none"}];
   const rows = x.list.querySelectorAll(".wk-dh, .wk-meal");
   const late = [x.h, x.support, x.cap, x.jump, x.foot];
-  let glowT = 0, done = false;
+  let done = false;
   const finish = skipped=>{
     if(done) return;
     done = true;
     anims.forEach(a=>{ try{ a.finish(); }catch(e){} });
-    clearInterval(glowT); clearTimeout(onb.revealTimer);
+    clearTimeout(onb.revealTimer);
     say_.remove(); skip.remove();
     x.foot.inert = false;
     onb.revealed = true; onb.revealPlayed = true;
@@ -1416,11 +1418,7 @@ function playReveal(card, P, x){
   rows.forEach((el, k)=>at(el, rise, 1200 + k * step, 400));
   // then the header over the same grid
   late.forEach((el, k)=>at(el, fade, 2900 + k * 40, 400));
-  // the glow through all five groups
-  const groups = ["grain", "vegetable", "fruit", "protein", "fat"];
-  let g = 0;
-  onbGlow(groups[g]);
-  glowT = setInterval(()=>{ g++; if(g < groups.length) onbGlow(groups[g]); else clearInterval(glowT); }, 600);
+  onbGlow(ONB_GLOW.reveal);
   onb.revealTimer = setTimeout(()=>finish(false), 3400);
 }
 /* under 6 months there's no week yet: one closing screen, then Home (only Home and Profile exist) */
